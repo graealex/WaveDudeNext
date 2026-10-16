@@ -347,6 +347,14 @@ public sealed class SceneOverlay : Panel
 	/// <summary>The centre of canvas pixel (x, y) in this element's coordinates at its current size.</summary>
 	private Point ToView(int x, int y) => ToView(x, y, RenderSize);
 
+	/// <summary>The picture's rectangle in this element's coordinates for an element of <paramref name="size"/>: the canvas at its uniform scale, centred (the element fills the cell, the picture is letterboxed in it).</summary>
+	private Rect PictureRect(Size size)
+	{
+		double scale = ScaleFor(size);
+		double width = CanvasWidth * scale, height = CanvasHeight * scale;
+		return new Rect((size.Width - width) / 2, (size.Height - height) / 2, width, height);
+	}
+
 	/// <summary>
 	/// Where the rotation handle of a composite source sits, for an element of <paramref name="size"/>: on the
 	/// array's row axis, turned by its angle (counter-clockwise on the screen), just beyond the first row's
@@ -434,12 +442,22 @@ public sealed class SceneOverlay : Panel
 	/// <inheritdoc/>
 	protected override Size ArrangeOverride(Size finalSize)
 	{
+		Rect picture = PictureRect(finalSize);
 		foreach (MarkerThumb thumb in Children)
 		{
 			(int x, int y) = PointOf(thumb);
 			Point centre = thumb.Role == MarkerRole.SourceAngle ? AnglePoint((Source)thumb.Item, finalSize) : ToView(x, y, finalSize);
 			Size size = thumb.DesiredSize;
-			thumb.Arrange(new Rect(centre.X - size.Width / 2, centre.Y - size.Height / 2, size.Width, size.Height));
+			var rect = new Rect(centre.X - size.Width / 2, centre.Y - size.Height / 2, size.Width, size.Height);
+			thumb.Arrange(rect);
+			if (thumb.Role == MarkerRole.SourceAngle)
+			{
+				// the rotation handle stays on the row axis, however far out; what falls outside the picture is clipped
+				// (2026-10-16, the user's rule: the lever bending to keep the handle inside made no sense). The other
+				// handles sit on clamped canvas positions and show whole at the edge
+				Rect visible = Rect.Intersect(picture, rect);
+				thumb.Clip = visible == rect ? null : new RectangleGeometry(new Rect(visible.X - rect.X, visible.Y - rect.Y, Math.Max(0, visible.Width), Math.Max(0, visible.Height)));
+			}
 		}
 		return finalSize;
 	}
@@ -453,6 +471,11 @@ public sealed class SceneOverlay : Panel
 			return;
 		}
 		object? selected = SelectedItem;
+		// lines and dots stay within the picture (2026-10-16, after a rotated array dragged to the border put its
+		// emitter dots over the menu bar): an emitter or a line end outside the canvas is clipped here, the handles
+		// are children and sit on clamped positions, and the labels below are kept inside by their placement. The
+		// picture's rectangle, not this element's: the element fills the cell and the picture is letterboxed in it
+		dc.PushClip(new RectangleGeometry(PictureRect(RenderSize)));
 		foreach (Probe probe in project.Probes)
 		{
 			if (probe.Kind != ProbeKind.Line)
@@ -487,6 +510,7 @@ public sealed class SceneOverlay : Panel
 				dc.DrawEllipse(dots, halo, ToView(element.X, element.Y), ElementDotRadius, ElementDotRadius);
 			}
 		}
+		dc.Pop();
 		foreach (MarkerThumb thumb in Children)
 		{
 			if (thumb.Role is MarkerRole.ProbeB or MarkerRole.SourceAngle)

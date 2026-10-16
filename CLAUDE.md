@@ -337,7 +337,9 @@ WPF shell as it stands:
   of an edited array). The author's format has no rotation; the importer leaves it 0. On the pictures a
   composite source carries a **rotation handle** (`MarkerThumb` role `SourceAngle`, id `SourceAngle:<name>`,
   the `AngleMarker` style: a bent arrow) on its row axis just beyond the first row (at least 28 px from the
-  centre), joined to the centre by a dotted lever line, both shown only while the source is selected (the
+  centre; **clipped to the picture** since 2026-10-16, so a wide array at the border does not put it over the other
+  picture or the menu: it stays on the row axis and what falls outside is cut, `thumb.Clip` set in the arrange
+  pass; a version that pulled it inside and bent the lever was rejected the same day as making no sense), joined to the centre by a dotted lever line, both shown only while the source is selected (the
   user's rule; collapsed, the handle is out of the Tab cycle until the source is selected through its
   handle or the tree): dragging turns the array to follow the mouse (whole
   degrees, Shift snaps to 15), the arrow keys turn it by a degree (ten with Shift), focusing it selects the
@@ -615,7 +617,12 @@ WPF shell as it stands:
   four crosshair ticks outside and a gap around the exact pixel; a line probe gets two handles and
   a dashed line, a composite source its emitter dots, every item its name). Every stroke, dot, line
   and label is drawn over a dark halo first (`HaloThickness`), so the handles read on any picture
-  and colour scheme (agreed 2026-10-09 after thin white rings vanished on the intensity picture).
+  and colour scheme (agreed 2026-10-09 after thin white rings vanished on the intensity picture). **What the
+  overlay draws itself is clipped to the picture** (2026-10-16, after a rotated array dragged to the top border
+  put its emitter dots over the menu bar): the dots, the line probes' lines and the rotation lever go through a
+  clip on `SceneOverlay.PictureRect`, the canvas at its uniform scale centred in the element, since the element
+  fills the cell and the picture is letterboxed in it; the handles sit on clamped positions and the labels are
+  kept inside by their placement, so neither needs it.
   Dragging writes `Source.X/Y`, `Probe.AX/AY/BX/BY` in canvas pixels; the arrow keys move the
   focused handle by one pixel (ten with Shift); grabbing or focusing a handle selects the item
   (`PreviewPane.SelectedItem` ↔ `MainWindow.SelectedItem` ↔ the Project tree, both ways); a left click on
