@@ -129,6 +129,25 @@ try {
 	Check "moving it back: stale, then re-run" ((WaitFor { (RunStatus) -like "*edited since*" } 3000) -and (WaitFor { (RunStatus) -like "Completed:*" -and (RunStatus) -notlike "*edited since*" } 20000 200)) (RunStatus)
 	Start-Sleep -Milliseconds 200
 	Check "the re-run reproduces the original frame (same picture)" ((FieldHash) -eq $stored) ("{0} vs {1}" -f (FieldHash).Substring(0, 8), $stored.Substring(0, 8))
+	# ------------------------------------------------------------ an edit during playback (2026-10-16)
+	# the whole run is stale, so playback stops at once where it is, the frame there is recomputed and the re-run
+	# follows with the position kept (before, every playback step restarted the scratch timer, behind which the
+	# automatic re-run waits, so the old frames played on until playback ended)
+	FocusOn "PreviewPlay"
+	Key $VK_L 150                                  # loop, so playback would not end by itself
+	Key $VK_SPACE 100
+	Check "playback runs (looping)" ((WaitFor { $p = Position; $p -gt 0 -and $p -lt 99 } 3000 20) -and (LoopOn)) (Frame)
+	FocusOn "Source:Source 1"
+	Key $VK_RIGHT 100
+	Check "an edit during playback marks the run stale" (WaitFor { (RunStatus) -like "*edited since*" } 3000) (RunStatus)
+	$halted = Position
+	Start-Sleep -Milliseconds 400
+	Check "and stops playback at once" ((Position) -eq $halted) ("{0} then {1}" -f $halted, (Position))
+	Check "the re-run completes with the position kept" ((WaitFor { (RunStatus) -like "Completed:*" -and (RunStatus) -notlike "*edited since*" } 20000 200) -and (Position) -eq $halted) ("{0}, {1}" -f (RunStatus), (Frame))
+	Key $VK_LEFT 100
+	Check "moving it back: stale, then re-run" ((WaitFor { (RunStatus) -like "*edited since*" } 3000) -and (WaitFor { (RunStatus) -like "Completed:*" -and (RunStatus) -notlike "*edited since*" } 20000 200)) (RunStatus)
+	Key $VK_L 150                                  # loop off again
+	Check "loop off" (WaitFor { -not (LoopOn) } 1000)
 	FocusOn "PreviewPlay"
 	Key $VK_SPACE 100
 	$moving = WaitFor { $p = Position; $p -gt 0 -and $p -lt 99 } 3000 20
@@ -190,7 +209,17 @@ try {
 	Check "and a fresh automatic run starts after the quiet period" (WaitFor { (RunStatus) -like "Running:*" } 6000 100) (RunStatus)
 	Check "the position is still frame 30" ((Position) -eq 30) (Frame)
 	Key $VK_ESCAPE 150
-	Key $VK_LEFT 50; Key $VK_LEFT 150
+	# ------------------------------------------------------------ an edit during a run the user started stops it too (2026-10-16)
+	Check "Esc stops the automatic run" (WaitFor { (RunStatus) -like "Stopped:*" } 3000 50) (RunStatus)
+	FocusOn "PreviewPlay"
+	Key $VK_F5 100
+	Check "F5 starts a run" (WaitFor { (RunStatus) -like "Running:*" } 6000 100) (RunStatus)
+	FocusOn "Source:Source 1"
+	Key $VK_RIGHT 100
+	Check "an edit stops the run the user started at once" (WaitFor { (RunStatus) -like "Stopped:*" } 3000 50) (RunStatus)
+	Check "and the automatic re-run follows after the quiet period" (WaitFor { (RunStatus) -like "Running:*" } 6000 100) (RunStatus)
+	Key $VK_ESCAPE 150
+	Key $VK_LEFT 50; Key $VK_LEFT 50; Key $VK_LEFT 150
 	Key $VK_ESCAPE 100
 	Check "the app never took the foreground" ((Foreground) -ne "APP") (Foreground)
 }

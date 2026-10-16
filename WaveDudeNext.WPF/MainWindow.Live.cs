@@ -65,6 +65,10 @@ public partial class MainWindow
 	public static readonly DependencyProperty PreviewPositionProperty = DependencyProperty.Register(
 		nameof(PreviewPosition), typeof(int), typeof(MainWindow), new PropertyMetadata(0, (d, _) => ((MainWindow)d).OnPreviewPositionChanged()));
 
+	/// <summary>Identifies the <see cref="IsPreviewPlaying"/> property.</summary>
+	public static readonly DependencyProperty IsPreviewPlayingProperty = DependencyProperty.Register(
+		nameof(IsPreviewPlaying), typeof(bool), typeof(MainWindow), new PropertyMetadata(false, (d, _) => ((MainWindow)d).OnPreviewPlayingChanged()));
+
 	private ProjectWatcher? _watcher;
 	private ScratchRunner? _scratch;
 	private SimulationRun? _pausedForScratch;
@@ -118,6 +122,13 @@ public partial class MainWindow
 	{
 		get => (int)GetValue(PreviewPositionProperty);
 		set => SetValue(PreviewPositionProperty, value);
+	}
+
+	/// <summary>Whether the preview is playing, bound from the pane: no scratch frame is requested while it is (see <see cref="ScheduleScratch"/>).</summary>
+	public bool IsPreviewPlaying
+	{
+		get => (bool)GetValue(IsPreviewPlayingProperty);
+		set => SetValue(IsPreviewPlayingProperty, value);
 	}
 
 	/// <summary>A new project: watch it instead of the old one; nothing is stale and no scratch frame applies.</summary>
@@ -187,10 +198,19 @@ public partial class MainWindow
 		{
 			IsRunStale = true;
 		}
-		if (Run is { IsAutomatic: true, IsActive: true })
+		if (previewPane.IsPlaying)
 		{
-			// its snapshot is already obsolete: stop it now, the quiet period starts a fresh one
-			Logger.Debug("The automatic run is stopped: its snapshot is obsolete");
+			// the whole run is stale: playing its frames on, or computing more of them, serves nothing (the user's
+			// rule, 2026-10-16); stopped first, so the scratch frame below is for the position playback halted at
+			Logger.Debug("Playback stopped: the run is stale");
+			previewPane.IsPlaying = false;
+		}
+		if (Run is { IsActive: true })
+		{
+			// its snapshot is already obsolete: stop it now, the quiet period starts a fresh one. Any run, since
+			// 2026-10-16 (the user's rule: an edit makes the whole run moot, whoever started it); before, a run the
+			// user had started went on and was only marked stale
+			Logger.Debug("The {Kind} is stopped: its snapshot is obsolete", Run.IsAutomatic ? "automatic run" : "run");
 			Run.Stop();
 		}
 		ScheduleScratch();
@@ -236,9 +256,30 @@ public partial class MainWindow
 		}
 	}
 
-	/// <summary>After <see cref="ScratchDelay"/> of quiet, asks for the frame at the preview's position.</summary>
+	/// <summary>Playback stopped at a position the store cannot show: now the frame for it is asked for.</summary>
+	private void OnPreviewPlayingChanged()
+	{
+		if (!IsPreviewPlaying && NeedsScratch)
+		{
+			ScheduleScratch();
+		}
+	}
+
+	/// <summary>
+	/// After <see cref="ScratchDelay"/> of quiet, asks for the frame at the preview's position. Not while the preview
+	/// plays (2026-10-16, after an edit during playback kept playing the old frames until playback ended): a scratch
+	/// frame could never serve then, the position has moved on before it arrives, and every playback step restarted
+	/// this timer, so it never fired and the automatic re-run, which waits behind a pending scratch frame, never
+	/// started. A simulation edit stops playback at once (<see cref="OnProjectChanged"/>); what plays on is a run
+	/// that has not reached the position, and the frame for the final position is asked for when playback stops
+	/// (<see cref="OnPreviewPlayingChanged"/>).
+	/// </summary>
 	private void ScheduleScratch()
 	{
+		if (IsPreviewPlaying)
+		{
+			return;
+		}
 		_scratchTimer ??= MakeTimer(ScratchDelay, RequestScratch);
 		_scratchTimer.Stop();
 		_scratchTimer.Start();

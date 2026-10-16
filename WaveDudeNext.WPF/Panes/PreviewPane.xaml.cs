@@ -620,6 +620,15 @@ public partial class PreviewPane : UserControl
 				break;
 			case nameof(SimulationRun.State):
 				UpdateFrames();
+				if (IsLive && Run?.IsFinished == true)
+				{
+					// the end: follow to the last frame whatever the presenter is doing (the busy gate above skips a
+					// follow while a picture is drawn and relies on the next heartbeat, and none comes after the end;
+					// the live follow stopped at 90 of 99 on a short run, 2026-10-16)
+					_following = true;
+					Position = NewestFrame;
+					_following = false;
+				}
 				UpdateSource();
 				if (Run?.IsFinished == true)
 				{

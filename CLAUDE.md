@@ -133,7 +133,11 @@ WPF shell as it stands:
   and curve pens (2.3 ms to 1.1 per draw); and **the shown position advances only while the presenter is free**
   (`FramePresenter.IsBusy`, in the playback tick and the live follow): the clock keeps counting, so time stays right,
   and the overlays and the bar are redrawn once per picture that can be shown instead of sixty times a second for
-  pictures that never appear (this canvas presented 11 to 14 a second under the harness).
+  pictures that never appear (this canvas presented 11 to 14 a second under the harness). **The end of a run
+  follows to the last frame regardless** (2026-10-16, after the live follow stopped at 90 of 99 on a short run
+  and Live went off there): the run's final post sets the frame count and then the state, the frame count
+  handler skips the follow while a picture is drawn and counts on the next heartbeat, and none comes after the
+  end, so the state handler does that last follow itself before switching Live off.
   **The colouring, measured properly** (2026-10-16, later): `library_check -- bench-render [w h]` times the
   renderer alone, parallel and on one thread, scalar against vector, with the warm-up the "Bench numbers need
   the JIT warm" rule above demands (60 calls and a 300 ms pause; a first version with 20 calls reported 4.6 to
@@ -178,9 +182,10 @@ WPF shell as it stands:
   on), redoes the stored run after 1.5 s of quiet. An automatic run (`SimulationRun.IsAutomatic`)
   never moves the preview: the position stays (the reachable end of the axis stays the planned run
   while it fills, so nothing coerces it), Live is switched off whatever the button said, and the
-  scratch frame stays on screen until the store has that frame. An edit during an automatic run
-  stops it at once (its snapshot is obsolete) and the quiet period starts a fresh one; a run the
-  user started keeps going and is just marked stale. Discarding a run keeps the position too; a replaced project (New, Open, Import, Close) stops playback and
+  scratch frame stays on screen until the store has that frame. An edit during a run, **whoever started it**,
+  stops it at once (its snapshot is obsolete; the user's rule, 2026-10-16: an edit makes the whole run moot; until
+  then a run the user had started went on and was only marked stale) and the quiet period starts a fresh one,
+  automatic, with the position kept. Discarding a run keeps the position too; a replaced project (New, Open, Import, Close) stops playback and
   puts the timeline back to frame 0 (`PreviewPane.OnProjectReplaced`, the user's rule, 2026-10-15).
   **Play means "show me the simulation"**: Play/Space issues `SimulationCommands.EnsureRun`, which
   starts an automatic run when there is none or it is stale (position kept, Live off, playback not
@@ -212,7 +217,15 @@ WPF shell as it stands:
   as a replay from frame 0 (2026-10-10). That rule also holds without a run: the presenter is
   cleared only when both the run and the scratch frame are gone (the project replaced), not on
   every scrub step, which flashed the empty picture between frames (2026-10-13). A skipped scratch frame (predicted cost over
-  `ScratchRunner.Budget`, 6 s) is said in the status bar once per frame.
+  `ScratchRunner.Budget`, 6 s) is said in the status bar once per frame. **No scratch frame while the preview
+  plays** (2026-10-16, after an edit during playback of a finished run kept playing the old source until playback
+  ended): every playback step restarted the 120 ms scratch timer, so it never fired, and the automatic re-run,
+  which waits behind a pending scratch frame, never started. `ScheduleScratch` does nothing while
+  `MainWindow.IsPreviewPlaying` (bound from the pane's `IsPlaying`): a frame for a position playback has left
+  could never serve. **A simulation edit stops playback at once** (the user's rule: the whole run is stale, playing
+  its frames on or computing more of them serves nothing), so the edit is then handled as after a scrub: the frame
+  for the position playback halted at is recomputed and the re-run follows with the position kept; what may play on
+  is a run that has not reached the position, and the frame for the final position is requested when playback stops.
 - **Colour schemes and the scene image** (2026-10-13, decisions provisional, see the list at the end
   of this bullet): a `ColorScheme` is a list of `ColorStop`s, each a colour at a position 0..1
   (`Stops`; the table interpolates between neighbours and holds the end colours outside), observable
@@ -720,17 +733,19 @@ passing harnesses for comfort, never all of them after an edit.
 - `_tools/ui_check/PreviewCheck.ps1` drives the WPF preview pane end to end on the default project
   (43 checks: play/pause at the 60 fps clock, speed incl. locale spelling, timeline keys, frame
   steps, in/out/loop, split radios, splitter, tab order, focus hand-off, foreground untouched).
-  `_tools/ui_check/RunCheck.ps1` runs simulations (36 checks): `tiny.wdproj` (64×48, 200 steps) with
+  `_tools/ui_check/RunCheck.ps1` runs simulations (71 checks): `tiny.wdproj` (64×48, 200 steps) with
   F5 to completion, live follow, `,` detaching, the field picture differing between frames (MD5 of
   a `PrintWindow` crop), `F` re-attaching, playback of the stored frames, a second run, the source
   handle sitting at the source's canvas position on both pictures, staying there when the window
   is resized (`SetWindowPos` without activation; the handles once lagged a layout pass behind the
   labels, 2026-10-10) and moving with the arrow keys while the tree selection follows, a scratch frame replacing the black canvas after an edit with
   no run, and after the run: an edit marks it stale, the shown frame is recomputed from scratch,
-  the automatic re-run completes with the position kept and reproduces the original picture; then
+  the automatic re-run completes with the position kept and reproduces the original picture, and an edit during
+  looping playback stales the run, stops playback where it is and the re-run completes with that position kept
+  (2026-10-16); then
   `tiny_long.wdproj` (2 000 000 steps, a frame every 1000) for F6 pause/resume and a stop through the Run button turned Stop with the
   partial frames kept, then an edit starting an automatic re-run that leaves the position and Live
-  alone, and a second edit stopping it at once before a fresh one starts. Both dot-source `Common.ps1` (native helpers, lookups, `Start-App`/`Stop-App`,
+  alone, a second edit stopping it at once before a fresh one starts, and an edit during a run the user started (F5) stopping that one too, the automatic re-run following (2026-10-16). Both dot-source `Common.ps1` (native helpers, lookups, `Start-App`/`Stop-App`,
   `CanvasPoint` for the picture's uniform mapping, `TreeItemSelected`). The split orientation is a
   persisted user setting, so a harness must set the layout it expects instead of assuming it.
   `_tools/ui_check/LanguageCheck.ps1` (11 checks) drives View > Language by keyboard: F10 focuses the

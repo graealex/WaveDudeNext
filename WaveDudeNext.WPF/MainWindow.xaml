@@ -353,7 +353,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					<panes:PreviewPane x:Name="previewPane" Project="{Binding Project}" Run="{Binding Run}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
 					                   IsStale="{Binding IsRunStale}" IsProbesStale="{Binding IsProbesStale}" ScratchFrame="{Binding ScratchFrame}"
 					                   IsComputing="{Binding IsComputingFrame}"
-					                   Position="{Binding PreviewPosition, Mode=TwoWay}"
+					                   Position="{Binding PreviewPosition, Mode=TwoWay}" IsPlaying="{Binding IsPreviewPlaying, Mode=OneWayToSource}"
 					                   Orientation="{Binding Source={x:Static p:Settings.Default}, Path=PreviewOrientation, Mode=TwoWay}" />
 				</Border>
 			</docking:DockHost.DocumentContent>
