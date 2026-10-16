@@ -120,7 +120,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Colour schemes** are stop lists in `.wdscheme` XML, shipped ones embedded, user ones in
   `%LOCALAPPDATA%\WaveDudeNext\ColorSchemes`, project ones in the `.wdproj`; an in-house picker edits stops;
   renaming a project scheme repoints its layers. **The scene image** is embedded and follows its file on disk;
-  the "glowing edges" outline overlays the pictures. **Import** of Jeroen's `configuration.json` is key for key.
+  the "glowing edges" outline overlays the pictures. **Import** of Jeroen's `configuration.json` is key for key; a source whose position was
+  never picked (`has_position` false) stays enabled at its x/y, since his program simulated it there (Example 11's
+  lattice came in disabled and ran black until 2026-10-16).
   **Languages**: four string tables, live switch; converter output needs the language as an extra binding input.
 - **Export**: field, intensity or both, a still of the shown frame, from the current run when fresh and full,
   else a run is made first; PNG/JPEG sequences, MPEG-1, OpenDML AVI, H.264 MP4 via Media Foundation (the only

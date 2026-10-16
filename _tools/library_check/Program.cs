@@ -1452,6 +1452,13 @@ internal static class Program
 		Check(p.Probes[0] is { StartAfter: 600, Window: 3000, Layer: ProbeLayer.Intensity, Measurement: ProbeMeasurement.Value } && p.Probes[1] is { StartAfter: 600, Measurement: ProbeMeasurement.IntegratedValue, Kind: ProbeKind.Line }, "Example 3: start-after steps kept when their flag is on, intensity measurements");
 		Check(p.Sources[0] is { Array: null, DetachAfter: 670, PulseWidth: 70, OffWidth: 100, Frequency: 200 } && p.Simulation.TimeDecay == 8 && p.Display.Intensity.ColorScheme == "Copper", "a single detaching source (its unused array settings ignored), decay 8, Copper");
 		Check(p.Scene.Mode == SceneMode.Image && p.Scene.ImageData == null && notes.Count == 1, "image mode with the image missing: one note");
+		// Example 11's only source is a composite lattice whose position was never picked (has_position false) and
+		// which the author's program simulated at its default (100, 100) all the same: it must come in enabled, or
+		// the run is black (2026-10-16)
+		notes.Clear();
+		p = LegacyProject.Import(Path.Combine(root, "Wave_Dude_Examples", "Example11_Fluorescent_emitter", "configuration.json"), notes, out _);
+		Check(p.Sources.Count == 1 && p.Sources[0] is { Enabled: true, X: 100, Y: 100, Array: { SizeX: 41, SizeY: 21 } } && notes.Any(n => n.Contains("no picked position")),
+			"Example 11: the lattice without a picked position comes in enabled at (100, 100), noted");
 
 		bool refused = false;
 		string newer = Path.Combine(Path.GetTempPath(), "library_check-newer.json");

@@ -29,7 +29,7 @@ namespace WaveDudeNext.Model;
 /// <list type="bullet">
 /// <item><description>scene: mode, size, damping (enabled + size → <see cref="Scene.DampingEdge"/>, 0 when off), image sources, object sources, refractive index. A scene image given by a path relative to the folder is embedded when the file exists (<see cref="Scene.ImageData"/>), else the path is kept and noted.</description></item>
 /// <item><description>simulation: steps, interval, solver (4th-order Laplacian, wave speed, time decay, frequency scale, intensity scale); the preview/export flags, schemes, brightness and black levels go to <see cref="Display"/>, the video settings to <see cref="Video"/>. The GPU flag is ignored (an application setting here).</description></item>
-/// <item><description>object sources: one <see cref="Source"/> each; a composite one gets a <see cref="SourceArray"/>, with the random amounts only when the composite mode is "randomize" and the flag is on. The stored emitter elements are not read: they are regenerated from the project seed, so a randomised array differs from the original (noted). A source without a position, or switched off, is imported disabled.</description></item>
+/// <item><description>object sources: one <see cref="Source"/> each; a composite one gets a <see cref="SourceArray"/>, with the random amounts only when the composite mode is "randomize" and the flag is on. The stored emitter elements are not read: they are regenerated from the project seed, so a randomised array differs from the original (noted). A source switched off is imported disabled; one whose position was never picked (<c>has_position</c> false) stays enabled at its x/y, as his program ran it (noted).</description></item>
 /// <item><description>probes: one <see cref="Probe"/> each, named "Probe n"; "start after step" is 0 unless its flag is on; a scene-level <c>use_probes</c> of false deactivates them all.</description></item>
 /// </list>
 /// The project gets a fresh seed and the file's description. Thread-free; the caller owns the result.
@@ -176,12 +176,14 @@ public static class LegacyProject
 			}
 			source.X = Int(item, "x", 0);
 			source.Y = Int(item, "y", 0);
-			// a source the author never placed has no position to simulate at; it comes in switched off
-			bool hasPosition = Bool(item, "has_position", true);
-			source.Enabled = Bool(item, "source_on", true) && hasPosition;
-			if (!hasPosition)
+			// "has_position" only says whether the author picked the position; his program simulates a saved source
+			// at x/y either way (its default is 100, 100) and only leaves its marker undrawn, so the source stays on
+			// (2026-10-16, after Example 11's lattice, which has no picked position, came in disabled and the run was
+			// black; an earlier rule had switched such a source off)
+			source.Enabled = Bool(item, "source_on", true);
+			if (!Bool(item, "has_position", true))
 			{
-				notes?.Add($"Source '{source.Name}' had no position in the original project and is imported disabled.");
+				notes?.Add($"Source '{source.Name}' had no picked position in the original project; it ran at ({source.X}, {source.Y}) there and does here.");
 			}
 			source.DetachAfter = Bool(item, "detach_source", false) ? Int(item, "detach_after_steps", 1000) : Source.NeverDetach;
 			source.Frequency = Int(item, "frequency", Source.DefaultLevel);
