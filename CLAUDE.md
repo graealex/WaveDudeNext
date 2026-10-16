@@ -64,7 +64,15 @@ WPF shell as it stands:
   marquee while an export waits for its run or a scratch frame computes) is mirrored on the taskbar button
   through WPF's `TaskbarItemInfo` (`MainWindow.Taskbar.cs`, fed from `UpdateBusy`).
 - **Reduced preview** (2026-10-15, the user's design for weaker machines and a first step towards a browser
-  build; three View menu entries, persisted user settings, all default Full): View > Preview resolution
+  build; three View menu entries, persisted user settings; resolution and frames default Full, **samples default
+  8-bit since 2026-10-16**, the user's call after the colouring was measured: the index is the position in the
+  255-entry palette table that the 16-bit path computes anyway, so at the captured brightness both give the same
+  pixels, the store is half the size and the CPU's colouring halves (1.0 ms a 2880 x 1080 layer against 2.0, a table
+  lookup); what 16-bit keeps is the brightness turnable after the run without a re-run, which is why it stays in the
+  menu, and exports use a full run either way; a `user.config` from before keeps its 2; a Direct3D display path
+  was weighed the same day and **not built**: after the index mode it would only remove the bitmap copy and WPF's
+  upload, at the price of a Windows-only device pairing in the app, where today only Media Foundation and WIC are
+  Windows-bound): View > Preview resolution
   (Full/Half/Quarter, `PreviewResolution` 1/2/4: the canvas divisor), Preview frames (Full/Half/Quarter,
   `PreviewFrames` 1/2/4: only every n-th frame is stored) and Preview samples (16-bit float /
   8-bit palette index, `PreviewSampleBytes` 2/1); ids `MenuPreviewResolution<n>`, `MenuPreviewFrames<n>`,
@@ -762,7 +770,8 @@ passing harnesses for comfort, never all of them after an edit.
   (`{name}` = the suggested name) and `WAVEDUDE_DISCARD_EDITS=1` skips the save question on closing
   (`Start-App` sets it), because posted keys cannot drive a common dialog or a message box.
   `_tools/ui_check/PreviewQualityCheck.ps1` (2026-10-15, 34 checks, about 90 s) drives View > Preview
-  resolution / frames / samples by keyboard on `tiny.wdproj`: a full run (the log line says "100 of 100 frames
+  resolution / frames / samples by keyboard on `tiny.wdproj`: 16-bit samples chosen first (8-bit is the default
+  since 2026-10-16), then a full run (the log line says "100 of 100 frames
   stored as 64×48 (full)", frames 97, 98 and 99 all differ), then each choice marks the run stale and the
   automatic re-run follows: with every second frame stored the timeline still ends at 99 / step 198 and frame 99
   shows the same picture as 98 while 97 differs (the log's "50 of 100 frames stored"), at half resolution the

@@ -262,8 +262,15 @@ internal static class Program
 		}
 		int[] lut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == Display.DefaultFieldColorScheme)).Argb;
 		var pixels = new int[w * h];
+		// the 8-bit preview format: the index the GPU's capture_index kernel computed, the CPU only looks the colour up
+		var indices = new byte[w * h];
+		for (int i = 0; i < indices.Length; i++)
+		{
+			indices[i] = (byte)ColorLut.FieldIndex((float)field[i], 1f);
+		}
 		foreach ((string name, Action render) in new (string, Action)[]
 		{
+			("8-bit index", () => FrameRenderer.RenderIndexed(indices, w, h, lut, pixels)),
 			("intensity", () => FrameRenderer.RenderIntensity(intensity, w, h, lut, 1f, pixels)),
 			("field", () => FrameRenderer.RenderField(field, w, h, lut, 1f, pixels)),
 			("field, grey", () => FrameRenderer.RenderField(field, w, h, null, 1f, pixels)),
