@@ -22,13 +22,13 @@ using WaveDudeNext.Probes;
 
 namespace WaveDudeNext.Runs;
 
-/// <summary>The outcome of a scratch request: the frame and the probe recordings up to it, or why it was not computed.</summary>
+/// <summary>The outcome of a scratch request: the frame and the probe recordings up to it.</summary>
 /// <param name="Spec">The snapshot of the project the frame was computed for.</param>
 /// <param name="Frame">The frame index requested.</param>
-/// <param name="Snapshot">The frame, or null when it was skipped; owned by the runner and valid until the next outcome.</param>
-/// <param name="Estimate">How long the runner expected (or took) to compute it.</param>
-/// <param name="Traces">Per probe of <see cref="RunSpec.Probes"/>: the series up to the frame's step and, for a line probe, its one profile at the frame (index 0); empty when skipped or without probes. Owned by the result; read on the UI thread.</param>
-public sealed record ScratchResult(RunSpec Spec, int Frame, FrameSnapshot? Snapshot, TimeSpan Estimate, ProbeTrace[] Traces);
+/// <param name="Snapshot">The frame; owned by the runner and valid until the next outcome.</param>
+/// <param name="Elapsed">How long the runner took to compute it.</param>
+/// <param name="Traces">Per probe of <see cref="RunSpec.Probes"/>: the series up to the frame's step and, for a line probe, its one profile at the frame (index 0); empty without probes. Owned by the result; read on the UI thread.</param>
+public sealed record ScratchResult(RunSpec Spec, int Frame, FrameSnapshot Snapshot, TimeSpan Elapsed, ProbeTrace[] Traces);
 
 /// <summary>
 /// Computes single frames of the current project state on demand, without a store: after an edit the
@@ -38,8 +38,10 @@ public sealed record ScratchResult(RunSpec Spec, int Frame, FrameSnapshot? Snaps
 /// against the stepping). The engine is kept between requests (a GPU engine takes a few hundred
 /// milliseconds to build) and only reset, or given new emitters when just the sources changed; it is rebuilt
 /// when the scene or the solver options change. Only the newest request is served: a request arriving
-/// while one is computing abandons it. A request whose predicted cost (steps × the measured cost per step)
-/// exceeds <see cref="Budget"/> is skipped and reported, so a slow engine does not stall the UI.
+/// while one is computing abandons it. Every request is computed, however long it takes (2026-10-16, the user's
+/// rule; a budget that skipped frames predicted to take over six seconds, and a version that abandoned them while
+/// stepping, were both removed the same day: the note "not computed, would take too long" appeared on frames that
+/// would not have, and nobody had asked for it).
 /// </summary>
 /// <remarks>
 /// Threads: <see cref="Request"/> may be called from any thread; the work runs on one long-running task;
@@ -54,9 +56,6 @@ public sealed class ScratchRunner : IDisposable
 	/// <summary>How often the worker checks for a newer request, in steps.</summary>
 	private const int CheckInterval = 16;
 
-	/// <summary>Fewer steps than this say nothing reliable about the cost per step.</summary>
-	private const int MinStepsToMeasure = 50;
-
 	private readonly SynchronizationContext? _context;
 	private readonly SemaphoreSlim _signal = new(0);
 	private readonly CancellationTokenSource _cancel = new();
@@ -67,7 +66,6 @@ public sealed class ScratchRunner : IDisposable
 	private RunSpec? _engineSpec;
 	private FrameSnapshot?[] _snapshots = new FrameSnapshot?[2];
 	private int _nextSnapshot;
-	private double _msPerStep = double.NaN;
 	private int _busy;
 
 	/// <param name="context">Where <see cref="Completed"/> is raised; null raises it on the worker.</param>
@@ -77,16 +75,10 @@ public sealed class ScratchRunner : IDisposable
 		_worker = Task.Factory.StartNew(Loop, TaskCreationOptions.LongRunning);
 	}
 
-	/// <summary>Longest predicted compute time a request may have before it is skipped.</summary>
-	public TimeSpan Budget { get; set; } = TimeSpan.FromSeconds(6);
-
 	/// <summary>Whether a request is being computed.</summary>
 	public bool IsBusy => Volatile.Read(ref _busy) != 0;
 
-	/// <summary>Cost of one step of the current engine as last measured, or NaN before the first compute.</summary>
-	public double MillisecondsPerStep => Volatile.Read(ref _msPerStep);
-
-	/// <summary>A request finished: with a frame, or skipped (<see cref="ScratchResult.Snapshot"/> null).</summary>
+	/// <summary>A request finished with its frame.</summary>
 	public event EventHandler<ScratchResult>? Completed;
 
 	/// <summary>Asks for frame <paramref name="frame"/> of <paramref name="spec"/>; replaces any request not yet started or in progress.</summary>
@@ -180,14 +172,6 @@ public sealed class ScratchRunner : IDisposable
 	private void Compute(RunSpec spec, int frame, CancellationToken token)
 	{
 		int steps = frame * spec.VisualizeEvery + 1;
-		double msPerStep = Volatile.Read(ref _msPerStep);
-		var estimate = TimeSpan.FromMilliseconds(double.IsNaN(msPerStep) ? 0 : msPerStep * steps);
-		if (!double.IsNaN(msPerStep) && estimate > Budget)
-		{
-			Logger.Debug("Preview frame {Frame} skipped: {Steps} steps would take {Estimate:0.0} s", frame, steps, estimate.TotalSeconds);
-			Post(new ScratchResult(spec, frame, null, estimate, []));
-			return;
-		}
 		IWaveEngine engine = EngineFor(spec);
 		// the spec's probes, installed per request (Reset removes them; a fresh engine has none)
 		ProbeSampler? sampler = spec.Probes.Length > 0 ? ProbeSampler.Build(spec.Probes, spec.Width, spec.Height) : null;
@@ -221,13 +205,7 @@ public sealed class ScratchRunner : IDisposable
 			traces = collector.Traces;
 		}
 		clock.Stop();
-		// the stepping loop alone rules the next prediction (the capture is a fixed cost, and the GPU's first
-		// steps include its warm-up), and only when there were enough steps to measure
-		if (steps >= MinStepsToMeasure)
-		{
-			Volatile.Write(ref _msPerStep, stepping.TotalMilliseconds / steps);
-		}
-		Logger.Debug("Preview frame {Frame}: {Steps} steps in {Elapsed:0} ms on {Engine}", frame, steps, clock.Elapsed.TotalMilliseconds, engine.Description);
+		Logger.Debug("Preview frame {Frame}: {Steps} steps in {Elapsed:0} ms ({Stepping:0} ms stepping) on {Engine}", frame, steps, clock.Elapsed.TotalMilliseconds, stepping.TotalMilliseconds, engine.Description);
 		Post(new ScratchResult(spec, frame, snapshot, clock.Elapsed, traces));
 	}
 
@@ -249,7 +227,6 @@ public sealed class ScratchRunner : IDisposable
 		var clock = Stopwatch.StartNew();
 		_engine = WaveEngineFactory.Create(spec.BuildScene(), spec.Engine, spec.PreferGpu, spec.Emitters, out string note);
 		_engineSpec = spec;
-		_msPerStep = double.NaN;
 		Logger.Debug("Preview engine: {Engine} in {Elapsed:0} ms{Note}", _engine.Description, clock.ElapsedMilliseconds, note.Length > 0 ? " (" + note + ")" : "");
 		return _engine;
 	}

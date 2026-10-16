@@ -198,7 +198,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ExportStatusFormat">Exporteren: {0} / {1} beelden</s:String>
 	<s:String x:Key="ExportStatusWaiting">Export: wacht op de run</s:String>
 	<s:String x:Key="StatusComputingFormat">Beeld {0} wordt berekend</s:String>
-	<s:String x:Key="PreviewNotComputed">Niet berekend: dit beeld alleen zou te lang duren. Start de simulatie (F5) om het te krijgen.</s:String>
 	<s:String x:Key="TipExportCancel">Export annuleren (Esc)</s:String>
 	<s:String x:Key="Untitled">Naamloos</s:String>
 	<s:String x:Key="SaveChangesFormat">Wijzigingen in {0} opslaan?</s:String>

@@ -72,7 +72,6 @@ public partial class MainWindow
 	private ProjectWatcher? _watcher;
 	private ScratchRunner? _scratch;
 	private SimulationRun? _pausedForScratch;
-	private int _lastSkippedFrame = -1;
 	private DispatcherTimer? _scratchTimer;
 	private DispatcherTimer? _rerunTimer;
 	private (RunSpec Spec, int Frame)? _scratchRequested;
@@ -335,12 +334,6 @@ public partial class MainWindow
 			{
 				paused.Resume();
 			}
-		}
-		if (result.Snapshot == null && result.Frame != _lastSkippedFrame)
-		{
-			// the status bar says why nothing appears; once per frame, so scrubbing does not flood it
-			_lastSkippedFrame = result.Frame;
-			Logger.Info("Preview of frame {Frame} skipped: it would take {Seconds:0} s to compute; wait for the run, or use the GPU", result.Frame, result.Estimate.TotalSeconds);
 		}
 		ScratchFrame = result;
 	}

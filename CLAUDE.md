@@ -57,9 +57,10 @@ WPF shell as it stands:
   IsComputingFrame`, from the request to its result or a newer request's) and that has lasted longer than
   150 ms, each picture dims (black at 45 %) under a turning three-quarter ring (`PreviewPane.
   IsBusyOverlayVisible`, the `Spinner` style with a storyboard on `IsVisible`); the overlay goes the moment
-  the frame arrives, and shorter waits pass unmarked so a fast machine does not strobe. A frame that was
-  skipped (over the scratch budget) with no stored frame to stand in shows a note on the pictures instead
-  (`IsFrameSkipped`, `PreviewNotComputed`, id `PreviewNotComputed`), since no spinner would ever resolve it.
+  the frame arrives, and shorter waits pass unmarked so a fast machine does not strobe. Every requested frame is
+  computed, however long it takes (2026-10-16, the user's rule): the scratch budget that skipped frames predicted
+  to take over six seconds, its "Not computed: this frame would take too long" note on the pictures and its status
+  line were removed, since the note appeared on frames that would not have taken long and nobody had asked for it.
 - **Taskbar progress** (2026-10-14, the user's rule): the status bar's busy bar (an export's frames, or the
   marquee while an export waits for its run or a scratch frame computes) is mirrored on the taskbar button
   through WPF's `TaskbarItemInfo` (`MainWindow.Taskbar.cs`, fed from `UpdateBusy`).
@@ -216,8 +217,7 @@ WPF shell as it stands:
   stays. Showing the run's newest frame meanwhile was tried twice and rejected both times: it reads
   as a replay from frame 0 (2026-10-10). That rule also holds without a run: the presenter is
   cleared only when both the run and the scratch frame are gone (the project replaced), not on
-  every scrub step, which flashed the empty picture between frames (2026-10-13). A skipped scratch frame (predicted cost over
-  `ScratchRunner.Budget`, 6 s) is said in the status bar once per frame. **No scratch frame while the preview
+  every scrub step, which flashed the empty picture between frames (2026-10-13). **No scratch frame while the preview
   plays** (2026-10-16, after an edit during playback of a finished run kept playing the old source until playback
   ended): every playback step restarted the 120 ms scratch timer, so it never fired, and the automatic re-run,
   which waits behind a pending scratch frame, never started. `ScheduleScratch` does nothing while
@@ -990,9 +990,11 @@ FrameStore (temporary file in %LOCALAPPDATA%\WaveDudeNext\cache, DeleteOnClose, 
   frames at 1080p (the clock stays correct; only the newest request is rendered).
   **Scratch frames** (the live preview after an edit) cost steps × the pure step time plus one
   capture: frame 1249 of the default project (2499 steps, 4th order) measured **1.5 s** on the GPU
-  in the app; on the CPU 14 ms per 4th-order step (frame 150 in 4 s), so frames beyond ~200 are
-  skipped (`ScratchRunner.Budget` is 6 s, predicted from the stepping cost of the last request with
-  at least 50 steps; a request with no measurement yet always computes). Frames early in the run are proportionally cheaper (frame 0: 90 ms including
+  in the app; on the CPU 14 ms per 4th-order step (frame 150 in 4 s, frame 1999 of the ball lens 57 s on the
+  laptop's HD 520). **There is no budget**: every request is computed (2026-10-16, the user's rule; the six-second
+  budget with its predicted skips, and a version that abandoned a frame while stepping, both went the same day:
+  the skip note showed on frames that would not have taken long, and nobody had asked for either). A newer
+  request still replaces one in progress. Frames early in the run are proportionally cheaper (frame 0: 90 ms including
   the capture and the UI round trip).
 - Known limits:
   `OpenClApi` imports `"OpenCL"` (resolves to `OpenCL.dll` here, `libOpenCL.so` elsewhere); the library is

@@ -206,12 +206,6 @@ public partial class PreviewPane : UserControl
 	/// <summary>Identifies the <see cref="IsBusyOverlayVisible"/> property.</summary>
 	public static readonly DependencyProperty IsBusyOverlayVisibleProperty = IsBusyOverlayVisibleKey.DependencyProperty;
 
-	private static readonly DependencyPropertyKey IsFrameSkippedKey = DependencyProperty.RegisterReadOnly(
-		nameof(IsFrameSkipped), typeof(bool), typeof(PreviewPane), new PropertyMetadata(false));
-
-	/// <summary>Identifies the <see cref="IsFrameSkipped"/> property.</summary>
-	public static readonly DependencyProperty IsFrameSkippedProperty = IsFrameSkippedKey.DependencyProperty;
-
 	/// <summary>How long a frame may take before the pictures dim and the spinner shows; shorter waits pass unmarked, so a fast machine does not strobe.</summary>
 	private static readonly TimeSpan BusyOverlayDelay = TimeSpan.FromMilliseconds(150);
 
@@ -520,13 +514,6 @@ public partial class PreviewPane : UserControl
 		private set => SetValue(IsBusyOverlayVisibleKey, value);
 	}
 
-	/// <summary>Whether the frame at <see cref="Position"/> was not computed (its predicted cost exceeded the scratch budget) and nothing else can show it; a note says so on the pictures.</summary>
-	public bool IsFrameSkipped
-	{
-		get => (bool)GetValue(IsFrameSkippedProperty);
-		private set => SetValue(IsFrameSkippedKey, value);
-	}
-
 	/// <summary>Whether a probe was edited since the run started: its frames hold, its recordings do not. Bound to the main window.</summary>
 	public bool IsProbesStale
 	{
@@ -652,16 +639,13 @@ public partial class PreviewPane : UserControl
 	{
 		SimulationRun? run = Run;
 		ScratchResult? scratch = ScratchFrame;
-		bool storeHasFrame = run != null && !IsStale && run.FrameCount > Position;
-		// the position's frame was skipped (over the budget) and no stored frame stands in: the pictures say so
-		IsFrameSkipped = scratch is { Snapshot: null } && scratch.Frame == Position && !storeHasFrame;
-		bool useScratch = scratch is { Snapshot: not null } && scratch.Frame == Position
+		bool useScratch = scratch != null && scratch.Frame == Position
 			&& (run == null || IsStale || run.FrameCount <= Position);
 		if (useScratch)
 		{
 			if (_scratchSource == null || !ReferenceEquals(_scratchSource.Snapshot, scratch!.Snapshot))
 			{
-				_scratchSource = new SnapshotFrameSource(scratch!.Snapshot!);
+				_scratchSource = new SnapshotFrameSource(scratch!.Snapshot);
 			}
 			_presenter.Source = _scratchSource;
 			GraphScratch = scratch;

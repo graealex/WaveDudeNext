@@ -510,12 +510,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 											<Rectangle Fill="Black" Opacity="0.45" />
 											<Path Style="{StaticResource Spinner}" />
 										</Grid>
-										<!-- the frame was not computed (its predicted cost is over the scratch budget) and nothing stands in: say so -->
-										<Border IsHitTestVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#C0101216" CornerRadius="3" Padding="10,6"
-										        Visibility="{Binding IsFrameSkipped, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Converter={StaticResource BoolToVisibility}}">
-											<TextBlock Text="{DynamicResource PreviewNotComputed}" Foreground="White" TextWrapping="Wrap" MaxWidth="280" TextAlignment="Center"
-											           AutomationProperties.AutomationId="PreviewNotComputed" />
-										</Border>
 									</Grid>
 								</controls:PictureFrame>
 							</ControlTemplate>

@@ -198,7 +198,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ExportStatusFormat">Export : {0} / {1} images</s:String>
 	<s:String x:Key="ExportStatusWaiting">Export : en attente de l'exécution</s:String>
 	<s:String x:Key="StatusComputingFormat">Calcul de l'image {0}</s:String>
-	<s:String x:Key="PreviewNotComputed">Non calculée : cette image seule prendrait trop de temps. Lancez la simulation (F5) pour l'obtenir.</s:String>
 	<s:String x:Key="TipExportCancel">Annuler l'export (Échap)</s:String>
 	<s:String x:Key="Untitled">Sans titre</s:String>
 	<s:String x:Key="SaveChangesFormat">Enregistrer les modifications de {0} ?</s:String>

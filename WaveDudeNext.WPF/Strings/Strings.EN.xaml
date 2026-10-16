@@ -200,7 +200,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ExportStatusFormat">Exporting {0} / {1} frames</s:String>
 	<s:String x:Key="ExportStatusWaiting">Export: waiting for the run</s:String>
 	<s:String x:Key="StatusComputingFormat">Computing frame {0}</s:String>
-	<s:String x:Key="PreviewNotComputed">Not computed: this frame would take too long on its own. Run the simulation (F5) to get it.</s:String>
 	<s:String x:Key="TipExportCancel">Cancel the export (Esc)</s:String>
 	<s:String x:Key="Untitled">Untitled</s:String>
 	<s:String x:Key="SaveChangesFormat">Save the changes to {0}?</s:String>
