@@ -82,7 +82,6 @@ public partial class MainWindow : Window
 		}
 
 		SourceInitialized += (_, _) => ThemeController.Instance.ApplyTitleBar(this);
-		StartUiWatchdog();
 		// texts taken once at construction follow a language change here: the dock titles (plain properties) and the
 		// theme entries (converted headers); everything else is a DynamicResource (2026-10-14)
 		LanguageController.Instance.PropertyChanged += (_, args) =>
