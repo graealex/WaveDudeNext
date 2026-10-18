@@ -388,7 +388,8 @@ public sealed class ProbeGraphOverlay : Panel
 		double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
 		ProbeGraphStyle style = StyleFor(pixelsPerDip);
 		object? selected = SelectedItem;
-		foreach (Probe probe in project.Probes)
+		// the selected box last, so it lies over any box it overlaps (the user's rule, 2026-10-18)
+		foreach (Probe probe in project.Probes.OrderBy(probe => ReferenceEquals(probe, selected)))
 		{
 			if (!IsShown(probe))
 			{

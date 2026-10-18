@@ -340,6 +340,10 @@ public sealed class SceneOverlay : Panel
 		InvalidateVisual();
 	}
 
+	/// <summary>The items with the selected one last, so what is drawn for it lies over the others (the user's rule, 2026-10-18).</summary>
+	private static IEnumerable<T> SelectedLast<T>(IEnumerable<T> items, object? selected) where T : class =>
+		items.OrderBy(item => ReferenceEquals(item, selected));
+
 	private static void UpdateOpacity(MarkerThumb thumb) =>
 		thumb.Opacity = thumb.Item switch { Source { Enabled: false } => 0.45, Probe { Active: false } => 0.45, _ => 1.0 };
 
@@ -498,7 +502,7 @@ public sealed class SceneOverlay : Panel
 		// are children and sit on clamped positions, and the labels below are kept inside by their placement. The
 		// picture's rectangle, not this element's: the element fills the cell and the picture is letterboxed in it
 		dc.PushClip(new RectangleGeometry(PictureRect(RenderSize)));
-		foreach (Probe probe in project.Probes)
+		foreach (Probe probe in SelectedLast(project.Probes, selected))
 		{
 			if (probe.Kind != ProbeKind.Line || !Shows(probe))
 			{
@@ -511,7 +515,7 @@ public sealed class SceneOverlay : Panel
 			dc.DrawLine(new Pen(HaloBrush, isSelected ? 3.5 : 3.0), a, b);
 			dc.DrawLine(new Pen(isSelected ? AccentBrush : LineBrush, isSelected ? 1.5 : 1.0) { DashStyle = DashStyles.Dash }, a, b);
 		}
-		foreach (Source source in project.Sources)
+		foreach (Source source in SelectedLast(project.Sources, selected))
 		{
 			if (source.Array == null)
 			{
@@ -533,7 +537,7 @@ public sealed class SceneOverlay : Panel
 			}
 		}
 		dc.Pop();
-		foreach (MarkerThumb thumb in Children)
+		foreach (MarkerThumb thumb in Children.OfType<MarkerThumb>().OrderBy(thumb => thumb.IsSelectedMarker))
 		{
 			if (thumb.Role is MarkerRole.ProbeB or MarkerRole.SourceAngle)
 			{
