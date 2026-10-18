@@ -59,6 +59,10 @@ public sealed class SceneOverlay : Panel
 		nameof(SelectedItem), typeof(object), typeof(SceneOverlay),
 		new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, (d, _) => ((SceneOverlay)d).UpdateSelection()));
 
+	/// <summary>Identifies the <see cref="Layer"/> property.</summary>
+	public static readonly DependencyProperty LayerProperty = DependencyProperty.Register(
+		nameof(Layer), typeof(ProbeLayer?), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
+
 	/// <summary>Identifies the <see cref="SourceStyle"/> property.</summary>
 	public static readonly DependencyProperty SourceStyleProperty = DependencyProperty.Register(
 		nameof(SourceStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
@@ -135,6 +139,20 @@ public sealed class SceneOverlay : Panel
 		get => GetValue(SelectedItemProperty);
 		set => SetValue(SelectedItemProperty, value);
 	}
+
+	/// <summary>
+	/// The picture's layer: only the probes measuring it get handles and lines here (2026-10-18, the user's rule: a probe
+	/// on both pictures confused, above all in a single-picture view). Sources drive both layers and show on both.
+	/// Null shows every probe.
+	/// </summary>
+	public ProbeLayer? Layer
+	{
+		get => (ProbeLayer?)GetValue(LayerProperty);
+		set => SetValue(LayerProperty, value);
+	}
+
+	/// <summary>Whether <paramref name="probe"/> belongs on this picture (see <see cref="Layer"/>).</summary>
+	private bool Shows(Probe probe) => Layer is not { } layer || probe.Layer == layer;
 
 	/// <summary>Style of the source handles (a <see cref="MarkerThumb"/> style).</summary>
 	public Style? SourceStyle
@@ -229,6 +247,10 @@ public sealed class SceneOverlay : Panel
 		foreach (Probe probe in project.Probes)
 		{
 			Subscribe(probe);
+			if (!Shows(probe))
+			{
+				continue;
+			}
 			AddThumb(probe, MarkerRole.ProbeA, ProbeStyle, probe.Name, "Probe:" + probe.Name + ":A");
 			if (probe.Kind == ProbeKind.Line)
 			{
@@ -264,7 +286,7 @@ public sealed class SceneOverlay : Panel
 	{
 		switch (sender)
 		{
-			case Probe when e.PropertyName == nameof(Probe.Kind):
+			case Probe when e.PropertyName is nameof(Probe.Kind) or nameof(Probe.Layer):
 			case Source when e.PropertyName == nameof(Source.Array):
 				Rebuild();
 				return;
@@ -478,7 +500,7 @@ public sealed class SceneOverlay : Panel
 		dc.PushClip(new RectangleGeometry(PictureRect(RenderSize)));
 		foreach (Probe probe in project.Probes)
 		{
-			if (probe.Kind != ProbeKind.Line)
+			if (probe.Kind != ProbeKind.Line || !Shows(probe))
 			{
 				continue;
 			}

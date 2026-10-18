@@ -114,7 +114,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   until the run catches up. Live follows a running run until the user scrubs; it ends with a last follow to the
   final frame. A replaced project goes to frame 0; a discarded run keeps the position. In/out points are steps.
 - **Handles and overlays**: sources, probes, emitter dots and the rotation handle are drawn over the pictures in
-  canvas pixels, over a dark halo, clipped to the picture; arrows nudge, selection syncs with the tree, a click on
+  canvas pixels, over a dark halo, clipped to the picture; a probe's handles and line appear only on the picture of
+  the layer it measures (2026-10-18), sources on both; arrows nudge, selection syncs with the tree, a click on
   empty space deselects. Probe graph boxes follow their probe while attached, resize by a grip, keep their text
   size; an amplitude axis is symmetric about zero.
 - **Colour schemes** are stop lists in `.wdscheme` XML, shipped ones embedded, user ones in
