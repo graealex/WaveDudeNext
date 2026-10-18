@@ -359,7 +359,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Scene.Mode">Modus</s:String>
 	<s:String x:Key="Hint.Scene.Mode">Leeg canvas van de opgegeven grootte, of een canvas opgebouwd uit de scèneafbeelding.</s:String>
 	<s:String x:Key="Label.Scene.Image">Scèneafbeelding</s:String>
-	<s:String x:Key="Hint.Scene.Image">Afbeelding waaruit het canvas wordt opgebouwd: rood = brekingsindex, groen = bronnen, blauw = demping. De naam van de ingebedde afbeelding, of een pad relatief aan de projectmap.</s:String>
+	<s:String x:Key="Hint.Scene.Image">Afbeelding waaruit het canvas wordt opgebouwd: rood = brekingsindex (rood 0 = een spiegel), groen = bronnen, blauw = demping. De naam van de ingebedde afbeelding, of een pad relatief aan de projectmap.</s:String>
 	<s:String x:Key="Label.Scene.ImagePath">Afbeeldingsbestand</s:String>
 	<s:String x:Key="Hint.Scene.ImagePath">Herkomst van de ingebedde afbeelding. Het bestand wordt bewaakt zolang het project open is en opnieuw ingebed als het verandert; bij het openen van het project vervangt een gewijzigd bestand de ingebedde afbeelding ook.</s:String>
 	<s:String x:Key="Label.Scene.Width">Breedte</s:String>

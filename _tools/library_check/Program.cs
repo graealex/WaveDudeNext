@@ -212,6 +212,7 @@ internal static class Program
 		CheckCaptureResetEmitters(scene, W, H);
 		CheckDeterminism(scene);
 		CheckEmitterMapping();
+		CheckMirror(W, H);
 		CheckFrameStore(scene);
 		CheckPreviewQuality(scene, W, H);
 		CheckRenderer();
@@ -543,6 +544,57 @@ internal static class Program
 			Check(MaxDiff(at100, engine.Stride, W, H, a.Field) < tolerance, name + ": emitters restored, original field again");
 			(engine as IDisposable)?.Dispose();
 		}
+	}
+
+	/// <summary>Jeroen's V0.30 rule: a red value of 0 is a refractive index of 1000, a wall no wave gets through.</summary>
+	private static void CheckMirror(int W, int H)
+	{
+		Console.WriteLine("--- mirror pixels (red 0)");
+		(byte[] bgra, int stride) = ScenePixels(W, H);
+		for (int y = 0; y < H; y++)
+		{
+			bgra[y * stride + 32 * 4 + 2] = 0; // a one-pixel wall at x = 32
+		}
+		SceneData wall = SceneData.FromBgra(bgra, W, H, stride, false, 0);
+		SceneData open = SceneData.FromBgra(ScenePixels(W, H).Bgra, W, H, stride, false, 0);
+		Check(Math.Abs(wall.C2[32] - 1e-6f) < 1e-9f && Math.Abs(wall.C2[31] - 1f) < 1e-6f, "red 0 is a refractive index of 1000 (c\u00b2 = 1e-6), red 100 stays 1");
+		bgra[33 * 4 + 2] = 50; // red 50 at (33, 0): below 100 and not 0
+		Check(Math.Abs(SceneData.FromBgra(bgra, W, H, stride, false, 0).C2[33] - 1f) < 1e-6f, "red 1..99 is a refractive index of 1, as in Wave Dude 2D (the Python allowed 0.9)");
+		var emitters = new List<Emitter> { Make(16, 24, 120, 1.0) };
+		const int steps = 150;
+		float[] withWall = RunCpu(wall, emitters, steps);
+		float[] without = RunCpu(open, emitters, steps);
+		float leftWall = MaxAbsColumns(withWall, W, H, 0, 30);
+		float rightWall = MaxAbsColumns(withWall, W, H, 34, W - 1);
+		float rightOpen = MaxAbsColumns(without, W, H, 34, W - 1);
+		Check(rightOpen > 0.01f && leftWall > 0.01f && rightWall < rightOpen * 1e-2f, $"a wall of red 0 blocks the wave: max |u| right of it {rightWall} against {rightOpen} without the wall, left of it {leftWall}");
+		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(wall, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
+		if (gpu == null)
+		{
+			Console.WriteLine("  skip GPU: " + problems);
+			return;
+		}
+		using (gpu)
+		{
+			Run(gpu, steps);
+			float diff = MaxDiff(withWall, gpu.FieldData);
+			Check(diff < 1e-3f * Math.Max(1f, MaxAbs(withWall)), "GPU agrees on the wall scene (max diff " + diff + ")");
+		}
+	}
+
+	/// <summary>Max |u| over the canvas columns <paramref name="x0"/>..<paramref name="x1"/> of a padded field.</summary>
+	private static float MaxAbsColumns(float[] padded, int W, int H, int x0, int x1)
+	{
+		int stride = W + 2;
+		float max = 0f;
+		for (int y = 0; y < H; y++)
+		{
+			for (int x = x0; x <= x1; x++)
+			{
+				max = Math.Max(max, Math.Abs(padded[(y + 1) * stride + x + 1]));
+			}
+		}
+		return max;
 	}
 
 	private static float[] RunCpu(SceneData scene, List<Emitter> emitters, int steps)

@@ -91,7 +91,7 @@ public sealed class Scene : ObservableObject
 	[DefaultValue("")]
 	[Category("Canvas")]
 	[DisplayName("Scene image")]
-	[Description("Image the canvas is built from: red = refractive index, green = sources, blue = damping. The name of the embedded image, or a path relative to the project folder.")]
+	[Description("Image the canvas is built from: red = refractive index (red 0 = a mirror), green = sources, blue = damping. The name of the embedded image, or a path relative to the project folder.")]
 	public string Image
 	{
 		get => _image;

@@ -23,7 +23,9 @@ namespace WaveDudeNext.Engine;
 /// velocity: 1 = no damping, 0 = the wave is stopped) and the positions / levels of image-defined sources
 /// (the value of the green channel sets the frequency).
 /// The rules are those of the Python classes <c>StaticImageScene</c>, <c>StaticRefractiveIndex</c> and
-/// <c>StaticDampening</c>: red channel = refractive index * 100 (clamped to 0.9..10), green = every pixel
+/// <c>StaticDampening</c>: red channel = refractive index * 100 (clamped to 1..10 as in Wave Dude 2D, whose help says
+/// values below 100 are set to 100; the Python clamped at 0.9, 2026-10-18; red 0 is a mirror, see
+/// <see cref="MirrorRefractiveIndex"/>), green = every pixel
 /// above 0 is a sinusoidal source whose level is the green value, blue = damping strength (0 = none,
 /// 255 = full; stored as <c>D = 1 - blue / 255</c>), damping edge = a border of the given thickness with
 /// damping factor <c>sqrt(i / thickness)</c> at i pixels from the edge.
@@ -34,6 +36,13 @@ namespace WaveDudeNext.Engine;
 /// </summary>
 public sealed class SceneData
 {
+	/// <summary>
+	/// The refractive index of a scene pixel with a red value of 0: Jeroen's rule from Wave Dude 2D V0.30 (2026-10-18). Such a
+	/// pixel is a mirror, a wall no wave gets through (a source placed inside one crawls); a closed outline of them is a
+	/// cavity that keeps a wave for ever. Red values below 90 were never usable, so nothing else changes.
+	/// </summary>
+	public const double MirrorRefractiveIndex = 1000.0;
+
 	private SceneData(int w, int h, float[] c2, float[] d, int[] srcX, int[] srcY, byte[] srcLevel)
 	{
 		Width = w;
@@ -76,7 +85,7 @@ public sealed class SceneData
 				int blue = row[offset];
 				int green = row[offset + 1];
 				int red = row[offset + 2];
-				double refractiveIndex = Math.Clamp(red / 100.0, 0.9, 10.0);
+				double refractiveIndex = red == 0 ? MirrorRefractiveIndex : Math.Clamp(red / 100.0, 1.0, 10.0);
 				double speed = 1.0 / refractiveIndex;
 				int index = y * width + x;
 				c2[index] = (float)(speed * speed);
@@ -95,7 +104,7 @@ public sealed class SceneData
 
 	/// <summary>
 	/// Creates a uniform, user defined <paramref name="w"/> x <paramref name="h"/> scene without sources: the
-	/// speed is derived from <paramref name="refractiveIndex"/> (clamped to 0.9..10) and the damping
+	/// speed is derived from <paramref name="refractiveIndex"/> (clamped to 1..10) and the damping
 	/// factor is 1 (none) everywhere except in the <paramref name="dampingEdge"/> border.
 	/// </summary>
 	/// <param name="w">Canvas width in pixels.</param>
@@ -104,7 +113,7 @@ public sealed class SceneData
 	/// <param name="refractiveIndex">Background refractive index (1.0 by default, the same rule as a scene image's red channel: index = red / 100).</param>
 	public static SceneData Empty(int w, int h, int dampingEdge, double refractiveIndex = 1.0)
 	{
-		float speed = (float)(1.0 / Math.Clamp(refractiveIndex, 0.9, 10.0));
+		float speed = (float)(1.0 / Math.Clamp(refractiveIndex, 1.0, 10.0));
 		float[] c2 = new float[w * h];
 		float[] d = new float[w * h];
 		Array.Fill(c2, speed * speed);

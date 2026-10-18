@@ -361,7 +361,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Scene.Mode">Mode</s:String>
 	<s:String x:Key="Hint.Scene.Mode">Blank canvas of the given size, or a canvas built from the scene image.</s:String>
 	<s:String x:Key="Label.Scene.Image">Scene image</s:String>
-	<s:String x:Key="Hint.Scene.Image">Image the canvas is built from: red = refractive index, green = sources, blue = damping. The name of the embedded image, or a path relative to the project folder.</s:String>
+	<s:String x:Key="Hint.Scene.Image">Image the canvas is built from: red = refractive index (red 0 = a mirror), green = sources, blue = damping. The name of the embedded image, or a path relative to the project folder.</s:String>
 	<s:String x:Key="Label.Scene.ImagePath">Image file</s:String>
 	<s:String x:Key="Hint.Scene.ImagePath">Where the embedded image came from. It is watched while the project is open and re-embedded when it changes; on opening the project a changed file replaces the embedded image too.</s:String>
 	<s:String x:Key="Label.Scene.Width">Width</s:String>
