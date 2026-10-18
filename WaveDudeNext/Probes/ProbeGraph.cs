@@ -198,9 +198,10 @@ public static class ProbeGraph
 		: NominalBoxSize(probe.BoxSize);
 
 	/// <summary>
-	/// The graph box of a probe on a canvas: its size, shrunk (keeping the aspect ratio) so it fits into half
-	/// the canvas width and the full canvas height, placed at the probe's box position and clamped to stay
-	/// inside the canvas.
+	/// The graph box of a probe on a canvas: its size, shrunk (keeping the aspect ratio) only when it is wider
+	/// or taller than the canvas, placed at the probe's box position and clamped to stay inside the canvas. Until
+	/// 2026-10-18 a box was held to half the canvas width (Wave Dude 2D's rule for its fixed sizes), which cut a
+	/// custom size below the typed values without a word.
 	/// </summary>
 	/// <param name="probe">Provides the box size and the wanted position.</param>
 	/// <param name="w">Canvas width in pixels.</param>
@@ -210,9 +211,9 @@ public static class ProbeGraph
 	{
 		BoxSize nominal = BoxSizeOf(probe);
 		double scale = 1.0;
-		if (nominal.Width > w / 2.0)
+		if (nominal.Width > w)
 		{
-			scale = Math.Min(scale, w / 2.0 / nominal.Width);
+			scale = Math.Min(scale, (double)w / nominal.Width);
 		}
 		if (nominal.Height > h)
 		{

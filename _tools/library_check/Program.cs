@@ -1320,11 +1320,17 @@ internal static class Program
 		follower.AX = 75;
 		Check(follower.IsBoxAttached && follower.BoxX == 75 && follower.BoxY == 61, "a box put back on the probe is attached again");
 		Check(ProbeGraph.BoxInCanvas(probe, 1920, 1080) == new BoxRect(1520, 880, 400, 200), "box clamped into a full-HD canvas");
-		Check(ProbeGraph.BoxInCanvas(probe, 64, 48) == new BoxRect(32, 32, 32, 16), "box shrunk to half the width of a 64 x 48 canvas, aspect kept");
+		Check(ProbeGraph.BoxInCanvas(probe, 64, 48) == new BoxRect(0, 16, 64, 32), "box shrunk to the width of a 64 x 48 canvas, aspect kept");
 		probe.BoxSize = ProbeBoxSize.Custom;
 		probe.BoxWidth = 500;
 		probe.BoxHeight = 100;
 		Check(ProbeGraph.BoxSizeOf(probe) == new BoxSize(500, 100) && ProbeGraph.BoxInCanvas(probe, 1920, 1080) == new BoxRect(1420, 900, 500, 100), "custom box size used as it is");
+		probe.BoxWidth = 1200;
+		probe.BoxHeight = 300;
+		Check(ProbeGraph.BoxInCanvas(probe, 1920, 1080) == new BoxRect(720, 780, 1200, 300), "a custom box wider than half the canvas is drawn at its size (it was held to half the width until 2026-10-18)");
+		probe.BoxWidth = 3000;
+		probe.BoxHeight = 600;
+		Check(ProbeGraph.BoxInCanvas(probe, 1920, 1080) == new BoxRect(0, 696, 1920, 384), "a custom box wider than the canvas is shrunk to its width, aspect kept");
 		Check(ProbeGraph.Snap(405, 195) == (ProbeBoxSize.Medium, new BoxSize(400, 200)) && ProbeGraph.Snap(690, 360) == (ProbeBoxSize.ExtraLarge, new BoxSize(700, 350)), "a dragged size near a preset snaps to it");
 		Check(ProbeGraph.Snap(450, 230) == (ProbeBoxSize.Custom, new BoxSize(450, 230)) && ProbeGraph.Snap(10, 10) == (ProbeBoxSize.Custom, new BoxSize(60, 30)), "other sizes stay custom, clamped to the minimum");
 		Check(ProbeGraph.NiceTicks(-1, 1, 4).SequenceEqual([-1.0, -0.5, 0.0, 0.5, 1.0]) && ProbeGraph.NiceTicks(0, 2500, 5).SequenceEqual([0.0, 500.0, 1000.0, 1500.0, 2000.0, 2500.0]), "nice ticks at 1/2/5 steps, zero exact");

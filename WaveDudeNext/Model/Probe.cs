@@ -260,7 +260,7 @@ public sealed class Probe : ObservableObject
 	[DefaultValue(ProbeBoxSize.Medium)]
 	[Category("Graph")]
 	[DisplayName("Box size")]
-	[Description("Nominal size of the graph box drawn over the output.")]
+	[Description("Nominal size of the graph box drawn over the output; a box larger than the canvas is shrunk to fit it, aspect kept.")]
 	public ProbeBoxSize BoxSize
 	{
 		get => _boxSize;
@@ -296,7 +296,7 @@ public sealed class Probe : ObservableObject
 	[DefaultValue(DefaultBoxWidth)]
 	[Category("Graph")]
 	[DisplayName("Box width")]
-	[Description("Width of the graph box in canvas pixels; custom box size only.")]
+	[Description("Width of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.")]
 	public int BoxWidth
 	{
 		get => _boxWidth;
@@ -308,7 +308,7 @@ public sealed class Probe : ObservableObject
 	[DefaultValue(DefaultBoxHeight)]
 	[Category("Graph")]
 	[DisplayName("Box height")]
-	[Description("Height of the graph box in canvas pixels; custom box size only.")]
+	[Description("Height of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.")]
 	public int BoxHeight
 	{
 		get => _boxHeight;
