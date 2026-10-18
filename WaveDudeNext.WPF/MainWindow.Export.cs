@@ -24,6 +24,7 @@ using WaveDudeNext.Export;
 using WaveDudeNext.Model;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
+using WaveDudeNext.WPF.Dialogs;
 using WaveDudeNext.WPF.Properties;
 using WaveDudeNext.WPF.Rendering;
 
@@ -153,7 +154,7 @@ public partial class MainWindow
 		if (!ExportFormats.IsAvailable(format))
 		{
 			Logger.Error("MP4 export is not available: Media Foundation is missing on this computer (Windows N needs the Media Feature Pack)");
-			MessageBox.Show(this, (string)FindResource("ExportError"), (string)FindResource("Title"), MessageBoxButton.OK, MessageBoxImage.Error);
+			MessageWindow.Show(this, (string)FindResource("ExportError"), MessageKind.Error, MessageButtons.Ok);
 			return;
 		}
 		// the output paths: one per layer; "both" takes the chosen name without a layer suffix and appends its own
@@ -184,7 +185,7 @@ public partial class MainWindow
 			{
 				string folder = ExportFormats.SequenceFolder(path);
 				if (Directory.Exists(folder) && Directory.EnumerateFileSystemEntries(folder).Any()
-					&& MessageBox.Show(this, string.Format((string)FindResource("ExportFolderExistsFormat"), folder), (string)FindResource("Title"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+					&& MessageWindow.Show(this, string.Format((string)FindResource("ExportFolderExistsFormat"), folder), MessageKind.Question, MessageButtons.YesNo) != MessageAnswer.Yes)
 				{
 					Logger.Debug("Export cancelled: {Folder} kept", folder);
 					return;

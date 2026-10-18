@@ -237,7 +237,8 @@ function WaitFor([scriptblock]$condition, [int]$timeoutMs = 10000, [int]$pollMs 
 # is busy elsewhere this silently fails and the foreground stays theirs, which is just as good): every
 # check must then leave the app inactive.
 function Start-App([string]$Exe, [string]$ProjectFile = "") {
-	# an edited project asks "save?" on closing (2026-10-14); a harness cannot answer a message box by posted keys, so the app is told to discard
+	# an edited project asks "save?" on closing (2026-10-14) in the app's own message window (MessageWindow, 2026-10-18); the harnesses
+	# have no business there, so the app is told to discard
 	$env:WAVEDUDE_DISCARD_EDITS = "1"
 	if ($ProjectFile -ne "") { $script:p = Start-Process -FilePath $Exe -ArgumentList ('"' + $ProjectFile + '"') -PassThru }
 	else { $script:p = Start-Process -FilePath $Exe -PassThru }

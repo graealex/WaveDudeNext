@@ -201,6 +201,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipExportCancel">Annuler l'export (Échap)</s:String>
 	<s:String x:Key="Untitled">Sans titre</s:String>
 	<s:String x:Key="SaveChangesFormat">Enregistrer les modifications de {0} ?</s:String>
+	<!-- the buttons of the message window -->
+	<s:String x:Key="DialogOk">OK</s:String>
+	<s:String x:Key="DialogYes">_Oui</s:String>
+	<s:String x:Key="DialogNo">_Non</s:String>
+	<s:String x:Key="DialogSave">_Enregistrer</s:String>
+	<s:String x:Key="DialogDiscard">_Ne pas enregistrer</s:String>
+	<s:String x:Key="DialogCancel">_Annuler</s:String>
 	<s:String x:Key="NoSelection">Aucune sélection</s:String>
 
 	<s:String x:Key="TreeProject">Projet</s:String>

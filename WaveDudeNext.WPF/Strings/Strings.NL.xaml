@@ -201,6 +201,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipExportCancel">Export annuleren (Esc)</s:String>
 	<s:String x:Key="Untitled">Naamloos</s:String>
 	<s:String x:Key="SaveChangesFormat">Wijzigingen in {0} opslaan?</s:String>
+	<!-- the buttons of the message window -->
+	<s:String x:Key="DialogOk">OK</s:String>
+	<s:String x:Key="DialogYes">_Ja</s:String>
+	<s:String x:Key="DialogNo">_Nee</s:String>
+	<s:String x:Key="DialogSave">_Opslaan</s:String>
+	<s:String x:Key="DialogDiscard">_Niet opslaan</s:String>
+	<s:String x:Key="DialogCancel">_Annuleren</s:String>
 	<s:String x:Key="NoSelection">Geen selectie</s:String>
 
 	<s:String x:Key="TreeProject">Project</s:String>

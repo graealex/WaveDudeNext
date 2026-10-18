@@ -1,0 +1,49 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  Manuel (0x23, Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+
+
+<Window x:Class="WaveDudeNext.WPF.Dialogs.MessageWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource Title}" Icon="/App.ico"
+        Width="440" SizeToContent="Height" ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackground}" Foreground="{DynamicResource WindowForeground}"
+        AutomationProperties.AutomationId="MessageWindow">
+	<!-- the app's own message box: a disc with "!" or "?" in the theme's colours, the wrapped text, and the buttons
+	     the code-behind adds for the chosen set (Enter takes the default, Esc the cancel button, the underlined
+	     letters work without Alt); the native MessageBox was never themed -->
+	<Grid Margin="20,18,20,16">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+		</Grid.RowDefinitions>
+
+		<DockPanel Grid.Row="0">
+			<Grid Width="32" Height="32" Margin="0,0,16,0" VerticalAlignment="Top" DockPanel.Dock="Left">
+				<Ellipse x:Name="iconDisc" />
+				<TextBlock x:Name="iconGlyph" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+			</Grid>
+			<TextBlock x:Name="messageText" TextWrapping="Wrap" VerticalAlignment="Center" MinHeight="32"
+			           AutomationProperties.AutomationId="MessageText" />
+		</DockPanel>
+
+		<StackPanel x:Name="buttonRow" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0" />
+	</Grid>
+</Window>

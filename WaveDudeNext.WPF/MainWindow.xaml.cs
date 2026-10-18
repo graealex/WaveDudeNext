@@ -28,6 +28,7 @@ using NLog;
 using WaveDudeNext.Model;
 using WaveDudeNext.Runs;
 using WaveDudeNext.Rendering;
+using WaveDudeNext.WPF.Dialogs;
 using WaveDudeNext.WPF.Docking;
 using WaveDudeNext.WPF.Localization;
 using WaveDudeNext.WPF.Properties;
@@ -307,11 +308,11 @@ public partial class MainWindow : Window
 	}
 
 	private void ShowError(string message, Exception ex) =>
-		MessageBox.Show(this, $"{message}\n{ex.Message}", (string)FindResource("Title"), MessageBoxButton.OK, MessageBoxImage.Error);
+		MessageWindow.Show(this, $"{message}\n{ex.Message}", MessageKind.Error, MessageButtons.Ok);
 
 	/// <summary>
-	/// Asks whether to save an edited project before it is discarded: Yes saves (through Save As when it has
-	/// no file yet), No discards, Cancel keeps it. True when the caller may go on.
+	/// Asks whether to save an edited project before it is discarded: Save saves (through Save As when it has
+	/// no file yet), Don't save discards, Cancel keeps it. True when the caller may go on.
 	/// </summary>
 	private bool ConfirmDiscard()
 	{
@@ -326,12 +327,12 @@ public partial class MainWindow : Window
 			return true;
 		}
 		string name = Filename != null ? Path.GetFileName(Filename) : (string)FindResource("Untitled");
-		MessageBoxResult answer = MessageBox.Show(this, string.Format((string)FindResource("SaveChangesFormat"), name), (string)FindResource("Title"),
-			MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+		MessageAnswer answer = MessageWindow.Show(this, string.Format((string)FindResource("SaveChangesFormat"), name),
+			MessageKind.Question, MessageButtons.SaveDiscardCancel);
 		return answer switch
 		{
-			MessageBoxResult.Yes => SaveInteractively(),
-			MessageBoxResult.No => true,
+			MessageAnswer.Save => SaveInteractively(),
+			MessageAnswer.Discard => true,
 			_ => false,
 		};
 	}
