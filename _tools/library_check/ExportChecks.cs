@@ -19,6 +19,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Text;
 using WaveDudeNext.Export;
 using WaveDudeNext.Model;
@@ -250,6 +251,52 @@ internal static class ExportChecks
 				check(still.FrameCount == 1 && refused, "formats: a still takes one frame and refuses a second");
 			}
 			check(DecodePng(File.ReadAllBytes(stillPath), w, h)!.SequenceEqual(frames[4]), "formats: the still is the frame");
+			// OpenEXR (2026-10-18): the stored halves as a one-channel scanline file, parsed in-house and decoded by ffmpeg
+			var halves = new Half[w * h];
+			for (int i = 0; i < halves.Length; i++)
+			{
+				halves[i] = (Half)(Math.Sin(i * 0.013) * (i % 7 == 0 ? -1.5 : 0.8)); // negatives and a value beyond 1 included
+			}
+			using (IFrameSink exr = ExportFormats.Open(ExportFormat.Exr, Path.Combine(folder, "exr.exr"), w, h, 30, 70, 3))
+			{
+				bool pixelsRefused = false;
+				try
+				{
+					exr.Add(frames[0]);
+				}
+				catch (NotSupportedException)
+				{
+					pixelsRefused = true;
+				}
+				exr.Add(new Half[w * h]);
+				exr.Add(halves);
+				check(exr.WantsHalves && pixelsRefused && exr.FrameCount == 2 && !ExportFormats.Open(ExportFormat.Png, Path.Combine(folder, "p.png"), w, h, 30, 70, 1).WantsHalves,
+					"formats: the OpenEXR sink wants halves and refuses pixels; the PNG sink does not");
+			}
+			string exrFile = Path.Combine(folder, "exr", "exr_0001.exr");
+			string exrNote = "";
+			Half[]? back = File.Exists(exrFile) ? ReadExr(File.ReadAllBytes(exrFile), w, h, out exrNote) : null;
+			check(back != null && MemoryMarshal.AsBytes(back.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(halves.AsSpan())),
+				"formats: exr_0001.exr is a version 2 scanline file, channel Y half, uncompressed, with the halves bit for bit" + (back == null ? " (" + (File.Exists(exrFile) ? exrNote : "no file") + ")" : ""));
+			if (Ffmpeg != null)
+			{
+				// decoded to 16-bit grey, the one form every ffmpeg since 2018 gives for a one-channel EXR: value × 65536,
+				// clipped to 0..65535 (the negatives and the 1.5 land on the limits); so the values and their places are checked
+				ushort[]? decodedExr = DecodeGray16(exrFile, w, h);
+				bool same = decodedExr != null;
+				for (int i = 0; same && i < halves.Length; i++)
+				{
+					int expected = (int)Math.Clamp(Math.Round((float)halves[i] * 65536f), 0, 65535);
+					same = Math.Abs(decodedExr![i] - expected) <= 2;
+				}
+				check(same, "formats: ffmpeg decodes the OpenEXR file to the same values (16-bit grey, value × 65536, clipped)");
+			}
+			string exrStill = Path.Combine(folder, "still.exr");
+			using (IFrameSink still = ExportFormats.OpenStill(ExportFormat.Exr, exrStill, w, h, 70))
+			{
+				still.Add(halves);
+			}
+			check(ReadExr(File.ReadAllBytes(exrStill), w, h, out _) is { } stillBack && MemoryMarshal.AsBytes(stillBack.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(halves.AsSpan())), "formats: an OpenEXR still holds the frame");
 			bool videoRefused = false;
 			try
 			{
@@ -353,10 +400,14 @@ internal static class ExportChecks
 		var intensityLayer = new ExportLayer(FrameLayer.Intensity, null, 30f, null, 0, null);
 		string seqPath = Path.Combine(folder, "field.png");
 		string aviPath = Path.Combine(folder, "intensity.avi");
+		string exrPath = Path.Combine(folder, "data.exr");
 		var targets = new List<ExportTarget>
 		{
 			new(fieldLayer, ExportFormats.SequenceFolder(seqPath), () => ExportFormats.Open(ExportFormat.Png, seqPath, 64, 48, 30, 70, 6)),
 			new(intensityLayer, aviPath, () => ExportFormats.Open(ExportFormat.Avi, aviPath, 64, 48, 30, 70, 6)),
+			// a data target beside the pictures: the job hands it the stored halves, nothing rendered or decorated
+			new(new ExportLayer(FrameLayer.Field, lut, 30f, null, 0, (_, _) => throw new InvalidOperationException("a data target is never decorated")),
+				ExportFormats.SequenceFolder(exrPath), () => ExportFormats.Open(ExportFormat.Exr, exrPath, 64, 48, 30, 70, 6)),
 		};
 		var job = new ExportJob(store, 2, 7, targets, null);
 		var states = new List<ExportState>();
@@ -386,6 +437,10 @@ internal static class ExportChecks
 		check(first != null && first.SequenceEqual(expected), "job: field_0000.png is frame 2 as the renderer colours it, with the decoration");
 		AviWalk walk = WalkAvi(File.ReadAllBytes(aviPath));
 		check(walk.Frames == 6 && walk.TotalInDmlh == 6 && walk.EndsAtFileEnd, "job: the intensity AVI holds 6 frames");
+		string exrFirst = Path.Combine(folder, "data", "data_0000.exr");
+		Half[]? exrValues = File.Exists(exrFirst) ? ReadExr(File.ReadAllBytes(exrFirst), 64, 48, out _) : null;
+		check(Directory.GetFiles(Path.Combine(folder, "data")).Length == 6 && exrValues != null && MemoryMarshal.AsBytes(exrValues.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(values.AsSpan())),
+			"job: data_0000.exr holds frame 2's stored halves bit for bit, undecorated, beside the pictures");
 
 		// cancelled: a slow decoration lets the cancel land after the first frame
 		using var started = new ManualResetEventSlim();
@@ -739,6 +794,114 @@ internal static class ExportChecks
 		byte[] bytes = output.ToArray();
 		frames = bytes.Length / (w * h * 3);
 		return bytes;
+	}
+
+	/// <summary>Decodes a one-channel file with ffmpeg to 16-bit grey samples of w × h; null when ffmpeg failed or the size is off.</summary>
+	private static ushort[]? DecodeGray16(string path, int w, int h)
+	{
+		var info = new ProcessStartInfo(Ffmpeg!)
+		{
+			RedirectStandardOutput = true,
+			RedirectStandardError = true,
+			UseShellExecute = false,
+			CreateNoWindow = true,
+		};
+		foreach (string arg in new[] { "-v", "error", "-i", path, "-f", "rawvideo", "-pix_fmt", "gray16le", "-" })
+		{
+			info.ArgumentList.Add(arg);
+		}
+		using Process process = Process.Start(info)!;
+		using var output = new MemoryStream();
+		Task<string> errors = process.StandardError.ReadToEndAsync();
+		process.StandardOutput.BaseStream.CopyTo(output);
+		process.WaitForExit();
+		string error = errors.Result;
+		if (process.ExitCode != 0 || output.Length != (long)w * h * 2)
+		{
+			Console.WriteLine("  ffmpeg: exit " + process.ExitCode + ", " + output.Length + " bytes " + error.Trim());
+			return null;
+		}
+		byte[] bytes = output.ToArray();
+		var samples = new ushort[w * h];
+		for (int i = 0; i < samples.Length; i++)
+		{
+			samples[i] = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(i * 2));
+		}
+		return samples;
+	}
+
+	/// <summary>
+	/// Reads the OpenEXR files <see cref="ExrWriter"/> writes: magic, version 2 without flags, the attributes (channel
+	/// "Y" as HALF, no compression, the windows the frame), the offset table and one chunk per scanline. Null with a
+	/// note when anything is off.
+	/// </summary>
+	private static Half[]? ReadExr(byte[] file, int w, int h, out string note)
+	{
+		note = "";
+		if (file.Length < 8 || BinaryPrimitives.ReadInt32LittleEndian(file) != 20000630 || BinaryPrimitives.ReadInt32LittleEndian(file.AsSpan(4)) != 2)
+		{
+			note = "magic or version";
+			return null;
+		}
+		int at = 8;
+		bool channelOk = false, compressionOk = false, windowOk = false;
+		while (true)
+		{
+			int end = Array.IndexOf(file, (byte)0, at);
+			if (end == at)
+			{
+				at++;
+				break; // the header's terminating null
+			}
+			string name = Encoding.ASCII.GetString(file, at, end - at);
+			at = end + 1;
+			end = Array.IndexOf(file, (byte)0, at);
+			string type = Encoding.ASCII.GetString(file, at, end - at);
+			at = end + 1;
+			int size = BinaryPrimitives.ReadInt32LittleEndian(file.AsSpan(at));
+			at += 4;
+			ReadOnlySpan<byte> value = file.AsSpan(at, size);
+			at += size;
+			switch (name)
+			{
+				case "channels":
+					channelOk = type == "chlist" && value[0] == (byte)'Y' && value[1] == 0 && BinaryPrimitives.ReadInt32LittleEndian(value[2..]) == 1 && value[^1] == 0;
+					break;
+				case "compression":
+					compressionOk = type == "compression" && value[0] == 0;
+					break;
+				case "dataWindow":
+					windowOk = type == "box2i" && BinaryPrimitives.ReadInt32LittleEndian(value) == 0 && BinaryPrimitives.ReadInt32LittleEndian(value[4..]) == 0
+						&& BinaryPrimitives.ReadInt32LittleEndian(value[8..]) == w - 1 && BinaryPrimitives.ReadInt32LittleEndian(value[12..]) == h - 1;
+					break;
+			}
+		}
+		if (!channelOk || !compressionOk || !windowOk)
+		{
+			note = "header: channel " + channelOk + ", compression " + compressionOk + ", window " + windowOk;
+			return null;
+		}
+		var offsets = new long[h];
+		for (int y = 0; y < h; y++)
+		{
+			offsets[y] = (long)BinaryPrimitives.ReadUInt64LittleEndian(file.AsSpan(at));
+			at += 8;
+		}
+		var values = new Half[w * h];
+		for (int y = 0; y < h; y++)
+		{
+			int chunk = (int)offsets[y];
+			if (chunk + 8 + w * 2 > file.Length || BinaryPrimitives.ReadInt32LittleEndian(file.AsSpan(chunk)) != y || BinaryPrimitives.ReadInt32LittleEndian(file.AsSpan(chunk + 4)) != w * 2)
+			{
+				note = "chunk " + y;
+				return null;
+			}
+			for (int x = 0; x < w; x++)
+			{
+				values[y * w + x] = BinaryPrimitives.ReadHalfLittleEndian(file.AsSpan(chunk + 8 + x * 2));
+			}
+		}
+		return values;
 	}
 
 	/// <summary>For a failure message: the first pixel where RGB24 bytes differ from the frame, with both values.</summary>

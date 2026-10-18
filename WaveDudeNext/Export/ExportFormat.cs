@@ -24,6 +24,8 @@ public enum ExportFormat
 	Png,
 	/// <summary>A JPEG per frame in a folder of its own; the quality setting applies.</summary>
 	Jpeg,
+	/// <summary>An OpenEXR file per frame in a folder of its own: the stored 16-bit floats themselves, one channel, uncompressed; data, not a rendered picture (2026-10-18).</summary>
+	Exr,
 	/// <summary>An MPEG-1 program stream of I-pictures (<c>.mpg</c>); the quality setting and the nearest standard frame rate apply.</summary>
 	Mpeg1,
 	/// <summary>An uncompressed AVI with OpenDML indexes; lossless, large.</summary>
@@ -102,13 +104,14 @@ public static class ExportFormats
 	}
 
 	/// <summary>The formats in filter order.</summary>
-	public static readonly ExportFormat[] All = [ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Mpeg1, ExportFormat.Avi, ExportFormat.Mp4, ExportFormat.Mov];
+	public static readonly ExportFormat[] All = [ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Exr, ExportFormat.Mpeg1, ExportFormat.Avi, ExportFormat.Mp4, ExportFormat.Mov];
 
 	/// <summary>The file extension with its dot.</summary>
 	public static string Extension(ExportFormat format) => format switch
 	{
 		ExportFormat.Png => ".png",
 		ExportFormat.Jpeg => ".jpg",
+		ExportFormat.Exr => ".exr",
 		ExportFormat.Mpeg1 => ".mpg",
 		ExportFormat.Avi => ".avi",
 		ExportFormat.Mp4 => ".mp4",
@@ -121,6 +124,7 @@ public static class ExportFormats
 	{
 		".png" => ExportFormat.Png,
 		".jpg" or ".jpeg" => ExportFormat.Jpeg,
+		".exr" => ExportFormat.Exr,
 		".mpg" or ".mpeg" or ".m1v" => ExportFormat.Mpeg1,
 		".avi" => ExportFormat.Avi,
 		".mp4" or ".m4v" => ExportFormat.Mp4,
@@ -128,8 +132,11 @@ public static class ExportFormats
 		_ => null,
 	};
 
-	/// <summary>Whether the format writes one file per frame.</summary>
-	public static bool IsSequence(ExportFormat format) => format is ExportFormat.Png or ExportFormat.Jpeg;
+	/// <summary>Whether the format writes one file per frame (these are also the formats a still can take).</summary>
+	public static bool IsSequence(ExportFormat format) => format is ExportFormat.Png or ExportFormat.Jpeg or ExportFormat.Exr;
+
+	/// <summary>Whether the format holds the stored values rather than a rendered picture (OpenEXR): colours, brightness, outline and boxes do not apply.</summary>
+	public static bool IsData(ExportFormat format) => format == ExportFormat.Exr;
 
 	/// <summary>Whether the quality setting means anything to the format.</summary>
 	public static bool UsesQuality(ExportFormat format) => format is ExportFormat.Jpeg or ExportFormat.Mpeg1 or ExportFormat.Mp4;
@@ -144,8 +151,8 @@ public static class ExportFormats
 	public static string SequenceFolder(string path) =>
 		Path.Combine(Path.GetDirectoryName(path) ?? "", Path.GetFileNameWithoutExtension(path));
 
-	/// <summary>Opens a one-file sink for a still (PNG or JPEG only) at <paramref name="path"/>.</summary>
-	/// <param name="format">PNG or JPEG.</param>
+	/// <summary>Opens a one-file sink for a still (PNG, JPEG or OpenEXR) at <paramref name="path"/>.</summary>
+	/// <param name="format">PNG, JPEG or OpenEXR.</param>
 	/// <param name="path">The file.</param>
 	/// <param name="width">Frame width in pixels.</param>
 	/// <param name="height">Frame height in pixels.</param>
@@ -155,7 +162,8 @@ public static class ExportFormats
 	{
 		ExportFormat.Png => new ImageFileSink(path, width, height, (stream, frame) => PngEncoder.Write(stream, frame.Span, width, height)),
 		ExportFormat.Jpeg => new ImageFileSink(path, width, height, JpegWriter(width, height, quality)),
-		_ => throw new NotSupportedException("A still is a PNG or a JPEG."),
+		ExportFormat.Exr => ExrSink.Still(path, width, height),
+		_ => throw new NotSupportedException("A still is a PNG, a JPEG or an OpenEXR file."),
 	};
 
 	/// <summary>
@@ -179,6 +187,8 @@ public static class ExportFormats
 			case ExportFormat.Jpeg:
 				return new ImageSequenceSink(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), ".jpg", width, height,
 					() => JpegWriter(width, height, quality), SequenceWorkers(encoderIsParallel: AlternativeJpeg == null), plannedFrames);
+			case ExportFormat.Exr:
+				return ExrSink.Sequence(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), width, height, plannedFrames);
 			case ExportFormat.Mpeg1:
 				return new Mpeg1Writer(path, width, height, fps, quality);
 			case ExportFormat.Avi:

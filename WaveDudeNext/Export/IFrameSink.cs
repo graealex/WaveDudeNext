@@ -45,6 +45,17 @@ public interface IFrameSink : IDisposable
 	/// <exception cref="IOException">The file could not be written.</exception>
 	void Add(ReadOnlySpan<int> pixels);
 
+	/// <summary>
+	/// Whether the sink takes the store's halves through <see cref="Add(ReadOnlySpan{Half})"/> instead of rendered
+	/// pixels: a data format such as OpenEXR (2026-10-18). The job then neither colours nor decorates its frames.
+	/// </summary>
+	bool WantsHalves => false;
+
+	/// <summary>Appends one frame as the plane's halves, row-major, at least width × height values; only for a sink with <see cref="WantsHalves"/>.</summary>
+	/// <param name="values">The plane as stored.</param>
+	/// <exception cref="NotSupportedException">The sink takes rendered pixels.</exception>
+	void Add(ReadOnlySpan<Half> values) => throw new NotSupportedException("This sink takes rendered pixels.");
+
 	/// <summary>Finishes the output (indexes, trailers, open handles). Idempotent.</summary>
 	void Close();
 }

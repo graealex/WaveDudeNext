@@ -105,7 +105,8 @@ public partial class MainWindow
 			suffix += "_" + (stillFrame * Math.Max(1, Project.Simulation.VisualizeEvery)).ToString(System.Globalization.CultureInfo.InvariantCulture);
 		}
 		string chosen;
-		int filterIndex = still ? Math.Clamp(Settings.Default.ExportFilterIndex + 1, 1, 2) : Math.Clamp(Settings.Default.ExportFilterIndex + 1, 1, ExportFormats.All.Length);
+		// the still's filter lists the sequence formats, which lead the full list in the same order
+		int filterIndex = still ? Math.Clamp(Settings.Default.ExportFilterIndex + 1, 1, ExportFormats.All.Count(ExportFormats.IsSequence)) : Math.Clamp(Settings.Default.ExportFilterIndex + 1, 1, ExportFormats.All.Length);
 		string? scripted = Environment.GetEnvironmentVariable("WAVEDUDE_EXPORT_PATH");
 		if (!string.IsNullOrEmpty(scripted))
 		{
@@ -242,8 +243,15 @@ public partial class MainWindow
 					? () => ExportFormats.OpenStill(format, path, width, height, quality)
 					: () => ExportFormats.Open(format, path, width, height, fps, quality, frameCount);
 				targets.Add(new ExportTarget(exportLayer, output, open));
-				Logger.Debug("Export target {Layer}: scheme '{Scheme}' (black level {Black}), brightness {Brightness}, outline {Outline}, probe boxes {Boxes}, markers {Markers}, to {Output}",
-					layer, settings.ColorScheme, settings.BlackLevel, settings.Brightness, settings.OverlayInExport && edges != null ? "gain " + settings.OverlayGain : "off", display.ProbeGraphsInExport ? "on" : "off", display.ProbeMarkersInExport ? "on" : "off", output);
+				if (ExportFormats.IsData(format))
+				{
+					Logger.Debug("Export target {Layer}: the stored 16-bit values as OpenEXR (no colours, outline or boxes), to {Output}", layer, output);
+				}
+				else
+				{
+					Logger.Debug("Export target {Layer}: scheme '{Scheme}' (black level {Black}), brightness {Brightness}, outline {Outline}, probe boxes {Boxes}, markers {Markers}, to {Output}",
+						layer, settings.ColorScheme, settings.BlackLevel, settings.Brightness, settings.OverlayInExport && edges != null ? "gain " + settings.OverlayGain : "off", display.ProbeGraphsInExport ? "on" : "off", display.ProbeMarkersInExport ? "on" : "off", output);
+				}
 			}
 			if (!still && format == ExportFormat.Mpeg1)
 			{

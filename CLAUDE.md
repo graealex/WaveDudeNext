@@ -127,7 +127,10 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   **Languages**: four string tables, live switch; converter output needs the language as an extra binding input.
 - **Export**: field, intensity or both, a still of the shown frame, from the current run when fresh and full,
   else a run is made first; PNG/JPEG sequences, MPEG-1, OpenDML AVI, H.264 MP4 via Media Foundation (the only
-  Windows-bound library piece besides WIC JPEG, which has an in-house fallback), QuickTime Animation MOV. Harness
+  Windows-bound library piece besides WIC JPEG, which has an in-house fallback), QuickTime Animation MOV, and
+  **OpenEXR sequences or stills** (2026-10-18, the user's choice for data export to NumPy, MATLAB, Octave add-ons
+  and viewers such as DJV): the stored halves themselves, one uncompressed "Y" channel per file, no colours,
+  brightness, outline or boxes; a sink that `WantsHalves` gets the plane from the job unrendered. Harness
   hooks: `WAVEDUDE_EXPORT_PATH`, `WAVEDUDE_DISCARD_EDITS=1`.
 - File types `.wdproj` / `.wdscheme` are registered per user at start-up; unsaved edits ask on close.
 

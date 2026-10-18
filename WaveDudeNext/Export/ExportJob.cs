@@ -107,11 +107,9 @@ public sealed class ExportJob : INotifyPropertyChanged
 		{
 			throw new ArgumentOutOfRangeException(nameof(lastFrame), "The range is empty.");
 		}
-		if (store.Format != FrameFormat.Half)
-		{
-			// a reduced preview run bakes the brightness into index bytes; an export renders from the raw samples (the window starts a full run first)
-			throw new ArgumentException("An export needs a full-quality run; this store holds palette indices.", nameof(store));
-		}
+		// an 8-bit store (palette indices with the brightness baked in) renders to the same pixels as the halves would
+		// (2026-10-18; until then every export demanded a 16-bit run): the palette and black level still apply at
+		// render time. Only a data sink (OpenEXR) needs the halves, which Render checks once the sinks are open.
 		Store = store;
 		FirstFrame = firstFrame;
 		LastFrame = lastFrame;
@@ -200,7 +198,18 @@ public sealed class ExportJob : INotifyPropertyChanged
 	}
 
 	/// <summary>A rendered frame on its way to a sink.</summary>
-	private sealed record Item(int Frame, int Target, int[] Pixels);
+	/// <summary>A frame for one target: rendered pixels, or the store's halves for a sink that wants them (one of the two is set).</summary>
+	private sealed record Item(int Frame, int Target, int[]? Pixels, Half[]? Values);
+
+	/// <summary>The outline and the decoration over a rendered frame, the same for halves and for palette indices.</summary>
+	private static void Finish(ExportLayer layer, int frame, int[] pixels, int width, int height)
+	{
+		if (layer.Edges != null && layer.EdgeGain > 0.0)
+		{
+			GlowingEdges.BlendAdditive(pixels, width, height, layer.Edges, layer.EdgeGain);
+		}
+		layer.Decorate?.Invoke(frame, pixels);
+	}
 
 	/// <summary>The render thread: starts the sink thread, renders every frame of the range into pooled buffers and queues them; waits for the sink thread at the end.</summary>
 	private void Render()
@@ -210,12 +219,11 @@ public sealed class ExportJob : INotifyPropertyChanged
 		Exception? error = null;
 		int width = Store.Width;
 		int height = Store.Height;
+		// the buffer pools: rendered pixels for the picture sinks, the store's halves for the data sinks (OpenEXR);
+		// filled once the sinks are open and have said which they take
 		int buffers = Targets.Count * QueueDepth + 1;
 		var free = new BlockingCollection<int[]>(buffers);
-		for (int i = 0; i < buffers; i++)
-		{
-			free.Add(new int[width * height]);
-		}
+		var freeHalves = new BlockingCollection<Half[]>(buffers);
 		var queue = new BlockingCollection<Item>(Targets.Count * QueueDepth);
 		using var sinksReady = new ManualResetEventSlim();
 		Exception? sinkError = null;
@@ -234,8 +242,16 @@ public sealed class ExportJob : INotifyPropertyChanged
 				sinksReady.Set();
 				foreach (Item item in queue.GetConsumingEnumerable())
 				{
-					Targets[item.Target].Sink!.Add(item.Pixels);
-					free.Add(item.Pixels);
+					if (item.Values != null)
+					{
+						Targets[item.Target].Sink!.Add((ReadOnlySpan<Half>)item.Values);
+						freeHalves.Add(item.Values);
+					}
+					else
+					{
+						Targets[item.Target].Sink!.Add(item.Pixels);
+						free.Add(item.Pixels!);
+					}
 					if (item.Target == Targets.Count - 1)
 					{
 						written++;
@@ -256,7 +272,14 @@ public sealed class ExportJob : INotifyPropertyChanged
 				// drain, so the render thread never blocks on a full queue
 				foreach (Item item in queue.GetConsumingEnumerable())
 				{
-					free.Add(item.Pixels);
+					if (item.Values != null)
+					{
+						freeHalves.Add(item.Values);
+					}
+					else
+					{
+						free.Add(item.Pixels!);
+					}
 				}
 			}
 			finally
@@ -283,7 +306,24 @@ public sealed class ExportJob : INotifyPropertyChanged
 		try
 		{
 			sinksReady.Wait();
+			if (sinkError == null)
+			{
+				if (Store.Format != FrameFormat.Half && Targets.Any(target => target.Sink?.WantsHalves == true))
+				{
+					throw new InvalidOperationException("A data export (OpenEXR) needs a 16-bit run; this store holds palette indices.");
+				}
+				int pictureTargets = Targets.Count(target => target.Sink?.WantsHalves != true);
+				for (int i = 0; i < pictureTargets * QueueDepth + 1; i++)
+				{
+					free.Add(new int[width * height]);
+				}
+				for (int i = 0; i < (Targets.Count - pictureTargets) * QueueDepth + 1; i++)
+				{
+					freeHalves.Add(new Half[width * height]);
+				}
+			}
 			var values = new Half[width * height];
+			byte[]? indices = Store.Format == FrameFormat.Index ? new byte[width * height] : null;
 			for (int frame = FirstFrame; frame <= LastFrame && sinkError == null; frame++)
 			{
 				if (_cancel.IsCancellationRequested)
@@ -294,6 +334,30 @@ public sealed class ExportJob : INotifyPropertyChanged
 				for (int t = 0; t < Targets.Count; t++)
 				{
 					ExportLayer layer = Targets[t].Layer;
+					if (Targets[t].Sink!.WantsHalves)
+					{
+						// a data sink: the plane as stored, nothing rendered or drawn
+						Half[] plane = freeHalves.Take();
+						if (frame >= Store.Count || !Store.CopyLayer(frame, layer.Layer, plane))
+						{
+							throw new InvalidOperationException($"Frame {frame} is not in the store (it holds {Store.Count}).");
+						}
+						queue.Add(new Item(frame, t, null, plane));
+						continue;
+					}
+					if (indices != null)
+					{
+						// the 8-bit store: the palette index as captured (brightness baked in), coloured through the LUT
+						if (frame >= Store.Count || !Store.CopyLayer(frame, layer.Layer, indices.AsSpan()))
+						{
+							throw new InvalidOperationException($"Frame {frame} is not in the store (it holds {Store.Count}).");
+						}
+						int[] indexed = free.Take();
+						FrameRenderer.RenderIndexed(indices, width, height, layer.Lut, indexed);
+						Finish(layer, frame, indexed, width, height);
+						queue.Add(new Item(frame, t, indexed, null));
+						continue;
+					}
 					if (frame >= Store.Count || !Store.CopyLayer(frame, layer.Layer, values))
 					{
 						throw new InvalidOperationException($"Frame {frame} is not in the store (it holds {Store.Count}).");
@@ -307,12 +371,8 @@ public sealed class ExportJob : INotifyPropertyChanged
 					{
 						FrameRenderer.RenderField(values, width, height, layer.Lut, layer.Brightness, pixels);
 					}
-					if (layer.Edges != null && layer.EdgeGain > 0.0)
-					{
-						GlowingEdges.BlendAdditive(pixels, width, height, layer.Edges, layer.EdgeGain);
-					}
-					layer.Decorate?.Invoke(frame, pixels);
-					queue.Add(new Item(frame, t, pixels));
+					Finish(layer, frame, pixels, width, height);
+					queue.Add(new Item(frame, t, pixels, null));
 				}
 			}
 		}

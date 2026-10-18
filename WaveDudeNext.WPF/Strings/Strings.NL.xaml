@@ -187,11 +187,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Ready">Gereed</s:String>
 
 	<!-- export: the Save dialog, the status bar line ({0} frames done, {1} frames) and the questions -->
-	<s:String x:Key="ExportDialogFilter">PNG-beeldreeks (*.png)|*.png|JPEG-beeldreeks (*.jpg)|*.jpg|MPEG-1-video (*.mpg)|*.mpg|AVI-video, ongecomprimeerd (*.avi)|*.avi|MP4-video, H.264 (*.mp4)|*.mp4|QuickTime-film, Animation-codec, verliesvrij (*.mov)|*.mov</s:String>
+	<s:String x:Key="ExportDialogFilter">PNG-beeldreeks (*.png)|*.png|JPEG-beeldreeks (*.jpg)|*.jpg|OpenEXR-beeldreeks, 16-bits drijvendekommagegevens (*.exr)|*.exr|MPEG-1-video (*.mpg)|*.mpg|AVI-video, ongecomprimeerd (*.avi)|*.avi|MP4-video, H.264 (*.mp4)|*.mp4|QuickTime-film, Animation-codec, verliesvrij (*.mov)|*.mov</s:String>
 	<s:String x:Key="ExportDialogTitleField">Veld exporteren</s:String>
 	<s:String x:Key="ExportDialogTitleIntensity">Intensiteit exporteren</s:String>
 	<s:String x:Key="ExportDialogTitleBoth">Veld en intensiteit exporteren</s:String>
-	<s:String x:Key="ExportDialogFilterStill">PNG-beeld (*.png)|*.png|JPEG-beeld (*.jpg)|*.jpg</s:String>
+	<s:String x:Key="ExportDialogFilterStill">PNG-beeld (*.png)|*.png|JPEG-beeld (*.jpg)|*.jpg|OpenEXR-beeld, 16-bits drijvendekommagegevens (*.exr)|*.exr</s:String>
 	<s:String x:Key="ExportDialogTitleFrame">Beeld exporteren</s:String>
 	<s:String x:Key="ExportFolderExistsFormat">De map {0} bestaat en bevat bestanden. Vervangen?</s:String>
 	<s:String x:Key="ExportError">De export is mislukt.</s:String>

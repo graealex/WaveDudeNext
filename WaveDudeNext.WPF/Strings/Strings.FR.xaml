@@ -187,11 +187,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Ready">Prêt</s:String>
 
 	<!-- export: the Save dialog, the status bar line ({0} frames done, {1} frames) and the questions -->
-	<s:String x:Key="ExportDialogFilter">Séquence d'images PNG (*.png)|*.png|Séquence d'images JPEG (*.jpg)|*.jpg|Vidéo MPEG-1 (*.mpg)|*.mpg|Vidéo AVI non compressée (*.avi)|*.avi|Vidéo MP4, H.264 (*.mp4)|*.mp4|Film QuickTime, codec Animation, sans perte (*.mov)|*.mov</s:String>
+	<s:String x:Key="ExportDialogFilter">Séquence d'images PNG (*.png)|*.png|Séquence d'images JPEG (*.jpg)|*.jpg|Séquence d'images OpenEXR, données flottantes 16 bits (*.exr)|*.exr|Vidéo MPEG-1 (*.mpg)|*.mpg|Vidéo AVI non compressée (*.avi)|*.avi|Vidéo MP4, H.264 (*.mp4)|*.mp4|Film QuickTime, codec Animation, sans perte (*.mov)|*.mov</s:String>
 	<s:String x:Key="ExportDialogTitleField">Exporter le champ</s:String>
 	<s:String x:Key="ExportDialogTitleIntensity">Exporter l'intensité</s:String>
 	<s:String x:Key="ExportDialogTitleBoth">Exporter le champ et l'intensité</s:String>
-	<s:String x:Key="ExportDialogFilterStill">Image PNG (*.png)|*.png|Image JPEG (*.jpg)|*.jpg</s:String>
+	<s:String x:Key="ExportDialogFilterStill">Image PNG (*.png)|*.png|Image JPEG (*.jpg)|*.jpg|Image OpenEXR, données flottantes 16 bits (*.exr)|*.exr</s:String>
 	<s:String x:Key="ExportDialogTitleFrame">Exporter l'image</s:String>
 	<s:String x:Key="ExportFolderExistsFormat">Le dossier {0} existe et contient des fichiers. Les remplacer ?</s:String>
 	<s:String x:Key="ExportError">L'export a échoué.</s:String>
