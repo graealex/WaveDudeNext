@@ -99,7 +99,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Reduced preview** (View menu): resolution 1/2/4, frames 1/2/4 (the timeline never changes), samples 16-bit or
   **8-bit palette index, the default**: the same pixels at the captured brightness, half the store, half the
   colouring; 16-bit keeps the brightness turnable after a run. In 8-bit a brightness edit is a simulation edit.
-  Exports always use a full run.
+  A picture export takes an 8-bit run as it is (the same pixels; 2026-10-18); an EXR data export, a reduced resolution or
+  skipped frames make the export run the simulation again at full quality first.
 
 ## The app's rules
 

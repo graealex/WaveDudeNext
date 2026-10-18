@@ -19,6 +19,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
+using WaveDudeNext.Engine;
 using WaveDudeNext.Export;
 using WaveDudeNext.Model;
 using WaveDudeNext.Rendering;
@@ -190,7 +191,7 @@ public partial class MainWindow
 				}
 			}
 		}
-		SimulationRun? run = await EnsureRunForExport(intensity);
+		SimulationRun? run = await EnsureRunForExport(intensity, format);
 		if (run == null)
 		{
 			return;
@@ -285,7 +286,7 @@ public partial class MainWindow
 	/// holds the intensity plane if asked for; otherwise a run is started and awaited. Null when no run could
 	/// be had (logged, and an error shown when the run could not start).
 	/// </summary>
-	private async Task<SimulationRun?> EnsureRunForExport(bool intensity)
+	private async Task<SimulationRun?> EnsureRunForExport(bool intensity, ExportFormat format)
 	{
 		IsExportWaiting = true;
 		try
@@ -293,8 +294,12 @@ public partial class MainWindow
 			for (int attempt = 0; attempt < 3; attempt++)
 			{
 				SimulationRun? run = Run;
+				// a reduced preview serves a picture export when only its samples are reduced: the 8-bit index gives the
+				// same pixels (2026-10-18); a smaller picture or skipped frames never do, and a data export needs the halves
+				PreviewQuality? quality = run?.Spec.Quality;
+				bool reduced = quality != null && (quality.ResolutionDivisor != 1 || quality.FrameDivisor != 1 || (quality.Format != FrameFormat.Half && ExportFormats.IsData(format)));
 				string? reason = run == null ? "no run" : IsRunStale ? "the run is stale" : IsProbesStale ? "the probes were edited since the run"
-					: !run.Spec.Quality.IsFull ? "the run is a reduced preview (View menu)"
+					: reduced ? (quality!.Format != FrameFormat.Half && ExportFormats.IsData(format) && quality.ResolutionDivisor == 1 && quality.FrameDivisor == 1 ? "a data export needs the 16-bit samples" : "the run is a reduced preview (View menu)")
 					: intensity && !run.Store.Has(FrameLayer.Intensity) ? "the run has no intensity plane" : !run.IsActive && run.State != RunState.Completed ? "the run did not complete" : null;
 				if (reason != null)
 				{

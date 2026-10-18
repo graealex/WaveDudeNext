@@ -970,16 +970,22 @@ internal static class Program
 				refused = true;
 			}
 			Check(refused, "index store: the Half read is refused");
-			refused = false;
-			try
-			{
-				_ = new ExportJob(store, 0, 0, [], null);
-			}
-			catch (ArgumentException)
-			{
-				refused = true;
-			}
-			Check(refused, "an export refuses a store of palette indices");
+			// a picture export takes the index store as it is (2026-10-18): the job colours the indices through the LUT, the
+			// same pixels the renderer makes of them; a data export (OpenEXR) needs the halves and fails on it
+			int[] indexLut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == Display.DefaultFieldColorScheme)).Argb;
+			var collected = new CollectingSink(32, 24);
+			var indexJob = new ExportJob(store, 0, 2, [new ExportTarget(new ExportLayer(FrameLayer.Field, indexLut, 1f, null, 0, null), "memory", () => collected)], null);
+			indexJob.Start();
+			var fromIndices = new int[32 * 24];
+			FrameRenderer.RenderIndexed(expectedField, 32, 24, indexLut, fromIndices);
+			Check(indexJob.Completion.Wait(30000) && indexJob.State == ExportState.Completed && collected.Frames.Count == 3 && collected.Frames.All(f => f.SequenceEqual(fromIndices)),
+				"an export of pictures takes a store of palette indices and colours them as the renderer does");
+			string exrOnIndex = Path.Combine(Path.GetTempPath(), "library_check-exr-" + Guid.NewGuid().ToString("N") + ".exr");
+			var dataJob = new ExportJob(store, 0, 0, [new ExportTarget(new ExportLayer(FrameLayer.Field, null, 1f, null, 0, null), exrOnIndex, () => ExportFormats.OpenStill(ExportFormat.Exr, exrOnIndex, 32, 24, 70))], null);
+			dataJob.Start();
+			Check(dataJob.Completion.Wait(30000) && dataJob.State == ExportState.Failed && dataJob.Error?.Message.Contains("16-bit") == true,
+				"a data export (OpenEXR) of a store of palette indices fails: it needs the 16-bit samples");
+			File.Delete(exrOnIndex);
 			refused = false;
 			try
 			{
@@ -1058,6 +1064,19 @@ internal static class Program
 			}
 			run.Dispose();
 		}
+	}
+
+	/// <summary>A sink that keeps every frame's pixels in memory, for checks on what a job renders.</summary>
+	private sealed class CollectingSink(int width, int height) : IFrameSink
+	{
+		public List<int[]> Frames { get; } = [];
+		public int Width => width;
+		public int Height => height;
+		public int FrameCount => Frames.Count;
+		public string Output => "memory";
+		public void Add(ReadOnlySpan<int> pixels) => Frames.Add(pixels[..(width * height)].ToArray());
+		public void Close() { }
+		public void Dispose() { }
 	}
 
 	private static void CheckRenderer()
