@@ -1,0 +1,1108 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+//
+// This file is part of WaveDude Next, a 2D wave simulator.
+//
+// Based on the work of
+//   JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+//     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+//   Manuel (0x23, Diffraction Limited), author of WaveSimulator2D
+//     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+//
+// WaveDude Next is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+// <https://www.gnu.org/licenses/>.
+
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Xml.Serialization;
+
+namespace WaveDudeNext.Model;
+
+/// <summary>The kinds of optical part; one subclass of <see cref="OpticalPart"/> and one project file element per kind.</summary>
+public enum PartKind
+{
+	/// <summary>A lens or a curved or flat mirror (<see cref="LensPart"/>).</summary>
+	Lens,
+	/// <summary>A regular polygon (<see cref="PolygonPart"/>).</summary>
+	Polygon,
+	/// <summary>A rectangle (<see cref="RectanglePart"/>).</summary>
+	Rectangle,
+	/// <summary>A triangle shaped by its base angles (<see cref="TrianglePart"/>).</summary>
+	Triangle,
+	/// <summary>A free outline from a point list (<see cref="OutlinePart"/>).</summary>
+	Outline,
+	/// <summary>A fibre with a core and a cladding along a path (<see cref="FiberPart"/>).</summary>
+	Fiber,
+	/// <summary>A stack of alternating layers (<see cref="BraggReflectorPart"/>).</summary>
+	BraggReflector,
+	/// <summary>A gradient-index lens (<see cref="GrinLensPart"/>).</summary>
+	GrinLens,
+}
+
+/// <summary>
+/// An optical part placed on the canvas: a lens or mirror, a shape (polygon, rectangle, triangle, outline), a fibre, a
+/// Bragg reflector or a GRIN lens (Jeroen
+/// Vleggaar's proposal, decided 2026-10-18). Parts are painted into the red channel of the scene pixels before a run
+/// (<see cref="Parts.PartPainter"/>), so the engines, the outline and the export see them as part of the scene;
+/// green and blue are never touched. Positions and lengths are canvas pixels; the angle is in degrees,
+/// counter-clockwise on the screen, 0 pointing the part's axis along +x (the composite source's convention).
+/// Refractive indices run from 1.00 to 2.55 in steps of 0.01 (red = index × 100). One subclass per kind; the kind is
+/// chosen when the part is added and never changes.
+/// </summary>
+public abstract class OpticalPart : ObservableObject
+{
+	/// <summary>Smallest refractive index a part can have.</summary>
+	public const double MinIndex = 1.0;
+	/// <summary>Largest refractive index a part can have (red 255).</summary>
+	public const double MaxIndex = 2.55;
+	/// <summary>Largest coating thickness in pixels.</summary>
+	public const int MaxCoating = 50;
+
+	private string _name = "";
+	private bool _enabled = true;
+	private int _x;
+	private int _y;
+	private double _angle;
+
+	/// <summary>Name shown in the project tree and on the canvas; must be non-blank.</summary>
+	[XmlAttribute]
+	[Category("General")]
+	[Description("Name shown in the project tree and on the canvas.")]
+	public string Name
+	{
+		get => _name;
+		set => SetProperty(ref _name, value);
+	}
+
+	/// <summary>Whether the part is painted into the scene; a disabled part has no effect on a run.</summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("General")]
+	[Description("Paint the part into the scene; a disabled part has no effect on a run.")]
+	public bool Enabled
+	{
+		get => _enabled;
+		set => SetProperty(ref _enabled, value);
+	}
+
+	/// <summary>X of the part's centre in canvas pixels.</summary>
+	[XmlAttribute]
+	[Category("Position")]
+	[Description("X of the part's centre in canvas pixels.")]
+	public int X
+	{
+		get => _x;
+		set => SetProperty(ref _x, value);
+	}
+
+	/// <summary>Y of the part's centre in canvas pixels.</summary>
+	[XmlAttribute]
+	[Category("Position")]
+	[Description("Y of the part's centre in canvas pixels.")]
+	public int Y
+	{
+		get => _y;
+		set => SetProperty(ref _y, value);
+	}
+
+	/// <summary>Rotation about the centre in degrees, counter-clockwise on the screen; 0 points the part's axis along +x.</summary>
+	[XmlAttribute]
+	[DefaultValue(0.0)]
+	[Category("Position")]
+	[DisplayName("Angle")]
+	[Description("Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.")]
+	public double Angle
+	{
+		get => _angle;
+		set => SetProperty(ref _angle, value);
+	}
+
+	/// <summary>The kind of part, for the tree row and the overlay; fixed per subclass.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public abstract PartKind Kind { get; }
+
+	/// <summary>Half-extent of the part along its axis in canvas pixels, so the rotation handle can sit beyond it. UI thread.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public abstract double AxisReach { get; }
+
+	/// <summary>Clamps every value into its valid range; the angle is brought into (-180, 180].</summary>
+	public virtual void Normalize()
+	{
+		Name ??= "";
+		X = Math.Max(0, X);
+		Y = Math.Max(0, Y);
+		Angle = NormalizeAngle(Angle);
+	}
+
+	/// <summary>A deep copy with the same settings and no change subscribers.</summary>
+	public abstract OpticalPart Clone();
+
+	/// <summary>The name, for display in the project tree and property grids.</summary>
+	public override string ToString() => Name;
+
+	/// <summary>Brings an angle in degrees into (-180, 180]; a non-finite value becomes 0.</summary>
+	protected static double NormalizeAngle(double degrees)
+	{
+		if (!double.IsFinite(degrees))
+		{
+			return 0.0;
+		}
+		if (degrees <= -180.0 || degrees > 180.0)
+		{
+			degrees -= 360.0 * Math.Ceiling((degrees - 180.0) / 360.0);
+		}
+		return degrees;
+	}
+
+	/// <summary>A refractive index clamped to <see cref="MinIndex"/>..<see cref="MaxIndex"/> and rounded to 0.01 (red = index × 100); a non-finite value becomes 1.</summary>
+	protected static double NormalizeIndex(double index) =>
+		double.IsFinite(index) ? Math.Round(Math.Clamp(index, MinIndex, MaxIndex), 2) : MinIndex;
+
+	/// <summary>Deep-copies a point list.</summary>
+	protected static ObservableCollection<PartPoint> ClonePoints(ObservableCollection<PartPoint> points) =>
+		new(points.Select(p => new PartPoint { X = p.X, Y = p.Y }));
+}
+
+/// <summary>One vertex of an <see cref="OutlinePart"/> or of a <see cref="FiberPart"/> path, in canvas pixels relative to the part's centre, before rotation.</summary>
+public sealed class PartPoint : ObservableObject
+{
+	private int _x;
+	private int _y;
+
+	/// <summary>X relative to the part's centre in canvas pixels, before rotation.</summary>
+	[XmlAttribute]
+	[Category("Point")]
+	[Description("X relative to the part's centre in canvas pixels, before rotation.")]
+	public int X
+	{
+		get => _x;
+		set => SetProperty(ref _x, value);
+	}
+
+	/// <summary>Y relative to the part's centre in canvas pixels, before rotation.</summary>
+	[XmlAttribute]
+	[Category("Point")]
+	[Description("Y relative to the part's centre in canvas pixels, before rotation.")]
+	public int Y
+	{
+		get => _y;
+		set => SetProperty(ref _y, value);
+	}
+
+	/// <summary>The coordinates, for display.</summary>
+	public override string ToString() => $"({X}, {Y})";
+}
+
+/// <summary>
+/// A lens, or a curved or flat mirror when <see cref="Mirror"/> is set: the strip of <see cref="Diameter"/> across
+/// the axis between two spherical surfaces of radii <see cref="R1"/> (left, facing -x') and <see cref="R2"/>
+/// (right), <see cref="Thickness"/> apart on the axis. A radius is signed: R1 &gt; 0 and R2 &lt; 0 bulge outward
+/// (biconvex), 0 is flat, and |R| is at least half the diameter. Where two convex surfaces cross, the lens ends.
+/// </summary>
+public sealed class LensPart : OpticalPart
+{
+	/// <summary>Default <see cref="RefractiveIndex"/>.</summary>
+	public const double DefaultIndex = 1.5;
+	/// <summary>Default <see cref="Diameter"/> in pixels.</summary>
+	public const int DefaultDiameter = 200;
+	/// <summary>Default <see cref="R1"/> in pixels.</summary>
+	public const double DefaultR1 = 300.0;
+	/// <summary>Default <see cref="R2"/> in pixels.</summary>
+	public const double DefaultR2 = -300.0;
+	/// <summary>Default <see cref="Thickness"/> in pixels.</summary>
+	public const int DefaultThickness = 40;
+
+	private bool _mirror;
+	private double _refractiveIndex = DefaultIndex;
+	private int _coating;
+	private int _diameter = DefaultDiameter;
+	private double _r1 = DefaultR1;
+	private double _r2 = DefaultR2;
+	private int _thickness = DefaultThickness;
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.Lens;
+
+	/// <summary>Whether the part is a mirror (red 0, a wall no wave gets through) instead of a lens; the index and the coating are ignored then.</summary>
+	[XmlAttribute]
+	[DefaultValue(false)]
+	[Category("Material")]
+	[Description("Make the part a mirror instead of a lens. The refractive index and the coating are ignored then.")]
+	public bool Mirror
+	{
+		get => _mirror;
+		set => SetProperty(ref _mirror, value);
+	}
+
+	/// <summary>Refractive index of the glass, 1.00 to 2.55 in steps of 0.01; not used by a mirror.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultIndex)]
+	[Category("Material")]
+	[DisplayName("Refractive index")]
+	[Description("Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.")]
+	public double RefractiveIndex
+	{
+		get => _refractiveIndex;
+		set => SetProperty(ref _refractiveIndex, value);
+	}
+
+	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) thick.</summary>
+	[XmlAttribute]
+	[DefaultValue(0)]
+	[Category("Material")]
+	[DisplayName("AR coating")]
+	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.")]
+	public int Coating
+	{
+		get => _coating;
+		set => SetProperty(ref _coating, value);
+	}
+
+	/// <summary>Extent across the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultDiameter)]
+	[Category("Shape")]
+	[Description("Extent across the axis in pixels.")]
+	public int Diameter
+	{
+		get => _diameter;
+		set => SetProperty(ref _diameter, value);
+	}
+
+	/// <summary>Radius of the first surface (facing -x') in pixels: positive bulges outward, negative is concave, 0 is flat.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultR1)]
+	[Category("Shape")]
+	[DisplayName("R1")]
+	[Description("Radius of the first surface in pixels: positive bulges outward, negative is concave, 0 is flat.")]
+	public double R1
+	{
+		get => _r1;
+		set => SetProperty(ref _r1, value);
+	}
+
+	/// <summary>Radius of the second surface (facing +x') in pixels: negative bulges outward, positive is concave, 0 is flat.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultR2)]
+	[Category("Shape")]
+	[DisplayName("R2")]
+	[Description("Radius of the second surface in pixels: negative bulges outward, positive is concave, 0 is flat.")]
+	public double R2
+	{
+		get => _r2;
+		set => SetProperty(ref _r2, value);
+	}
+
+	/// <summary>Distance between the two surfaces on the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultThickness)]
+	[Category("Shape")]
+	[DisplayName("Centre thickness")]
+	[Description("Distance between the two surfaces on the axis in pixels.")]
+	public int Thickness
+	{
+		get => _thickness;
+		set => SetProperty(ref _thickness, value);
+	}
+
+	/// <inheritdoc/>
+	public override double AxisReach => Thickness / 2.0 + Math.Max(Sag(R1), Sag(R2));
+
+	/// <summary>How far a surface of radius <paramref name="r"/> bows out beyond its vertex at the lens edge, in pixels.</summary>
+	private double Sag(double r)
+	{
+		if (r == 0.0)
+		{
+			return 0.0;
+		}
+		double a = Math.Abs(r);
+		double h = Math.Min(a, Diameter / 2.0);
+		return a - Math.Sqrt(a * a - h * h);
+	}
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		RefractiveIndex = NormalizeIndex(RefractiveIndex);
+		Coating = Math.Clamp(Coating, 0, MaxCoating);
+		Diameter = Math.Max(2, Diameter);
+		Thickness = Math.Max(1, Thickness);
+		R1 = NormalizeRadius(R1);
+		R2 = NormalizeRadius(R2);
+	}
+
+	/// <summary>A radius of at least half the diameter in magnitude, its sign kept; 0 stays flat.</summary>
+	private double NormalizeRadius(double r)
+	{
+		if (!double.IsFinite(r) || r == 0.0)
+		{
+			return 0.0;
+		}
+		double least = Diameter / 2.0;
+		return Math.Abs(r) < least ? Math.CopySign(least, r) : r;
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<LensPart>();
+}
+
+/// <summary>
+/// A part that is a plain shape of glass or mirror: the shared material (<see cref="Mirror"/>, <see cref="RefractiveIndex"/>,
+/// <see cref="Coating"/>) over an outline each subclass generates (<see cref="Vertices"/>): a regular
+/// <see cref="PolygonPart"/>, a <see cref="RectanglePart"/>, a <see cref="TrianglePart"/>, a free <see cref="OutlinePart"/>
+/// (one class each, chosen when the part is added: the user's point, 2026-10-18, against a shape mode inside one class).
+/// </summary>
+public abstract class ShapePart : OpticalPart
+{
+	/// <summary>Default <see cref="RefractiveIndex"/>.</summary>
+	public const double DefaultIndex = 1.5;
+
+	private bool _mirror;
+	private double _refractiveIndex = DefaultIndex;
+	private int _coating;
+
+	/// <summary>Whether the part is a mirror (red 0, a wall no wave gets through) instead of glass; the index and the coating are ignored then.</summary>
+	[XmlAttribute]
+	[DefaultValue(false)]
+	[Category("Material")]
+	[Description("Make the part a mirror instead of glass. The refractive index and the coating are ignored then.")]
+	public bool Mirror
+	{
+		get => _mirror;
+		set => SetProperty(ref _mirror, value);
+	}
+
+	/// <summary>Refractive index of the glass, 1.00 to 2.55 in steps of 0.01; not used by a mirror.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultIndex)]
+	[Category("Material")]
+	[DisplayName("Refractive index")]
+	[Description("Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.")]
+	public double RefractiveIndex
+	{
+		get => _refractiveIndex;
+		set => SetProperty(ref _refractiveIndex, value);
+	}
+
+	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none.</summary>
+	[XmlAttribute]
+	[DefaultValue(0)]
+	[Category("Material")]
+	[DisplayName("AR coating")]
+	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.")]
+	public int Coating
+	{
+		get => _coating;
+		set => SetProperty(ref _coating, value);
+	}
+
+	/// <summary>The outline's vertices relative to the centre, before rotation, in canvas pixels; fewer than three paint nothing. Out-of-range values are guarded, not written back.</summary>
+	public abstract (double X, double Y)[] Vertices();
+
+	/// <inheritdoc/>
+	public override double AxisReach => Vertices().Select(v => Math.Abs(v.X)).DefaultIfEmpty(0.0).Max();
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		RefractiveIndex = NormalizeIndex(RefractiveIndex);
+		Coating = Math.Clamp(Coating, 0, MaxCoating);
+	}
+}
+
+/// <summary>
+/// A regular polygon of <see cref="Sides"/> sides of <see cref="Side"/> pixels, a face centred on -x' (toward a source on
+/// the left); for an odd count the first vertex lies on +x'.
+/// </summary>
+public sealed class PolygonPart : ShapePart
+{
+	/// <summary>Default <see cref="Sides"/>.</summary>
+	public const int DefaultSides = 6;
+	/// <summary>Smallest <see cref="Sides"/>.</summary>
+	public const int MinSides = 3;
+	/// <summary>Largest <see cref="Sides"/>.</summary>
+	public const int MaxSides = 64;
+	/// <summary>Default <see cref="Side"/> in pixels.</summary>
+	public const int DefaultSide = 60;
+
+	private int _sides = DefaultSides;
+	private int _side = DefaultSide;
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.Polygon;
+
+	/// <summary>Number of sides, 3 to 64.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultSides)]
+	[Category("Shape")]
+	[DisplayName("Number of sides")]
+	[Description("Number of sides, 3 to 64.")]
+	public int Sides
+	{
+		get => _sides;
+		set => SetProperty(ref _sides, value);
+	}
+
+	/// <summary>Length of each side in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultSide)]
+	[Category("Shape")]
+	[DisplayName("Side length")]
+	[Description("Length of each side in pixels.")]
+	public int Side
+	{
+		get => _side;
+		set => SetProperty(ref _side, value);
+	}
+
+	/// <summary>Circumradius in pixels: side / (2 sin(π / sides)).</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double Circumradius => Math.Max(2, Side) / (2.0 * Math.Sin(Math.PI / Math.Clamp(Sides, MinSides, MaxSides)));
+
+	/// <inheritdoc/>
+	public override (double X, double Y)[] Vertices()
+	{
+		int sides = Math.Clamp(Sides, MinSides, MaxSides);
+		double radius = Circumradius;
+		var vertices = new (double X, double Y)[sides];
+		for (int k = 0; k < sides; k++)
+		{
+			double theta = Math.PI + (2 * k + 1) * Math.PI / sides;
+			vertices[k] = (radius * Math.Cos(theta), radius * Math.Sin(theta));
+		}
+		return vertices;
+	}
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		Sides = Math.Clamp(Sides, MinSides, MaxSides);
+		Side = Math.Max(2, Side);
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<PolygonPart>();
+}
+
+/// <summary>A rectangle of <see cref="Length"/> along the axis and <see cref="Width"/> across, centred. A flat mirror is a long, narrow one.</summary>
+public sealed class RectanglePart : ShapePart
+{
+	/// <summary>Default <see cref="Length"/> and <see cref="Width"/> in pixels.</summary>
+	public const int DefaultSize = 60;
+
+	private int _length = DefaultSize;
+	private int _width = DefaultSize;
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.Rectangle;
+
+	/// <summary>Extent along the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultSize)]
+	[Category("Shape")]
+	[Description("Extent along the axis in pixels.")]
+	public int Length
+	{
+		get => _length;
+		set => SetProperty(ref _length, value);
+	}
+
+	/// <summary>Extent across the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultSize)]
+	[Category("Shape")]
+	[Description("Extent across the axis in pixels.")]
+	public int Width
+	{
+		get => _width;
+		set => SetProperty(ref _width, value);
+	}
+
+	/// <inheritdoc/>
+	public override (double X, double Y)[] Vertices()
+	{
+		double l = Math.Max(1, Length) / 2.0;
+		double w = Math.Max(1, Width) / 2.0;
+		return [(-l, -w), (l, -w), (l, w), (-l, w)];
+	}
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		Length = Math.Max(1, Length);
+		Width = Math.Max(1, Width);
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<RectanglePart>();
+}
+
+/// <summary>The presets of a <see cref="TrianglePart"/>: which base angles are fixed.</summary>
+public enum TriangleType
+{
+	/// <summary>Both base angles 60°.</summary>
+	Equilateral,
+	/// <summary>Both base angles 45°: the right angle at the apex (the total-internal-reflection prism).</summary>
+	RightIsosceles,
+	/// <summary>Base angles 90° and 30°: the right angle at the first end of the base.</summary>
+	ThirtySixtyNinety,
+	/// <summary>Both base angles the same, typed once.</summary>
+	Isosceles,
+	/// <summary>Both base angles typed.</summary>
+	Custom,
+}
+
+/// <summary>
+/// A triangle on a <see cref="Base"/> across the axis (the face toward a source on the left, at -x'), the apex pointing
+/// along +x', shaped by its two base angles <see cref="AngleA"/> (at the -y' end) and <see cref="AngleB"/> (at the +y'
+/// end); the apex angle is what remains of 180°. A <see cref="Type"/> preset fixes the angles.
+/// </summary>
+public sealed class TrianglePart : ShapePart
+{
+	/// <summary>Default <see cref="Base"/> in pixels.</summary>
+	public const int DefaultBase = 60;
+	/// <summary>Largest base angle; the two must leave something for the apex.</summary>
+	public const double MaxAngle = 178.0;
+
+	private int _base = DefaultBase;
+	private TriangleType _type = TriangleType.Equilateral;
+	private double _angleA = 60.0;
+	private double _angleB = 60.0;
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.Triangle;
+
+	/// <summary>Length of the base in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultBase)]
+	[Category("Shape")]
+	[Description("Length of the base in pixels; the base lies across the axis, toward a source on the left.")]
+	public int Base
+	{
+		get => _base;
+		set => SetProperty(ref _base, value);
+	}
+
+	/// <summary>The preset: equilateral, right isosceles (45°), 30-60-90, isosceles with one typed angle, or custom with both typed. Choosing one sets the angles.</summary>
+	[XmlAttribute]
+	[DefaultValue(TriangleType.Equilateral)]
+	[Category("Shape")]
+	[Description("Equilateral, right isosceles (the 45° prism), 30-60-90, isosceles with one typed angle, or custom with both typed.")]
+	public TriangleType Type
+	{
+		get => _type;
+		set
+		{
+			if (SetProperty(ref _type, value))
+			{
+				ApplyPreset();
+			}
+		}
+	}
+
+	/// <summary>Base angle at the first end of the base (-y'), in degrees; typed for the isosceles and custom types.</summary>
+	[XmlAttribute]
+	[DefaultValue(60.0)]
+	[Category("Shape")]
+	[DisplayName("Angle A")]
+	[Description("Base angle at the first end of the base, in degrees. Typed for the isosceles and custom types; the presets fix it.")]
+	public double AngleA
+	{
+		get => _angleA;
+		set
+		{
+			if (SetProperty(ref _angleA, value) && Type == TriangleType.Isosceles)
+			{
+				AngleB = value;
+			}
+		}
+	}
+
+	/// <summary>Base angle at the second end of the base (+y'), in degrees; typed for the custom type only.</summary>
+	[XmlAttribute]
+	[DefaultValue(60.0)]
+	[Category("Shape")]
+	[DisplayName("Angle B")]
+	[Description("Base angle at the second end of the base, in degrees. Typed for the custom type; the others fix it.")]
+	public double AngleB
+	{
+		get => _angleB;
+		set => SetProperty(ref _angleB, value);
+	}
+
+	/// <summary>The angle at the apex in degrees: 180 minus the two base angles (as the painter uses them).</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double ApexAngle
+	{
+		get
+		{
+			(double a, double b) = EffectiveAngles();
+			return 180.0 - a - b;
+		}
+	}
+
+	/// <summary>The base angles the type gives, in degrees, within range and leaving at least 2° for the apex; the typed values for the custom type.</summary>
+	public (double A, double B) EffectiveAngles()
+	{
+		double a = double.IsFinite(AngleA) ? Math.Clamp(AngleA, 1.0, MaxAngle) : 60.0;
+		double b = double.IsFinite(AngleB) ? Math.Clamp(AngleB, 1.0, MaxAngle) : 60.0;
+		switch (Type)
+		{
+			case TriangleType.Equilateral:
+				return (60.0, 60.0);
+			case TriangleType.RightIsosceles:
+				return (45.0, 45.0);
+			case TriangleType.ThirtySixtyNinety:
+				return (90.0, 30.0);
+			case TriangleType.Isosceles:
+				a = Math.Min(a, 89.0);
+				return (a, a);
+			default:
+				return (a, Math.Min(b, MaxAngle + 1.0 - a));
+		}
+	}
+
+	/// <summary>Writes the type's angles into <see cref="AngleA"/> and <see cref="AngleB"/>.</summary>
+	private void ApplyPreset()
+	{
+		(double a, double b) = EffectiveAngles();
+		AngleA = a;
+		AngleB = b;
+	}
+
+	/// <inheritdoc/>
+	public override (double X, double Y)[] Vertices()
+	{
+		(double a, double b) = EffectiveAngles();
+		double alpha = a * Math.PI / 180.0;
+		double beta = b * Math.PI / 180.0;
+		double half = Math.Max(2, Base) / 2.0;
+		// the height from the law of sines, the apex over the base at h / tan α from the first end
+		double height = 2.0 * half * Math.Sin(alpha) * Math.Sin(beta) / Math.Sin(alpha + beta);
+		double apexY = -half + height * Math.Cos(alpha) / Math.Sin(alpha);
+		return [(-height / 2.0, -half), (-height / 2.0, half), (height / 2.0, apexY)];
+	}
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		Base = Math.Max(2, Base);
+		ApplyPreset();
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<TrianglePart>();
+}
+
+/// <summary>A free outline from <see cref="Points"/>, relative to the centre before rotation; fewer than three points paint nothing.</summary>
+public sealed class OutlinePart : ShapePart
+{
+	private ObservableCollection<PartPoint> _points = [];
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.Outline;
+
+	/// <summary>The outline's vertices relative to the centre, before rotation; fewer than three points paint nothing.</summary>
+	[XmlElement("Point")]
+	[Category("Shape")]
+	[DisplayName("Points")]
+	[Description("The outline's vertices relative to the centre, before rotation. Fewer than three points paint nothing.")]
+	public ObservableCollection<PartPoint> Points
+	{
+		get => _points;
+		set => SetProperty(ref _points, value);
+	}
+
+	/// <inheritdoc/>
+	public override (double X, double Y)[] Vertices() => Points.Select(p => ((double)p.X, (double)p.Y)).ToArray();
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		Points ??= [];
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone()
+	{
+		var copy = ShallowClone<OutlinePart>();
+		copy.Points = ClonePoints(Points);
+		return copy;
+	}
+}
+
+/// <summary>
+/// A fibre: a core of <see cref="CoreDiameter"/> along the polyline <see cref="Points"/>, wrapped in a cladding of
+/// <see cref="CladdingThickness"/>. The ends are round (the distance to the path decides). The angle rotates the
+/// whole path about the centre.
+/// </summary>
+public sealed class FiberPart : OpticalPart
+{
+	/// <summary>Default <see cref="CoreIndex"/>.</summary>
+	public const double DefaultCoreIndex = 1.5;
+	/// <summary>Default <see cref="CoreDiameter"/> in pixels.</summary>
+	public const int DefaultCoreDiameter = 20;
+	/// <summary>Default <see cref="CladdingIndex"/>.</summary>
+	public const double DefaultCladdingIndex = 1.45;
+	/// <summary>Default <see cref="CladdingThickness"/> in pixels.</summary>
+	public const int DefaultCladdingThickness = 10;
+	/// <summary>Half the default path length in pixels: the path runs from (-100, 0) to (100, 0).</summary>
+	public const int DefaultHalfLength = 100;
+
+	private double _coreIndex = DefaultCoreIndex;
+	private int _coreDiameter = DefaultCoreDiameter;
+	private double _claddingIndex = DefaultCladdingIndex;
+	private int _claddingThickness = DefaultCladdingThickness;
+	private int _coating;
+	private ObservableCollection<PartPoint> _points = [];
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.Fiber;
+
+	/// <summary>Refractive index of the core, 1.00 to 2.55.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCoreIndex)]
+	[Category("Core")]
+	[DisplayName("Core index")]
+	[Description("Refractive index of the core, 1.00 to 2.55 in steps of 0.01.")]
+	public double CoreIndex
+	{
+		get => _coreIndex;
+		set => SetProperty(ref _coreIndex, value);
+	}
+
+	/// <summary>Diameter of the core in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCoreDiameter)]
+	[Category("Core")]
+	[DisplayName("Core diameter")]
+	[Description("Diameter of the core in pixels.")]
+	public int CoreDiameter
+	{
+		get => _coreDiameter;
+		set => SetProperty(ref _coreDiameter, value);
+	}
+
+	/// <summary>Refractive index of the cladding, 1.00 to 2.55; below the core's for guiding.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCladdingIndex)]
+	[Category("Cladding")]
+	[DisplayName("Cladding index")]
+	[Description("Refractive index of the cladding, 1.00 to 2.55 in steps of 0.01. Below the core's index, the fibre guides.")]
+	public double CladdingIndex
+	{
+		get => _claddingIndex;
+		set => SetProperty(ref _claddingIndex, value);
+	}
+
+	/// <summary>Thickness of the cladding around the core in pixels; 0 for a bare core.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCladdingThickness)]
+	[Category("Cladding")]
+	[DisplayName("Cladding thickness")]
+	[Description("Thickness of the cladding around the core in pixels; 0 for a bare core.")]
+	public int CladdingThickness
+	{
+		get => _claddingThickness;
+		set => SetProperty(ref _claddingThickness, value);
+	}
+
+	/// <summary>Thickness in pixels of the anti-reflection band just inside the outer boundary, with the index √n of the cladding (or the core when bare); 0 for none.</summary>
+	[XmlAttribute]
+	[DefaultValue(0)]
+	[Category("Cladding")]
+	[DisplayName("AR coating")]
+	[Description("Thickness in pixels of the anti-reflection band just inside the outer boundary, with the index √n; 0 for none.")]
+	public int Coating
+	{
+		get => _coating;
+		set => SetProperty(ref _coating, value);
+	}
+
+	/// <summary>The path's vertices relative to the centre, before rotation; fewer than two points paint nothing.</summary>
+	[XmlElement("Point")]
+	[Category("Shape")]
+	[DisplayName("Points")]
+	[Description("The path's vertices relative to the centre, before rotation. Fewer than two points paint nothing.")]
+	public ObservableCollection<PartPoint> Points
+	{
+		get => _points;
+		set => SetProperty(ref _points, value);
+	}
+
+	/// <summary>Outer radius in pixels: half the core diameter plus the cladding.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double OuterRadius => CoreDiameter / 2.0 + CladdingThickness;
+
+	/// <inheritdoc/>
+	public override double AxisReach => (Points.Count > 0 ? Points.Max(p => Math.Abs(p.X)) : 0) + OuterRadius;
+
+	/// <summary>
+	/// The default straight path, from (-100, 0) to (100, 0). Given to a new fibre by <see cref="Project.AddPart"/>, not by
+	/// the constructor: <see cref="XmlSerializer"/> appends a file's points to the list it finds, so the constructor's list
+	/// must be empty.
+	/// </summary>
+	public static ObservableCollection<PartPoint> DefaultPath() =>
+		[new PartPoint { X = -DefaultHalfLength, Y = 0 }, new PartPoint { X = DefaultHalfLength, Y = 0 }];
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		CoreIndex = NormalizeIndex(CoreIndex);
+		CladdingIndex = NormalizeIndex(CladdingIndex);
+		CoreDiameter = Math.Max(2, CoreDiameter);
+		CladdingThickness = Math.Max(0, CladdingThickness);
+		Coating = Math.Clamp(Coating, 0, MaxCoating);
+		Points ??= [];
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone()
+	{
+		var copy = ShallowClone<FiberPart>();
+		copy.Points = ClonePoints(Points);
+		return copy;
+	}
+}
+
+/// <summary>
+/// A Bragg reflector: <see cref="Pairs"/> pairs of layers of <see cref="Thickness1"/> and <see cref="Thickness2"/>
+/// pixels with the indices <see cref="Index1"/> and <see cref="Index2"/>, stacked along +x', the stack centred on
+/// the part's centre and <see cref="Width"/> across. Thicknesses are pixels as typed; a quarter-wave layer is
+/// λ / (4 n) pixels.
+/// </summary>
+public sealed class BraggReflectorPart : OpticalPart
+{
+	/// <summary>Default <see cref="Pairs"/>.</summary>
+	public const int DefaultPairs = 10;
+	/// <summary>Largest <see cref="Pairs"/>.</summary>
+	public const int MaxPairs = 200;
+	/// <summary>Default layer thickness in pixels.</summary>
+	public const int DefaultThickness = 10;
+	/// <summary>Default <see cref="Index1"/>.</summary>
+	public const double DefaultIndex1 = 1.5;
+	/// <summary>Default <see cref="Index2"/>.</summary>
+	public const double DefaultIndex2 = 2.0;
+	/// <summary>Default <see cref="Width"/> in pixels.</summary>
+	public const int DefaultWidth = 200;
+
+	private int _pairs = DefaultPairs;
+	private int _thickness1 = DefaultThickness;
+	private int _thickness2 = DefaultThickness;
+	private double _index1 = DefaultIndex1;
+	private double _index2 = DefaultIndex2;
+	private int _width = DefaultWidth;
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.BraggReflector;
+
+	/// <summary>Number of layer pairs, 1 to 200.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultPairs)]
+	[Category("Layers")]
+	[DisplayName("Layer pairs")]
+	[Description("Number of layer pairs, 1 to 200.")]
+	public int Pairs
+	{
+		get => _pairs;
+		set => SetProperty(ref _pairs, value);
+	}
+
+	/// <summary>Thickness of the first layer of each pair in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultThickness)]
+	[Category("Layers")]
+	[DisplayName("Thickness 1")]
+	[Description("Thickness of the first layer of each pair in pixels. A quarter-wave layer is λ / (4 n) pixels thick.")]
+	public int Thickness1
+	{
+		get => _thickness1;
+		set => SetProperty(ref _thickness1, value);
+	}
+
+	/// <summary>Thickness of the second layer of each pair in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultThickness)]
+	[Category("Layers")]
+	[DisplayName("Thickness 2")]
+	[Description("Thickness of the second layer of each pair in pixels. A quarter-wave layer is λ / (4 n) pixels thick.")]
+	public int Thickness2
+	{
+		get => _thickness2;
+		set => SetProperty(ref _thickness2, value);
+	}
+
+	/// <summary>Refractive index of the first layer of each pair, 1.00 to 2.55.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultIndex1)]
+	[Category("Layers")]
+	[DisplayName("Index 1")]
+	[Description("Refractive index of the first layer of each pair, 1.00 to 2.55 in steps of 0.01.")]
+	public double Index1
+	{
+		get => _index1;
+		set => SetProperty(ref _index1, value);
+	}
+
+	/// <summary>Refractive index of the second layer of each pair, 1.00 to 2.55.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultIndex2)]
+	[Category("Layers")]
+	[DisplayName("Index 2")]
+	[Description("Refractive index of the second layer of each pair, 1.00 to 2.55 in steps of 0.01.")]
+	public double Index2
+	{
+		get => _index2;
+		set => SetProperty(ref _index2, value);
+	}
+
+	/// <summary>Extent of the stack across the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultWidth)]
+	[Category("Shape")]
+	[Description("Extent of the stack across the axis in pixels.")]
+	public int Width
+	{
+		get => _width;
+		set => SetProperty(ref _width, value);
+	}
+
+	/// <summary>Total thickness of the stack along the axis in pixels.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public int Length => Pairs * (Thickness1 + Thickness2);
+
+	/// <inheritdoc/>
+	public override double AxisReach => Length / 2.0;
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		Pairs = Math.Clamp(Pairs, 1, MaxPairs);
+		Thickness1 = Math.Max(1, Thickness1);
+		Thickness2 = Math.Max(1, Thickness2);
+		Index1 = NormalizeIndex(Index1);
+		Index2 = NormalizeIndex(Index2);
+		Width = Math.Max(2, Width);
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<BraggReflectorPart>();
+}
+
+/// <summary>
+/// A gradient-index lens: a rectangle of <see cref="Length"/> along the axis and <see cref="Diameter"/> across whose
+/// index falls from <see cref="CentreIndex"/> on the axis to <see cref="EdgeIndex"/> at the edge as
+/// n(y') = n_c − (n_c − n_e)·(2y'/D)².
+/// </summary>
+public sealed class GrinLensPart : OpticalPart
+{
+	/// <summary>Default <see cref="Length"/> in pixels.</summary>
+	public const int DefaultLength = 100;
+	/// <summary>Default <see cref="Diameter"/> in pixels.</summary>
+	public const int DefaultDiameter = 100;
+	/// <summary>Default <see cref="CentreIndex"/>.</summary>
+	public const double DefaultCentreIndex = 1.8;
+	/// <summary>Default <see cref="EdgeIndex"/>.</summary>
+	public const double DefaultEdgeIndex = 1.5;
+
+	private int _length = DefaultLength;
+	private int _diameter = DefaultDiameter;
+	private double _centreIndex = DefaultCentreIndex;
+	private double _edgeIndex = DefaultEdgeIndex;
+	private int _coating;
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.GrinLens;
+
+	/// <summary>Extent along the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultLength)]
+	[Category("Shape")]
+	[Description("Extent along the axis in pixels.")]
+	public int Length
+	{
+		get => _length;
+		set => SetProperty(ref _length, value);
+	}
+
+	/// <summary>Extent across the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultDiameter)]
+	[Category("Shape")]
+	[Description("Extent across the axis in pixels.")]
+	public int Diameter
+	{
+		get => _diameter;
+		set => SetProperty(ref _diameter, value);
+	}
+
+	/// <summary>Refractive index on the axis, 1.00 to 2.55.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCentreIndex)]
+	[Category("Material")]
+	[DisplayName("Centre index")]
+	[Description("Refractive index on the axis, 1.00 to 2.55 in steps of 0.01.")]
+	public double CentreIndex
+	{
+		get => _centreIndex;
+		set => SetProperty(ref _centreIndex, value);
+	}
+
+	/// <summary>Refractive index at the edge, 1.00 to 2.55; the profile between is parabolic.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultEdgeIndex)]
+	[Category("Material")]
+	[DisplayName("Edge index")]
+	[Description("Refractive index at the edge, 1.00 to 2.55 in steps of 0.01. The profile between the axis and the edge is parabolic.")]
+	public double EdgeIndex
+	{
+		get => _edgeIndex;
+		set => SetProperty(ref _edgeIndex, value);
+	}
+
+	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n of the local index; 0 for none.</summary>
+	[XmlAttribute]
+	[DefaultValue(0)]
+	[Category("Material")]
+	[DisplayName("AR coating")]
+	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none.")]
+	public int Coating
+	{
+		get => _coating;
+		set => SetProperty(ref _coating, value);
+	}
+
+	/// <inheritdoc/>
+	public override double AxisReach => Length / 2.0;
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		Length = Math.Max(1, Length);
+		Diameter = Math.Max(2, Diameter);
+		CentreIndex = NormalizeIndex(CentreIndex);
+		EdgeIndex = NormalizeIndex(EdgeIndex);
+		Coating = Math.Clamp(Coating, 0, MaxCoating);
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<GrinLensPart>();
+}

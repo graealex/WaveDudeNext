@@ -17,6 +17,8 @@
 
 using System.Collections;
 using System.IO;
+using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using Microsoft.Win32;
 using WaveDudeNext.Model;
@@ -39,15 +41,45 @@ public partial class MainWindow
 	private IList? ListOf(object? node) => node switch
 	{
 		NamedCollection folder when ReferenceEquals(folder.Items, Project.Sources) => Project.Sources,
+		NamedCollection folder when ReferenceEquals(folder.Items, Project.Parts) => Project.Parts,
 		NamedCollection folder when ReferenceEquals(folder.Items, Project.Probes) => Project.Probes,
 		NamedCollection folder when ReferenceEquals(folder.Items, Project.ColorSchemes) => Project.ColorSchemes,
 		Source => Project.Sources,
+		OpticalPart => Project.Parts,
 		Probe => Project.Probes,
 		ColorScheme => Project.ColorSchemes,
 		_ => null,
 	};
 
 	private void OnAddSource(object sender, ExecutedRoutedEventArgs e) => Added(Project.AddSource());
+
+	/// <summary>
+	/// Add part: with a <see cref="PartKind"/> as parameter (the menu entries) the part is appended; without one (the
+	/// "+ Part" button, the Parts folder's plus) the invoking element's context menu, the menu of kinds, opens under it,
+	/// so the kind is chosen there (keyboard: Space opens it, the arrows walk it, Enter picks).
+	/// </summary>
+	private void OnAddPart(object sender, ExecutedRoutedEventArgs e)
+	{
+		if (e.Parameter is PartKind kind)
+		{
+			Added(Project.AddPart(kind));
+		}
+		else
+		{
+			OpenPartMenu(e.OriginalSource);
+		}
+	}
+
+	/// <summary>Opens the menu of part kinds attached to <paramref name="element"/> (its context menu), placed under it.</summary>
+	private static void OpenPartMenu(object? element)
+	{
+		if (element is FrameworkElement { ContextMenu: { } menu } anchor)
+		{
+			menu.PlacementTarget = anchor;
+			menu.Placement = PlacementMode.Bottom;
+			menu.IsOpen = true;
+		}
+	}
 
 	private void OnAddProbe(object sender, ExecutedRoutedEventArgs e) => Added(Project.AddProbe());
 
@@ -61,6 +93,10 @@ public partial class MainWindow
 		{
 			Added(Project.AddSource());
 		}
+		else if (ReferenceEquals(list, Project.Parts))
+		{
+			OpenPartMenu(e.OriginalSource);
+		}
 		else if (ReferenceEquals(list, Project.Probes))
 		{
 			Added(Project.AddProbe());
@@ -72,18 +108,21 @@ public partial class MainWindow
 	}
 
 	private void CanEditItem(object sender, CanExecuteRoutedEventArgs e) =>
-		e.CanExecute = Target(e.Parameter) is Source or Probe or ColorScheme;
+		e.CanExecute = Target(e.Parameter) is Source or OpticalPart or Probe or ColorScheme;
 
 	private void CanToggleEnabled(object sender, CanExecuteRoutedEventArgs e) =>
-		e.CanExecute = Target(e.Parameter) is Source or Probe;
+		e.CanExecute = Target(e.Parameter) is Source or OpticalPart or Probe;
 
-	/// <summary>The tree's check boxes by keyboard: Space on a selected source or probe flips it (the author's point 11, 2026-10-13).</summary>
+	/// <summary>The tree's check boxes by keyboard: Space on a selected source, part or probe flips it (the author's point 11, 2026-10-13).</summary>
 	private void OnToggleEnabled(object sender, ExecutedRoutedEventArgs e)
 	{
 		switch (Target(e.Parameter))
 		{
 			case Source source:
 				source.Enabled = !source.Enabled;
+				break;
+			case OpticalPart part:
+				part.Enabled = !part.Enabled;
 				break;
 			case Probe probe:
 				probe.Active = !probe.Active;
@@ -97,6 +136,9 @@ public partial class MainWindow
 		{
 			case Source source:
 				Added(Project.Duplicate(source));
+				break;
+			case OpticalPart part:
+				Added(Project.Duplicate(part));
 				break;
 			case Probe probe:
 				Added(Project.Duplicate(probe));
@@ -121,6 +163,9 @@ public partial class MainWindow
 			case Source source:
 				Project.Remove(source);
 				break;
+			case OpticalPart part:
+				Project.Remove(part);
+				break;
 			case Probe probe:
 				Project.Remove(probe);
 				break;
@@ -142,13 +187,13 @@ public partial class MainWindow
 	private void CanMoveUp(object sender, CanExecuteRoutedEventArgs e)
 	{
 		object? item = Target(e.Parameter);
-		e.CanExecute = ListOf(item) is { } list && item is Source or Probe or ColorScheme && list.IndexOf(item) > 0;
+		e.CanExecute = ListOf(item) is { } list && item is Source or OpticalPart or Probe or ColorScheme && list.IndexOf(item) > 0;
 	}
 
 	private void CanMoveDown(object sender, CanExecuteRoutedEventArgs e)
 	{
 		object? item = Target(e.Parameter);
-		e.CanExecute = ListOf(item) is { } list && item is Source or Probe or ColorScheme && list.IndexOf(item) < list.Count - 1;
+		e.CanExecute = ListOf(item) is { } list && item is Source or OpticalPart or Probe or ColorScheme && list.IndexOf(item) < list.Count - 1;
 	}
 
 	private void OnMoveUp(object sender, ExecutedRoutedEventArgs e) => MoveBy(Target(e.Parameter), -1);
@@ -166,6 +211,7 @@ public partial class MainWindow
 		bool moved = item switch
 		{
 			Source source => Project.Move(source, index),
+			OpticalPart part => Project.Move(part, index),
 			Probe probe => Project.Move(probe, index),
 			ColorScheme scheme => Project.Move(scheme, index),
 			_ => false,

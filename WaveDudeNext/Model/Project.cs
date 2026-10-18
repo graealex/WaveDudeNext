@@ -25,10 +25,10 @@ using WaveDudeNext.Rendering;
 namespace WaveDudeNext.Model;
 
 /// <summary>
-/// A wave simulation project: the scene, solver and display settings plus the sources and
-/// probes. Persisted as sparse XML through <see cref="XmlSerializer"/>: scalars are attributes,
-/// sources and probes are repeated <c>Source</c> and <c>Probe</c> elements directly under the
-/// root, and values equal to their defaults are left out. Properties carry
+/// A wave simulation project: the scene, solver and display settings plus the sources, optical
+/// parts and probes. Persisted as sparse XML through <see cref="XmlSerializer"/>: scalars are attributes,
+/// sources, parts and probes are repeated <c>Source</c>, <c>Lens</c> … <c>GrinLens</c> and <c>Probe</c> elements
+/// directly under the root, and values equal to their defaults are left out. Properties carry
 /// <see cref="System.ComponentModel"/> metadata for property grids.
 /// </summary>
 [XmlRoot("Project")]
@@ -44,6 +44,7 @@ public sealed class Project : ObservableObject
 	private Simulation _simulation = new();
 	private Display _display = new();
 	private ObservableCollection<Source> _sources = new();
+	private ObservableCollection<OpticalPart> _parts = new();
 	private ObservableCollection<Probe> _probes = new();
 	private ObservableCollection<ColorScheme> _colorSchemes = new();
 	/// <summary>Each project scheme's last known name, so a rename can repoint the layers that referred to the old one.</summary>
@@ -143,6 +144,27 @@ public sealed class Project : ObservableObject
 	{
 		get => _sources;
 		set => SetProperty(ref _sources, value);
+	}
+
+	/// <summary>
+	/// Optical parts (lenses, mirrors, polygons, rectangles, triangles, outlines, fibres, Bragg reflectors, GRIN lenses), in the order they appear in
+	/// the project tree, which is the order they are painted in: a later part paints over an earlier one. One element
+	/// name per kind in the file (2026-10-18, the user's choice, so a schema can say what each element needs).
+	/// Observable; always present, empty in a new project.
+	/// </summary>
+	[XmlElement("Lens", typeof(LensPart))]
+	[XmlElement("Polygon", typeof(PolygonPart))]
+	[XmlElement("Rectangle", typeof(RectanglePart))]
+	[XmlElement("Triangle", typeof(TrianglePart))]
+	[XmlElement("Outline", typeof(OutlinePart))]
+	[XmlElement("Fiber", typeof(FiberPart))]
+	[XmlElement("BraggReflector", typeof(BraggReflectorPart))]
+	[XmlElement("GrinLens", typeof(GrinLensPart))]
+	[Browsable(false)]
+	public ObservableCollection<OpticalPart> Parts
+	{
+		get => _parts;
+		set => SetProperty(ref _parts, value);
 	}
 
 	/// <summary>
@@ -311,6 +333,46 @@ public sealed class Project : ObservableObject
 		return source;
 	}
 
+	/// <summary>
+	/// Appends a new part of <paramref name="kind"/>, named "Lens n", "Polygon n", "Rectangle n", "Triangle n", "Outline n",
+	/// "Fiber n", "Bragg reflector n" or "GRIN lens n" with the first free n, centred on the canvas (the scene's size; an image scene's own size is not
+	/// known here), and returns it.
+	/// </summary>
+	public OpticalPart AddPart(PartKind kind)
+	{
+		OpticalPart part = kind switch
+		{
+			PartKind.Lens => new LensPart(),
+			PartKind.Polygon => new PolygonPart(),
+			PartKind.Rectangle => new RectanglePart(),
+			PartKind.Triangle => new TrianglePart(),
+			PartKind.Outline => new OutlinePart(),
+			PartKind.Fiber => new FiberPart { Points = FiberPart.DefaultPath() },
+			PartKind.BraggReflector => new BraggReflectorPart(),
+			PartKind.GrinLens => new GrinLensPart(),
+			_ => throw new ArgumentOutOfRangeException(nameof(kind)),
+		};
+		part.Name = NumberedName(PartStem(kind), Parts.Select(p => p.Name));
+		part.X = Scene.Width / 2;
+		part.Y = Scene.Height / 2;
+		Parts.Add(part);
+		return part;
+	}
+
+	/// <summary>The English name stem of new parts of <paramref name="kind"/> ("Lens", "Bragg reflector", …).</summary>
+	public static string PartStem(PartKind kind) => kind switch
+	{
+		PartKind.Lens => "Lens",
+		PartKind.Polygon => "Polygon",
+		PartKind.Rectangle => "Rectangle",
+		PartKind.Triangle => "Triangle",
+		PartKind.Outline => "Outline",
+		PartKind.Fiber => "Fiber",
+		PartKind.BraggReflector => "Bragg reflector",
+		PartKind.GrinLens => "GRIN lens",
+		_ => "Part",
+	};
+
 	/// <summary>Appends a new probe named "Probe n" with the first free n, and returns it.</summary>
 	public Probe AddProbe()
 	{
@@ -361,6 +423,15 @@ public sealed class Project : ObservableObject
 		return copy;
 	}
 
+	/// <summary>Inserts a copy of <paramref name="part"/> right after it, named "&lt;name&gt; copy", and returns the copy.</summary>
+	public OpticalPart Duplicate(OpticalPart part)
+	{
+		OpticalPart copy = part.Clone();
+		copy.Name = CopyName(part.Name, Parts.Select(p => p.Name));
+		Parts.Insert(Parts.IndexOf(part) + 1, copy);
+		return copy;
+	}
+
 	/// <summary>Inserts a copy of <paramref name="probe"/> right after it, named "&lt;name&gt; copy", and returns the copy.</summary>
 	public Probe Duplicate(Probe probe)
 	{
@@ -373,11 +444,17 @@ public sealed class Project : ObservableObject
 	/// <summary>Removes the source; false when it was not in the project.</summary>
 	public bool Remove(Source source) => Sources.Remove(source);
 
+	/// <summary>Removes the part; false when it was not in the project.</summary>
+	public bool Remove(OpticalPart part) => Parts.Remove(part);
+
 	/// <summary>Removes the probe; false when it was not in the project.</summary>
 	public bool Remove(Probe probe) => Probes.Remove(probe);
 
 	/// <summary>Moves the source so that it ends up at <paramref name="index"/>; false when nothing changed.</summary>
 	public bool Move(Source source, int index) => Move(Sources, source, index);
+
+	/// <summary>Moves the part so that it ends up at <paramref name="index"/>; false when nothing changed.</summary>
+	public bool Move(OpticalPart part, int index) => Move(Parts, part, index);
 
 	/// <summary>Moves the probe so that it ends up at <paramref name="index"/>; false when nothing changed.</summary>
 	public bool Move(Probe probe, int index) => Move(Probes, probe, index);
@@ -436,7 +513,7 @@ public sealed class Project : ObservableObject
 	/// <summary>Writes the project to <paramref name="path"/>, replacing an existing file.</summary>
 	public void Save(string path)
 	{
-		Logger.Info("Saving project to '{Path}' ({Sources} sources, {Probes} probes)", path, Sources.Count, Probes.Count);
+		Logger.Info("Saving project to '{Path}' ({Sources} sources, {Parts} parts, {Probes} probes)", path, Sources.Count, Parts.Count, Probes.Count);
 		using FileStream stream = File.Create(path);
 		Save(stream);
 	}
@@ -458,7 +535,7 @@ public sealed class Project : ObservableObject
 			Logger.Warn("Project file version {Version} is newer than the supported {Supported}; unknown settings are ignored", project.Version, CurrentVersion);
 		}
 		project.Normalize();
-		Logger.Debug("Loaded project: version {Version}, seed {Seed}, {Sources} sources, {Probes} probes", project.Version, project.Seed, project.Sources.Count, project.Probes.Count);
+		Logger.Debug("Loaded project: version {Version}, seed {Seed}, {Sources} sources, {Parts} parts, {Probes} probes", project.Version, project.Seed, project.Sources.Count, project.Parts.Count, project.Probes.Count);
 		return project;
 	}
 
@@ -480,6 +557,10 @@ public sealed class Project : ObservableObject
 		{
 			source.Normalize();
 			source.GenerateElements(Seed);
+		}
+		foreach (OpticalPart part in Parts)
+		{
+			part.Normalize();
 		}
 		foreach (Probe probe in Probes)
 		{

@@ -80,6 +80,25 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="MinHeight" Value="20" />
 			<Setter Property="Margin" Value="1,0" />
 		</Style>
+		<!-- the menu of part kinds, the optics first and the plain shapes after a separator: the "+ Part" button and the Parts
+		     folder's plus open it (AddPart without a parameter opens the invoking element's context menu; each entry adds its
+		     kind). One instance per button -->
+		<ContextMenu x:Key="PartKindMenu" x:Shared="False">
+			<ContextMenu.Resources>
+				<Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+					<Setter Property="CommandTarget" Value="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
+				</Style>
+			</ContextMenu.Resources>
+			<MenuItem Header="{DynamicResource MenuAddLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Lens}" AutomationProperties.AutomationId="AddPart:Lens" />
+			<MenuItem Header="{DynamicResource MenuAddFiber}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Fiber}" AutomationProperties.AutomationId="AddPart:Fiber" />
+			<MenuItem Header="{DynamicResource MenuAddBraggReflector}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.BraggReflector}" AutomationProperties.AutomationId="AddPart:BraggReflector" />
+			<MenuItem Header="{DynamicResource MenuAddGrinLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.GrinLens}" AutomationProperties.AutomationId="AddPart:GrinLens" />
+			<Separator />
+			<MenuItem Header="{DynamicResource MenuAddPolygon}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Polygon}" AutomationProperties.AutomationId="AddPart:Polygon" />
+			<MenuItem Header="{DynamicResource MenuAddRectangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Rectangle}" AutomationProperties.AutomationId="AddPart:Rectangle" />
+			<MenuItem Header="{DynamicResource MenuAddTriangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Triangle}" AutomationProperties.AutomationId="AddPart:Triangle" />
+			<MenuItem Header="{DynamicResource MenuAddOutline}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Outline}" AutomationProperties.AutomationId="AddPart:Outline" />
+		</ContextMenu>
 	</UserControl.Resources>
 
 	<DockPanel>
@@ -89,6 +108,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<StackPanel Orientation="Horizontal">
 				<Button Style="{StaticResource TextButton}" Content="{DynamicResource ToolAddSource}" ToolTip="{DynamicResource TipAddSource}" AutomationProperties.Name="{DynamicResource TipAddSource}"
 				        Command="{x:Static commands:ProjectCommands.AddSource}" AutomationProperties.AutomationId="ToolAddSource" />
+				<Button Style="{StaticResource TextButton}" Content="{DynamicResource ToolAddPart}" ToolTip="{DynamicResource TipAddPart}" AutomationProperties.Name="{DynamicResource TipAddPart}"
+				        Command="{x:Static commands:ProjectCommands.AddPart}" ContextMenu="{StaticResource PartKindMenu}" AutomationProperties.AutomationId="ToolAddPart" />
 				<Button Style="{StaticResource TextButton}" Content="{DynamicResource ToolAddProbe}" ToolTip="{DynamicResource TipAddProbe}" AutomationProperties.Name="{DynamicResource TipAddProbe}"
 				        Command="{x:Static commands:ProjectCommands.AddProbe}" AutomationProperties.AutomationId="ToolAddProbe" />
 				<Rectangle Width="1" Margin="4,2" Fill="{DynamicResource ToolWindowBorder}" />
@@ -134,6 +155,17 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 									</Style>
 								</ContextMenu.Resources>
 								<MenuItem Header="{DynamicResource MenuProjectAddSource}" Command="{x:Static commands:ProjectCommands.AddSource}" />
+								<MenuItem Header="{DynamicResource MenuProjectAddPart}">
+									<MenuItem Header="{DynamicResource MenuAddLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Lens}" />
+									<MenuItem Header="{DynamicResource MenuAddFiber}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Fiber}" />
+									<MenuItem Header="{DynamicResource MenuAddBraggReflector}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.BraggReflector}" />
+									<MenuItem Header="{DynamicResource MenuAddGrinLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.GrinLens}" />
+									<Separator />
+									<MenuItem Header="{DynamicResource MenuAddPolygon}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Polygon}" />
+									<MenuItem Header="{DynamicResource MenuAddRectangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Rectangle}" />
+									<MenuItem Header="{DynamicResource MenuAddTriangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Triangle}" />
+									<MenuItem Header="{DynamicResource MenuAddOutline}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Outline}" />
+								</MenuItem>
 								<MenuItem Header="{DynamicResource MenuProjectAddProbe}" Command="{x:Static commands:ProjectCommands.AddProbe}" />
 								<Separator />
 								<MenuItem Header="{DynamicResource MenuProjectToggleEnabled}" Command="{x:Static commands:ProjectCommands.ToggleEnabled}" InputGestureText="Space" />
@@ -152,11 +184,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<!-- one template per model type; children come from the bound properties, lists become folders -->
 				<HierarchicalDataTemplate DataType="{x:Type model:Project}">
 					<HierarchicalDataTemplate.ItemsSource>
-						<MultiBinding Converter="{StaticResource NamedCollections}" ConverterParameter=",,,TreeSources,TreeProbes,TreeColorSchemes">
+						<MultiBinding Converter="{StaticResource NamedCollections}" ConverterParameter=",,,TreeSources,TreeParts,TreeProbes,TreeColorSchemes">
 							<Binding Path="Scene" />
 							<Binding Path="Simulation" />
 							<Binding Path="Display" />
 							<Binding Path="Sources" />
+							<Binding Path="Parts" />
 							<Binding Path="Probes" />
 							<Binding Path="ColorSchemes" />
 						</MultiBinding>
@@ -174,11 +207,21 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					<TextBlock Text="{DynamicResource TreeDisplay}" />
 				</DataTemplate>
 
-				<!-- folder row: name and an add button -->
+				<!-- folder row: name and an add button; the Parts folder's button carries the menu of kinds, which Add opens -->
 				<HierarchicalDataTemplate DataType="{x:Type converters:NamedCollection}" ItemsSource="{Binding Items}">
 					<DockPanel>
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource PlusGeometry}"
-						        ToolTip="{DynamicResource TipAdd}" AutomationProperties.Name="{DynamicResource TipAdd}" Command="{x:Static commands:ProjectCommands.Add}" CommandParameter="{Binding}" />
+						<Button DockPanel.Dock="Right" Content="{StaticResource PlusGeometry}"
+						        ToolTip="{DynamicResource TipAdd}" AutomationProperties.Name="{DynamicResource TipAdd}" Command="{x:Static commands:ProjectCommands.Add}" CommandParameter="{Binding}">
+							<Button.Style>
+								<Style TargetType="{x:Type Button}" BasedOn="{StaticResource GlyphButton}">
+									<Style.Triggers>
+										<DataTrigger Binding="{Binding Key}" Value="TreeParts">
+											<Setter Property="ContextMenu" Value="{StaticResource PartKindMenu}" />
+										</DataTrigger>
+									</Style.Triggers>
+								</Style>
+							</Button.Style>
+						</Button>
 						<TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
 					</DockPanel>
 				</HierarchicalDataTemplate>
@@ -196,6 +239,31 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"
 						          IsChecked="{Binding Enabled}" ToolTip="{DynamicResource TipSourceEnabled}"
 						          AutomationProperties.Name="{DynamicResource TipSourceEnabled}" AutomationProperties.AutomationId="{Binding Name, StringFormat='Enabled:{0}'}" />
+						<TextBlock Text="{Binding Name}" VerticalAlignment="Center">
+							<TextBlock.Style>
+								<Style TargetType="{x:Type TextBlock}">
+									<Style.Triggers>
+										<DataTrigger Binding="{Binding Enabled}" Value="False">
+											<Setter Property="Foreground" Value="{DynamicResource GrayText}" />
+										</DataTrigger>
+									</Style.Triggers>
+								</Style>
+							</TextBlock.Style>
+						</TextBlock>
+					</DockPanel>
+				</DataTemplate>
+				<!-- an optical part: like a source, the enabled check box, the name, move and remove -->
+				<DataTemplate DataType="{x:Type model:OpticalPart}">
+					<DockPanel>
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource MinusGeometry}"
+						        ToolTip="{DynamicResource TipRemove}" AutomationProperties.Name="{DynamicResource TipRemove}" Command="{x:Static commands:ProjectCommands.Remove}" CommandParameter="{Binding}" />
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronDownGeometry}"
+						        ToolTip="{DynamicResource TipMoveDown}" AutomationProperties.Name="{DynamicResource TipMoveDown}" Command="{x:Static commands:ProjectCommands.MoveDown}" CommandParameter="{Binding}" />
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronUpGeometry}"
+						        ToolTip="{DynamicResource TipMoveUp}" AutomationProperties.Name="{DynamicResource TipMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" CommandParameter="{Binding}" />
+						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"
+						          IsChecked="{Binding Enabled}" ToolTip="{DynamicResource TipPartEnabled}"
+						          AutomationProperties.Name="{DynamicResource TipPartEnabled}" AutomationProperties.AutomationId="{Binding Name, StringFormat='Enabled:{0}'}" />
 						<TextBlock Text="{Binding Name}" VerticalAlignment="Center">
 							<TextBlock.Style>
 								<Style TargetType="{x:Type TextBlock}">

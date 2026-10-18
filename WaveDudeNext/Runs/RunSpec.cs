@@ -54,7 +54,8 @@ public sealed class RunSpec
 		Height = height;
 		DampingEdge = project.Scene.DampingEdge;
 		RefractiveIndex = project.Scene.RefractiveIndex;
-		ImageSources = image != null && project.Scene.ImageSources;
+		// a canvas scene with painted parts has pixels too, but no green to emit from (the parts never touch green)
+		ImageSources = project.Scene.Mode == SceneMode.Image && image != null && project.Scene.ImageSources;
 		Emitters = [.. Emitter.FromProject(project)];
 		Probes = [.. project.Probes.Where(probe => probe.Active).Select(ProbeSpec.From)];
 	}
@@ -105,7 +106,7 @@ public sealed class RunSpec
 	/// <summary>The planes every frame of the store holds.</summary>
 	public FrameLayers Layers => FrameLayers.Field | (TrackIntensity ? FrameLayers.Intensity : FrameLayers.None);
 
-	/// <summary>The decoded scene image, or null for a blank canvas of <see cref="Width"/> × <see cref="Height"/>.</summary>
+	/// <summary>The scene pixels (the decoded image, or a canvas with painted optical parts), or null for a blank canvas of <see cref="Width"/> × <see cref="Height"/>.</summary>
 	public ScenePixels? Image { get; }
 
 	/// <summary>Canvas width in pixels.</summary>
@@ -134,7 +135,7 @@ public sealed class RunSpec
 	/// does that on load, reseed and add, not on edits). UI thread.
 	/// </summary>
 	/// <param name="project">The project to run; not modified beyond the emitter regeneration.</param>
-	/// <param name="image">The decoded scene image when <see cref="Scene.Mode"/> is <see cref="SceneMode.Image"/>; ignored otherwise.</param>
+	/// <param name="image">The scene pixels: the decoded image when <see cref="Scene.Mode"/> is <see cref="SceneMode.Image"/>, with the optical parts painted in; for a canvas scene, the parts painted on a blank canvas of the scene's size, or null without parts (a canvas of another size is ignored).</param>
 	/// <param name="preferGpu">Try the OpenCL engine first (the application's choice; the CPU is the fallback either way).</param>
 	/// <param name="trackIntensity">Store the intensity plane even when nothing in the project needs it (an export of the intensity asks for it).</param>
 	/// <param name="quality">How much of the run to keep (the application's preview setting); null is <see cref="PreviewQuality.Full"/>.</param>
@@ -163,9 +164,12 @@ public sealed class RunSpec
 		}
 		else
 		{
-			image = null;
 			width = project.Scene.Width;
 			height = project.Scene.Height;
+			if (image != null && (image.Width != width || image.Height != height))
+			{
+				image = null;
+			}
 		}
 		trackIntensity |= project.Display.Intensity.Preview
 			|| project.Probes.Any(probe => probe.Active && probe.Measurement != ProbeMeasurement.Amplitude);

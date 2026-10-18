@@ -23,7 +23,7 @@ using WaveDudeNext.Rendering;
 namespace WaveDudeNext.WPF.Converters;
 
 /// <summary>
-/// The automation id of a Project tree row from its node: "Tree:" plus the item's name (sources, probes,
+/// The automation id of a Project tree row from its node: "Tree:" plus the item's name (sources, parts, probes,
 /// colour schemes), a folder's label, or the type name of the fixed nodes ("Tree:Scene"), so a harness
 /// can reach a row with Tab and act on it.
 /// </summary>
@@ -32,6 +32,7 @@ public sealed class TreeIdConverter : IValueConverter
 	public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => "Tree:" + value switch
 	{
 		Source source => source.Name,
+		OpticalPart part => part.Name,
 		Probe probe => probe.Name,
 		ColorScheme scheme => scheme.Name,
 		NamedCollection folder => folder.Key,

@@ -175,6 +175,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 		<!-- project structure; handlers in MainWindow.Project.cs -->
 		<CommandBinding Command="{x:Static commands:ProjectCommands.AddSource}" Executed="OnAddSource" />
+		<CommandBinding Command="{x:Static commands:ProjectCommands.AddPart}" Executed="OnAddPart" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.AddProbe}" Executed="OnAddProbe" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.Add}" CanExecute="CanAdd" Executed="OnAdd" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.Duplicate}" CanExecute="CanEditItem" Executed="OnDuplicate" />

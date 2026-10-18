@@ -30,9 +30,9 @@ using WaveDudeNext.WPF.Converters;
 namespace WaveDudeNext.WPF.Panes;
 
 /// <summary>
-/// The project tree: the <see cref="Project"/> as root with its sections, sources and probes
+/// The project tree: the <see cref="Project"/> as root with its sections, sources, optical parts and probes
 /// beneath. Nodes are the model objects themselves; the templates in the XAML decide how each
-/// type is shown and which properties form its children. Sources and probes can be reordered
+/// type is shown and which properties form its children. Sources, parts and probes can be reordered
 /// by dragging a row onto a sibling (line above or below) or onto their folder (append).
 /// </summary>
 public partial class ProjectTree : UserControl
@@ -140,7 +140,7 @@ public partial class ProjectTree : UserControl
 		{
 			return; // row buttons are clicks, not drags
 		}
-		if (FindAncestor<TreeViewItem>(origin) is { DataContext: Source or Probe or ColorScheme } row)
+		if (FindAncestor<TreeViewItem>(origin) is { DataContext: Source or OpticalPart or Probe or ColorScheme } row)
 		{
 			_dragCandidate = row.DataContext;
 			_dragStart = e.GetPosition(tree);
@@ -204,6 +204,7 @@ public partial class ProjectTree : UserControl
 		bool moved = item switch
 		{
 			Source source => Project.Move(source, target.Index),
+			OpticalPart part => Project.Move(part, target.Index),
 			Probe probe => Project.Move(probe, target.Index),
 			_ => false,
 		};
@@ -259,6 +260,7 @@ public partial class ProjectTree : UserControl
 	private IList? ListOf(object? node) => node switch
 	{
 		Source => Project?.Sources,
+		OpticalPart => Project?.Parts,
 		Probe => Project?.Probes,
 		ColorScheme => Project?.ColorSchemes,
 		_ => null,

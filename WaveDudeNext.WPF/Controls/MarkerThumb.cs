@@ -27,6 +27,10 @@ public enum MarkerRole
 	Source,
 	/// <summary>The rotation handle of a composite source: sits on the array's row axis and turns it (2026-10-14).</summary>
 	SourceAngle,
+	/// <summary>The centre of an optical part.</summary>
+	Part,
+	/// <summary>The rotation handle of an optical part: sits on the part's axis beyond its reach and turns it.</summary>
+	PartAngle,
 	/// <summary>Point A of a probe (the point of a point probe, the start of a line probe).</summary>
 	ProbeA,
 	/// <summary>Point B of a line probe.</summary>
@@ -62,7 +66,7 @@ public sealed class MarkerThumb : Thumb
 	/// <summary>How far the dark halo sticks out on each side of a stroke, in pixels, so the glyph reads on any picture.</summary>
 	public const double HaloWidth = 2.0;
 
-	/// <param name="item">The source or probe.</param>
+	/// <param name="item">The source, part or probe.</param>
 	/// <param name="role">Which point of it.</param>
 	public MarkerThumb(object item, MarkerRole role)
 	{
@@ -71,7 +75,7 @@ public sealed class MarkerThumb : Thumb
 		Focusable = true;
 	}
 
-	/// <summary>The source or probe this handle moves.</summary>
+	/// <summary>The source, part or probe this handle moves.</summary>
 	public object Item { get; }
 
 	/// <summary>Which point of the item.</summary>

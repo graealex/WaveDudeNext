@@ -29,16 +29,19 @@ public static class ProjectCommands
 	/// <summary>Appends a new source.</summary>
 	public static readonly RoutedUICommand AddSource = new("Add source", nameof(AddSource), typeof(ProjectCommands));
 
+	/// <summary>Appends a new optical part of the <see cref="WaveDudeNext.Model.PartKind"/> given as parameter; without one, opens the menu of kinds on the invoking element.</summary>
+	public static readonly RoutedUICommand AddPart = new("Add part", nameof(AddPart), typeof(ProjectCommands));
+
 	/// <summary>Appends a new probe.</summary>
 	public static readonly RoutedUICommand AddProbe = new("Add probe", nameof(AddProbe), typeof(ProjectCommands));
 
 	/// <summary>Appends a new item to the folder node given as parameter.</summary>
 	public static readonly RoutedUICommand Add = new("Add", nameof(Add), typeof(ProjectCommands));
 
-	/// <summary>Inserts a copy of a source or probe after the original.</summary>
+	/// <summary>Inserts a copy of a source, part or probe after the original.</summary>
 	public static readonly RoutedUICommand Duplicate = new("Duplicate", nameof(Duplicate), typeof(ProjectCommands));
 
-	/// <summary>Removes a source or probe.</summary>
+	/// <summary>Removes a source, part or probe.</summary>
 	public static readonly RoutedUICommand Remove = new("Remove", nameof(Remove), typeof(ProjectCommands));
 
 	/// <summary>Swaps a source or probe with its predecessor.</summary>
@@ -47,7 +50,7 @@ public static class ProjectCommands
 	/// <summary>Swaps a source or probe with its successor.</summary>
 	public static readonly RoutedUICommand MoveDown = new("Move down", nameof(MoveDown), typeof(ProjectCommands));
 
-	/// <summary>Flips a source's Enabled or a probe's Active (the tree's check boxes; Space on the selected row).</summary>
+	/// <summary>Flips a source's or part's Enabled or a probe's Active (the tree's check boxes; Space on the selected row).</summary>
 	public static readonly RoutedUICommand ToggleEnabled = new("Enable or disable", nameof(ToggleEnabled), typeof(ProjectCommands));
 
 	/// <summary>Picks an image file and embeds it as the scene image.</summary>

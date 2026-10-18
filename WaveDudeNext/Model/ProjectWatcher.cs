@@ -28,14 +28,15 @@ namespace WaveDudeNext.Model;
 public sealed record ProjectChange(object Item, string? Property)
 {
 	/// <summary>
-	/// Whether the change alters the frames a run computes: the scene, the solver settings, the seed or a
-	/// source. Display settings, probes (see <see cref="AffectsProbes"/>) and the description do not.
+	/// Whether the change alters the frames a run computes: the scene, the solver settings, the seed, a source or an
+	/// optical part (painted into the scene). Display settings, probes (see <see cref="AffectsProbes"/>) and the
+	/// description do not.
 	/// </summary>
 	public bool AffectsSimulation => Item switch
 	{
 		Scene when Property == nameof(Scene.ImagePath) => false,
-		Scene or Simulation or Source or SourceArray => true,
-		Project => Property is nameof(Project.Seed) or nameof(Project.Scene) or nameof(Project.Simulation) or nameof(Project.Sources),
+		Scene or Simulation or Source or SourceArray or OpticalPart or PartPoint => true,
+		Project => Property is nameof(Project.Seed) or nameof(Project.Scene) or nameof(Project.Simulation) or nameof(Project.Sources) or nameof(Project.Parts),
 		ObservableCollection<ColorScheme> or ObservableCollection<Probe> => false,
 		INotifyCollectionChanged => true,
 		_ => false,
@@ -58,7 +59,8 @@ public sealed record ProjectChange(object Item, string? Property)
 
 /// <summary>
 /// Raises one event for any change anywhere in a <see cref="Project"/>: the nested settings objects, the
-/// source and probe lists and their items (re-subscribing when objects are replaced or items come and go).
+/// source, part and probe lists and their items, a part's point list included (re-subscribing when objects are
+/// replaced or items come and go).
 /// The model has no aggregate notification of its own; this is it. UI thread, like the model.
 /// </summary>
 public sealed class ProjectWatcher : IDisposable
@@ -87,7 +89,7 @@ public sealed class ProjectWatcher : IDisposable
 
 	private void OnProjectPropertyChanged(object? sender, PropertyChangedEventArgs e)
 	{
-		if (e.PropertyName is nameof(Project.Scene) or nameof(Project.Simulation) or nameof(Project.Display) or nameof(Project.Sources) or nameof(Project.Probes) or nameof(Project.ColorSchemes))
+		if (e.PropertyName is nameof(Project.Scene) or nameof(Project.Simulation) or nameof(Project.Display) or nameof(Project.Sources) or nameof(Project.Parts) or nameof(Project.Probes) or nameof(Project.ColorSchemes))
 		{
 			Resubscribe();
 		}
@@ -96,7 +98,8 @@ public sealed class ProjectWatcher : IDisposable
 
 	private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
 	{
-		if (sender is Source && e.PropertyName == nameof(Source.Array) || sender is Display && e.PropertyName is nameof(Display.Field) or nameof(Display.Intensity) or nameof(Display.Video))
+		if (sender is Source && e.PropertyName == nameof(Source.Array) || sender is Display && e.PropertyName is nameof(Display.Field) or nameof(Display.Intensity) or nameof(Display.Video)
+			|| sender is OutlinePart or FiberPart && e.PropertyName == "Points")
 		{
 			Resubscribe();
 		}
@@ -130,6 +133,20 @@ public sealed class ProjectWatcher : IDisposable
 			if (source.Array != null)
 			{
 				Subscribe(source.Array);
+			}
+		}
+		SubscribeCollection(_project.Parts);
+		foreach (OpticalPart part in _project.Parts)
+		{
+			Subscribe(part);
+			ObservableCollection<PartPoint>? points = part switch { OutlinePart outline => outline.Points, FiberPart fiber => fiber.Points, _ => null };
+			if (points != null)
+			{
+				SubscribeCollection(points);
+				foreach (PartPoint point in points)
+				{
+					Subscribe(point);
+				}
 			}
 		}
 		foreach (Probe probe in _project.Probes)

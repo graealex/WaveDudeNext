@@ -23,6 +23,7 @@ using NLog;
 using WaveDudeNext.Engine;
 using WaveDudeNext.Export;
 using WaveDudeNext.Model;
+using WaveDudeNext.Parts;
 using WaveDudeNext.Probes;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
@@ -31,7 +32,7 @@ namespace LibraryCheck;
 
 // Drives the library end to end: CPU and (if available) GPU engines over the same scene and compares their
 // fields, seed determinism, the model-to-emitter mapping, the frame store, the renderer, the colour scheme
-// files and a headless run. Exit code 0 = all checks passed.
+// files, the optical part painter and a headless run. Exit code 0 = all checks passed.
 internal static class Program
 {
 	private static int _failures;
@@ -219,6 +220,7 @@ internal static class Program
 		CheckColorSchemes();
 		CheckProbeGraph();
 		CheckImport();
+		CheckParts();
 		CheckRun();
 		ExportChecks.Run(Check);
 
@@ -1550,6 +1552,279 @@ internal static class Program
 		}
 		File.Delete(newer);
 		Check(refused, "a newer format version is refused");
+	}
+
+	/// <summary>Red at canvas pixel (x, y) of a painted scene.</summary>
+	private static int RedAt(ScenePixels pixels, int x, int y) => pixels.Bgra[y * pixels.StrideBytes + x * 4 + 2];
+
+	/// <summary>Sum over the canvas of the coverage a painted glass part of <paramref name="index"/> left on a background of index 1: the painted area in pixels.</summary>
+	private static double PaintedArea(ScenePixels pixels, double index)
+	{
+		double area = 0.0;
+		for (int y = 0; y < pixels.Height; y++)
+		{
+			for (int x = 0; x < pixels.Width; x++)
+			{
+				area += (RedAt(pixels, x, y) - 100) / ((index - 1.0) * 100.0);
+			}
+		}
+		return area;
+	}
+
+	private static void CheckParts()
+	{
+		Console.WriteLine("--- optical parts");
+		const int W = 200, H = 120;
+		(byte[] bgra, int stride) = ScenePixels(W, H);
+		bgra[5 * stride + 5 * 4] = 77;      // blue at (5, 5), under the lens
+		bgra[60 * stride + 100 * 4 + 1] = 160; // green at the lens centre
+		bgra[60 * stride + 100 * 4] = 33;      // blue at the lens centre
+		var image = new ScenePixels(W, H, stride, bgra);
+		var project = new Project();
+		project.Scene.Width = W;
+		project.Scene.Height = H;
+		Check(ReferenceEquals(PartPainter.Paint(image, W, H, 1.0, project.Parts), image) && PartPainter.Paint(null, W, H, 1.0, project.Parts) == null, "no enabled part: the painter returns the image itself (null for a canvas)");
+		var lens = (LensPart)project.AddPart(PartKind.Lens);
+		lens.Enabled = false;
+		Check(ReferenceEquals(PartPainter.Paint(image, W, H, 1.0, project.Parts), image), "a disabled part leaves the image untouched");
+		lens.Enabled = true;
+		lens.X = 100;
+		lens.Y = 60;
+		lens.Diameter = 100;
+		lens.R1 = 300;
+		lens.R2 = -300;
+		lens.Thickness = 40;
+		Check(lens.Name == "Lens 1" && lens.RefractiveIndex == 1.5 && lens.Kind == PartKind.Lens, "a new lens: 'Lens 1', index 1.5");
+		ScenePixels painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
+		Check(!ReferenceEquals(painted, image) && painted.Width == W && painted.Height == H && image.Bgra[60 * stride + 100 * 4 + 2] == 100, "an enabled part paints a copy; the image is not modified");
+		Check(painted.Bgra[60 * painted.StrideBytes + 100 * 4 + 1] == 160 && painted.Bgra[60 * painted.StrideBytes + 100 * 4] == 33 && painted.Bgra[5 * painted.StrideBytes + 5 * 4] == 77, "green and blue are untouched under the lens");
+		int centreRow = Enumerable.Range(0, W).Count(x => RedAt(painted, x, 60) == 150);
+		int edgeRow = Enumerable.Range(0, W).Count(x => RedAt(painted, x, 60 + 49) >= 125);
+		int rows = Enumerable.Range(0, H).Count(y => Enumerable.Range(0, W).Any(x => RedAt(painted, x, y) > 100));
+		Check(centreRow == 40 && rows == 100 && edgeRow >= 30 && edgeRow <= 33, $"a biconvex lens D 100, R ±300, t 40: 40 px thick on the axis (red 150), 100 rows, {edgeRow} px at the edge (sag 4 each side)");
+		Check(RedAt(painted, 100 - 20, 60) == 150 && RedAt(painted, 100 - 21, 60) == 100 && RedAt(painted, 100 + 19, 60) == 150 && RedAt(painted, 100 + 20, 60) == 100, "the lens spans x = 80..119 on the axis, hard edges on whole pixels");
+		lens.Angle = 90;
+		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
+		int columnOnAxis = Enumerable.Range(0, H).Count(y => RedAt(painted, 100, y) == 150);
+		int columns = Enumerable.Range(0, W).Count(x => Enumerable.Range(0, H).Any(y => RedAt(painted, x, y) > 100));
+		Check(columnOnAxis == 40 && columns == 100, $"turned by 90°, the lens is 40 px thick along y and 100 px wide along x ({columnOnAxis}, {columns})");
+		lens.Angle = 0;
+		lens.Coating = 5;
+		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 100, 60) == 150 && RedAt(painted, 100, 60 + 47) == 122 && RedAt(painted, 100, 60 - 47) == 122 && RedAt(painted, 100 - 18, 60) == 122 && RedAt(painted, 100 - 14, 60) == 150,
+			"a 5 px coating: red 122 = round(100 √1.5) just inside the flat edges and the curved surfaces, 150 in the body");
+		lens.Coating = 0;
+		lens.Mirror = true;
+		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
+		int mirrorRow = Enumerable.Range(0, W).Count(x => RedAt(painted, x, 60) == 0);
+		Check(mirrorRow == 40 && painted.Bgra.Where((_, i) => i % 4 == 2).All(red => red is 0 or 100), $"as a mirror the lens is red 0 by the pixel-centre test ({mirrorRow} px on the axis), nothing in between");
+		lens.Mirror = false;
+		lens.R1 = 10;
+		lens.Normalize();
+		Check(lens.R1 == 50 && lens.R2 == -300, "Normalize: |R| below half the diameter becomes half the diameter, the sign kept");
+		project.Parts.Clear();
+
+		// the shapes: a regular hexagon's area, a rectangle, triangles, an outline; then a GRIN lens, a Bragg stack, a fibre
+		var hexagon = (PolygonPart)project.AddPart(PartKind.Polygon);
+		hexagon.X = 100;
+		hexagon.Y = 60;
+		hexagon.Sides = 6;
+		hexagon.Side = 30;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		double area = PaintedArea(painted, 1.5);
+		double expected = 3.0 * Math.Sqrt(3.0) / 2.0 * 30 * 30;
+		Check(Math.Abs(area - expected) < 0.01 * expected, $"a regular hexagon of side 30 covers {area:F1} px, the formula gives {expected:F1} (within 1 %)");
+		Check(RedAt(painted, 100 + 24, 60) == 150 && RedAt(painted, 100 + 26, 60) == 100 && RedAt(painted, 100, 60 + 14) == 150 && RedAt(painted, 100, 60 + 30) == 100, "the hexagon has flat faces at ±x' (26 px out) and vertices at ±y' (30 px out)");
+		Check(painted.Bgra[(60 * W + 100) * 4 + 3] == 255 && painted.Bgra[(60 * W + 100) * 4 + 1] == 0 && painted.Bgra[(0 * W + 0) * 4 + 2] == 100, "a blank canvas: opaque, no green, background red 100");
+		project.Parts.Clear();
+		var rectangle = (RectanglePart)project.AddPart(PartKind.Rectangle);
+		rectangle.X = 100;
+		rectangle.Y = 60;
+		rectangle.Length = 60;
+		rectangle.Width = 20;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		area = PaintedArea(painted, 1.5);
+		Check(Math.Abs(area - 1200.0) < 2.0 && RedAt(painted, 100 - 30, 60) == 150 && RedAt(painted, 100 - 31, 60) == 100 && RedAt(painted, 100 + 29, 60) == 150 && RedAt(painted, 100, 60 + 9) == 150 && RedAt(painted, 100, 60 + 10) == 100,
+			$"a rectangle of length 60 and width 20 lies square to the axis, x = 70..129, y = 50..69 ({area:F1} px)");
+		project.Parts.Clear();
+		var triangle = (TrianglePart)project.AddPart(PartKind.Triangle);
+		triangle.X = 100;
+		triangle.Y = 60;
+		triangle.Base = 60;
+		(double X, double Y)[] tri = triangle.Vertices();
+		Check(triangle.Type == TriangleType.Equilateral && tri.Length == 3 && Math.Abs(tri[2].X - tri[0].X - 60 * Math.Sqrt(3) / 2) < 1e-9 && Math.Abs(tri[2].Y) < 1e-9 && Math.Abs(triangle.ApexAngle - 60) < 1e-9 && Math.Abs(triangle.AxisReach - tri[2].X) < 1e-9,
+			"an equilateral triangle of base 60: height 52, the apex on +x', the reach along the axis is the apex");
+		triangle.Type = TriangleType.RightIsosceles;
+		tri = triangle.Vertices();
+		Check(triangle.AngleA == 45 && triangle.AngleB == 45 && Math.Abs(tri[2].X - tri[0].X - 30) < 1e-9 && Math.Abs(triangle.ApexAngle - 90) < 1e-9, "the right isosceles preset writes 45° / 45°: height 30, the right angle at the apex");
+		triangle.Type = TriangleType.ThirtySixtyNinety;
+		tri = triangle.Vertices();
+		Check(triangle.AngleA == 90 && triangle.AngleB == 30 && Math.Abs(tri[2].Y - tri[0].Y) < 1e-9 && Math.Abs(tri[2].X - tri[0].X - 60 * Math.Tan(Math.PI / 6)) < 1e-9, "the 30-60-90 preset: the right angle at the first end of the base, height 34.6");
+		triangle.Type = TriangleType.Isosceles;
+		triangle.AngleA = 70;
+		Check(triangle.AngleB == 70 && Math.Abs(triangle.ApexAngle - 40) < 1e-9, "isosceles: angle A is mirrored into B, the apex angle follows");
+		triangle.Type = TriangleType.Custom;
+		triangle.AngleA = 100;
+		triangle.AngleB = 100;
+		triangle.Normalize();
+		Check(triangle.AngleA == 100 && triangle.AngleB == 79 && triangle.ApexAngle == 1, "custom angles leave at least a degree for the apex (100 + 100 becomes 100 + 79)");
+		triangle.AngleA = 60;
+		triangle.AngleB = 60;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		area = PaintedArea(painted, 1.5);
+		Check(Math.Abs(area - 1558.8) < 0.01 * 1558.8 && RedAt(painted, 100 - 25, 60) == 150 && RedAt(painted, 100 - 27, 60) == 100 && RedAt(painted, 100 + 20, 60) == 150 && RedAt(painted, 100 + 27, 60) == 100,
+			$"the painted equilateral triangle covers {area:F1} px of 1558.8, the base at x' = -26, the apex at +26");
+		project.Parts.Clear();
+		var outline = (OutlinePart)project.AddPart(PartKind.Outline);
+		outline.X = 100;
+		outline.Y = 60;
+		Check(PartShape.For(outline) == null && ReferenceEquals(PartPainter.Paint(image, W, H, 1.0, project.Parts), image) == false && RedAt(PartPainter.Paint(null, W, H, 1.0, project.Parts)!, 100, 60) == 100, "an outline without points paints nothing");
+		outline.Points.Add(new PartPoint { X = -10, Y = -5 });
+		outline.Points.Add(new PartPoint { X = 10, Y = -5 });
+		outline.Points.Add(new PartPoint { X = 10, Y = 5 });
+		outline.Points.Add(new PartPoint { X = -10, Y = 5 });
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		area = PaintedArea(painted, 1.5);
+		Check(Math.Abs(area - 200.0) < 2.0 && RedAt(painted, 100, 60) == 150 && RedAt(painted, 100, 60 + 6) == 100, $"four points make a 20 × 10 outline ({area:F1} px)");
+		project.Parts.Clear();
+		var grin = (GrinLensPart)project.AddPart(PartKind.GrinLens);
+		grin.X = 100;
+		grin.Y = 60;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		// pixel (100, 85) is sampled around y' = 25.5: n = 1.8 - 0.3 (25.5 / 50)² = 1.722; (100, 108) around 48.5: 1.518
+		Check(RedAt(painted, 100, 60) == 180 && RedAt(painted, 100, 60 + 25) == 172 && RedAt(painted, 100, 60 + 48) == 152 && RedAt(painted, 100, 60 + 50) == 100 && RedAt(painted, 100 + 49, 60) == 180 && RedAt(painted, 100 + 50, 60) == 100,
+			"a GRIN lens 100 × 100: index 1.8 on the axis falling parabolically to 1.5 at the edge, 1 outside");
+		project.Parts.Clear();
+		var bragg = (BraggReflectorPart)project.AddPart(PartKind.BraggReflector);
+		bragg.X = 100;
+		bragg.Y = 60;
+		bragg.Pairs = 3;
+		bragg.Thickness1 = 10;
+		bragg.Thickness2 = 6;
+		bragg.Width = 20;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		string layers = string.Concat(Enumerable.Range(100 - 25, 50).Select(x => RedAt(painted, x, 60) switch { 150 => '1', 200 => '2', 100 => '.', _ => '?' }));
+		Check(layers == "." + string.Concat(Enumerable.Repeat("1111111111222222", 3)) + "." && RedAt(painted, 100, 60 + 9) == 150 && RedAt(painted, 100, 60 + 10) == 100,
+			"a Bragg stack of 3 pairs 10 + 6 px, indices 1.5 / 2.0, 20 wide, centred: " + layers);
+		project.Parts.Clear();
+		var fiber = (FiberPart)project.AddPart(PartKind.Fiber);
+		fiber.X = 100;
+		fiber.Y = 60;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(fiber.Points.Count == 2 && fiber.Points[0].X == -100 && fiber.Points[1].X == 100, "a new fibre runs from (-100, 0) to (100, 0)");
+		Check(RedAt(painted, 100, 60) == 150 && RedAt(painted, 100, 60 + 9) == 150 && RedAt(painted, 100, 60 + 12) == 145 && RedAt(painted, 100, 60 + 19) == 145 && RedAt(painted, 100, 60 + 21) == 100 && RedAt(painted, 0, 60) == 150,
+			"the fibre: core 1.5 within 10 px of the path, cladding 1.45 to 20 px, the canvas edge reached");
+		project.Parts.Clear();
+
+		// the cavity: a mirror square with its inside painted back to index 1 keeps a wave in, nothing gets out
+		const int cw = 64, ch = 48;
+		project.Scene.Width = cw;
+		project.Scene.Height = ch;
+		var wall = (OutlinePart)project.AddPart(PartKind.Outline);
+		wall.X = 32;
+		wall.Y = 24;
+		wall.Mirror = true;
+		foreach ((int px, int py) in new[] { (-16, -16), (16, -16), (16, 16), (-16, 16) })
+		{
+			wall.Points.Add(new PartPoint { X = px, Y = py });
+		}
+		var hollow = (OutlinePart)project.AddPart(PartKind.Outline);
+		hollow.X = 32;
+		hollow.Y = 24;
+		hollow.RefractiveIndex = 1.0;
+		foreach ((int px, int py) in new[] { (-12, -12), (12, -12), (12, 12), (-12, 12) })
+		{
+			hollow.Points.Add(new PartPoint { X = px, Y = py });
+		}
+		ScenePixels cavity = PartPainter.Paint(null, cw, ch, 1.0, project.Parts)!;
+		Check(RedAt(cavity, 32, 24) == 100 && RedAt(cavity, 32, 24 - 14) == 0 && RedAt(cavity, 32, 24 - 18) == 100, "a later part paints over an earlier one: the mirror square is hollowed to a 4 px ring");
+		SceneData ring = SceneData.FromBgra(cavity.Bgra, cw, ch, cavity.StrideBytes, false, 0);
+		var emitters = new List<Emitter> { Make(32, 24, 120, 1.0) };
+		float[] field = RunCpu(ring, emitters, 300);
+		float inside = 0f, outside = 0f;
+		for (int y = 0; y < ch; y++)
+		{
+			for (int x = 0; x < cw; x++)
+			{
+				float value = Math.Abs(field[(y + 1) * (cw + 2) + x + 1]);
+				if (Math.Abs(x - 32) <= 11 && Math.Abs(y - 24) <= 11)
+				{
+					inside = Math.Max(inside, value);
+				}
+				else if (Math.Abs(x - 32) > 17 || Math.Abs(y - 24) > 17)
+				{
+					outside = Math.Max(outside, value);
+				}
+			}
+		}
+		Check(inside > 0.01f && outside < inside * 1e-4f, $"the cavity keeps the wave after 300 steps: max |u| inside {inside}, outside {outside}");
+		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(ring, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
+		if (gpu == null)
+		{
+			Console.WriteLine("  skip GPU: " + problems);
+		}
+		else
+		{
+			using (gpu)
+			{
+				Run(gpu, 300);
+				float diff = MaxDiff(field, gpu.FieldData);
+				Check(diff < 1e-3f * Math.Max(1f, MaxAbs(field)), "GPU agrees on the painted cavity (max diff " + diff + ")");
+			}
+		}
+		RunSpec spec = RunSpec.Create(project, cavity, preferGpu: false);
+		Check(ReferenceEquals(spec.Image, cavity) && !spec.ImageSources && spec.Width == cw && spec.Height == ch, "a canvas scene with parts runs on the painted pixels, without image sources");
+		Check(RunSpec.Create(project, new ScenePixels(10, 10, 40, new byte[400]), preferGpu: false).Image == null, "a painted canvas of another size than the scene is ignored");
+
+		// every kind through the XML format, sparsely
+		project.Scene.Width = W;
+		project.Scene.Height = H;
+		project.Parts.Clear();
+		project.AddPart(PartKind.Lens);
+		var polygon = (OutlinePart)project.AddPart(PartKind.Outline);
+		polygon.Points.Add(new PartPoint { X = 3, Y = -4 });
+		polygon.Mirror = true;
+		project.AddPart(PartKind.Polygon);
+		((RectanglePart)project.AddPart(PartKind.Rectangle)).Width = 7;
+		((TrianglePart)project.AddPart(PartKind.Triangle)).Type = TriangleType.RightIsosceles;
+		project.AddPart(PartKind.Fiber);
+		var reflector = (BraggReflectorPart)project.AddPart(PartKind.BraggReflector);
+		reflector.Angle = 45;
+		reflector.Index2 = 2.2;
+		project.AddPart(PartKind.GrinLens);
+		OpticalPart copy = project.Duplicate(reflector);
+		Check(copy is BraggReflectorPart { Name: "Bragg reflector 1 copy", Angle: 45, Index2: 2.2 } && project.Parts.IndexOf(copy) == 7 && project.Parts.Count == 9, "Duplicate: a deep copy right after the original, named '… copy'");
+		Check(project.Remove(copy) && project.Move(reflector, 0) && project.Parts[0] == reflector && project.Parts.Count == 8, "Remove and Move work on the parts list");
+		string xml;
+		using (var stream = new MemoryStream())
+		{
+			project.Save(stream);
+			xml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+		}
+		Check(xml.Contains("<BraggReflector Name=\"Bragg reflector 1\" X=\"100\" Y=\"60\" Angle=\"45\" Index2=\"2.2\" />") && xml.Contains("<Lens Name=\"Lens 1\" X=\"100\" Y=\"60\" />") && xml.Contains("<GrinLens Name=\"GRIN lens 1\" X=\"100\" Y=\"60\" />"),
+			"the file holds one element per kind, attributes only where they differ from the defaults");
+		Check(xml.Contains("<Outline Name=\"Outline 1\" X=\"100\" Y=\"60\" Mirror=\"true\">\r\n\t\t<Point X=\"3\" Y=\"-4\" />\r\n\t</Outline>".Replace("\r\n", Environment.NewLine)) || xml.Contains("<Outline Name=\"Outline 1\" X=\"100\" Y=\"60\" Mirror=\"true\">\n\t\t<Point X=\"3\" Y=\"-4\" />\n\t</Outline>"),
+			"an outline's points are Point children");
+		Check(xml.Contains("<Polygon Name=\"Polygon 1\" X=\"100\" Y=\"60\" />") && xml.Contains("<Rectangle Name=\"Rectangle 1\" X=\"100\" Y=\"60\" Width=\"7\" />") && xml.Contains("<Triangle Name=\"Triangle 1\" X=\"100\" Y=\"60\" Type=\"RightIsosceles\" AngleA=\"45\" AngleB=\"45\" />"),
+			"the polygon, rectangle and triangle elements, sparse");
+		Check(xml.IndexOf("<Source", StringComparison.Ordinal) < 0 && xml.IndexOf("<Lens", StringComparison.Ordinal) < xml.IndexOf("<Probe", StringComparison.Ordinal) || !xml.Contains("<Probe"), "the parts sit between the sources and the probes");
+		Project back;
+		using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(xml)))
+		{
+			back = Project.Load(stream);
+		}
+		Check(back.Parts.Count == 8 && back.Parts.Select(p => p.Kind).SequenceEqual([PartKind.BraggReflector, PartKind.Lens, PartKind.Outline, PartKind.Polygon, PartKind.Rectangle, PartKind.Triangle, PartKind.Fiber, PartKind.GrinLens]), "the eight kinds load back in order");
+		Check(back.Parts[6] is FiberPart { Points.Count: 2 } loaded && loaded.Points[0].X == -100 && loaded.Points[1].X == 100, "a loaded fibre has its two points, not the default path on top of them");
+		Check(back.Parts[2] is OutlinePart { Mirror: true, Points.Count: 1 } && back.Parts[0] is BraggReflectorPart { Angle: 45, Index2: 2.2, Pairs: 10 } && back.Parts[4] is RectanglePart { Width: 7, Length: 60 } && back.Parts[5] is TrianglePart { Type: TriangleType.RightIsosceles, AngleB: 45 },
+			"a loaded outline keeps its point and mirror flag, the reflector its angle and index, the rectangle its width, the triangle its type");
+		var watched = new ProjectWatcher(back);
+		var changes = new List<ProjectChange>();
+		watched.Changed += (_, change) => changes.Add(change);
+		((OutlinePart)back.Parts[2]).Points[0].X = 7;
+		((OutlinePart)back.Parts[2]).Points.Add(new PartPoint());
+		back.Parts[1].Angle = 10;
+		Check(changes.Count == 3 && changes.All(c => c.AffectsSimulation) && !changes.Any(c => c.AffectsProbes), "the watcher reports a point edit, a point added and a part edit, each as a simulation edit");
+		watched.Dispose();
 	}
 
 	private static void CheckRun()

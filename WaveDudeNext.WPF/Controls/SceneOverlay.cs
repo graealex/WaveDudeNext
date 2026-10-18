@@ -29,11 +29,12 @@ using WaveDudeNext.Model;
 namespace WaveDudeNext.WPF.Controls;
 
 /// <summary>
-/// The sources and probes of a <see cref="Project"/> drawn over a picture of the canvas, as draggable
-/// handles (<see cref="MarkerThumb"/>): a source's position, a point probe's point, a line probe's two
+/// The sources, optical parts and probes of a <see cref="Project"/> drawn over a picture of the canvas, as draggable
+/// handles (<see cref="MarkerThumb"/>): a source's position, a part's centre, a point probe's point, a line probe's two
 /// ends with the line between them, plus the emitters of a composite source as dots, its rotation handle on
 /// the row axis (shown while the source is selected; drag turns the array; Shift snaps to 15°; the arrow keys
-/// turn it by a degree, 2026-10-14) and the item names as labels. Dragging a handle, or moving it with the arrow keys while it has keyboard focus, writes the
+/// turn it by a degree, 2026-10-14), the same handle on a part's axis (2026-10-18; the part's shape itself shows
+/// through the glowing outline of the scene) and the item names as labels. Dragging a handle, or moving it with the arrow keys while it has keyboard focus, writes the
 /// new canvas coordinates to the model; grabbing or focusing a handle makes its item the
 /// <see cref="SelectedItem"/>. The overlay fills the same rectangle as the picture (an
 /// <see cref="Image"/> with <see cref="Stretch.Uniform"/>), so it maps canvas pixels to its own
@@ -66,6 +67,10 @@ public sealed class SceneOverlay : Panel
 	/// <summary>Identifies the <see cref="SourceStyle"/> property.</summary>
 	public static readonly DependencyProperty SourceStyleProperty = DependencyProperty.Register(
 		nameof(SourceStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
+
+	/// <summary>Identifies the <see cref="PartStyle"/> property.</summary>
+	public static readonly DependencyProperty PartStyleProperty = DependencyProperty.Register(
+		nameof(PartStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
 
 	/// <summary>Identifies the <see cref="AngleStyle"/> property.</summary>
 	public static readonly DependencyProperty AngleStyleProperty = DependencyProperty.Register(
@@ -133,7 +138,7 @@ public sealed class SceneOverlay : Panel
 		set => SetValue(CanvasHeightProperty, value);
 	}
 
-	/// <summary>The source or probe selected in the project (highlighted); set when a handle is grabbed or focused.</summary>
+	/// <summary>The source, part or probe selected in the project (highlighted); set when a handle is grabbed or focused.</summary>
 	public object? SelectedItem
 	{
 		get => GetValue(SelectedItemProperty);
@@ -161,7 +166,14 @@ public sealed class SceneOverlay : Panel
 		set => SetValue(SourceStyleProperty, value);
 	}
 
-	/// <summary>Style of the rotation handles of composite sources (a <see cref="MarkerThumb"/> style).</summary>
+	/// <summary>Style of the optical part handles (a <see cref="MarkerThumb"/> style).</summary>
+	public Style? PartStyle
+	{
+		get => (Style?)GetValue(PartStyleProperty);
+		set => SetValue(PartStyleProperty, value);
+	}
+
+	/// <summary>Style of the rotation handles of composite sources and parts (a <see cref="MarkerThumb"/> style).</summary>
 	public Style? AngleStyle
 	{
 		get => (Style?)GetValue(AngleStyleProperty);
@@ -204,11 +216,13 @@ public sealed class SceneOverlay : Panel
 		if (e.OldValue is Project old)
 		{
 			old.Sources.CollectionChanged -= overlay.OnCollectionChanged;
+			old.Parts.CollectionChanged -= overlay.OnCollectionChanged;
 			old.Probes.CollectionChanged -= overlay.OnCollectionChanged;
 		}
 		if (e.NewValue is Project project)
 		{
 			project.Sources.CollectionChanged += overlay.OnCollectionChanged;
+			project.Parts.CollectionChanged += overlay.OnCollectionChanged;
 			project.Probes.CollectionChanged += overlay.OnCollectionChanged;
 		}
 		overlay.Rebuild();
@@ -243,6 +257,12 @@ public sealed class SceneOverlay : Panel
 			{
 				AddThumb(source, MarkerRole.SourceAngle, AngleStyle, source.Name, "SourceAngle:" + source.Name, "TipAngleMarkerFormat");
 			}
+		}
+		foreach (OpticalPart part in project.Parts)
+		{
+			Subscribe(part);
+			AddThumb(part, MarkerRole.Part, PartStyle, part.Name, "Part:" + part.Name);
+			AddThumb(part, MarkerRole.PartAngle, AngleStyle, part.Name, "PartAngle:" + part.Name, "TipAngleMarkerFormat");
 		}
 		foreach (Probe probe in project.Probes)
 		{
@@ -331,9 +351,9 @@ public sealed class SceneOverlay : Panel
 		foreach (MarkerThumb thumb in Children)
 		{
 			thumb.IsSelectedMarker = ReferenceEquals(thumb.Item, selected);
-			if (thumb.Role == MarkerRole.SourceAngle)
+			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle)
 			{
-				// the rotation handle only while its source is selected (the user's rule, 2026-10-14); collapsed, it is out of the Tab cycle too
+				// the rotation handle only while its source or part is selected (the user's rule, 2026-10-14); collapsed, it is out of the Tab cycle too
 				thumb.Visibility = thumb.IsSelectedMarker ? Visibility.Visible : Visibility.Collapsed;
 			}
 		}
@@ -345,7 +365,7 @@ public sealed class SceneOverlay : Panel
 		items.OrderBy(item => ReferenceEquals(item, selected));
 
 	private static void UpdateOpacity(MarkerThumb thumb) =>
-		thumb.Opacity = thumb.Item switch { Source { Enabled: false } => 0.45, Probe { Active: false } => 0.45, _ => 1.0 };
+		thumb.Opacity = thumb.Item switch { Source { Enabled: false } => 0.45, OpticalPart { Enabled: false } => 0.45, Probe { Active: false } => 0.45, _ => 1.0 };
 
 	// ---------------------------------------------------------------- geometry
 
@@ -382,41 +402,62 @@ public sealed class SceneOverlay : Panel
 	}
 
 	/// <summary>
-	/// Where the rotation handle of a composite source sits, for an element of <paramref name="size"/>: on the
-	/// array's row axis, turned by its angle (counter-clockwise on the screen), just beyond the first row's
-	/// half-width and at least <see cref="AngleHandleReach"/> from the centre.
+	/// Where the rotation handle of a composite source or a part sits, for an element of <paramref name="size"/>: on
+	/// the array's row axis or the part's axis, turned by its angle (counter-clockwise on the screen), just beyond the
+	/// first row's half-width or the part's reach along the axis, and at least <see cref="AngleHandleReach"/> from the centre.
 	/// </summary>
-	private Point AnglePoint(Source source, Size size)
+	private Point AnglePoint(object item, Size size)
 	{
-		Point centre = ToView(source.X, source.Y, size);
-		SourceArray array = source.Array!;
-		double reach = Math.Max(AngleHandleReach, (array.SizeX - 1) / 2.0 * array.SpacingX * ScaleFor(size) + AngleHandleGap);
-		double radians = array.Angle * Math.PI / 180.0;
+		(int x, int y, double angle, double extent) = item switch
+		{
+			Source { Array: { } array } source => (source.X, source.Y, array.Angle, (array.SizeX - 1) / 2.0 * array.SpacingX),
+			OpticalPart part => (part.X, part.Y, part.Angle, part.AxisReach),
+			_ => (0, 0, 0.0, 0.0),
+		};
+		Point centre = ToView(x, y, size);
+		double reach = Math.Max(AngleHandleReach, extent * ScaleFor(size) + AngleHandleGap);
+		double radians = angle * Math.PI / 180.0;
 		return new Point(centre.X + reach * Math.Cos(radians), centre.Y - reach * Math.Sin(radians));
 	}
 
-	/// <summary>Turns the array so its row axis points from the source to <paramref name="view"/>: to whole degrees, or to the nearest 15 with <paramref name="snap"/>.</summary>
-	private void SetAngle(Source source, Point view, bool snap)
+	/// <summary>The angle of a composite source's array or a part, in degrees.</summary>
+	private static double AngleOf(object item) => item switch
 	{
-		Point centre = ToView(source.X, source.Y);
+		Source source => source.Array?.Angle ?? 0.0,
+		OpticalPart part => part.Angle,
+		_ => 0.0,
+	};
+
+	/// <summary>Turns the array or part so its axis points from its centre to <paramref name="view"/>: to whole degrees, or to the nearest 15 with <paramref name="snap"/>.</summary>
+	private void SetAngle(object item, Point view, bool snap)
+	{
+		(int x, int y) = item switch { Source source => (source.X, source.Y), OpticalPart part => (part.X, part.Y), _ => (0, 0) };
+		Point centre = ToView(x, y);
 		double degrees = Math.Atan2(-(view.Y - centre.Y), view.X - centre.X) * 180.0 / Math.PI;
 		double unit = snap ? 15.0 : 1.0;
-		SetAngle(source, Math.Round(degrees / unit) * unit);
+		SetAngle(item, Math.Round(degrees / unit) * unit);
 	}
 
-	/// <summary>Sets the array's angle, kept in (-180, 180].</summary>
-	private static void SetAngle(Source source, double degrees)
+	/// <summary>Sets the array's or part's angle, kept in (-180, 180].</summary>
+	private static void SetAngle(object item, double degrees)
 	{
-		if (source.Array is { } array)
+		switch (item)
 		{
-			array.Angle = degrees;
-			array.Normalize();
+			case Source { Array: { } array }:
+				array.Angle = degrees;
+				array.Normalize();
+				break;
+			case OpticalPart part:
+				part.Angle = degrees;
+				part.Normalize();
+				break;
 		}
 	}
 
 	private static (int X, int Y) PointOf(MarkerThumb thumb) => (thumb.Item, thumb.Role) switch
 	{
 		(Source source, _) => (source.X, source.Y),
+		(OpticalPart part, _) => (part.X, part.Y),
 		(Probe probe, MarkerRole.ProbeB) => (probe.BX, probe.BY),
 		(Probe probe, _) => (probe.AX, probe.AY),
 		_ => (0, 0),
@@ -431,6 +472,10 @@ public sealed class SceneOverlay : Panel
 			case (Source source, _):
 				source.X = x;
 				source.Y = y;
+				break;
+			case (OpticalPart part, _):
+				part.X = x;
+				part.Y = y;
 				break;
 			case (Probe probe, MarkerRole.ProbeB):
 				probe.BX = x;
@@ -472,11 +517,11 @@ public sealed class SceneOverlay : Panel
 		foreach (MarkerThumb thumb in Children)
 		{
 			(int x, int y) = PointOf(thumb);
-			Point centre = thumb.Role == MarkerRole.SourceAngle ? AnglePoint((Source)thumb.Item, finalSize) : ToView(x, y, finalSize);
+			Point centre = thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle ? AnglePoint(thumb.Item, finalSize) : ToView(x, y, finalSize);
 			Size size = thumb.DesiredSize;
 			var rect = new Rect(centre.X - size.Width / 2, centre.Y - size.Height / 2, size.Width, size.Height);
 			thumb.Arrange(rect);
-			if (thumb.Role == MarkerRole.SourceAngle)
+			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle)
 			{
 				// the rotation handle stays on the row axis, however far out; what falls outside the picture is clipped
 				// (2026-10-16, the user's rule: the lever bending to keep the handle inside made no sense). The other
@@ -536,19 +581,26 @@ public sealed class SceneOverlay : Panel
 				dc.DrawEllipse(dots, halo, ToView(element.X, element.Y), ElementDotRadius, ElementDotRadius);
 			}
 		}
+		if (selected is OpticalPart selectedPart && project.Parts.Contains(selectedPart))
+		{
+			// the part's axis from the centre to its rotation handle, the lever, while it is selected
+			Point axisEnd = AnglePoint(selectedPart, RenderSize);
+			dc.DrawLine(new Pen(HaloBrush, 3.0), ToView(selectedPart.X, selectedPart.Y), axisEnd);
+			dc.DrawLine(new Pen(AccentBrush, 1.0) { DashStyle = DashStyles.Dot }, ToView(selectedPart.X, selectedPart.Y), axisEnd);
+		}
 		dc.Pop();
 		foreach (MarkerThumb thumb in Children.OfType<MarkerThumb>().OrderBy(thumb => thumb.IsSelectedMarker))
 		{
-			if (thumb.Role is MarkerRole.ProbeB or MarkerRole.SourceAngle)
+			if (thumb.Role is MarkerRole.ProbeB or MarkerRole.SourceAngle or MarkerRole.PartAngle)
 			{
 				continue;
 			}
 			(int x, int y) = PointOf(thumb);
 			Point centre = ToView(x, y);
-			string name = thumb.Item is Source source ? source.Name : ((Probe)thumb.Item).Name;
+			string name = thumb.Item switch { Source source => source.Name, OpticalPart part => part.Name, _ => ((Probe)thumb.Item).Name };
 			var label = new FormattedText(name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, LabelTypeface, 11, thumb.IsSelectedMarker ? AccentBrush : LabelBrush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
-			// beside the point; below it for a composite source, whose rotation handle sits beside it at 0 degrees
-			bool below = thumb.Item is Source { Array: not null };
+			// beside the point; below it for a composite source or a part, whose rotation handle sits beside it at 0 degrees
+			bool below = thumb.Item is Source { Array: not null } or OpticalPart;
 			double lx = below ? Math.Clamp(centre.X - label.Width / 2, 0, Math.Max(0, ActualWidth - label.Width)) : Math.Min(centre.X + LabelOffset, Math.Max(0, ActualWidth - label.Width));
 			double ly = below ? Math.Min(centre.Y + LabelOffset, Math.Max(0, ActualHeight - label.Height)) : Math.Clamp(centre.Y - label.Height / 2, 0, Math.Max(0, ActualHeight - label.Height));
 			var origin = new Point(lx, ly);
@@ -578,10 +630,10 @@ public sealed class SceneOverlay : Panel
 		{
 			return;
 		}
-		if (thumb.Role == MarkerRole.SourceAngle)
+		if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle)
 		{
 			// the handle follows the mouse around the centre; Shift snaps to 15 degrees
-			SetAngle((Source)thumb.Item, Mouse.GetPosition(this), (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
+			SetAngle(thumb.Item, Mouse.GetPosition(this), (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
 			return;
 		}
 		thumb.DragDeltaX += e.HorizontalChange / scale;
@@ -595,7 +647,7 @@ public sealed class SceneOverlay : Panel
 		return brush;
 	}
 
-	/// <summary>The arrow keys move the focused handle by one canvas pixel, ten with Shift; on a rotation handle they turn the array by a degree (Right and Up counter-clockwise), ten with Shift.</summary>
+	/// <summary>The arrow keys move the focused handle by one canvas pixel, ten with Shift; on a rotation handle they turn the array or part by a degree (Right and Up counter-clockwise), ten with Shift.</summary>
 	protected override void OnKeyDown(KeyEventArgs e)
 	{
 		base.OnKeyDown(e);
@@ -604,12 +656,12 @@ public sealed class SceneOverlay : Panel
 			return;
 		}
 		int step = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? KeyStepFast : KeyStep;
-		if (thumb.Role == MarkerRole.SourceAngle)
+		if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle)
 		{
 			int turn = e.Key switch { Key.Right or Key.Up => step, Key.Left or Key.Down => -step, _ => 0 };
-			if (turn != 0 && thumb.Item is Source turned)
+			if (turn != 0)
 			{
-				SetAngle(turned, (turned.Array?.Angle ?? 0.0) + turn);
+				SetAngle(thumb.Item, AngleOf(thumb.Item) + turn);
 				e.Handled = true;
 			}
 			return;

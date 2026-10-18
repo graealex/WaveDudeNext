@@ -72,7 +72,9 @@ harnesses run.
 ## Architecture
 
 ```
-Project (Model/) --RunSpec.Create--> RunSpec (immutable snapshot)
+Project (Model/) --RunSpec.Create--> RunSpec (immutable snapshot); the scene pixels come from MainWindow.Live's
+   LoadSceneImage: the decoded image (or a blank canvas) with the enabled optical parts painted into red by
+   PartPainter (Parts/), cached by (image, parts version, size, background) so an unchanged scene is the same reference
 StartRun: memory budget -> DiscardRun (returns the old store's release task) -> FrameStore -> SimulationRun
 SimulationRun: stepping loop + writer threads; IWaveEngine (WaveSimulator CPU | GpuWaveSimulator OpenCL);
    CaptureFrame/AwaitFrame -> FrameStore.Write; one heartbeat post (<= 30/s) at Background priority; final post sets
@@ -140,6 +142,12 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   and viewers such as DJV): the stored halves themselves, one uncompressed "Y" channel per file, no colours,
   brightness, outline or boxes; a sink that `WantsHalves` gets the plane from the job unrendered. Harness
   hooks: `WAVEDUDE_EXPORT_PATH`, `WAVEDUDE_DISCARD_EDITS=1`.
+- **Optical parts** (2026-10-18, stages 1 and 2 of `OpticalParts.md`): `OpticalPart` subclasses `LensPart` (mirror flag),
+  the shapes under `ShapePart` (`PolygonPart` regular, `RectanglePart`, `TrianglePart` by base and base angles with presets, `OutlinePart` by points), `FiberPart`, `BraggReflectorPart`, `GrinLensPart` in `Project.Parts`, one XML element
+  per kind; painted into the scene's red channel (4 × 4 supersampled, a mirror by the pixel-centre test as red 0, a
+  coating band of √n, later parts over earlier ones; a part's centre is the corner of pixel (X, Y), so even sizes cover
+  whole pixels). A part edit is a simulation edit. Tree folder "Parts", "+ Part" opens a menu of kinds (Space, arrows,
+  Enter), a handle plus a rotation lever on the pictures, the shape shows through the glowing outline.
 - File types `.wdproj` / `.wdscheme` are registered per user at start-up; unsaved edits ask on close.
 
 ## Numbers (workstation: 10-core Xeon without AVX2, RTX 2080, 64 GB)
@@ -154,7 +162,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (70+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export).
+`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 30, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18. Test projects `tiny*.wdproj` sit beside them. A harness
@@ -174,4 +182,7 @@ never reworded per file.
 README and a documentation file (he writes them); release (single-file publish, portable archive, signed installer,
 curated examples from Jeroen, his program as preserved assets, repository rename); probe data as CSV; an integer
 upscale in exports; HEVC; the start-up stall (log milestones first); the GPU readback (a second OpenCL queue);
-automatic quality lowering when a run would spill (undecided); dropping the 9-point Laplacian (undecided).
+automatic quality lowering when a run would spill (undecided); dropping the 9-point Laplacian (undecided);
+**optical parts**: stages 1 and 2 of `OpticalParts.md` built 2026-10-18 (uncommitted); stage 3 (a `PartCheck.ps1`
+harness, three example projects for Jeroen) and its open points (the "+ Part" menu versus five buttons, Bragg thicknesses
+in pixels, round fibre ends, where examples live) wait for the user.

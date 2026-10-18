@@ -1,0 +1,56 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  Manuel (0x23, Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+
+<UserControl x:Class="WaveDudeNext.WPF.Views.FiberPartView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WaveDudeNext.WPF.Controls"
+             xmlns:meta="clr-namespace:WaveDudeNext.WPF.Markup"
+             xmlns:views="clr-namespace:WaveDudeNext.WPF.Views"
+             xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext">
+
+	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+		<StackPanel Margin="8">
+			<views:PartCommonView />
+
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionCore}" />
+			<controls:FormPanel>
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.CoreIndex}" />
+				<controls:NumberBox Text="{Binding CoreIndex}" Minimum="1" Maximum="2.55" Increment="0.01" ToolTip="{meta:Hint model:FiberPart.CoreIndex}" AutomationProperties.AutomationId="PartCoreIndex" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.CoreDiameter}" />
+				<controls:NumberBox Text="{Binding CoreDiameter}" Minimum="2" ToolTip="{meta:Hint model:FiberPart.CoreDiameter}" AutomationProperties.AutomationId="PartCoreDiameter" />
+			</controls:FormPanel>
+
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionCladding}" />
+			<controls:FormPanel>
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.CladdingIndex}" />
+				<controls:NumberBox Text="{Binding CladdingIndex}" Minimum="1" Maximum="2.55" Increment="0.01" ToolTip="{meta:Hint model:FiberPart.CladdingIndex}" AutomationProperties.AutomationId="PartCladdingIndex" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.CladdingThickness}" />
+				<controls:NumberBox Text="{Binding CladdingThickness}" Minimum="0" ToolTip="{meta:Hint model:FiberPart.CladdingThickness}" AutomationProperties.AutomationId="PartCladdingThickness" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.Coating}" />
+				<controls:NumberBox Text="{Binding Coating}" Minimum="0" Maximum="50" ToolTip="{meta:Hint model:FiberPart.Coating}" AutomationProperties.AutomationId="PartCoating" />
+			</controls:FormPanel>
+
+			<views:PartPointsView HintText="{DynamicResource HintFiberPoints}" />
+		</StackPanel>
+	</ScrollViewer>
+</UserControl>

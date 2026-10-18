@@ -206,6 +206,21 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</Setter.Value>
 			</Setter>
 		</Style>
+		<!-- an optical part: the source's circular crosshair with an inner ring instead of the dot (a lens-shaped glyph read as squashed, 2026-10-18) -->
+		<StreamGeometry x:Key="PartGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M7.5,10 A2.5,2.5 0 1 1 12.5,10 A2.5,2.5 0 1 1 7.5,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
+		<Style x:Key="PartMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type controls:MarkerThumb}">
+						<Grid Background="Transparent">
+							<Ellipse Width="12" Height="12" Fill="{TemplateBinding Background}" />
+							<Path Data="{StaticResource PartGlyph}" Stroke="Black" StrokeThickness="{TemplateBinding HaloThickness}" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Opacity="0.75" />
+							<Path Data="{StaticResource PartGlyph}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding StrokeThickness}" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+						</Grid>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
 		<StreamGeometry x:Key="AngleGlyph">M15,10 A5,5 0 1 1 12.5,5.67 M12.5,5.67 L9.2,5.3 M12.5,5.67 L13,9</StreamGeometry>
 		<Style x:Key="AngleMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
 			<Setter Property="Cursor" Value="Hand" />
@@ -487,7 +502,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 										       Stretch="Uniform" IsHitTestVisible="False" />
 										<!-- the handles: sources, emitter dots, probe points and lines. Styled here, not implicitly: WPF applies
 										     implicit styles inside a template only to Controls, and the overlay is a Panel -->
-										<controls:SceneOverlay SourceStyle="{StaticResource SourceMarker}" ProbeStyle="{StaticResource ProbeMarker}" AngleStyle="{StaticResource AngleMarker}"
+										<controls:SceneOverlay SourceStyle="{StaticResource SourceMarker}" PartStyle="{StaticResource PartMarker}" ProbeStyle="{StaticResource ProbeMarker}" AngleStyle="{StaticResource AngleMarker}"
 										                       LineBrush="White" LabelBrush="White" AccentBrush="{DynamicResource Accent}"
 										                       Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
 										                       CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"

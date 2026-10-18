@@ -20,6 +20,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using WaveDudeNext.Model;
+using WaveDudeNext.Parts;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
 using WaveDudeNext.WPF.Properties;
@@ -77,6 +78,9 @@ public partial class MainWindow
 	private (RunSpec Spec, int Frame)? _scratchRequested;
 	private (string Path, DateTime Written, ScenePixels Pixels)? _imageCache;
 	private (byte[] Data, ScenePixels Pixels)? _embeddedCache;
+	private (ScenePixels? Source, int PartsVersion, int Width, int Height, double Background, ScenePixels? Composed)? _composedCache;
+	/// <summary>Bumped on every optical part change, so <see cref="LoadSceneImage"/> paints again only then.</summary>
+	private int _partsVersion;
 
 	/// <summary>Whether the project was edited in a way that changes the simulation since the current run started.</summary>
 	public bool IsRunStale
@@ -137,6 +141,7 @@ public partial class MainWindow
 		_watcher = null;
 		_imageCache = null;
 		_embeddedCache = null;
+		_composedCache = null;
 		// the new project's own schemes and scene image; the pane does not exist yet when the constructor sets the first project
 		Dispatcher.InvokeAsync(() =>
 		{
@@ -197,7 +202,12 @@ public partial class MainWindow
 				Logger.Debug("Edited ({Item}.{Property}): the run is stale", change.Item, change.Property ?? "list");
 			}
 		}
-		if (change.Item is Scene)
+		if (IsPartChange(change))
+		{
+			// the parts are painted into the scene pixels: paint again, so the outline follows the edit at once
+			_partsVersion++;
+		}
+		if (change.Item is Scene || IsPartChange(change))
 		{
 			UpdateScenePixels();
 		}
@@ -223,6 +233,11 @@ public partial class MainWindow
 		ScheduleScratch();
 		ScheduleRerun();
 	}
+
+	/// <summary>Whether the change is to an optical part, one of its points, a point list or the parts list.</summary>
+	private static bool IsPartChange(ProjectChange change) =>
+		change.Item is OpticalPart or PartPoint or ObservableCollection<OpticalPart> or ObservableCollection<PartPoint>
+			|| change.Item is Project && change.Property == nameof(Project.Parts);
 
 	/// <summary>
 	/// Whether an active probe has no recording in the current run: one just switched on, or one just added. A
@@ -423,7 +438,7 @@ public partial class MainWindow
 		}
 	}
 
-	/// <summary>Hands the preview the decoded scene image (null for a canvas, or when it cannot be read: that is logged once the run reports it).</summary>
+	/// <summary>Hands the preview the scene pixels (null for a canvas without parts, or when the image cannot be read: that is logged once the run reports it).</summary>
 	private void UpdateScenePixels()
 	{
 		if (previewPane == null)
@@ -441,8 +456,28 @@ public partial class MainWindow
 		}
 	}
 
-	/// <summary>The decoded scene image for an image scene, decoded once per file version; null for a blank canvas.</summary>
+	/// <summary>
+	/// The scene as the engines, the outline and the export see it: the decoded image (decoded once per file version)
+	/// with the enabled optical parts painted in, or the parts on a blank canvas; null for a canvas without parts.
+	/// Composed once per (image, parts version, canvas size, background index): an unchanged scene returns the same
+	/// reference, which <see cref="RunSpec.SameSceneAs"/> compares, so the scratch runner keeps its engine.
+	/// </summary>
 	private ScenePixels? LoadSceneImage()
+	{
+		ScenePixels? source = DecodeSceneImage();
+		Scene scene = Project.Scene;
+		if (_composedCache is { } cached && ReferenceEquals(cached.Source, source) && cached.PartsVersion == _partsVersion
+			&& cached.Width == scene.Width && cached.Height == scene.Height && cached.Background == scene.RefractiveIndex)
+		{
+			return cached.Composed;
+		}
+		ScenePixels? composed = PartPainter.Paint(source, scene.Width, scene.Height, scene.RefractiveIndex, Project.Parts);
+		_composedCache = (source, _partsVersion, scene.Width, scene.Height, scene.RefractiveIndex, composed);
+		return composed;
+	}
+
+	/// <summary>The decoded scene image for an image scene, decoded once per file version; null for a blank canvas.</summary>
+	private ScenePixels? DecodeSceneImage()
 	{
 		if (Project.Scene.Mode != SceneMode.Image)
 		{

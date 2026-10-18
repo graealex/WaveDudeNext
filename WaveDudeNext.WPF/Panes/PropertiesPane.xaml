@@ -43,6 +43,30 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<DataTemplate DataType="{x:Type model:Source}">
 			<views:SourceView />
 		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:LensPart}">
+			<views:LensPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:PolygonPart}">
+			<views:PolygonPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:RectanglePart}">
+			<views:RectanglePartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:TrianglePart}">
+			<views:TrianglePartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:OutlinePart}">
+			<views:OutlinePartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:FiberPart}">
+			<views:FiberPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:BraggReflectorPart}">
+			<views:BraggReflectorPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:GrinLensPart}">
+			<views:GrinLensPartView />
+		</DataTemplate>
 		<DataTemplate DataType="{x:Type model:Probe}">
 			<views:ProbeView />
 		</DataTemplate>

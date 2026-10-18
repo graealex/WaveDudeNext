@@ -17,7 +17,7 @@
 
 # The keyboard gaps closed on 2026-10-15: the toolbars of the Project and Messages panes are in the Tab cycle and the
 # dock pane titles are visible to UI Automation. On the default project: Tab walks the Project toolbar (the disabled
-# buttons skipped) into the tree, Space on "+ Source" adds Source 2 and Space on the remove button takes it away, the
+# buttons skipped) into the tree ("+ Part" between the two since 2026-10-18), Space on "+ Source" adds Source 2 and Space on the remove button takes it away, the
 # Messages pane is opened through View > Panes by keyboard, Tab walks its toolbar left to right, Space flips a level
 # and clears the list, and both pane titles read through their ids. See Common.ps1 for the rules (no mouse, no
 # activation, no UIA patterns). Prints PASS/FAIL per check and exits with the failure count.
@@ -47,8 +47,8 @@ try {
 
 	# ------------------------------------------------------------ the Project toolbar (the default project has no sources)
 	FocusOn "ToolAddSource"
-	$order = @(); for ($i = 0; $i -lt 2; $i++) { Key $VK_TAB 120; $order += (FocusedId) }
-	Check "Tab walks + Source > + Probe > the tree (move and remove are disabled with nothing selected and skipped)" (($order -join ",") -eq "ToolAddProbe,tree") ($order -join ",")
+	$order = @(); for ($i = 0; $i -lt 3; $i++) { Key $VK_TAB 120; $order += (FocusedId) }
+	Check "Tab walks + Source > + Part > + Probe > the tree (move and remove are disabled with nothing selected and skipped)" (($order -join ",") -eq "ToolAddPart,ToolAddProbe,tree") ($order -join ",")
 	FocusOn "ToolAddSource"
 	Step "Space" $VK_SPACE 400
 	$null = WaitFor { Has "Tree:Source 1" } 3000 100
