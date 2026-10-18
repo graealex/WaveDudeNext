@@ -107,7 +107,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Live editing**: a simulation edit (scene, solver, seed, sources) marks the run stale, **stops playback and any
   active run**, requests a scratch frame for the position (120 ms debounce) and re-runs automatically after 1.5 s
   of quiet (setting, default on); an automatic run never moves the preview. A probe edit never starts a run: only
-  the recordings are stale, the scratch frame refreshes the graph. No scratch frame while playback runs. Any run
+  the recordings are stale, the scratch frame refreshes the graph; except that an active probe the run does not
+  record (switched on, added) is a simulation edit (2026-10-18). No scratch frame while playback runs. Any run
   is paused while a scratch frame computes. Every scratch request is computed, however long.
 - **A picture changes only when a frame for its position arrives**; otherwise the last picture stays. A long wait
   dims the pictures under a spinner, mirrored on the taskbar.
@@ -152,7 +153,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 `library_check` (70+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
-`ProbeGraphCheck` 33, `ImportCheck` 10, `ExportCheck` 30, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
+`ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 30, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18. Test projects `tiny*.wdproj` sit beside them. A harness
 sets the persisted settings it expects (split orientation, preview quality). Known flake: a second app start in one
 script sometimes comes up active; only the foreground guard fails then.

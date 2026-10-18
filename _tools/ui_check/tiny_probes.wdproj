@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Version="1" Seed="12345">
-	<Description>Harness project: a 320 x 240 canvas, 100 steps, a frame every 2 steps, one source, a point probe on the field (custom box) and a line probe on the intensity.</Description>
+	<Description>Harness project: a 320 x 240 canvas, 100 steps, a frame every 2 steps, one source, a point probe on the field (custom box) and a line probe on the intensity (Tiny box at its own position).</Description>
 	<Scene Width="320" Height="240" DampingEdge="8" />
 	<Simulation Steps="100" VisualizeEvery="2" />
 	<Display>
@@ -12,5 +12,5 @@
 		<Array SizeX="3" SpacingX="10" />
 	</Source>
 	<Probe Name="Probe 1" AX="200" AY="120" BoxSize="Custom" BoxX="8" BoxY="8" BoxWidth="120" BoxHeight="60" />
-	<Probe Name="Probe 2" Layer="Intensity" Measurement="Value" Kind="Line" AX="40" AY="200" BX="280" BY="200" BoxSize="Small" BoxX="40" BoxY="200" />
+	<Probe Name="Probe 2" Layer="Intensity" Measurement="Value" Kind="Line" AX="40" AY="120" BX="280" BY="120" BoxSize="Tiny" BoxX="40" BoxY="120" />
 </Project>

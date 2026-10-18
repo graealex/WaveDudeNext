@@ -16,7 +16,7 @@
 # <https://www.gnu.org/licenses/>.
 
 # Checks the probe graph boxes drawn over the preview pictures (2026-10-14): on tiny_probes.wdproj (320x240,
-# 100 steps, a point probe with a custom 120x60 box on the field, a line probe with a Small box at its own
+# 100 steps, a point probe with a custom 120x60 box on the field, a line probe with a Tiny box at its own
 # position on the intensity) the boxes must sit on the right picture at the probe's box position, show the
 # scratch frame's data before any run and the run's data after it, move with the arrow keys when focused,
 # grow from their corner grip, and a box at its probe's position must move with the probe. A probe move leaves
@@ -64,9 +64,9 @@ try {
 	$corner = CanvasPoint "PreviewFieldImage" 320 240 7.5 7.5
 	$scale = $corner[2]
 	Check "custom box at its canvas position and size" ([math]::Abs($r1.Left - $corner[0]) -lt 2 -and [math]::Abs($r1.Top - $corner[1]) -lt 2 -and [math]::Abs($r1.Width - 120 * $scale) -lt 2 -and [math]::Abs($r1.Height - 60 * $scale) -lt 2) ("box {0:0},{1:0} {2:0}x{3:0} expected {4:0},{5:0} {6:0}x{7:0}" -f $r1.Left, $r1.Top, $r1.Width, $r1.Height, $corner[0], $corner[1], (120 * $scale), (60 * $scale))
-	# the Small box (300 x 150) is shrunk to half the canvas width: 160 x 80
+	# the Tiny box (200 x 100) fits the canvas and is drawn at its size (a box was held to half the canvas width until 2026-10-18)
 	$scale2 = (CanvasPoint "PreviewIntensityImage" 320 240 0 0)[2]
-	Check "the Small box is shrunk to half the canvas width (160 x 80)" ([math]::Abs($r2.Width - 160 * $scale2) -lt 2 -and [math]::Abs($r2.Height - 80 * $scale2) -lt 2) ("{0:0}x{1:0} expected {2:0}x{3:0}" -f $r2.Width, $r2.Height, (160 * $scale2), (80 * $scale2))
+	Check "the Tiny box is drawn at its 200 x 100" ([math]::Abs($r2.Width - 200 * $scale2) -lt 2 -and [math]::Abs($r2.Height - 100 * $scale2) -lt 2) ("{0:0}x{1:0} expected {2:0}x{3:0}" -f $r2.Width, $r2.Height, (200 * $scale2), (100 * $scale2))
 	$grip = (Find "ProbeBoxCorner:Probe 1").Current.BoundingRectangle
 	Check "the resize grip sits in the box's bottom-right corner" ([math]::Abs($grip.Right - $r1.Right) -lt 2 -and [math]::Abs($grip.Bottom - $r1.Bottom) -lt 2) ("grip {0:0},{1:0} box corner {2:0},{3:0}" -f $grip.Right, $grip.Bottom, $r1.Right, $r1.Bottom)
 	$empty = BoxHash "ProbeBox:Probe 1"
@@ -135,6 +135,22 @@ try {
 	Check "Play after a probe edit starts a run to refresh the recordings" (WaitFor { (RunStatus) -like "Running:*" -or ((Find "StatusMessage").Current.Name -like "Re-run started*") } 5000 10) ((Find "StatusMessage").Current.Name)
 	Check "that run completes" (WaitFor { (RunStatus) -like "Completed: 100 / 100*" } 15000 100) (RunStatus)
 	Key $VK_SPACE 100   # stop playback
+	# ------------------------------------------------------------ a probe the run does not record
+	# Probe 2 (selected) off: the run keeps its recording, so nothing but the recordings is stale; Play then makes a run without it
+	FocusOn "ProbeActive"
+	Key $VK_SPACE 300
+	Check "switching a recorded probe off leaves the run valid" ((RunStatus) -like "Completed:*" -and (RunStatus) -notlike "*edited*") (RunStatus)
+	Check "its box is gone" ((FindAll "ProbeBox:Probe 2").Count -eq 0)
+	FocusOn "PreviewPlay"
+	Key $VK_SPACE 20
+	Check "Play makes a run without it" (WaitFor { (RunStatus) -like "Completed: 100 / 100*" -and (RunStatus) -notlike "*edited*" } 20000 100) (RunStatus)
+	Key $VK_SPACE 100   # stop playback
+	# Probe 2 on again: this run has no recording for it, so the edit counts as a simulation edit (the user's choice, 2026-10-18)
+	FocusOn "ProbeActive"
+	Key $VK_SPACE 300
+	Check "switching on a probe the run does not record marks the run stale" (WaitFor { (RunStatus) -like "*edited*" } 3000) (RunStatus)
+	Check "and the automatic re-run records it" (WaitFor { (RunStatus) -like "Completed: 100 / 100*" -and (RunStatus) -notlike "*edited*" } 20000 200) (RunStatus)
+	Check "its box is back" ((FindAll "ProbeBox:Probe 2").Count -eq 1)
 	# the composite source's rotation handle: only while the source is selected; on the row axis right of the centre at
 	# 0 degrees; arrows turn the array
 	$angleCondition = New-Object System.Windows.Automation.PropertyCondition($A::AutomationIdProperty, "SourceAngle:Source 2")

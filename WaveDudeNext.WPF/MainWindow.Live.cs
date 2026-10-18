@@ -170,7 +170,8 @@ public partial class MainWindow
 			previewPane.RefreshColors();
 			return;
 		}
-		if (change.AffectsProbes)
+		bool unrecorded = change.AffectsProbes && HasUnrecordedProbe();
+		if (change.AffectsProbes && !unrecorded)
 		{
 			// the frames stay, the recordings are stale: the scratch frame brings the new recording for the position
 			if (Run != null && !IsProbesStale)
@@ -181,13 +182,20 @@ public partial class MainWindow
 			ScheduleScratch();
 			return;
 		}
-		if (!change.AffectsSimulation && !IsBrightnessBaked(change))
+		if (!change.AffectsSimulation && !unrecorded && !IsBrightnessBaked(change))
 		{
 			return;
 		}
 		if (Run != null && !IsRunStale)
 		{
-			Logger.Debug("Edited ({Item}.{Property}): the run is stale", change.Item, change.Property ?? "list");
+			if (unrecorded)
+			{
+				Logger.Debug("Probes edited ({Item}.{Property}): an active probe has no recording in the run, so the run is stale", change.Item, change.Property ?? "list");
+			}
+			else
+			{
+				Logger.Debug("Edited ({Item}.{Property}): the run is stale", change.Item, change.Property ?? "list");
+			}
 		}
 		if (change.Item is Scene)
 		{
@@ -215,6 +223,16 @@ public partial class MainWindow
 		ScheduleScratch();
 		ScheduleRerun();
 	}
+
+	/// <summary>
+	/// Whether an active probe has no recording in the current run: one just switched on, or one just added. A
+	/// scratch frame fills its graph for one position only, and a scrub or playback showed it empty until a run
+	/// recorded it, so such a probe edit counts as a simulation edit (the user's choice, 2026-10-18). A move or a
+	/// measurement change of a recorded probe only stales the recordings, as before. UI thread.
+	/// </summary>
+	private bool HasUnrecordedProbe() =>
+		Run is { } run && Project is { } project
+			&& project.Probes.Any(probe => probe.Active && !run.Spec.Probes.Any(spec => ReferenceEquals(spec.Origin, probe)));
 
 	/// <summary>
 	/// Whether a display edit changes the stored frames after all: a layer's brightness while the preview's

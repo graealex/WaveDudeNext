@@ -44,7 +44,8 @@ public sealed record ProjectChange(object Item, string? Property)
 	/// <summary>
 	/// Whether the change alters what a run records for its probes, and nothing else: what a probe measures
 	/// (<see cref="Probe.AffectsMeasurement"/>) or the probe list. A probe never changes the picture (the
-	/// user's rule, 2026-10-14), so a run's frames stay valid and only its recordings go stale.
+	/// user's rule, 2026-10-14), so a run's frames stay valid and only its recordings go stale. The window makes one
+	/// exception: an active probe the run does not record (switched on or added) is treated as a simulation edit (2026-10-18).
 	/// </summary>
 	public bool AffectsProbes => Item switch
 	{

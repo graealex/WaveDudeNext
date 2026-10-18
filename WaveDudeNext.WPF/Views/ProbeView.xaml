@@ -68,7 +68,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" ToolTip="{meta:Hint model:Probe.Name}" />
 
 				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Probe.Active}"
-				          IsChecked="{Binding Active}" ToolTip="{meta:Hint model:Probe.Active}" />
+				          IsChecked="{Binding Active}" ToolTip="{meta:Hint model:Probe.Active}" AutomationProperties.AutomationId="ProbeActive" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Probe.StartAfter}" />
 				<controls:NumberBox Text="{Binding StartAfter}" Minimum="0" ToolTip="{meta:Hint model:Probe.StartAfter}" />
