@@ -267,6 +267,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipSquare">Die Breite gleich der Länge setzen</s:String>
 	<s:String x:Key="LabelApexAngle">Winkel an der Spitze</s:String>
 	<s:String x:Key="TipApexAngle">Der Winkel an der Spitze: 180° minus die beiden Grundwinkel</s:String>
+	<s:String x:Key="LabelEdgeThickness">Randdicke</s:String>
+	<s:String x:Key="TipEdgeThickness">Dicke am Rand: die Mittendicke abzüglich dessen, was die konvexen Flächen nehmen, zuzüglich dessen, was die konkaven hinzufügen; 0, wenn sich die Flächen am Rand treffen</s:String>
 	<s:String x:Key="SectionGraph">Diagramm</s:String>
 	<s:String x:Key="SectionAxes">Achsen</s:String>
 	<s:String x:Key="ButtonNewSeed">_Neuer Startwert</s:String>
@@ -526,10 +528,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.LensPart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb des Umrisses mit dem Index √n; 0 für keines. Eine λ/4-Schicht ist λ / (4 √n) Pixel dick, λ die Wellenlänge aus dem Quellenformular.</s:String>
 	<s:String x:Key="Label.LensPart.Diameter">Durchmesser</s:String>
 	<s:String x:Key="Hint.LensPart.Diameter">Ausdehnung quer zur Achse in Pixeln.</s:String>
+	<s:String x:Key="Label.LensPart.IsConcave">Konkav (zerstreuend)</s:String>
+	<s:String x:Key="Hint.LensPart.IsConcave">Ob die Linse zerstreut, ihre Flächen also nach innen gewölbt sind. Anhaken dreht die Linse um, indem beide Radien ihr Vorzeichen wechseln; eine ebene Fläche bleibt eben.</s:String>
 	<s:String x:Key="Label.LensPart.R1">R1</s:String>
-	<s:String x:Key="Hint.LensPart.R1">Radius der ersten Fläche in Pixeln: positiv wölbt sich nach außen, negativ ist konkav, 0 ist eben.</s:String>
+	<s:String x:Key="Hint.LensPart.R1">Radius der ersten Fläche in Pixeln: positiv wölbt sich nach außen, negativ ist konkav, 0 ist eben. Ein für Durchmesser und Mittendicke zu stark gekrümmter Radius wird auf den kleinsten passenden angehoben.</s:String>
 	<s:String x:Key="Label.LensPart.R2">R2</s:String>
-	<s:String x:Key="Hint.LensPart.R2">Radius der zweiten Fläche in Pixeln: negativ wölbt sich nach außen, positiv ist konkav, 0 ist eben.</s:String>
+	<s:String x:Key="Hint.LensPart.R2">Radius der zweiten Fläche in Pixeln: negativ wölbt sich nach außen, positiv ist konkav, 0 ist eben. Ein für Durchmesser und Mittendicke zu stark gekrümmter Radius wird auf den kleinsten passenden angehoben.</s:String>
 	<s:String x:Key="Label.LensPart.Thickness">Mittendicke</s:String>
 	<s:String x:Key="Hint.LensPart.Thickness">Abstand der beiden Flächen auf der Achse in Pixeln.</s:String>
 	<s:String x:Key="Label.ShapePart.Mirror">Spiegel</s:String>

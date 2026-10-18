@@ -1619,9 +1619,52 @@ internal static class Program
 		int mirrorRow = Enumerable.Range(0, W).Count(x => RedAt(painted, x, 60) == 0);
 		Check(mirrorRow == 40 && painted.Bgra.Where((_, i) => i % 4 == 2).All(red => red is 0 or 100), $"as a mirror the lens is red 0 by the pixel-centre test ({mirrorRow} px on the axis), nothing in between");
 		lens.Mirror = false;
-		lens.R1 = 10;
+		lens.R1 = -10;
 		lens.Normalize();
-		Check(lens.R1 == 50 && lens.R2 == -300, "Normalize: |R| below half the diameter becomes half the diameter, the sign kept");
+		Check(lens.R1 == -50 && lens.R2 == -300, "Normalize: a concave radius below half the diameter becomes half the diameter, the sign kept");
+		// the lens's bulk is its diameter and centre thickness; radii too curved for them are raised so the surfaces meet
+		// at the rim, not before it (the user's point: a diameter of 2000 with radii of 300 gave a tiny lens)
+		lens.Diameter = 100;
+		lens.Thickness = 20;
+		lens.R1 = 50;
+		lens.R2 = -50;
+		lens.Normalize();
+		Check(lens.R1 == 130 && lens.R2 == -130 && Math.Abs(lens.EdgeThickness) < 1e-9, $"two semicircular surfaces on a 100 × 20 lens are flattened to R ±130, where their sags of 10 just fit ({lens.R1}, {lens.R2})");
+		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
+		rows = Enumerable.Range(0, H).Count(y => Enumerable.Range(0, W).Any(x => RedAt(painted, x, y) > 100));
+		centreRow = Enumerable.Range(0, W).Count(x => RedAt(painted, x, 60) == 150);
+		Check(rows >= 98 && rows <= 100 && centreRow == 20, $"the fitted lens fills its diameter ({rows} rows) and keeps its centre thickness ({centreRow} px)");
+		lens.R1 = 300;
+		lens.R2 = 0;
+		lens.Normalize();
+		Check(lens.R1 == 300 && lens.R2 == 0 && Math.Abs(lens.EdgeThickness - (20 - LensPart.Sag(300, 50))) < 1e-9, "a plano-convex lens whose sag fits is left alone; the edge thickness is what the one surface leaves");
+		lens.R1 = 60;
+		lens.R2 = 60;
+		lens.Normalize();
+		Check(lens.R1 == 60 && lens.R2 == 60 && Math.Abs(lens.EdgeThickness - 20) < 1e-9, "a meniscus of equal radii: the convex surface fits since the concave one adds what it takes, the edge as thick as the centre");
+		lens.Diameter = 2000;
+		lens.Thickness = 40;
+		lens.R1 = 300;
+		lens.R2 = -300;
+		lens.Normalize();
+		Check(Math.Abs(lens.R1 - 25010) < 1e-9 && Math.Abs(lens.R2 + 25010) < 1e-9 && Math.Abs(lens.EdgeThickness) < 1e-9, "the user's case: a 2000 × 40 lens gets radii of 25010 and fills its diameter");
+		lens.Diameter = 100;
+		lens.Thickness = 40;
+		lens.R1 = 300;
+		lens.R2 = -300;
+		Check(!lens.IsConcave, "a biconvex lens is not concave");
+		lens.IsConcave = true;
+		Check(lens.IsConcave && lens.R1 == -300 && lens.R2 == 300, "ticking Concave flips both radii: biconcave");
+		lens.IsConcave = true;
+		Check(lens.R1 == -300, "setting the state it already has changes nothing");
+		lens.R1 = 300;
+		lens.R2 = 0;
+		Check(!lens.IsConcave, "plano-convex is not concave");
+		lens.IsConcave = true;
+		Check(lens.R1 == -300 && lens.R2 == 0 && lens.IsConcave, "plano-convex turned around is plano-concave, the flat side still flat");
+		lens.R1 = 100;
+		lens.R2 = 60;
+		Check(lens.IsConcave, "a meniscus whose concave side curves more is concave (diverging)");
 		project.Parts.Clear();
 
 		// the shapes: a regular hexagon's area, a rectangle, triangles, an outline; then a GRIN lens, a Bragg stack, a fibre

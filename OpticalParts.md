@@ -15,7 +15,10 @@ under `ShapePart` (mirror, index, coating), each its own kind, element and form:
 side length, a face centred on -x'), `RectanglePart` (length, width, a Square button), `TrianglePart` (base across the
 axis toward -x', two base angles, a type preset: equilateral, right isosceles, 30-60-90, isosceles, custom; the apex angle
 shown), `OutlinePart` (points). The "+ Part" menu lists the optics, a separator, the shapes. The handle glyph is the
-source's circular crosshair with an inner ring (a lens-shaped glyph read as squashed). Not built: stage 3 (`PartCheck.ps1`, the three
+source's circular crosshair with an inner ring (a lens-shaped glyph read as squashed). A lens's diameter and centre
+thickness are its bulk: radii too curved for them are raised to the smallest that fits (`LensPart.FitRadii`), so the lens
+always fills its diameter; the form shows the edge thickness (a diameter of 2000 with radii of 300 had given a tiny lens).
+A "Concave (diverging)" box shows the lens's state from the lensmaker's sign and, ticked, flips both radii. Not built: stage 3 (`PartCheck.ps1`, the three
 examples) and the selected part's accent outline. The open points at the end still stand.
 
 ## What is asked

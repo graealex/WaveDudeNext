@@ -269,6 +269,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipSquare">Make the width equal to the length</s:String>
 	<s:String x:Key="LabelApexAngle">Apex angle</s:String>
 	<s:String x:Key="TipApexAngle">The angle at the apex: 180° minus the two base angles</s:String>
+	<s:String x:Key="LabelEdgeThickness">Edge thickness</s:String>
+	<s:String x:Key="TipEdgeThickness">Thickness at the rim: the centre thickness less what the convex surfaces take, plus what the concave ones add; 0 when the surfaces meet at the rim</s:String>
 	<s:String x:Key="SectionGraph">Graph</s:String>
 	<s:String x:Key="SectionAxes">Axes</s:String>
 	<s:String x:Key="ButtonNewSeed">_New seed</s:String>
@@ -528,10 +530,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.LensPart.Coating">Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.</s:String>
 	<s:String x:Key="Label.LensPart.Diameter">Diameter</s:String>
 	<s:String x:Key="Hint.LensPart.Diameter">Extent across the axis in pixels.</s:String>
+	<s:String x:Key="Label.LensPart.IsConcave">Concave (diverging)</s:String>
+	<s:String x:Key="Hint.LensPart.IsConcave">Whether the lens diverges, its surfaces curving inward. Ticking it turns the lens around by flipping the sign of both radii; a flat surface stays flat.</s:String>
 	<s:String x:Key="Label.LensPart.R1">R1</s:String>
-	<s:String x:Key="Hint.LensPart.R1">Radius of the first surface in pixels: positive bulges outward, negative is concave, 0 is flat.</s:String>
+	<s:String x:Key="Hint.LensPart.R1">Radius of the first surface in pixels: positive bulges outward, negative is concave, 0 is flat. A radius too curved for the diameter and the centre thickness is raised to the smallest that fits.</s:String>
 	<s:String x:Key="Label.LensPart.R2">R2</s:String>
-	<s:String x:Key="Hint.LensPart.R2">Radius of the second surface in pixels: negative bulges outward, positive is concave, 0 is flat.</s:String>
+	<s:String x:Key="Hint.LensPart.R2">Radius of the second surface in pixels: negative bulges outward, positive is concave, 0 is flat. A radius too curved for the diameter and the centre thickness is raised to the smallest that fits.</s:String>
 	<s:String x:Key="Label.LensPart.Thickness">Centre thickness</s:String>
 	<s:String x:Key="Hint.LensPart.Thickness">Distance between the two surfaces on the axis in pixels.</s:String>
 	<s:String x:Key="Label.ShapePart.Mirror">Mirror</s:String>

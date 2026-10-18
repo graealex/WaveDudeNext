@@ -267,6 +267,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipSquare">De breedte gelijk aan de lengte maken</s:String>
 	<s:String x:Key="LabelApexAngle">Tophoek</s:String>
 	<s:String x:Key="TipApexAngle">De hoek aan de top: 180° min de twee basishoeken</s:String>
+	<s:String x:Key="LabelEdgeThickness">Randdikte</s:String>
+	<s:String x:Key="TipEdgeThickness">Dikte aan de rand: de middendikte min wat de bolle oppervlakken nemen, plus wat de holle toevoegen; 0 als de oppervlakken elkaar aan de rand raken</s:String>
 	<s:String x:Key="SectionGraph">Grafiek</s:String>
 	<s:String x:Key="SectionAxes">Assen</s:String>
 	<s:String x:Key="ButtonNewSeed">_Nieuwe seed</s:String>
@@ -526,10 +528,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.LensPart.Coating">Dikte in pixels van de antireflectieband net binnen de omtrek, met index √n; 0 voor geen. Een kwartgolfcoating is λ / (4 √n) pixels dik, λ de golflengte die het bronformulier toont.</s:String>
 	<s:String x:Key="Label.LensPart.Diameter">Diameter</s:String>
 	<s:String x:Key="Hint.LensPart.Diameter">Afmeting dwars op de as in pixels.</s:String>
+	<s:String x:Key="Label.LensPart.IsConcave">Hol (divergerend)</s:String>
+	<s:String x:Key="Hint.LensPart.IsConcave">Of de lens divergeert, dus de oppervlakken naar binnen gekromd zijn. Aanvinken keert de lens om door het teken van beide stralen te wisselen; een vlak oppervlak blijft vlak.</s:String>
 	<s:String x:Key="Label.LensPart.R1">R1</s:String>
-	<s:String x:Key="Hint.LensPart.R1">Straal van het eerste oppervlak in pixels: positief bolt naar buiten, negatief is hol, 0 is vlak.</s:String>
+	<s:String x:Key="Hint.LensPart.R1">Straal van het eerste oppervlak in pixels: positief bolt naar buiten, negatief is hol, 0 is vlak. Een straal die te sterk gekromd is voor de diameter en de middendikte wordt verhoogd tot de kleinste die past.</s:String>
 	<s:String x:Key="Label.LensPart.R2">R2</s:String>
-	<s:String x:Key="Hint.LensPart.R2">Straal van het tweede oppervlak in pixels: negatief bolt naar buiten, positief is hol, 0 is vlak.</s:String>
+	<s:String x:Key="Hint.LensPart.R2">Straal van het tweede oppervlak in pixels: negatief bolt naar buiten, positief is hol, 0 is vlak. Een straal die te sterk gekromd is voor de diameter en de middendikte wordt verhoogd tot de kleinste die past.</s:String>
 	<s:String x:Key="Label.LensPart.Thickness">Middendikte</s:String>
 	<s:String x:Key="Hint.LensPart.Thickness">Afstand tussen de twee oppervlakken op de as in pixels.</s:String>
 	<s:String x:Key="Label.ShapePart.Mirror">Spiegel</s:String>

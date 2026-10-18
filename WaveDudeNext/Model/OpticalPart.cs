@@ -202,7 +202,10 @@ public sealed class PartPoint : ObservableObject
 /// A lens, or a curved or flat mirror when <see cref="Mirror"/> is set: the strip of <see cref="Diameter"/> across
 /// the axis between two spherical surfaces of radii <see cref="R1"/> (left, facing -x') and <see cref="R2"/>
 /// (right), <see cref="Thickness"/> apart on the axis. A radius is signed: R1 &gt; 0 and R2 &lt; 0 bulge outward
-/// (biconvex), 0 is flat, and |R| is at least half the diameter. Where two convex surfaces cross, the lens ends.
+/// (biconvex), 0 is flat. The diameter and the centre thickness are the lens's bulk; the radii fit them: a radius
+/// too curved for them is raised to the smallest that fits (<see cref="FitRadii"/>), so the lens always fills its
+/// diameter and the edge thickness is never negative (the user's point, 2026-10-18: a diameter of 2000 with the
+/// default radii gave a tiny lens, since the surfaces crossed long before the rim).
 /// </summary>
 public sealed class LensPart : OpticalPart
 {
@@ -274,28 +277,62 @@ public sealed class LensPart : OpticalPart
 		set => SetProperty(ref _diameter, value);
 	}
 
-	/// <summary>Radius of the first surface (facing -x') in pixels: positive bulges outward, negative is concave, 0 is flat.</summary>
+	/// <summary>Radius of the first surface (facing -x') in pixels: positive bulges outward, negative is concave, 0 is flat; raised when too curved for the diameter and thickness.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultR1)]
 	[Category("Shape")]
 	[DisplayName("R1")]
-	[Description("Radius of the first surface in pixels: positive bulges outward, negative is concave, 0 is flat.")]
+	[Description("Radius of the first surface in pixels: positive bulges outward, negative is concave, 0 is flat. A radius too curved for the diameter and the centre thickness is raised to the smallest that fits.")]
 	public double R1
 	{
 		get => _r1;
-		set => SetProperty(ref _r1, value);
+		set
+		{
+			if (SetProperty(ref _r1, value))
+			{
+				OnPropertyChanged(nameof(IsConcave));
+			}
+		}
 	}
 
-	/// <summary>Radius of the second surface (facing +x') in pixels: negative bulges outward, positive is concave, 0 is flat.</summary>
+	/// <summary>Radius of the second surface (facing +x') in pixels: negative bulges outward, positive is concave, 0 is flat; raised when too curved for the diameter and thickness.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultR2)]
 	[Category("Shape")]
 	[DisplayName("R2")]
-	[Description("Radius of the second surface in pixels: negative bulges outward, positive is concave, 0 is flat.")]
+	[Description("Radius of the second surface in pixels: negative bulges outward, positive is concave, 0 is flat. A radius too curved for the diameter and the centre thickness is raised to the smallest that fits.")]
 	public double R2
 	{
 		get => _r2;
-		set => SetProperty(ref _r2, value);
+		set
+		{
+			if (SetProperty(ref _r2, value))
+			{
+				OnPropertyChanged(nameof(IsConcave));
+			}
+		}
+	}
+
+	/// <summary>
+	/// Whether the lens diverges: the lensmaker's sum of curvatures, 1/R1 − 1/R2, is negative (a flat surface counts
+	/// 0). Setting it to the other state turns the lens around by flipping the sign of both radii, so biconvex becomes
+	/// biconcave and plano-convex plano-concave (the user's proposal, 2026-10-18). Not stored: the radii are.
+	/// </summary>
+	[XmlIgnore]
+	[Category("Shape")]
+	[DisplayName("Concave (diverging)")]
+	[Description("Whether the lens diverges, its surfaces curving inward. Ticking it turns the lens around by flipping the sign of both radii; a flat surface stays flat.")]
+	public bool IsConcave
+	{
+		get => (R1 == 0.0 ? 0.0 : 1.0 / R1) - (R2 == 0.0 ? 0.0 : 1.0 / R2) < 0.0;
+		set
+		{
+			if (value != IsConcave)
+			{
+				R1 = -R1;
+				R2 = -R2;
+			}
+		}
 	}
 
 	/// <summary>Distance between the two surfaces on the axis in pixels.</summary>
@@ -311,19 +348,78 @@ public sealed class LensPart : OpticalPart
 	}
 
 	/// <inheritdoc/>
-	public override double AxisReach => Thickness / 2.0 + Math.Max(Sag(R1), Sag(R2));
-
-	/// <summary>How far a surface of radius <paramref name="r"/> bows out beyond its vertex at the lens edge, in pixels.</summary>
-	private double Sag(double r)
+	public override double AxisReach
 	{
-		if (r == 0.0)
+		get
+		{
+			(double r1, double r2) = FitRadii(Diameter, Thickness, R1, R2);
+			double half = Math.Max(2, Diameter) / 2.0;
+			return Math.Max(1, Thickness) / 2.0 + Math.Max(Sag(r1, half), Sag(r2, half));
+		}
+	}
+
+	/// <summary>Thickness at the rim in pixels: the centre thickness less what the convex surfaces take, plus what the concave ones add; never negative after <see cref="FitRadii"/>.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double EdgeThickness
+	{
+		get
+		{
+			(double r1, double r2) = FitRadii(Diameter, Thickness, R1, R2);
+			double half = Math.Max(2, Diameter) / 2.0;
+			return Math.Max(1, Thickness) - Math.CopySign(Sag(r1, half), r1) + Math.CopySign(Sag(r2, half), r2);
+		}
+	}
+
+	/// <summary>How far a surface of radius <paramref name="radius"/> bows out beyond its vertex at <paramref name="half"/> (half the diameter) from the axis, in pixels; 0 for a flat surface.</summary>
+	public static double Sag(double radius, double half)
+	{
+		if (radius == 0.0)
 		{
 			return 0.0;
 		}
-		double a = Math.Abs(r);
-		double h = Math.Min(a, Diameter / 2.0);
+		double a = Math.Abs(radius);
+		double h = Math.Min(a, half);
 		return a - Math.Sqrt(a * a - h * h);
 	}
+
+	/// <summary>
+	/// The radii as the lens uses them: a non-finite or zero radius is flat; a magnitude below half the diameter
+	/// becomes half the diameter (the arc must span the rim); and when the convex surfaces (R1 &gt; 0, R2 &lt; 0)
+	/// would bow out by more than the centre thickness plus what the concave ones add, they are flattened in
+	/// proportion to the radius at which their sags just fit, so the surfaces meet at the rim and not before it.
+	/// Shared by <see cref="Normalize"/>, the painter and the readouts, so all see the same lens.
+	/// </summary>
+	public static (double R1, double R2) FitRadii(int diameter, int thickness, double r1, double r2)
+	{
+		double half = Math.Max(2, diameter) / 2.0;
+		r1 = GuardRadius(r1, half);
+		r2 = GuardRadius(r2, half);
+		double sag1 = Sag(r1, half);
+		double sag2 = Sag(r2, half);
+		double convex = (r1 > 0.0 ? sag1 : 0.0) + (r2 < 0.0 ? sag2 : 0.0);
+		double budget = Math.Max(1, thickness) + (r1 < 0.0 ? sag1 : 0.0) + (r2 > 0.0 ? sag2 : 0.0);
+		if (convex > budget)
+		{
+			double scale = budget / convex;
+			if (r1 > 0.0)
+			{
+				r1 = RadiusForSag(half, sag1 * scale);
+			}
+			if (r2 < 0.0)
+			{
+				r2 = -RadiusForSag(half, sag2 * scale);
+			}
+		}
+		return (r1, r2);
+	}
+
+	/// <summary>The radius whose sag at <paramref name="half"/> from the axis is <paramref name="sag"/>, (h² + s²) / 2s, rounded up to a whole pixel (a flatter surface still fits).</summary>
+	private static double RadiusForSag(double half, double sag) => Math.Ceiling((half * half + sag * sag) / (2.0 * sag));
+
+	/// <summary>A radius of at least <paramref name="half"/> in magnitude, its sign kept; a non-finite or zero one is flat.</summary>
+	private static double GuardRadius(double radius, double half) =>
+		!double.IsFinite(radius) || radius == 0.0 ? 0.0 : Math.Abs(radius) < half ? Math.CopySign(half, radius) : radius;
 
 	/// <inheritdoc/>
 	public override void Normalize()
@@ -333,19 +429,9 @@ public sealed class LensPart : OpticalPart
 		Coating = Math.Clamp(Coating, 0, MaxCoating);
 		Diameter = Math.Max(2, Diameter);
 		Thickness = Math.Max(1, Thickness);
-		R1 = NormalizeRadius(R1);
-		R2 = NormalizeRadius(R2);
-	}
-
-	/// <summary>A radius of at least half the diameter in magnitude, its sign kept; 0 stays flat.</summary>
-	private double NormalizeRadius(double r)
-	{
-		if (!double.IsFinite(r) || r == 0.0)
-		{
-			return 0.0;
-		}
-		double least = Diameter / 2.0;
-		return Math.Abs(r) < least ? Math.CopySign(least, r) : r;
+		(double r1, double r2) = FitRadii(Diameter, Thickness, R1, R2);
+		R1 = r1;
+		R2 = r2;
 	}
 
 	/// <inheritdoc/>

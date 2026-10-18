@@ -21,11 +21,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:WaveDudeNext.WPF.Controls"
+             xmlns:converters="clr-namespace:WaveDudeNext.WPF.Converters"
              xmlns:meta="clr-namespace:WaveDudeNext.WPF.Markup"
              xmlns:views="clr-namespace:WaveDudeNext.WPF.Views"
              xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext">
 
 	<UserControl.Resources>
+		<converters:LensEdgeConverter x:Key="EdgeThickness" />
 		<!-- a mirror has no index and no coating -->
 		<Style x:Key="GlassOnly" TargetType="{x:Type controls:NumberBox}" BasedOn="{StaticResource {x:Type controls:NumberBox}}">
 			<Style.Triggers>
@@ -59,6 +61,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LensPart.Diameter}" />
 				<controls:NumberBox Text="{Binding Diameter}" Minimum="2" Increment="10" ToolTip="{meta:Hint model:LensPart.Diameter}" AutomationProperties.AutomationId="PartDiameter" />
 
+				<!-- the lens's state in one box: on for a diverging lens; ticking it flips both radii -->
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:LensPart.IsConcave}"
+				          IsChecked="{Binding IsConcave}" ToolTip="{meta:Hint model:LensPart.IsConcave}" AutomationProperties.AutomationId="PartConcave" />
+
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LensPart.R1}" />
 				<controls:NumberBox Text="{Binding R1}" Increment="10" ToolTip="{meta:Hint model:LensPart.R1}" AutomationProperties.AutomationId="PartR1" />
 
@@ -67,6 +73,19 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LensPart.Thickness}" />
 				<controls:NumberBox Text="{Binding Thickness}" Minimum="1" ToolTip="{meta:Hint model:LensPart.Thickness}" AutomationProperties.AutomationId="PartThickness" />
+
+				<!-- read-only: what the radii leave at the rim; 0 when the surfaces meet there -->
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelEdgeThickness}" />
+				<TextBlock VerticalAlignment="Center" ToolTip="{DynamicResource TipEdgeThickness}" AutomationProperties.AutomationId="PartEdgeThickness">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource EdgeThickness}">
+							<Binding Path="Diameter" />
+							<Binding Path="Thickness" />
+							<Binding Path="R1" />
+							<Binding Path="R2" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
 			</controls:FormPanel>
 		</StackPanel>
 	</ScrollViewer>

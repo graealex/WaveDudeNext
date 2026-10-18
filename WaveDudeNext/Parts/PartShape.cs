@@ -168,8 +168,7 @@ public abstract class PartShape
 			_half = Math.Max(1, lens.Diameter) / 2.0;
 			_vertex1 = -Math.Max(1, lens.Thickness) / 2.0;
 			_vertex2 = -_vertex1;
-			_r1 = GuardRadius(lens.R1, _half);
-			_r2 = GuardRadius(lens.R2, _half);
+			(_r1, _r2) = LensPart.FitRadii(lens.Diameter, lens.Thickness, lens.R1, lens.R2);
 			_index = GuardIndex(lens.RefractiveIndex);
 			IsMirror = lens.Mirror;
 			Coating = lens.Mirror ? 0 : GuardCoating(lens.Coating);
@@ -184,11 +183,7 @@ public abstract class PartShape
 		protected override double BodyIndex(double x, double y) => _index;
 
 		/// <summary>How far a surface of radius <paramref name="radius"/> bows out beyond its vertex at the lens edge.</summary>
-		private double Sag(double radius) => radius == 0.0 ? 0.0 : Math.Abs(radius) - Math.Sqrt(radius * radius - _half * _half);
-
-		/// <summary>A radius of at least <paramref name="half"/> in magnitude, its sign kept; 0 stays flat (the model's rule, applied without writing back).</summary>
-		private static double GuardRadius(double radius, double half) =>
-			!double.IsFinite(radius) || radius == 0.0 ? 0.0 : Math.Abs(radius) < half ? Math.CopySign(half, radius) : radius;
+		private double Sag(double radius) => LensPart.Sag(radius, _half);
 
 		/// <summary>The least of: inside the first surface, inside the second, within the half-diameter.</summary>
 		protected override double Depth(double x, double y) =>

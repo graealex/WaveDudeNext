@@ -267,6 +267,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipSquare">Rendre la largeur égale à la longueur</s:String>
 	<s:String x:Key="LabelApexAngle">Angle au sommet</s:String>
 	<s:String x:Key="TipApexAngle">L'angle au sommet : 180° moins les deux angles à la base</s:String>
+	<s:String x:Key="LabelEdgeThickness">Épaisseur au bord</s:String>
+	<s:String x:Key="TipEdgeThickness">Épaisseur au bord : l'épaisseur au centre moins ce que prennent les surfaces convexes, plus ce qu'ajoutent les concaves ; 0 quand les surfaces se rejoignent au bord</s:String>
 	<s:String x:Key="SectionGraph">Graphique</s:String>
 	<s:String x:Key="SectionAxes">Axes</s:String>
 	<s:String x:Key="ButtonNewSeed">_Nouvelle graine</s:String>
@@ -526,10 +528,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.LensPart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur du contour, d'indice √n ; 0 pour aucune. Une couche quart d'onde fait λ / (4 √n) pixels, λ étant la longueur d'onde affichée dans le formulaire de la source.</s:String>
 	<s:String x:Key="Label.LensPart.Diameter">Diamètre</s:String>
 	<s:String x:Key="Hint.LensPart.Diameter">Étendue perpendiculaire à l'axe en pixels.</s:String>
+	<s:String x:Key="Label.LensPart.IsConcave">Concave (divergente)</s:String>
+	<s:String x:Key="Hint.LensPart.IsConcave">Si la lentille est divergente, ses surfaces courbées vers l'intérieur. Cocher retourne la lentille en changeant le signe des deux rayons ; une surface plane reste plane.</s:String>
 	<s:String x:Key="Label.LensPart.R1">R1</s:String>
-	<s:String x:Key="Hint.LensPart.R1">Rayon de la première surface en pixels : positif bombé vers l'extérieur, négatif concave, 0 plan.</s:String>
+	<s:String x:Key="Hint.LensPart.R1">Rayon de la première surface en pixels : positif bombé vers l'extérieur, négatif concave, 0 plan. Un rayon trop courbé pour le diamètre et l'épaisseur au centre est porté au plus petit qui convient.</s:String>
 	<s:String x:Key="Label.LensPart.R2">R2</s:String>
-	<s:String x:Key="Hint.LensPart.R2">Rayon de la seconde surface en pixels : négatif bombé vers l'extérieur, positif concave, 0 plan.</s:String>
+	<s:String x:Key="Hint.LensPart.R2">Rayon de la seconde surface en pixels : négatif bombé vers l'extérieur, positif concave, 0 plan. Un rayon trop courbé pour le diamètre et l'épaisseur au centre est porté au plus petit qui convient.</s:String>
 	<s:String x:Key="Label.LensPart.Thickness">Épaisseur au centre</s:String>
 	<s:String x:Key="Hint.LensPart.Thickness">Distance entre les deux surfaces sur l'axe en pixels.</s:String>
 	<s:String x:Key="Label.ShapePart.Mirror">Miroir</s:String>
