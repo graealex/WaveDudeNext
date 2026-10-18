@@ -20,6 +20,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace WaveDudeNext.WPF.Controls;
 
@@ -27,7 +28,11 @@ namespace WaveDudeNext.WPF.Controls;
 /// A text box for one number with up/down buttons (the usual spinner, asked for 2026-10-12): Up/Down
 /// change the value by <see cref="Increment"/>, PageUp/PageDown by ten increments, the mouse wheel
 /// does the same while the box has keyboard focus, and the two repeat buttons on the right do it with
-/// the mouse. Every step clamps to <see cref="Minimum"/>..<see cref="Maximum"/>, writes the text back
+/// the mouse, and a horizontal drag on the text itself scrubs the value, Blender style (the user's request,
+/// 2026-10-18): press, move sideways past the drag threshold and the value follows the mouse, one increment
+/// per <see cref="PixelsPerStep"/> pixels, ten times finer with Shift, ten times coarser with Ctrl; Escape during
+/// the drag restores the value the drag started from; a press without movement stays an ordinary click that
+/// places the caret. Every step clamps to <see cref="Minimum"/>..<see cref="Maximum"/>, writes the text back
 /// through the <see cref="TextBox.Text"/> binding at once and selects it, so a source moves on the
 /// picture with each key press. Typing stays plain text: the binding converts and the model clamps as
 /// before, and Enter/Escape come from <see cref="EditBehavior"/> through the base text box style.
@@ -49,6 +54,13 @@ public sealed class NumberBox : TextBox
 
 	/// <summary>Steps per PageUp/PageDown and per wheel notch with Shift.</summary>
 	private const int PageSteps = 10;
+
+	/// <summary>Mouse pixels per increment while scrubbing; Shift makes it ten times as many, Ctrl a tenth.</summary>
+	public const double PixelsPerStep = 2.0;
+
+	private Point? _pressPoint;
+	private double _pressValue;
+	private bool _scrubbing;
 
 	/// <summary>Lowest value a step can reach (typed text is not limited here; the model clamps it).</summary>
 	public double Minimum
@@ -85,10 +97,14 @@ public sealed class NumberBox : TextBox
 		{
 			return;
 		}
-		double increment = Increment;
-		double value = Math.Clamp((Value ?? 0.0) + steps * increment, Minimum, Maximum);
-		int decimals = Math.Clamp(DecimalsOf(increment), 0, 10);
-		value = Math.Round(value, decimals);
+		Write((Value ?? 0.0) + steps * Increment);
+	}
+
+	/// <summary>Clamps <paramref name="value"/>, rounds it to the increment's precision, writes the text, pushes it into the binding and selects it.</summary>
+	private void Write(double value)
+	{
+		int decimals = Math.Clamp(DecimalsOf(Increment), 0, 10);
+		value = Math.Round(Math.Clamp(value, Minimum, Maximum), decimals);
 		Text = value.ToString(CultureInfo.CurrentCulture);
 		GetBindingExpression(TextProperty)?.UpdateSource();
 		SelectAll();
@@ -129,12 +145,121 @@ public sealed class NumberBox : TextBox
 		Step(direction);
 	}
 
+	// ---------------------------------------------------------------- scrubbing: a horizontal drag on the text changes the value
+
+	/// <inheritdoc/>
+	protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
+	{
+		base.OnPreviewMouseLeftButtonDown(e);
+		_pressPoint = null;
+		// a press on the repeat buttons is theirs; one on the text may become a scrub, or stay a click
+		if (e.Handled || IsReadOnly || !IsEnabled || IsOnRepeatButton(e.OriginalSource))
+		{
+			return;
+		}
+		_pressPoint = e.GetPosition(this);
+		_pressValue = Value ?? 0.0;
+	}
+
+	/// <inheritdoc/>
+	protected override void OnPreviewMouseMove(MouseEventArgs e)
+	{
+		base.OnPreviewMouseMove(e);
+		if (_pressPoint is not { } start || e.LeftButton != MouseButtonState.Pressed)
+		{
+			return;
+		}
+		double dx = e.GetPosition(this).X - start.X;
+		if (!_scrubbing)
+		{
+			if (Math.Abs(dx) < SystemParameters.MinimumHorizontalDragDistance)
+			{
+				return;
+			}
+			_scrubbing = true;
+			CaptureMouse();
+			Cursor = Cursors.SizeWE;
+			if (!IsKeyboardFocusWithin)
+			{
+				Focus();
+			}
+		}
+		double pixels = PixelsPerStep;
+		if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+		{
+			pixels *= 10.0;
+		}
+		else if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+		{
+			pixels /= 10.0;
+		}
+		Write(_pressValue + Math.Round(dx / pixels) * Increment);
+		e.Handled = true;   // not a text selection
+	}
+
+	/// <inheritdoc/>
+	protected override void OnPreviewMouseLeftButtonUp(MouseButtonEventArgs e)
+	{
+		base.OnPreviewMouseLeftButtonUp(e);
+		if (_scrubbing)
+		{
+			EndScrub();
+			e.Handled = true;
+		}
+		_pressPoint = null;
+	}
+
+	/// <inheritdoc/>
+	protected override void OnLostMouseCapture(MouseEventArgs e)
+	{
+		base.OnLostMouseCapture(e);
+		if (_scrubbing)
+		{
+			EndScrub();
+		}
+	}
+
+	private void EndScrub()
+	{
+		_scrubbing = false;
+		_pressPoint = null;
+		ClearValue(CursorProperty);
+		if (IsMouseCaptured)
+		{
+			ReleaseMouseCapture();
+		}
+	}
+
+	private static bool IsOnRepeatButton(object source)
+	{
+		for (DependencyObject? d = source as DependencyObject; d != null; d = d is Visual ? VisualTreeHelper.GetParent(d) : null)
+		{
+			if (d is RepeatButton)
+			{
+				return true;
+			}
+			if (d is NumberBox)
+			{
+				return false;
+			}
+		}
+		return false;
+	}
+
 	/// <inheritdoc/>
 	protected override void OnPreviewKeyDown(KeyEventArgs e)
 	{
 		base.OnPreviewKeyDown(e);
 		if (e.Handled)
 		{
+			return;
+		}
+		if (_scrubbing && e.Key == Key.Escape)
+		{
+			// the drag is abandoned: back to the value it started from
+			Write(_pressValue);
+			EndScrub();
+			e.Handled = true;
 			return;
 		}
 		int steps = e.Key switch
