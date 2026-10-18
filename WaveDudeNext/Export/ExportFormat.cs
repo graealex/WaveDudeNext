@@ -42,12 +42,23 @@ public static class ExportFormats
 	private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
 	/// <summary>
-	/// An alternative JPEG encoder the application may install (the WIC codec of Windows through WPF,
-	/// 2026-10-15): given the frame size and the quality 1..100, a writer of one packed BGRA32 frame to a
-	/// stream. Null uses the in-house <see cref="JpegEncoder"/>; when the alternative throws, the sink logs
-	/// it once and goes on with the in-house encoder.
+	/// The preferred JPEG encoder: given the frame size and the quality 1..100, a writer of one packed BGRA32
+	/// frame to a stream. On Windows the WIC codec (<see cref="WicJpegEncoder.Encoder"/>, 4:4:4 natively),
+	/// elsewhere null, which means the in-house <see cref="JpegEncoder"/>; when the preferred one throws, the
+	/// sink logs it once and goes on with the in-house encoder. The harness swaps it to prove that fallback and
+	/// to time the in-house encoder in a job (2026-10-18: until then the application installed WIC through a
+	/// public hook, which the library no longer needs now that it holds the WIC encoder itself).
 	/// </summary>
-	public static Func<int, int, int, Action<Stream, ReadOnlyMemory<int>>>? AlternativeJpeg { get; set; }
+	internal static Func<int, int, int, Action<Stream, ReadOnlyMemory<int>>>? PreferredJpeg { get; set; } = DefaultPreferredJpeg();
+
+	private static Func<int, int, int, Action<Stream, ReadOnlyMemory<int>>>? DefaultPreferredJpeg()
+	{
+		if (OperatingSystem.IsWindows())
+		{
+			return WicJpegEncoder.Encoder;
+		}
+		return null;
+	}
 
 	/// <summary>
 	/// Frames of a sequence encoded at once: half the cores for encoders that are single-threaded per picture
@@ -56,25 +67,25 @@ public static class ExportFormats
 	public static int SequenceWorkers(bool encoderIsParallel) => encoderIsParallel ? 1 : Math.Clamp(Environment.ProcessorCount / 2, 1, 8);
 
 	/// <summary>
-	/// The JPEG writer for a size and quality: the alternative with the in-house fallback (the in-house encoder
-	/// is only built when needed), or the in-house one. One writer per thread: neither is shareable.
+	/// The JPEG writer for a size and quality: the preferred encoder with the in-house fallback (the in-house
+	/// encoder is only built when needed), or the in-house one. One writer per thread: neither is shareable.
 	/// </summary>
 	private static Action<Stream, ReadOnlyMemory<int>> JpegWriter(int width, int height, int quality)
 	{
 		JpegEncoder? inHouse = null;
 		Action<Stream, ReadOnlyMemory<int>> InHouse() => (inHouse ??= new JpegEncoder(width, height, quality)).Write;
-		if (AlternativeJpeg is not { } alternative)
+		if (PreferredJpeg is not { } make)
 		{
 			return InHouse();
 		}
 		Action<Stream, ReadOnlyMemory<int>> preferred;
 		try
 		{
-			preferred = alternative(width, height, quality);
+			preferred = make(width, height, quality);
 		}
 		catch (Exception ex)
 		{
-			Logger.Warn(ex, "The alternative JPEG encoder is not available ({Message}); using the in-house encoder", ex.Message);
+			Logger.Warn(ex, "The preferred JPEG encoder is not available ({Message}); using the in-house encoder", ex.Message);
 			return InHouse();
 		}
 		bool fallen = false;
@@ -91,7 +102,7 @@ public static class ExportFormats
 				catch (Exception ex)
 				{
 					fallen = true;
-					Logger.Warn(ex, "The alternative JPEG encoder failed ({Message}); the in-house encoder takes over", ex.Message);
+					Logger.Warn(ex, "The preferred JPEG encoder failed ({Message}); the in-house encoder takes over", ex.Message);
 					if (stream.CanSeek)
 					{
 						stream.SetLength(start);
@@ -186,7 +197,7 @@ public static class ExportFormats
 					() => (stream, frame) => PngEncoder.Write(stream, frame.Span, width, height), SequenceWorkers(encoderIsParallel: false), plannedFrames);
 			case ExportFormat.Jpeg:
 				return new ImageSequenceSink(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), ".jpg", width, height,
-					() => JpegWriter(width, height, quality), SequenceWorkers(encoderIsParallel: AlternativeJpeg == null), plannedFrames);
+					() => JpegWriter(width, height, quality), SequenceWorkers(encoderIsParallel: PreferredJpeg == null), plannedFrames);
 			case ExportFormat.Exr:
 				return ExrSink.Sequence(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), width, height, plannedFrames);
 			case ExportFormat.Mpeg1:

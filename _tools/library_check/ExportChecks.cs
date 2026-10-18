@@ -68,6 +68,27 @@ internal static class ExportChecks
 			File.WriteAllBytes(jpgPath, jpg);
 			byte[] jpgLow = new JpegEncoder(w, h, 20).Encode(frames[0]);
 			check(jpgLow.Length < jpg.Length, "jpeg: quality 20 is smaller than quality 90 (" + jpgLow.Length + " < " + jpg.Length + " bytes)");
+			check(SamplingFactors(jpg) is [0x11, 0x11, 0x11], "jpeg: the frame header says 4:4:4, every component sampled 1 × 1");
+			if (OperatingSystem.IsWindows())
+			{
+				// the app's path: WIC called natively with its subsampling option, which WPF's wrapper never set (4:2:0 at every quality, 2026-10-18)
+				byte[] wic = WicEncode(frames[0], w, h, 90);
+				check(wic.Length > 4 && wic[0] == 0xFF && wic[1] == 0xD8 && SamplingFactors(wic) is [0x11, 0x11, 0x11], "jpeg by WIC: a JPEG whose frame header says 4:4:4");
+				using (var file = new MemoryStream())
+				{
+					file.Write([1, 2, 3]); // the sink's stream may stand past a start: the adapter's positions are relative to it
+					new WicJpegEncoder(w, h, 90).Write(file, frames[0]);
+					check(file.Length == 3 + wic.Length && file.ToArray().AsSpan(3).SequenceEqual(wic), "jpeg by WIC: written to a stream from its current position, byte for byte the same");
+				}
+				if (Ffmpeg != null)
+				{
+					string wicPath = Path.Combine(folder, "wic.jpg");
+					File.WriteAllBytes(wicPath, wic);
+					byte[]? rgb = Decode(wicPath, w, h, out int count);
+					double psnr = rgb == null ? 0 : Psnr(rgb, frames[0], w, h);
+					check(rgb != null && count == 1 && psnr > 30, "jpeg by WIC: ffmpeg decodes it at " + psnr.ToString("0.0", CultureInfo.InvariantCulture) + " dB (> 30)");
+				}
+			}
 			if (Ffmpeg != null)
 			{
 				byte[]? rgb = Decode(jpgPath, w, h, out int count);
@@ -321,11 +342,12 @@ internal static class ExportChecks
 			var edgeProbe = new Probe { Kind = ProbeKind.Point, AX = 0, AY = 0 };
 			ProbeMarkers.DrawStrokes(marked, w, h, edgeProbe);
 			check(marked[0] == white && ProbeMarkers.Label(3, true, true) == "3B" && ProbeMarkers.Label(2, false, false) == "2", "markers: a cross at the corner is clipped, labels read 3B and 2");
-			// an alternative JPEG encoder is used (on several workers), and one that throws on a frame hands that frame to the
+			// the preferred JPEG encoder is used (on several workers), and one that throws on a frame hands that frame to the
 			// in-house encoder; the frames after it come from whichever encoder their worker is left with, both valid
 			int alternativeCalls = 0;
 			int secondFrameMark = (frames[1][1] >> 16) & 0xFF;
-			ExportFormats.AlternativeJpeg = (fw, fh, q) => (stream, frame) =>
+			Func<int, int, int, Action<Stream, ReadOnlyMemory<int>>>? preferred = ExportFormats.PreferredJpeg;
+			ExportFormats.PreferredJpeg = (fw, fh, q) => (stream, frame) =>
 			{
 				Interlocked.Increment(ref alternativeCalls);
 				if (((frame.Span[1] >> 16) & 0xFF) == secondFrameMark)
@@ -341,12 +363,12 @@ internal static class ExportChecks
 				alt.Add(frames[1]);
 				alt.Add(frames[2]);
 			}
-			ExportFormats.AlternativeJpeg = null;
+			ExportFormats.PreferredJpeg = preferred;
 			byte[] alt0 = File.ReadAllBytes(Path.Combine(folder, "alt", "alt_0000.jpg"));
 			byte[] alt1 = File.ReadAllBytes(Path.Combine(folder, "alt", "alt_0001.jpg"));
 			byte[] alt2 = File.ReadAllBytes(Path.Combine(folder, "alt", "alt_0002.jpg"));
 			check(alternativeCalls >= 2 && alt0[1] == (byte)'P' && alt1[0] == 0xFF && alt1[1] == 0xD8 && (alt2[1] == (byte)'P' || (alt2[0] == 0xFF && alt2[1] == 0xD8)),
-				"formats: the alternative JPEG encoder is used; the frame it throws on is rewound and written by the in-house encoder");
+				"formats: the preferred JPEG encoder is used; the frame it throws on is rewound and written by the in-house encoder");
 
 			CheckJob(check, folder);
 		}
@@ -490,7 +512,7 @@ internal static class ExportChecks
 			var jpeg = new JpegEncoder(w, h, 85);
 			Time("jpeg encode (q 85)", () => jpeg.Encode(frame), 5);
 			Console.WriteLine($"    phases: convert {jpeg.LastPhases.Convert:0.0} ms, rows {jpeg.LastPhases.Rows:0.0} ms; Vector128 accelerated: {System.Runtime.Intrinsics.Vector128.IsHardwareAccelerated}, Vector256: {System.Runtime.Intrinsics.Vector256.IsHardwareAccelerated}, Vector<float>.Count {System.Numerics.Vector<float>.Count}");
-			var planes = new YuvPlanes(w, h, false);
+			var planes = new YuvPlanes(w, h, studioRange: false, subsampled: false);
 			Time("  of which yuv conversion", () => planes.Convert(frame), 5);
 			jpeg.ParallelRows = false;
 			Time("jpeg encode, rows one after the other", () => jpeg.Encode(frame), 3);
@@ -502,7 +524,7 @@ internal static class ExportChecks
 				Time($"jpeg encode on {threads} thread(s)", () => jpeg.Encode(frame), 3);
 			}
 			jpeg.MaxThreads = -1;
-			// the WIC codec of Windows through WPF's encoder (the same call the app's WicJpeg makes), timed and compared at the same quality
+			// the WIC codec of Windows called natively at 4:4:4 (the app's path), timed and compared at the same quality
 			if (OperatingSystem.IsWindows())
 			{
 				byte[] inHouse = jpeg.Encode(frame);
@@ -528,7 +550,7 @@ internal static class ExportChecks
 				}
 			}
 			// the per-block costs, single-threaded over as many blocks as a frame has
-			int blocks = planes.MacroblockColumns * planes.MacroblockRows * 6;
+			int blocks = planes.MacroblockColumns * planes.MacroblockRows * (planes.Subsampled ? 6 : 12);
 			var block = new float[64];
 			var dct = new float[64];
 			Time($"  {blocks} block copies", () => { for (int i = 0; i < blocks; i++) { YuvPlanes.CopyBlock(planes.Y, planes.PaddedWidth, (i % planes.MacroblockColumns) * 16, (i / planes.MacroblockColumns % planes.MacroblockRows) * 16, 128f, block); } }, 3);
@@ -657,11 +679,12 @@ internal static class ExportChecks
 					File.Delete(raw);
 				}
 			}
+			Func<int, int, int, Action<Stream, ReadOnlyMemory<int>>>? preferredJpeg = ExportFormats.PreferredJpeg;
 			foreach ((string name, Func<IFrameSink> open) in new (string, Func<IFrameSink>)[]
 			{
 				("png sequence", () => ExportFormats.Open(ExportFormat.Png, Path.Combine(folder, "j.png"), w, h, 30, 85, 60)),
-				("jpeg sequence (in-house)", () => ExportFormats.Open(ExportFormat.Jpeg, Path.Combine(folder, "j.jpg"), w, h, 30, 85, 60)),
-				("jpeg sequence (WIC)", () => { ExportFormats.AlternativeJpeg = (fw, fh, q) => (stream, frame) => stream.Write(WicEncode(frame.ToArray(), fw, fh, q)); return ExportFormats.Open(ExportFormat.Jpeg, Path.Combine(folder, "k.jpg"), w, h, 30, 85, 60); }),
+				("jpeg sequence (in-house)", () => { ExportFormats.PreferredJpeg = null; return ExportFormats.Open(ExportFormat.Jpeg, Path.Combine(folder, "j.jpg"), w, h, 30, 85, 60); }),
+				("jpeg sequence (WIC, the library's choice on Windows)", () => ExportFormats.Open(ExportFormat.Jpeg, Path.Combine(folder, "k.jpg"), w, h, 30, 85, 60)),
 				("mpeg-1", () => ExportFormats.Open(ExportFormat.Mpeg1, Path.Combine(folder, "j.mpg"), w, h, 30, 85, 60)),
 				("avi", () => ExportFormats.Open(ExportFormat.Avi, Path.Combine(folder, "j.avi"), w, h, 30, 85, 60)),
 				("mov (Animation)", () => ExportFormats.Open(ExportFormat.Mov, Path.Combine(folder, "j.mov"), w, h, 30, 85, 60)),
@@ -669,7 +692,7 @@ internal static class ExportChecks
 				("mp4, writer not throttling", () => { Mp4Writer.Throttle = false; return ExportFormats.Open(ExportFormat.Mp4, Path.Combine(folder, "k.mp4"), w, h, 30, 85, 60); }),
 			})
 			{
-				if (name == "mp4" && !(OperatingSystem.IsWindows() && ExportFormats.IsAvailable(ExportFormat.Mp4)))
+				if ((name == "mp4" && !(OperatingSystem.IsWindows() && ExportFormats.IsAvailable(ExportFormat.Mp4))) || (name.StartsWith("jpeg sequence (WIC", StringComparison.Ordinal) && preferredJpeg == null))
 				{
 					continue;
 				}
@@ -680,7 +703,7 @@ internal static class ExportChecks
 				job.Completion.Wait();
 				string ratio = job.Targets[0].Sink is MovAnimationWriter movSink ? $", {(double)store.Count * w * h * 3 / Math.Max(1, movSink.FrameBytes):0.00} : 1 on the run's frames" : "";
 				Console.WriteLine($"  job to {name}: {clock.Elapsed.TotalMilliseconds / store.Count:0.0} ms per frame ({job.State}){ratio}");
-				ExportFormats.AlternativeJpeg = null;
+				ExportFormats.PreferredJpeg = preferredJpeg;
 				Mp4Writer.Throttle = true;
 			}
 		}
@@ -690,15 +713,29 @@ internal static class ExportChecks
 		}
 	}
 
-	/// <summary>What the app's WicJpeg does: WPF's JpegBitmapEncoder over a Bgr32 bitmap of the frame.</summary>
-	private static byte[] WicEncode(int[] frame, int w, int h, int quality)
+	/// <summary>The app's JPEG path: the WIC codec called natively at 4:4:4.</summary>
+	[System.Runtime.Versioning.SupportedOSPlatform("windows")]
+	private static byte[] WicEncode(int[] frame, int w, int h, int quality) => new WicJpegEncoder(w, h, quality).Encode(frame);
+
+	/// <summary>The three components' sampling factor bytes from the SOF0 segment, or null when there is none.</summary>
+	private static byte[]? SamplingFactors(byte[] jpg)
 	{
-		var source = System.Windows.Media.Imaging.BitmapSource.Create(w, h, 96, 96, System.Windows.Media.PixelFormats.Bgr32, null, frame, w * 4);
-		var encoder = new System.Windows.Media.Imaging.JpegBitmapEncoder { QualityLevel = quality };
-		encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(source));
-		using var stream = new MemoryStream();
-		encoder.Save(stream);
-		return stream.ToArray();
+		int i = 2;
+		while (i + 4 <= jpg.Length && jpg[i] == 0xFF)
+		{
+			int marker = jpg[i + 1];
+			int length = (jpg[i + 2] << 8) | jpg[i + 3];
+			if (marker == 0xC0 && jpg[i + 9] == 3)
+			{
+				return [jpg[i + 11], jpg[i + 14], jpg[i + 17]];
+			}
+			if (marker == 0xDA)
+			{
+				break;
+			}
+			i += 2 + length;
+		}
+		return null;
 	}
 
 	private static void Time(string what, Action action, int repeats)

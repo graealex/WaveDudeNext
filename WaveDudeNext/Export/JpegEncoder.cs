@@ -22,10 +22,13 @@ using System.Runtime.Intrinsics;
 namespace WaveDudeNext.Export;
 
 /// <summary>
-/// Writes baseline JPEG files (JFIF, 4:2:0, the standard quantisation and Huffman tables of ITU-T T.81
+/// Writes baseline JPEG files (JFIF, 4:4:4, the standard quantisation and Huffman tables of ITU-T T.81
 /// Annex K) from packed BGRA32 frames, in-house. The quality 1..100 scales the quantisation tables the way
-/// the Independent JPEG Group's library does (50 is the tables as printed, 100 nearly lossless). Every
-/// macroblock row is a restart interval (a DRI segment, RSTn markers between rows), so the rows are
+/// the Independent JPEG Group's library does (50 is the tables as printed, 100 nearly lossless). The chroma
+/// is not subsampled (2026-10-18): a wave picture's information is in its colour, and 4:2:0 averaged it
+/// over 2 × 2 pixels, blocky fringes even at quality 100; 4:4:4 at quality 90 beat that in every channel
+/// at half the size. Every band of 16 pixel rows (two rows of 8 × 8 MCUs) is a restart interval (a DRI
+/// segment, RSTn markers between bands), so the bands are
 /// transformed, quantised and Huffman-coded in parallel, each into its own byte buffer, and concatenated.
 /// The transform is the AAN factorisation on SSE registers (<see cref="Dct8x8.ForwardAan"/>, its scaling
 /// folded into the quantiser divisors, which are kept in zig-zag order so the coefficients land there
@@ -42,6 +45,8 @@ public sealed class JpegEncoder
 	private readonly float[] _chromaDivisorsZ = new float[64];
 	private readonly RowBuffer[] _rows;
 	private readonly byte[] _header;
+	private readonly int _mcuColumns;
+	private readonly int _mcuRows;
 
 	/// <param name="width">Frame width in pixels.</param>
 	/// <param name="height">Frame height in pixels.</param>
@@ -51,13 +56,15 @@ public sealed class JpegEncoder
 		Width = width;
 		Height = height;
 		Quality = Math.Clamp(quality, 1, 100);
-		_planes = new YuvPlanes(width, height, studioRange: false);
+		_planes = new YuvPlanes(width, height, studioRange: false, subsampled: false);
+		_mcuColumns = (width + 7) / 8;
+		_mcuRows = (height + 7) / 8;
 		ScaleTables(Quality, LumaBase, _lumaQuant, _lumaDivisorsZ);
 		ScaleTables(Quality, ChromaBase, _chromaQuant, _chromaDivisorsZ);
 		_rows = new RowBuffer[_planes.MacroblockRows];
 		for (int i = 0; i < _rows.Length; i++)
 		{
-			_rows[i] = new RowBuffer(Math.Max(4096, _planes.MacroblockColumns * 96));
+			_rows[i] = new RowBuffer(Math.Max(4096, _mcuColumns * 96));
 		}
 		_header = BuildHeader();
 	}
@@ -125,7 +132,10 @@ public sealed class JpegEncoder
 		return stream.ToArray();
 	}
 
-	/// <summary>One restart interval: the row's macroblocks (Y₀ Y₁ Y₂ Y₃ Cb Cr each) transformed, quantised and coded, the DC predictors starting at zero.</summary>
+	/// <summary>
+	/// One restart interval: the band's two MCU rows (the last band may have one), each MCU a Y, a Cb and a Cr
+	/// block of the same 8 × 8 pixels, transformed, quantised and coded, the DC predictors starting at zero.
+	/// </summary>
 	private void EncodeRow(int mbRow)
 	{
 		YuvPlanes planes = _planes;
@@ -138,32 +148,26 @@ public sealed class JpegEncoder
 		int predictorY = 0;
 		int predictorCb = 0;
 		int predictorCr = 0;
-		for (int mbColumn = 0; mbColumn < planes.MacroblockColumns; mbColumn++)
+		int lastMcuRow = Math.Min(mbRow * 2 + 1, _mcuRows - 1);
+		for (int mcuRow = mbRow * 2; mcuRow <= lastMcuRow; mcuRow++)
 		{
-			for (int blockIndex = 0; blockIndex < 6; blockIndex++)
+			for (int mcuColumn = 0; mcuColumn < _mcuColumns; mcuColumn++)
 			{
-				if (blockIndex < 4)
+				for (int component = 0; component < 3; component++)
 				{
-					YuvPlanes.CopyBlock(planes.Y, planes.PaddedWidth, mbColumn * 16 + (blockIndex & 1) * 8, mbRow * 16 + (blockIndex >> 1) * 8, 128f, block);
-				}
-				else
-				{
-					YuvPlanes.CopyBlock(blockIndex == 4 ? planes.Cb : planes.Cr, planes.ChromaWidth, mbColumn * 8, mbRow * 8, 128f, block);
-				}
-				Dct8x8.ForwardAan(block, dct);
-				bool luma = blockIndex < 4;
-				QuantiseZigZag(dct, luma ? _lumaDivisorsZ : _chromaDivisorsZ, quantised);
-				if (luma)
-				{
-					EncodeBlock(ref bits, quantised, LumaDcCodes, LumaDcLengths, LumaAcCodes, LumaAcLengths, ref predictorY);
-				}
-				else if (blockIndex == 4)
-				{
-					EncodeBlock(ref bits, quantised, ChromaDcCodes, ChromaDcLengths, ChromaAcCodes, ChromaAcLengths, ref predictorCb);
-				}
-				else
-				{
-					EncodeBlock(ref bits, quantised, ChromaDcCodes, ChromaDcLengths, ChromaAcCodes, ChromaAcLengths, ref predictorCr);
+					byte[] plane = component == 0 ? planes.Y : component == 1 ? planes.Cb : planes.Cr;
+					YuvPlanes.CopyBlock(plane, planes.PaddedWidth, mcuColumn * 8, mcuRow * 8, 128f, block);
+					Dct8x8.ForwardAan(block, dct);
+					if (component == 0)
+					{
+						QuantiseZigZag(dct, _lumaDivisorsZ, quantised);
+						EncodeBlock(ref bits, quantised, LumaDcCodes, LumaDcLengths, LumaAcCodes, LumaAcLengths, ref predictorY);
+					}
+					else
+					{
+						QuantiseZigZag(dct, _chromaDivisorsZ, quantised);
+						EncodeBlock(ref bits, quantised, ChromaDcCodes, ChromaDcLengths, ChromaAcCodes, ChromaAcLengths, ref component == 1 ? ref predictorCb : ref predictorCr);
+					}
 				}
 			}
 		}
@@ -251,21 +255,21 @@ public sealed class JpegEncoder
 			quant[66 + i] = _chromaQuant[Dct8x8.ZigZag[i]];
 		}
 		Segment(stream, 0xDB, quant);
-		// SOF0: 8 bits, three components, Y sampled 2 × 2 with table 0, Cb and Cr 1 × 1 with table 1
+		// SOF0: 8 bits, three components all sampled 1 × 1 (4:4:4), Y with table 0, Cb and Cr with table 1
 		var frame = new byte[15];
 		frame[0] = 8;
 		BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(1), (ushort)Height);
 		BinaryPrimitives.WriteUInt16BigEndian(frame.AsSpan(3), (ushort)Width);
 		frame[5] = 3;
-		frame[6] = 1; frame[7] = 0x22; frame[8] = 0;
+		frame[6] = 1; frame[7] = 0x11; frame[8] = 0;
 		frame[9] = 2; frame[10] = 0x11; frame[11] = 1;
 		frame[12] = 3; frame[13] = 0x11; frame[14] = 1;
 		Segment(stream, 0xC0, frame);
 		// DHT: the four standard tables
 		Segment(stream, 0xC4, [.. DhtSegment(0x00, LumaDcCounts, LumaDcSymbols), .. DhtSegment(0x10, LumaAcCounts, LumaAcSymbols), .. DhtSegment(0x01, ChromaDcCounts, ChromaDcSymbols), .. DhtSegment(0x11, ChromaAcCounts, ChromaAcSymbols)]);
-		// DRI: a restart interval of one macroblock row
+		// DRI: a restart interval of one band, two MCU rows (the last interval may be shorter, which the standard allows)
 		var interval = new byte[2];
-		BinaryPrimitives.WriteUInt16BigEndian(interval, (ushort)_planes.MacroblockColumns);
+		BinaryPrimitives.WriteUInt16BigEndian(interval, (ushort)(2 * _mcuColumns));
 		Segment(stream, 0xDD, interval);
 		// SOS: three components with their DC/AC table pairs, spectral selection 0..63, no successive approximation
 		Segment(stream, 0xDA, [3, 1, 0x00, 2, 0x11, 3, 0x11, 0, 63, 0]);

@@ -79,7 +79,7 @@ public sealed class Mp4Writer : IFrameSink
 		{
 			_padded = new int[_encodedWidth * _encodedHeight];
 		}
-		_planes = new YuvPlanes(_encodedWidth, _encodedHeight, studioRange: true);
+		_planes = new YuvPlanes(_encodedWidth, _encodedHeight, studioRange: true, subsampled: true);
 		if (File.Exists(path))
 		{
 			File.Delete(path); // the sink writer appends to nothing, but a stale file must not survive a failure

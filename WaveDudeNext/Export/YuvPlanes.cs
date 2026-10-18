@@ -21,8 +21,9 @@ using System.Runtime.Intrinsics.X86;
 namespace WaveDudeNext.Export;
 
 /// <summary>
-/// A frame as 8-bit Y, Cb and Cr planes with the chroma sampled 2 × 2 (4:2:0), padded to whole 16 × 16
-/// macroblocks by repeating the last column and row, which is what both the JPEG and the MPEG-1 encoder
+/// A frame as 8-bit Y, Cb and Cr planes, the chroma either at full resolution (4:4:4, the JPEG encoder since
+/// 2026-10-18: a wave picture's information is in its colour) or sampled 2 × 2 (4:2:0, MPEG-1), padded to
+/// whole 16 × 16 macroblocks by repeating the last column and row, which is what both encoders
 /// consume. Converted with the BT.601 matrix: full range (JFIF, Y 0..255) for JPEG, studio range
 /// (Y 16..235, chroma 16..240) for MPEG-1, which is what its decoders assume. Four pixels at a time on
 /// <see cref="Vector128{T}"/>, the width every x64 and ARM64 machine accelerates (2026-10-14, the user's rule:
@@ -33,17 +34,19 @@ public sealed class YuvPlanes
 	/// <param name="width">Picture width in pixels.</param>
 	/// <param name="height">Picture height in pixels.</param>
 	/// <param name="studioRange">Studio (MPEG) range instead of full (JFIF) range.</param>
-	public YuvPlanes(int width, int height, bool studioRange)
+	/// <param name="subsampled">Chroma sampled 2 × 2 (4:2:0) instead of at full resolution (4:4:4).</param>
+	public YuvPlanes(int width, int height, bool studioRange, bool subsampled)
 	{
 		Width = width;
 		Height = height;
 		StudioRange = studioRange;
+		Subsampled = subsampled;
 		MacroblockColumns = (width + 15) / 16;
 		MacroblockRows = (height + 15) / 16;
 		PaddedWidth = MacroblockColumns * 16;
 		PaddedHeight = MacroblockRows * 16;
 		Y = new byte[PaddedWidth * PaddedHeight];
-		Cb = new byte[PaddedWidth / 2 * (PaddedHeight / 2)];
+		Cb = new byte[subsampled ? PaddedWidth / 2 * (PaddedHeight / 2) : Y.Length];
 		Cr = new byte[Cb.Length];
 		if (studioRange)
 		{
@@ -67,6 +70,9 @@ public sealed class YuvPlanes
 	/// <summary>Whether the planes use the studio range.</summary>
 	public bool StudioRange { get; }
 
+	/// <summary>Whether the chroma is sampled 2 × 2 (4:2:0); otherwise it has the luma's resolution (4:4:4).</summary>
+	public bool Subsampled { get; }
+
 	/// <summary>Macroblocks per row.</summary>
 	public int MacroblockColumns { get; }
 
@@ -79,13 +85,13 @@ public sealed class YuvPlanes
 	/// <summary>Height of the Y plane, a multiple of 16.</summary>
 	public int PaddedHeight { get; }
 
-	/// <summary>Width of the chroma planes.</summary>
-	public int ChromaWidth => PaddedWidth / 2;
+	/// <summary>Width of the chroma planes: half the padded width when <see cref="Subsampled"/>, else all of it.</summary>
+	public int ChromaWidth => Subsampled ? PaddedWidth / 2 : PaddedWidth;
 
 	/// <summary>Luma plane, <see cref="PaddedWidth"/> × <see cref="PaddedHeight"/>, row-major.</summary>
 	public byte[] Y { get; }
 
-	/// <summary>Blue-difference plane, <see cref="ChromaWidth"/> × <see cref="PaddedHeight"/> / 2.</summary>
+	/// <summary>Blue-difference plane, <see cref="ChromaWidth"/> wide, half the padded height when <see cref="Subsampled"/>, else all of it.</summary>
 	public byte[] Cb { get; }
 
 	/// <summary>Red-difference plane, like <see cref="Cb"/>.</summary>
@@ -126,7 +132,16 @@ public sealed class YuvPlanes
 				cb[x] = _matrix[4] + _matrix[5] * r + _matrix[6] * g + _matrix[7] * b;
 				cr[x] = _matrix[8] + _matrix[9] * r + _matrix[10] * g + _matrix[11] * b;
 			}
-			if ((y & 1) == 0)
+			if (!Subsampled)
+			{
+				int chromaOffset = y * paddedWidth;
+				for (int cx = 0; cx < paddedWidth; cx++)
+				{
+					Cb[chromaOffset + cx] = ClampByte(cb[cx]);
+					Cr[chromaOffset + cx] = ClampByte(cr[cx]);
+				}
+			}
+			else if ((y & 1) == 0)
 			{
 				cb.CopyTo(cbAbove);
 				cr.CopyTo(crAbove);

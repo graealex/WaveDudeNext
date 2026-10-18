@@ -129,6 +129,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Export**: field, intensity or both, a still of the shown frame, from the current run when fresh and full,
   else a run is made first; PNG/JPEG sequences, MPEG-1, OpenDML AVI, H.264 MP4 via Media Foundation (the only
   Windows-bound library piece besides WIC JPEG, which has an in-house fallback), QuickTime Animation MOV, and
+  **JPEG is 4:4:4 in both encoders** (2026-10-18: WIC called natively for its subsampling option, which WPF's
+  wrapper never set; 4:2:0 averaged the colour, where a wave picture's information is, into blocky fringes even
+  at quality 100; 4:4:4 at 90 beat it in every channel at half the size), and
   **OpenEXR sequences or stills** (2026-10-18, the user's choice for data export to NumPy, MATLAB, Octave add-ons
   and viewers such as DJV): the stored halves themselves, one uncompressed "Y" channel per file, no colours,
   brightness, outline or boxes; a sink that `WantsHalves` gets the plane from the job unrendered. Harness
@@ -139,8 +142,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 
 GPU step at 1080p 0.25–0.5 ms, CPU 6–14 ms; OpenCL build 0.3 s; a full-HD run of 2500 steps 5.4 s in RAM, bound by
 the GPU readback. Renderer per 2880×1080 layer on ten cores: 8-bit 1.0 ms, 16-bit 2.0; vector rows gain 2× per
-core over scalar. Presenter about 7 ms a frame quiet, 20 during a run. JPEG 1080p: WIC 15 ms, in-house 5.4 ms on
-ten cores; MP4 job 16 ms a frame. Laptop (2 cores, HD 520, HDD): iGPU 4.3 ms a step against CPU 14.7; the ball
+core over scalar. Presenter about 7 ms a frame quiet, 20 during a run. JPEG 1080p at 4:4:4: WIC 26 ms a frame
+single-threaded (9 ms a frame in a sequence job on half the cores), in-house 9.8 ms on ten cores (15 in a job);
+MP4 job 16 ms a frame. Laptop (2 cores, HD 520, HDD): iGPU 4.3 ms a step against CPU 14.7; the ball
 lens run 105 s full quality (disk-bound), 61 s at half resolution with every second frame, in RAM. Settled by these
 numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Direct3D display path.
 

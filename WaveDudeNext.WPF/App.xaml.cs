@@ -223,9 +223,6 @@ public partial class App : Application
 		PrepareSettings();
 		FrameCache.Sweep();
 		ColorSchemeCatalog.Instance.Load();
-		// JPEG through the WIC codec of Windows, the in-house encoder as the fallback (2026-10-15)
-		Export.ExportFormats.AlternativeJpeg = Rendering.WicJpeg.Encoder;
-
 		ThemeController.Instance.Current = Settings.Default.Theme;
 		ThemeController.Instance.PropertyChanged += (_, args) =>
 		{

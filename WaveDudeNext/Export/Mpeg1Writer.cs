@@ -69,7 +69,7 @@ public sealed class Mpeg1Writer : IFrameSink
 		_frameRateCode = NearestFrameRateCode(framesPerSecond);
 		FrameRate = FrameRates[_frameRateCode - 1];
 		_quantiserScale = QuantiserScaleFor(quality);
-		_planes = new YuvPlanes(width, height, studioRange: true);
+		_planes = new YuvPlanes(width, height, studioRange: true, subsampled: true);
 		// the AC levels are 8 F / (scale × W), truncated: the decoder reconstructs 2 × level × scale × W / 16 (11172-2, 2.4.4.1)
 		for (int i = 0; i < 64; i++)
 		{
