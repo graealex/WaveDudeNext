@@ -268,6 +268,14 @@ public sealed class ProbeGraphOverlay : Panel
 		thumb.DragStarted += OnDragStarted;
 		thumb.DragDelta += OnDragDelta;
 		thumb.GotKeyboardFocus += (_, _) => SelectedItem = probe;
+		if (role == MarkerRole.ProbeBox)
+		{
+			// the box's context menu (2026-10-18): the probe's recording as CSV; the header follows the language like the XAML menus
+			var export = new MenuItem { Command = Commands.ExportCommands.ProbeCsv, CommandParameter = probe, CommandTarget = thumb };
+			export.SetResourceReference(HeaderedItemsControl.HeaderProperty, "MenuExportProbeCsv");
+			AutomationProperties.SetAutomationId(export, "ContextExportProbeCsv");
+			thumb.ContextMenu = new ContextMenu { Items = { export } };
+		}
 		Children.Add(thumb);
 	}
 

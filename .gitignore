@@ -14,24 +14,19 @@ _tools/*.txt
 # Claude Code local permissions
 .claude/settings.local.json
 
-# exports and saved projects beside the author's examples are never committed
+# exports and saved projects beside the author's examples are never committed: pictures, videos, data, probe CSVs
 Wave_Dude_Examples/**/*.wdproj
 Wave_Dude_Examples/**/*.avi
 Wave_Dude_Examples/**/*.mp4
 Wave_Dude_Examples/**/*.mpg
+Wave_Dude_Examples/**/*.mpeg
 Wave_Dude_Examples/**/*.mov
+Wave_Dude_Examples/**/*.exr
+Wave_Dude_Examples/**/*.csv
 Wave_Dude_Examples/**/*_field/
 Wave_Dude_Examples/**/*_intensity/
 Wave_Dude_Examples/**/*_field_*.png
 Wave_Dude_Examples/**/*_intensity_*.png
-
-# exports and saved projects beside the author's examples are never committed
-Wave_Dude_Examples/**/*.wdproj
-Wave_Dude_Examples/**/*.avi
-Wave_Dude_Examples/**/*.mp4
-Wave_Dude_Examples/**/*.mpg
-Wave_Dude_Examples/**/*_field/
-Wave_Dude_Examples/**/*_intensity/
-Wave_Dude_Examples/**/*_field_*.png
-Wave_Dude_Examples/**/*_intensity_*.png
+Wave_Dude_Examples/**/*_field_*.jpg
+Wave_Dude_Examples/**/*_intensity_*.jpg
 desktop.ini

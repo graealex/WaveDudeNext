@@ -135,6 +135,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Export**: field, intensity or both, a still of the shown frame, from the current run when fresh and full,
   else a run is made first; PNG/JPEG sequences, MPEG-1, OpenDML AVI, H.264 MP4 via Media Foundation (the only
   Windows-bound library piece besides WIC JPEG, which has an in-house fallback), QuickTime Animation MOV, and
+  **probe data as CSV** (2026-10-18: a probe's context menu in the tree and on its graph box; semicolons, decimal
+  point, a header row; a point probe one row per step, a line probe one row per frame; the full run like the
+  pictures, started first when needed),
   **JPEG is 4:4:4 in both encoders** (2026-10-18: WIC called natively for its subsampling option, which WPF's
   wrapper never set; 4:2:0 averaged the colour, where a wave picture's information is, into blocky fringes even
   at quality 100; 4:4:4 at 90 beat it in every channel at half the size), and
@@ -164,7 +167,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 `library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
-`ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 30, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
+`ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 38, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18. Test projects `tiny*.wdproj` sit beside them. A harness
 sets the persisted settings it expects (split orientation, preview quality). Known flake: a second app start in one
 script sometimes comes up active; only the foreground guard fails then.
@@ -180,7 +183,7 @@ never reworded per file.
 ## Open items
 
 README and a documentation file (he writes them); release (single-file publish, portable archive, signed installer,
-curated examples from Jeroen, his program as preserved assets, repository rename); probe data as CSV; an integer
+curated examples from Jeroen, his program as preserved assets, repository rename); an integer
 upscale in exports; HEVC; the start-up stall (log milestones first); the GPU readback (a second OpenCL queue);
 automatic quality lowering when a run would spill (undecided); dropping the 9-point Laplacian (undecided);
 **optical parts**: stages 1 and 2 of `OpticalParts.md` built 2026-10-18 (uncommitted); stage 3 (a `PartCheck.ps1`

@@ -39,6 +39,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileExportFieldFrame">Feld-Ein_zelbild exportieren...</s:String>
 	<s:String x:Key="MenuFileExportIntensityFrame">Intensitäts-Einzelbild e_xportieren...</s:String>
 	<s:String x:Key="MenuExportThisFrame">_Dieses Bild exportieren...</s:String>
+	<s:String x:Key="MenuExportProbeCsv">Sonden_daten als CSV exportieren...</s:String>
 	<s:String x:Key="MenuFileExit">_Beenden</s:String>
 	<s:String x:Key="MenuView">_Ansicht</s:String>
 	<s:String x:Key="MenuViewPanes">_Fenster</s:String>
@@ -205,6 +206,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ExportDialogTitleBoth">Feld und Intensität exportieren</s:String>
 	<s:String x:Key="ExportDialogFilterStill">PNG-Bild (*.png)|*.png|JPEG-Bild (*.jpg)|*.jpg|OpenEXR-Bild, 16-Bit-Gleitkommadaten (*.exr)|*.exr</s:String>
 	<s:String x:Key="ExportDialogTitleFrame">Bild exportieren</s:String>
+	<s:String x:Key="ExportDialogTitleProbeCsv">Sondendaten exportieren</s:String>
+	<s:String x:Key="ExportDialogFilterCsv">CSV-Datei (*.csv)|*.csv</s:String>
 	<s:String x:Key="ExportFolderExistsFormat">Der Ordner {0} existiert und enthält Dateien. Ersetzen?</s:String>
 	<s:String x:Key="ExportError">Der Export ist fehlgeschlagen.</s:String>
 	<s:String x:Key="ExportStatusFormat">Exportiere {0} / {1} Bilder</s:String>

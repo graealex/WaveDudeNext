@@ -39,6 +39,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileExportFieldFrame">Exporter l'i_mage du champ...</s:String>
 	<s:String x:Key="MenuFileExportIntensityFrame">Exporter l'image de l'intensi_té...</s:String>
 	<s:String x:Key="MenuExportThisFrame">Exporter _cette image...</s:String>
+	<s:String x:Key="MenuExportProbeCsv">Exporter les _données de la sonde en CSV...</s:String>
 	<s:String x:Key="MenuFileExit">_Quitter</s:String>
 	<s:String x:Key="MenuView">_Affichage</s:String>
 	<s:String x:Key="MenuViewPanes">_Panneaux</s:String>
@@ -205,6 +206,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ExportDialogTitleBoth">Exporter le champ et l'intensité</s:String>
 	<s:String x:Key="ExportDialogFilterStill">Image PNG (*.png)|*.png|Image JPEG (*.jpg)|*.jpg|Image OpenEXR, données flottantes 16 bits (*.exr)|*.exr</s:String>
 	<s:String x:Key="ExportDialogTitleFrame">Exporter l'image</s:String>
+	<s:String x:Key="ExportDialogTitleProbeCsv">Exporter les données de la sonde</s:String>
+	<s:String x:Key="ExportDialogFilterCsv">Fichier CSV (*.csv)|*.csv</s:String>
 	<s:String x:Key="ExportFolderExistsFormat">Le dossier {0} existe et contient des fichiers. Les remplacer ?</s:String>
 	<s:String x:Key="ExportError">L'export a échoué.</s:String>
 	<s:String x:Key="ExportStatusFormat">Export : {0} / {1} images</s:String>

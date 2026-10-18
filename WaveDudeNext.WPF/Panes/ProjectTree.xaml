@@ -31,6 +31,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<converters:NamedCollectionConverter x:Key="NamedCollections" />
 		<converters:ColorSchemeBrushConverter x:Key="ColorSchemeBrush" />
 		<converters:TreeIdConverter x:Key="TreeId" />
+		<converters:IsTypeConverter x:Key="IsType" />
 
 		<StreamGeometry x:Key="PlusGeometry">M4,0 L4,8 M0,4 L8,4</StreamGeometry>
 		<StreamGeometry x:Key="MinusGeometry">M0,4 L8,4</StreamGeometry>
@@ -174,6 +175,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 								<Separator />
 								<MenuItem Header="{DynamicResource MenuProjectMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" InputGestureText="Alt+Up" />
 								<MenuItem Header="{DynamicResource MenuProjectMoveDown}" Command="{x:Static commands:ProjectCommands.MoveDown}" InputGestureText="Alt+Down" />
+								<!-- a probe's recording as CSV (2026-10-18): only a probe node shows the entry -->
+								<Separator Visibility="{Binding Converter={StaticResource IsType}, ConverterParameter={x:Type model:Probe}}" />
+								<MenuItem Header="{DynamicResource MenuExportProbeCsv}" Command="{x:Static commands:ExportCommands.ProbeCsv}" AutomationProperties.AutomationId="ContextExportProbeCsv"
+								          Visibility="{Binding Converter={StaticResource IsType}, ConverterParameter={x:Type model:Probe}}" />
 							</ContextMenu>
 						</Setter.Value>
 					</Setter>

@@ -23,6 +23,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using WaveDudeNext.Export;
 using WaveDudeNext.Model;
+using WaveDudeNext.Probes;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
 
@@ -59,6 +60,25 @@ internal static class ExportChecks
 				byte[]? rgb = Decode(pngPath, w, h, out int count);
 				check(rgb != null && count == 1 && Psnr(rgb, frames[0], w, h) >= 99, "png: ffmpeg decodes it, identical" + Mismatch(rgb, frames[0], w, h));
 			}
+
+			// probe CSV (2026-10-18): semicolons, a decimal point, a header row; a point probe one row per step, a line probe one
+			// row per frame with the distances along the line as the column heads; the proposed file name drops what a name cannot hold
+			var csvPoint = new Probe { Name = "P 1", Kind = ProbeKind.Point, Layer = ProbeLayer.Intensity, Measurement = ProbeMeasurement.IntegratedValue };
+			var pointTrace = new ProbeTrace();
+			pointTrace.Series.Add([0.5f, -1.25f, 3f]);
+			var text = new StringWriter();
+			int rows = ProbeCsv.Write(text, csvPoint, pointTrace, 2, 1);
+			string[] lines = text.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+			check(rows == 3 && lines is ["step;integrated value", "0;0.5", "1;-1.25", "2;3"], "probe csv: a point probe gives step;value rows, decimal point, semicolons (" + string.Join(" | ", lines) + ")");
+			var csvLine = new Probe { Name = "L", Kind = ProbeKind.Line };
+			var lineTrace = new ProbeTrace();
+			lineTrace.AddProfile([1f, 2f, 3f], 4.0);
+			lineTrace.AddProfile([4f, 5.5f, 6f], 4.0);
+			text = new StringWriter();
+			rows = ProbeCsv.Write(text, csvLine, lineTrace, 2, 1);
+			lines = text.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+			check(rows == 2 && lines is ["frame;step;0;2;4", "0;0;1;2;3", "1;2;4;5.5;6"], "probe csv: a line probe gives one row per frame, frame and step first, the distances along the line as column heads (" + string.Join(" | ", lines) + ")");
+			check(ProbeCsv.FileName("ball", new Probe { Name = "A/B: focus" }) == "ball_A_B_ focus.csv" && ProbeCsv.FileName("ball", new Probe { Name = " " }) == "ball_probe.csv", "probe csv: the proposed name is <project>_<probe>.csv with invalid characters replaced");
 
 			// JPEG: a baseline file ffmpeg decodes close to the original
 			var jpeg = new JpegEncoder(w, h, 90);

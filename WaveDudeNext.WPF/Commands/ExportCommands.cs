@@ -42,4 +42,11 @@ public static class ExportCommands
 
 	/// <summary>Exports the intensity frame the preview shows as one image.</summary>
 	public static readonly RoutedUICommand IntensityFrame = new("Export intensity frame", nameof(IntensityFrame), typeof(ExportCommands));
+
+	/// <summary>
+	/// Writes a probe's recording as a CSV file (2026-10-18); the parameter is the <see cref="Model.Probe"/>.
+	/// Offered on the probe's node in the project tree and on its graph box. Like the pictures it exports the
+	/// full run, started first when there is none or it is stale.
+	/// </summary>
+	public static readonly RoutedUICommand ProbeCsv = new("Export probe data", nameof(ProbeCsv), typeof(ExportCommands));
 }

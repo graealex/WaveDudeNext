@@ -166,6 +166,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="{x:Static commands:ExportCommands.Both}" CanExecute="CanExport" Executed="OnExportBoth" />
 		<CommandBinding Command="{x:Static commands:ExportCommands.FieldFrame}" CanExecute="CanExport" Executed="OnExportFieldFrame" />
 		<CommandBinding Command="{x:Static commands:ExportCommands.IntensityFrame}" CanExecute="CanExport" Executed="OnExportIntensityFrame" />
+		<CommandBinding Command="{x:Static commands:ExportCommands.ProbeCsv}" CanExecute="CanExportProbeCsv" Executed="OnExportProbeCsv" />
 		<CommandBinding Command="{x:Static commands:SimulationCommands.EnsureRun}" Executed="OnEnsureRun" />
 		<CommandBinding Command="{x:Static commands:SimulationCommands.SetFrameMemory}" Executed="OnSetFrameMemory" />
 		<!-- the preview quality (View menu); handlers in MainWindow.xaml.cs -->

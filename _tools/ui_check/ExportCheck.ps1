@@ -19,7 +19,8 @@
 # Export field... with no run yet (a run is started first, then 100 PNGs land in <temp>\wd_export\tiny_field), the
 # title's asterisk after an edit, and Export both... from the picture's context menu (the Apps key on a focused
 # handle) on the now stale run, which re-runs and writes both sequences; then tiny_probes.wdproj's field with the
-# probe graph boxes drawn in (a frame is kept as %TEMP%\export_probes.png). The Save dialog cannot be driven by
+# probe graph boxes drawn in (a frame is kept as %TEMP%\export_probes.png), the same as an MP4 and as JPEGs, and its
+# probes' recordings as CSV from the graph box's and the tree's context menus (2026-10-18). The Save dialog cannot be driven by
 # posted keys, so the app takes the path from WAVEDUDE_EXPORT_PATH ("{name}" = the name it would suggest).
 # See Common.ps1 for the rules (no mouse, no activation, no UIA patterns). Exits with the failure count.
 #
@@ -151,7 +152,7 @@ try {
 	Step "Right" $VK_RIGHT 150; Step "Enter" $VK_RETURN 200
 	$mp4 = Join-Path $out "tiny_probes_field.mp4"
 	Check "the same export as an MP4 completes" (WaitFor { (Find "StatusMessage").Current.Name -like "Exported 50 frames to *tiny_probes_field.mp4*" } 60000) ((Find "StatusMessage").Current.Name)
-	Check "the MP4 file is there and not empty" ((Test-Path $mp4) -and (Get-Item $mp4).Length -gt 1000) (if (Test-Path $mp4) { (Get-Item $mp4).Length } else { "missing" })
+	Check "the MP4 file is there and not empty" ((Test-Path $mp4) -and (Get-Item $mp4).Length -gt 1000) $(if (Test-Path $mp4) { (Get-Item $mp4).Length } else { "missing" })
 	Check "the app never took the foreground" ((Foreground) -ne "APP") (Foreground)
 }
 finally {
@@ -172,6 +173,38 @@ try {
 	$files = @(Get-ChildItem $jpgs -Filter *.jpg)
 	$b = if ($files.Count -gt 0) { [System.IO.File]::ReadAllBytes((Join-Path $jpgs "tiny_probes_field_0049.jpg")) } else { @() }
 	Check "50 JPEG files, the last one starting with the JPEG marker" ($files.Count -eq 50 -and $b.Length -gt 4 -and $b[0] -eq 0xFF -and $b[1] -eq 0xD8) ("{0} files" -f $files.Count)
+	Check "the app never took the foreground" ((Foreground) -ne "APP") (Foreground)
+}
+finally {
+	Stop-App
+	Remove-Item Env:\WAVEDUDE_EXPORT_PATH -ErrorAction SilentlyContinue
+}
+# a probe's recording as CSV (2026-10-18), from the graph box's context menu (the Apps key on the focused box) and from
+# the tree's, where the entry is the last one and only a probe node shows it; the run is made first (a fresh app has
+# none). A point probe gives step;amplitude with one row per step, a line probe frame;step;<distances> with one row per frame
+$env:WAVEDUDE_EXPORT_PATH = Join-Path $out "{name}.csv"
+Start-App $Exe (Join-Path $PSScriptRoot "tiny_probes.wdproj")
+try {
+	FocusOn "ProbeBox:Probe 1"
+	Step "Apps" $VK_APPS 300
+	Check "the Apps key on a graph box opens its context menu with the CSV entry" (WaitFor { PopupItemVisible "Export probe data as CSV..." } 3000)
+	for ($i = 0; $i -lt 2 -and (PopupFocusedId) -ne "ContextExportProbeCsv"; $i++) { Step "Down" $VK_DOWN 120 }
+	Check "Down reaches the CSV entry" ((PopupFocusedId) -eq "ContextExportProbeCsv") (PopupFocusedId)
+	Step "Enter" $VK_RETURN 200
+	$csv1 = Join-Path $out "tiny_probes_Probe 1.csv"
+	Check "the point probe's CSV lands once the run was made" (WaitFor { (Find "StatusMessage").Current.Name -like "Probe data written: 100 rows of 'Probe 1' to *" } 60000) ((Find "StatusMessage").Current.Name)
+	$lines = if (Test-Path $csv1) { @([System.IO.File]::ReadAllLines($csv1)) } else { @() }
+	Check "step;amplitude header, 100 data rows, semicolons and a decimal point" ($lines.Count -eq 101 -and $lines[0] -eq "step;amplitude" -and $lines[1] -match "^0;-?[0-9]+(\.[0-9]+)?(E[-+]?[0-9]+)?$" -and $lines[100] -like "99;*") ("{0} lines: {1} | {2}" -f $lines.Count, $lines[0], $lines[1])
+	# the line probe from the tree's context menu
+	FocusOn "Tree:Probe 2"
+	Step "Apps" $VK_APPS 300
+	for ($i = 0; $i -lt 12 -and (PopupFocusedId) -ne "ContextExportProbeCsv"; $i++) { Step "Down" $VK_DOWN 120 }
+	Check "the tree's context menu reaches the CSV entry on a probe node" ((PopupFocusedId) -eq "ContextExportProbeCsv") (PopupFocusedId)
+	Step "Enter" $VK_RETURN 200
+	$csv2 = Join-Path $out "tiny_probes_Probe 2.csv"
+	Check "the line probe's CSV lands, one row per frame" (WaitFor { (Find "StatusMessage").Current.Name -like "Probe data written: 50 rows of 'Probe 2' to *" } 60000) ((Find "StatusMessage").Current.Name)
+	$lines = if (Test-Path $csv2) { @([System.IO.File]::ReadAllLines($csv2)) } else { @() }
+	Check "frame;step;<distances> header, 50 data rows, the last for frame 49 at step 98" ($lines.Count -eq 51 -and $lines[0] -like "frame;step;0;*" -and $lines[50] -like "49;98;*") ("{0} lines: {1}" -f $lines.Count, ($lines[0] -replace "^(.{40}).*", '$1...'))
 	Check "the app never took the foreground" ((Foreground) -ne "APP") (Foreground)
 }
 finally {

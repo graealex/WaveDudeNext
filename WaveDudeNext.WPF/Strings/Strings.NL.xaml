@@ -39,6 +39,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileExportFieldFrame">Veld_beeld exporteren...</s:String>
 	<s:String x:Key="MenuFileExportIntensityFrame">Intensiteitsbeel_d exporteren...</s:String>
 	<s:String x:Key="MenuExportThisFrame">_Dit beeld exporteren...</s:String>
+	<s:String x:Key="MenuExportProbeCsv">Sonde_gegevens als CSV exporteren...</s:String>
 	<s:String x:Key="MenuFileExit">A_fsluiten</s:String>
 	<s:String x:Key="MenuView">Beel_d</s:String>
 	<s:String x:Key="MenuViewPanes">_Panelen</s:String>
@@ -205,6 +206,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ExportDialogTitleBoth">Veld en intensiteit exporteren</s:String>
 	<s:String x:Key="ExportDialogFilterStill">PNG-beeld (*.png)|*.png|JPEG-beeld (*.jpg)|*.jpg|OpenEXR-beeld, 16-bits drijvendekommagegevens (*.exr)|*.exr</s:String>
 	<s:String x:Key="ExportDialogTitleFrame">Beeld exporteren</s:String>
+	<s:String x:Key="ExportDialogTitleProbeCsv">Sondegegevens exporteren</s:String>
+	<s:String x:Key="ExportDialogFilterCsv">CSV-bestand (*.csv)|*.csv</s:String>
 	<s:String x:Key="ExportFolderExistsFormat">De map {0} bestaat en bevat bestanden. Vervangen?</s:String>
 	<s:String x:Key="ExportError">De export is mislukt.</s:String>
 	<s:String x:Key="ExportStatusFormat">Exporteren: {0} / {1} beelden</s:String>

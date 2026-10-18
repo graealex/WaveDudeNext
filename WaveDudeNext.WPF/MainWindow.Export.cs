@@ -22,6 +22,7 @@ using Microsoft.Win32;
 using WaveDudeNext.Engine;
 using WaveDudeNext.Export;
 using WaveDudeNext.Model;
+using WaveDudeNext.Probes;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
 using WaveDudeNext.WPF.Dialogs;
@@ -41,7 +42,9 @@ namespace WaveDudeNext.WPF;
 /// run to export: when there is none, it is stale, or it lacks the intensity plane, a run is started first
 /// (like Play does) and the export waits for it (<see cref="IsExportWaiting"/>). The <see cref="ExportJob"/>
 /// works on its own thread and reports to the status bar's busy indicator; Esc cancels it. Runs are not
-/// started or replaced while an export reads the store.
+/// started or replaced while an export reads the store. A probe's recording goes out as a CSV file the same
+/// way (<see cref="Commands.ExportCommands.ProbeCsv"/>, 2026-10-18): the Save dialog, the full run, then the
+/// run's trace of the probe written by <see cref="ProbeCsv"/> on the UI thread (a few megabytes at most).
 /// </summary>
 public partial class MainWindow
 {
@@ -89,6 +92,77 @@ public partial class MainWindow
 	private void OnExportFieldFrame(object sender, ExecutedRoutedEventArgs e) => BeginExport(field: true, intensity: false, still: true);
 
 	private void OnExportIntensityFrame(object sender, ExecutedRoutedEventArgs e) => BeginExport(field: false, intensity: true, still: true);
+
+	/// <summary>An active probe only: a disabled one is not in any run.</summary>
+	private void CanExportProbeCsv(object sender, CanExecuteRoutedEventArgs e) =>
+		e.CanExecute = e.Parameter is Probe { Active: true } && !IsExporting && Project.Simulation.Steps > 0;
+
+	/// <summary>The Save dialog, the full run (started first when there is none or it is stale, like the pictures), the probe's trace as CSV.</summary>
+	private async void OnExportProbeCsv(object sender, ExecutedRoutedEventArgs e)
+	{
+		if (e.Parameter is not Probe probe || IsExporting)
+		{
+			return;
+		}
+		string suggested = ProbeCsv.FileName(ProjectName(), probe);
+		string chosen;
+		string? scripted = Environment.GetEnvironmentVariable("WAVEDUDE_EXPORT_PATH");
+		if (!string.IsNullOrEmpty(scripted))
+		{
+			// the harness hook of the picture exports: "{name}" stands for the suggested name
+			chosen = scripted.Replace("{name}", Path.GetFileNameWithoutExtension(suggested), StringComparison.Ordinal);
+			Logger.Debug("Export path taken from WAVEDUDE_EXPORT_PATH: {Path}", chosen);
+		}
+		else
+		{
+			var dialog = new SaveFileDialog
+			{
+				Title = (string)FindResource("ExportDialogTitleProbeCsv"),
+				Filter = (string)FindResource("ExportDialogFilterCsv"),
+				AddExtension = true,
+				DefaultExt = ProbeCsv.Extension,
+				FileName = suggested,
+				InitialDirectory = ProjectFolder ?? (Directory.Exists(Settings.Default.LastExportFolder) ? Settings.Default.LastExportFolder : ""),
+			};
+			if (dialog.ShowDialog(this) != true)
+			{
+				Logger.Debug("Probe export cancelled in the Save dialog");
+				return;
+			}
+			chosen = dialog.FileName;
+			Settings.Default.LastExportFolder = Path.GetDirectoryName(chosen) ?? "";
+		}
+		Logger.Debug("Export: probe '{Probe}' ({Kind}, {Layer}, {Measurement}) as CSV to {Path}", probe.Name, probe.Kind, probe.Layer, probe.Measurement, chosen);
+		SimulationRun? run = await EnsureRunForExport(intensity: probe.Layer == ProbeLayer.Intensity, needsHalves: false);
+		if (run == null)
+		{
+			return;
+		}
+		ProbeTrace? trace = null;
+		for (int i = 0; i < run.Spec.Probes.Length && i < run.Traces.Length; i++)
+		{
+			if (ReferenceEquals(run.Spec.Probes[i].Origin, probe))
+			{
+				trace = run.Traces[i];
+			}
+		}
+		if (trace == null)
+		{
+			Logger.Error("Probe '{Probe}' is not in the run (removed or disabled while it was waited for)", probe.Name);
+			MessageWindow.Show(this, (string)FindResource("ExportError"), MessageKind.Error, MessageButtons.Ok);
+			return;
+		}
+		try
+		{
+			int rows = ProbeCsv.Write(chosen, probe, trace, run.Spec.VisualizeEvery, run.Spec.FrameStride);
+			Logger.Info("Probe data written: {Rows} rows of '{Probe}' to {Path}", rows, probe.Name, chosen);
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			Logger.Error(ex, "The probe data could not be written: {Message}", ex.Message);
+			ShowError((string)FindResource("ExportError"), ex);
+		}
+	}
 
 	/// <summary>The Save dialog, the run, the targets, the job.</summary>
 	/// <param name="field">Export the field.</param>
@@ -192,7 +266,7 @@ public partial class MainWindow
 				}
 			}
 		}
-		SimulationRun? run = await EnsureRunForExport(intensity, format);
+		SimulationRun? run = await EnsureRunForExport(intensity, ExportFormats.IsData(format));
 		if (run == null)
 		{
 			return;
@@ -287,7 +361,9 @@ public partial class MainWindow
 	/// holds the intensity plane if asked for; otherwise a run is started and awaited. Null when no run could
 	/// be had (logged, and an error shown when the run could not start).
 	/// </summary>
-	private async Task<SimulationRun?> EnsureRunForExport(bool intensity, ExportFormat format)
+	/// <param name="intensity">The run must hold the intensity plane.</param>
+	/// <param name="needsHalves">The run must hold 16-bit samples (a data export); otherwise the 8-bit index does.</param>
+	private async Task<SimulationRun?> EnsureRunForExport(bool intensity, bool needsHalves)
 	{
 		IsExportWaiting = true;
 		try
@@ -298,9 +374,9 @@ public partial class MainWindow
 				// a reduced preview serves a picture export when only its samples are reduced: the 8-bit index gives the
 				// same pixels (2026-10-18); a smaller picture or skipped frames never do, and a data export needs the halves
 				PreviewQuality? quality = run?.Spec.Quality;
-				bool reduced = quality != null && (quality.ResolutionDivisor != 1 || quality.FrameDivisor != 1 || (quality.Format != FrameFormat.Half && ExportFormats.IsData(format)));
+				bool reduced = quality != null && (quality.ResolutionDivisor != 1 || quality.FrameDivisor != 1 || (quality.Format != FrameFormat.Half && needsHalves));
 				string? reason = run == null ? "no run" : IsRunStale ? "the run is stale" : IsProbesStale ? "the probes were edited since the run"
-					: reduced ? (quality!.Format != FrameFormat.Half && ExportFormats.IsData(format) && quality.ResolutionDivisor == 1 && quality.FrameDivisor == 1 ? "a data export needs the 16-bit samples" : "the run is a reduced preview (View menu)")
+					: reduced ? (quality!.Format != FrameFormat.Half && needsHalves && quality.ResolutionDivisor == 1 && quality.FrameDivisor == 1 ? "a data export needs the 16-bit samples" : "the run is a reduced preview (View menu)")
 					: intensity && !run.Store.Has(FrameLayer.Intensity) ? "the run has no intensity plane" : !run.IsActive && run.State != RunState.Completed ? "the run did not complete" : null;
 				if (reason != null)
 				{
