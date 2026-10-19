@@ -450,6 +450,15 @@ public sealed class SceneOverlay : Panel
 		return new Point(originX + x * scale, originY + y * scale);
 	}
 
+	/// <summary>The inverse of <see cref="ToViewExact"/> at the current size: a point of this element as continuous canvas coordinates (may lie outside the canvas).</summary>
+	private (double X, double Y) ToCanvasExact(Point view)
+	{
+		double scale = Scale;
+		double originX = (RenderSize.Width - CanvasWidth * scale) / 2;
+		double originY = (RenderSize.Height - CanvasHeight * scale) / 2;
+		return ((view.X - originX) / scale, (view.Y - originY) / scale);
+	}
+
 	// ---------------------------------------------------------------- a part's grip and points
 
 	/// <summary>The point list a part's handles edit: an outline's or a fibre's; null for the other kinds.</summary>
@@ -777,6 +786,12 @@ public sealed class SceneOverlay : Panel
 		(thumb.DragStartX, thumb.DragStartY) = PointOf(thumb);
 		thumb.DragDeltaX = 0;
 		thumb.DragDeltaY = 0;
+		if (thumb.Role is MarkerRole.PartGrip or MarkerRole.PartPoint && CanvasOf(thumb) is { } handle)
+		{
+			(double mouseX, double mouseY) = ToCanvasExact(Mouse.GetPosition(this));
+			thumb.GrabOffsetX = mouseX - handle.X;
+			thumb.GrabOffsetY = mouseY - handle.Y;
+		}
 		SelectedItem = thumb.Item;
 		thumb.Focus();
 	}
@@ -793,6 +808,15 @@ public sealed class SceneOverlay : Panel
 		{
 			// the handle follows the mouse around the centre; Shift snaps to 15 degrees
 			SetAngle(thumb.Item, Mouse.GetPosition(this), (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
+			return;
+		}
+		if (thumb.Role is MarkerRole.PartGrip or MarkerRole.PartPoint)
+		{
+			// absolute, from the mouse: a grip does not land under the mouse (a polygon's vertex stays on its ray, a
+			// rectangle's corner on the positive quadrant), so thumb-relative deltas fed the miss back into the size
+			// and a quick drag blew a hexagon up to the canvas (2026-10-19)
+			(double mouseX, double mouseY) = ToCanvasExact(Mouse.GetPosition(this));
+			SetPoint(thumb, (int)Math.Round(mouseX - thumb.GrabOffsetX), (int)Math.Round(mouseY - thumb.GrabOffsetY));
 			return;
 		}
 		thumb.DragDeltaX += e.HorizontalChange / scale;

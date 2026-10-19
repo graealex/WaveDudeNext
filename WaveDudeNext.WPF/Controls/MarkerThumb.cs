@@ -118,4 +118,10 @@ public sealed class MarkerThumb : Thumb
 
 	/// <summary>Mouse movement since the drag started, in canvas pixels.</summary>
 	internal double DragDeltaY { get; set; }
+
+	/// <summary>For a grip or point handle: where the mouse took hold, relative to the handle's canvas position (canvas pixels), so the handle keeps that grip while it follows the mouse.</summary>
+	internal double GrabOffsetX { get; set; }
+
+	/// <summary>For a grip or point handle: the vertical part of the grab offset (canvas pixels).</summary>
+	internal double GrabOffsetY { get; set; }
 }
