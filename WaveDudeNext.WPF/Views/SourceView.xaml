@@ -69,13 +69,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionWave}" />
 			<controls:FormPanel>
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Source.Frequency}" />
-				<controls:NumberBox Text="{Binding Frequency}" Minimum="0.01" Maximum="255" ToolTip="{meta:Hint model:Source.Frequency}" />
+				<controls:NumberBox Text="{Binding Frequency}" Minimum="0.01" Maximum="255" DragStep="0.1" Decimals="2" ToolTip="{meta:Hint model:Source.Frequency}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Source.Amplitude}" />
-				<controls:NumberBox Text="{Binding Amplitude}" Minimum="0" Maximum="100" ToolTip="{meta:Hint model:Source.Amplitude}" />
+				<controls:NumberBox Text="{Binding Amplitude}" Minimum="0" Maximum="100" DragStep="0.1" Decimals="2" ToolTip="{meta:Hint model:Source.Amplitude}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Source.Phase}" />
-				<controls:NumberBox Text="{Binding Phase}" Minimum="-180" Maximum="180" ToolTip="{meta:Hint model:Source.Phase}" />
+				<controls:NumberBox Text="{Binding Phase}" Minimum="-180" Maximum="180" DragStep="0.5" Decimals="2" ToolTip="{meta:Hint model:Source.Phase}" />
 
 				<!-- read-only: the wavelength this frequency gives with the project's wave speed (Simulation.Wavelength) -->
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelWavelength}" />
@@ -133,7 +133,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<controls:NumberBox Text="{Binding SpacingY}" ToolTip="{meta:Hint model:SourceArray.SpacingY}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:SourceArray.Angle}" />
-				<controls:NumberBox Text="{Binding Angle}" Minimum="-180" Maximum="180" Increment="5" ToolTip="{meta:Hint model:SourceArray.Angle}" />
+				<controls:NumberBox Text="{Binding Angle}" Minimum="-180" Maximum="180" Increment="5" DragStep="0.5" Decimals="1" ToolTip="{meta:Hint model:SourceArray.Angle}" />
 
 				<!-- the four random amounts are offsets added per emitter on top of the values above (the author's point 9) -->
 				<Label controls:FormPanel.FullWidth="True" Style="{StaticResource FormSection}" Content="{DynamicResource SectionRandom}" />

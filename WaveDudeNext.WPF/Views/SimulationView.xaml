@@ -44,7 +44,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<controls:NumberBox Text="{Binding WaveSpeed}" Minimum="0.000001" Maximum="1000000" Increment="0.01" ToolTip="{meta:Hint model:Simulation.WaveSpeed}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Simulation.TimeDecay}" />
-				<controls:NumberBox Text="{Binding TimeDecay}" Minimum="1" Maximum="100" ToolTip="{meta:Hint model:Simulation.TimeDecay}" />
+				<controls:NumberBox Text="{Binding TimeDecay}" Minimum="1" Maximum="100" DragStep="0.1" Decimals="1" ToolTip="{meta:Hint model:Simulation.TimeDecay}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Simulation.SourceFrequencyScale}" />
 				<controls:NumberBox Text="{Binding SourceFrequencyScale}" Minimum="0" Maximum="1000" Increment="0.1" ToolTip="{meta:Hint model:Simulation.SourceFrequencyScale}" />

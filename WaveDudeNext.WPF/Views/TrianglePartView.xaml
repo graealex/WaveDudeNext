@@ -65,10 +65,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<controls:NumberBox Text="{Binding Base}" Minimum="2" Increment="10" ToolTip="{meta:Hint model:TrianglePart.Base}" AutomationProperties.AutomationId="PartBase" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:TrianglePart.AngleA}" />
-				<controls:NumberBox Style="{StaticResource AngleABox}" Text="{Binding AngleA}" Minimum="1" Maximum="178" ToolTip="{meta:Hint model:TrianglePart.AngleA}" AutomationProperties.AutomationId="PartAngleA" />
+				<controls:NumberBox Style="{StaticResource AngleABox}" Text="{Binding AngleA}" Minimum="1" Maximum="178" DragStep="0.5" Decimals="1" ToolTip="{meta:Hint model:TrianglePart.AngleA}" AutomationProperties.AutomationId="PartAngleA" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:TrianglePart.AngleB}" />
-				<controls:NumberBox Style="{StaticResource AngleBBox}" Text="{Binding AngleB}" Minimum="1" Maximum="178" ToolTip="{meta:Hint model:TrianglePart.AngleB}" AutomationProperties.AutomationId="PartAngleB" />
+				<controls:NumberBox Style="{StaticResource AngleBBox}" Text="{Binding AngleB}" Minimum="1" Maximum="178" DragStep="0.5" Decimals="1" ToolTip="{meta:Hint model:TrianglePart.AngleB}" AutomationProperties.AutomationId="PartAngleB" />
 
 				<!-- read-only: what the two base angles leave for the apex -->
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelApexAngle}" />

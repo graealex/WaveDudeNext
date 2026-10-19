@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -29,14 +30,17 @@ namespace WaveDudeNext.WPF.Controls;
 /// change the value by <see cref="Increment"/>, PageUp/PageDown by ten increments, the mouse wheel
 /// does the same while the box has keyboard focus, and the two repeat buttons on the right do it with
 /// the mouse, and a horizontal drag on the text itself scrubs the value, Blender style (the user's request,
-/// 2026-10-18): press, move sideways past the drag threshold and the value follows the mouse, one increment
-/// per <see cref="PixelsPerStep"/> pixels, ten times finer with Shift, ten times coarser with Ctrl; Escape during
-/// the drag restores the value the drag started from; a press without movement stays an ordinary click that
-/// places the caret. Every step clamps to <see cref="Minimum"/>..<see cref="Maximum"/>, writes the text back
-/// through the <see cref="TextBox.Text"/> binding at once and selects it, so a source moves on the
-/// picture with each key press. Typing stays plain text: the binding converts and the model clamps as
-/// before, and Enter/Escape come from <see cref="EditBehavior"/> through the base text box style.
-/// Numbers are parsed and written in the current culture, like the bindings. UI thread.
+/// 2026-10-18): press, move sideways past the drag threshold and the value follows the mouse by
+/// <see cref="DragStep"/> per pixel (by default one increment per <see cref="PixelsPerStep"/> pixels), ten times
+/// finer with Shift, ten times coarser with Ctrl, rounded to <see cref="Decimals"/> places (by default the
+/// increment's, so a whole-number box never writes a fraction); a drag that reaches the edge of the monitor wraps
+/// the cursor to the opposite edge and goes on (2026-10-19, as Blender does); Escape during the drag restores the
+/// value the drag started from; a press without movement stays an ordinary click that places the caret. Every step
+/// clamps to <see cref="Minimum"/>..<see cref="Maximum"/>, writes the text back through the
+/// <see cref="TextBox.Text"/> binding at once and selects it, so a source moves on the picture with each key
+/// press. Typing stays plain text: the binding converts and the model clamps as before, and Enter/Escape come
+/// from <see cref="EditBehavior"/> through the base text box style. Numbers are parsed and written in the current
+/// culture, like the bindings. UI thread.
 /// </summary>
 public sealed class NumberBox : TextBox
 {
@@ -52,13 +56,26 @@ public sealed class NumberBox : TextBox
 	public static readonly DependencyProperty IncrementProperty = DependencyProperty.Register(
 		nameof(Increment), typeof(double), typeof(NumberBox), new PropertyMetadata(1.0));
 
+	/// <summary>Identifies the <see cref="DragStep"/> property.</summary>
+	public static readonly DependencyProperty DragStepProperty = DependencyProperty.Register(
+		nameof(DragStep), typeof(double), typeof(NumberBox), new PropertyMetadata(double.NaN));
+
+	/// <summary>Identifies the <see cref="Decimals"/> property.</summary>
+	public static readonly DependencyProperty DecimalsProperty = DependencyProperty.Register(
+		nameof(Decimals), typeof(int), typeof(NumberBox), new PropertyMetadata(-1));
+
 	/// <summary>Steps per PageUp/PageDown and per wheel notch with Shift.</summary>
 	private const int PageSteps = 10;
 
-	/// <summary>Mouse pixels per increment while scrubbing; Shift makes it ten times as many, Ctrl a tenth.</summary>
+	/// <summary>Mouse pixels per increment while scrubbing when <see cref="DragStep"/> is not set.</summary>
 	public const double PixelsPerStep = 2.0;
 
+	/// <summary>Pixels the cursor is set in from the far edge when a drag wraps around the monitor, so it does not wrap straight back.</summary>
+	private const int WrapInset = 2;
+
 	private Point? _pressPoint;
+	private double _pressScreenX;
+	private double _wrapOffset;
 	private double _pressValue;
 	private bool _scrubbing;
 
@@ -83,6 +100,27 @@ public sealed class NumberBox : TextBox
 		set => SetValue(IncrementProperty, value);
 	}
 
+	/// <summary>
+	/// Change of the value per pixel of a horizontal drag (in device-independent pixels), before the Shift and Ctrl
+	/// factors; NaN, the default, means one <see cref="Increment"/> per <see cref="PixelsPerStep"/> pixels.
+	/// </summary>
+	public double DragStep
+	{
+		get => (double)GetValue(DragStepProperty);
+		set => SetValue(DragStepProperty, value);
+	}
+
+	/// <summary>
+	/// Decimal places a step or drag writes; -1, the default, means as many as <see cref="Increment"/> has, so a box
+	/// bound to an integer never writes a fraction. A box bound to a real-valued property sets it to let a fine
+	/// drag (Shift) reach below its increment.
+	/// </summary>
+	public int Decimals
+	{
+		get => (int)GetValue(DecimalsProperty);
+		set => SetValue(DecimalsProperty, value);
+	}
+
 	/// <summary>The value the text holds, or null while it does not parse.</summary>
 	public double? Value => double.TryParse(Text, NumberStyles.Float, CultureInfo.CurrentCulture, out double value) ? value : null;
 
@@ -100,10 +138,10 @@ public sealed class NumberBox : TextBox
 		Write((Value ?? 0.0) + steps * Increment);
 	}
 
-	/// <summary>Clamps <paramref name="value"/>, rounds it to the increment's precision, writes the text, pushes it into the binding and selects it.</summary>
+	/// <summary>Clamps <paramref name="value"/>, rounds it to the box's precision, writes the text, pushes it into the binding and selects it.</summary>
 	private void Write(double value)
 	{
-		int decimals = Math.Clamp(DecimalsOf(Increment), 0, 10);
+		int decimals = Math.Clamp(Decimals >= 0 ? Decimals : DecimalsOf(Increment), 0, 10);
 		value = Math.Round(Math.Clamp(value, Minimum, Maximum), decimals);
 		Text = value.ToString(CultureInfo.CurrentCulture);
 		GetBindingExpression(TextProperty)?.UpdateSource();
@@ -152,12 +190,16 @@ public sealed class NumberBox : TextBox
 	{
 		base.OnPreviewMouseLeftButtonDown(e);
 		_pressPoint = null;
-		// a press on the repeat buttons is theirs; one on the text may become a scrub, or stay a click
-		if (e.Handled || IsReadOnly || !IsEnabled || IsOnRepeatButton(e.OriginalSource))
+		// a press on the repeat buttons is theirs; one on the text of a box that already has the focus selects text
+		// as in any text box (Blender's rule, 2026-10-19: a drag scrubbed where a selection was meant); one on an
+		// unfocused box may become a scrub, or stay a click that focuses it and places the caret
+		if (e.Handled || IsReadOnly || !IsEnabled || IsOnRepeatButton(e.OriginalSource) || IsKeyboardFocusWithin)
 		{
 			return;
 		}
 		_pressPoint = e.GetPosition(this);
+		_pressScreenX = PointToScreen(_pressPoint.Value).X;
+		_wrapOffset = 0.0;
 		_pressValue = Value ?? 0.0;
 	}
 
@@ -165,11 +207,17 @@ public sealed class NumberBox : TextBox
 	protected override void OnPreviewMouseMove(MouseEventArgs e)
 	{
 		base.OnPreviewMouseMove(e);
-		if (_pressPoint is not { } start || e.LeftButton != MouseButtonState.Pressed)
+		// the text box captured the mouse on the press, so a release always reaches this box or ends the capture;
+		// the button state is read as well in case neither happened
+		if (_pressPoint == null || (e.LeftButton != MouseButtonState.Pressed && !IsMouseCaptureWithin))
 		{
 			return;
 		}
-		double dx = e.GetPosition(this).X - start.X;
+		// measured on the screen (device pixels) so a wrap of the cursor can be taken out again; the box's own
+		// coordinates would also shift if the drag scrolled or re-laid out the form
+		Point screen = PointToScreen(e.GetPosition(this));
+		double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+		double dx = (screen.X + _wrapOffset - _pressScreenX) / dpi;
 		if (!_scrubbing)
 		{
 			if (Math.Abs(dx) < SystemParameters.MinimumHorizontalDragDistance)
@@ -184,18 +232,93 @@ public sealed class NumberBox : TextBox
 				Focus();
 			}
 		}
-		double pixels = PixelsPerStep;
+		double step = double.IsNaN(DragStep) ? Increment / PixelsPerStep : DragStep;
 		if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
 		{
-			pixels *= 10.0;
+			step /= 10.0;
 		}
 		else if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
 		{
-			pixels /= 10.0;
+			step *= 10.0;
 		}
-		Write(_pressValue + Math.Round(dx / pixels) * Increment);
+		Write(_pressValue + dx * step);
+		WrapAtMonitorEdge(screen);
 		e.Handled = true;   // not a text selection
 	}
+
+	/// <summary>
+	/// A drag that reaches the left or right edge of the monitor under the cursor jumps the cursor to the opposite
+	/// edge, remembering the jump in <see cref="_wrapOffset"/> so the drag distance runs on unbroken; otherwise a
+	/// value could only be dragged as far as the screen allowed.
+	/// </summary>
+	private void WrapAtMonitorEdge(Point screen)
+	{
+		var at = new NativePoint { X = (int)Math.Round(screen.X), Y = (int)Math.Round(screen.Y) };
+		IntPtr monitor = MonitorFromPoint(at, MonitorDefaultToNearest);
+		var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+		if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info))
+		{
+			return;
+		}
+		int left = info.Monitor.Left, right = info.Monitor.Right;   // right is exclusive
+		if (right - left <= 2 * WrapInset + 1)
+		{
+			return;
+		}
+		int target;
+		if (at.X <= left)
+		{
+			target = right - 1 - WrapInset;
+		}
+		else if (at.X >= right - 1)
+		{
+			target = left + WrapInset;
+		}
+		else
+		{
+			return;
+		}
+		if (SetCursorPos(target, at.Y))
+		{
+			_wrapOffset += at.X - target;
+		}
+	}
+
+	private const uint MonitorDefaultToNearest = 2;
+
+	[StructLayout(LayoutKind.Sequential)]
+	private struct NativePoint
+	{
+		public int X;
+		public int Y;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	private struct NativeRect
+	{
+		public int Left;
+		public int Top;
+		public int Right;
+		public int Bottom;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	private struct MonitorInfo
+	{
+		public int Size;
+		public NativeRect Monitor;
+		public NativeRect Work;
+		public uint Flags;
+	}
+
+	[DllImport("user32.dll")]
+	private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
+
+	[DllImport("user32.dll")]
+	private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+
+	[DllImport("user32.dll")]
+	private static extern bool SetCursorPos(int x, int y);
 
 	/// <inheritdoc/>
 	protected override void OnPreviewMouseLeftButtonUp(MouseButtonEventArgs e)
@@ -217,6 +340,7 @@ public sealed class NumberBox : TextBox
 		{
 			EndScrub();
 		}
+		_pressPoint = null;
 	}
 
 	private void EndScrub()

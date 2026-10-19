@@ -44,7 +44,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<controls:NumberBox Text="{Binding Y}" Minimum="0" ToolTip="{meta:Hint model:OpticalPart.Y}" AutomationProperties.AutomationId="PartY" />
 
 			<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:OpticalPart.Angle}" />
-			<controls:NumberBox Text="{Binding Angle}" Minimum="-180" Maximum="180" Increment="5" ToolTip="{meta:Hint model:OpticalPart.Angle}" AutomationProperties.AutomationId="PartAngleBox" />
+			<controls:NumberBox Text="{Binding Angle}" Minimum="-180" Maximum="180" Increment="5" DragStep="0.5" Decimals="1" ToolTip="{meta:Hint model:OpticalPart.Angle}" AutomationProperties.AutomationId="PartAngleBox" />
 		</controls:FormPanel>
 	</StackPanel>
 </UserControl>
