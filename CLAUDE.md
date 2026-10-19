@@ -101,7 +101,10 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   the GPU, the 256-entry table serves the image sources. The importer's fallbacks differ from the model's defaults on purpose.
 - **Frames vs steps**: frame k is the state after step `k × VisualizeEvery`.
 - **The engine choice is a user setting** (Simulation > Use the GPU, default on, CPU fallback logged).
-- **Frame store**: budget = free memory minus 2 GB, capped by Simulation > RAM cache size (Auto or a share); the
+- **Frame store**: budget = the lesser of free physical memory and available commit (2026-10-19: Windows refuses an
+  allocation at the commit limit first, and a run that filled the physical measure left no room for the preview's
+  bitmap, which took the app down; a failed bitmap is now logged and the picture stays empty) minus 2 GB, capped by
+  Simulation > RAM cache size (Auto or a share); the
   outgoing run's frames count as reclaimed and the new store waits for their release. No memory mapping, no OS
   cache reliance (both wrote at disk speed). Disposed on the thread pool. Full HD, 2500 steps, both planes: 10.4 GB
   in 16-bit, half in 8-bit.

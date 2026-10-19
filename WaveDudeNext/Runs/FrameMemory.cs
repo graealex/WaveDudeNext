@@ -48,12 +48,18 @@ public static class FrameMemory
 		return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
 	}
 
-	/// <summary>Bytes of physical memory free right now (the standby cache counts as free, as Windows reports it).</summary>
+	/// <summary>
+	/// Bytes free for new allocations right now: the lesser of the free physical memory (the standby cache counts as
+	/// free, as Windows reports it) and the commit still available (physical memory plus page file minus what every
+	/// process has committed). Windows refuses any allocation at the commit limit, which with a small page file comes
+	/// before the physical memory is used up: a full-HD run of 12,500 frames filled the budget by the physical
+	/// measure alone and the preview's next bitmap then failed to allocate (2026-10-19).
+	/// </summary>
 	public static long AvailableBytes()
 	{
 		if (OperatingSystem.IsWindows() && TryStatus(out MemoryStatus status))
 		{
-			return (long)Math.Min(status.AvailPhys, long.MaxValue);
+			return (long)Math.Min(Math.Min(status.AvailPhys, status.AvailPageFile), long.MaxValue);
 		}
 		return PhysicalBytes() / 2;
 	}

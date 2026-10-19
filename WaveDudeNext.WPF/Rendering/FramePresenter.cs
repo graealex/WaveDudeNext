@@ -99,6 +99,9 @@ public sealed class FramePresenter
 			_source = value;
 			if (!sameShape)
 			{
+				// the old pictures go first, so their memory can be reclaimed for the new ones
+				FieldBitmap = null;
+				IntensityBitmap = null;
 				FieldBitmap = value != null && value.Has(FrameLayer.Field) ? NewBitmap(value) : null;
 				IntensityBitmap = value != null && value.Has(FrameLayer.Intensity) ? NewBitmap(value) : null;
 			}
@@ -137,7 +140,23 @@ public sealed class FramePresenter
 		Kick();
 	}
 
-	private static WriteableBitmap NewBitmap(IFrameSource source) => new(source.Width, source.Height, 96, 96, PixelFormats.Bgr32, null);
+	/// <summary>
+	/// A picture of the source's size, or null when Windows has no memory for it (the bitmap is a shared section, which
+	/// fails at the commit limit as MILERR_WIN32ERROR; it took the application down on 2026-10-19 after a run had
+	/// filled the memory): logged as an error, the picture then stays empty until a source with a new shape comes.
+	/// </summary>
+	private static WriteableBitmap? NewBitmap(IFrameSource source)
+	{
+		try
+		{
+			return new WriteableBitmap(source.Width, source.Height, 96, 96, PixelFormats.Bgr32, null);
+		}
+		catch (Exception ex) when (ex is COMException or OutOfMemoryException)
+		{
+			Logger.Error(ex, "No memory for a preview picture of {Width}×{Height}: the picture stays empty", source.Width, source.Height);
+			return null;
+		}
+	}
 
 	private void Rebuild()
 	{
