@@ -20,12 +20,22 @@ using System.Text;
 
 namespace WaveDudeNext.Export;
 
+/// <summary>The video codec of a <see cref="MovWriter"/>.</summary>
+public enum MovCodec
+{
+	/// <summary>The Animation codec (<c>rle </c>): 24-bit RGB, run-length coded, every frame a key frame.</summary>
+	Animation,
+	/// <summary>The PNG codec (<c>png </c>): every sample a whole PNG file of the frame, deflate-coded, which packs a wave picture far tighter than runs do (2026-10-19, the user's request, for a lossless hand-over to Resolve, Premiere and Final Cut).</summary>
+	Png,
+}
+
 /// <summary>
 /// Writes a QuickTime movie (<c>.mov</c>) with the Animation codec (<c>rle </c>, 24-bit RGB, run-length
 /// coded, mathematically lossless, every frame a key frame), the lossless RGB format Final Cut, Premiere,
 /// After Effects and Resolve all decode without anything installed (2026-10-15, the user's choice: one
 /// lossless single-file format per container, this one for the editors, the uncompressed AVI for the
-/// Windows tools). In-house, no dependencies. The <c>moov</c> with the sample tables comes first: its size
+/// Windows tools), or with the PNG codec (<c>png </c>, <see cref="MovCodec"/>), the same movie with each sample a
+/// PNG file from <see cref="PngEncoder"/>. In-house, no dependencies. The <c>moov</c> with the sample tables comes first: its size
 /// follows from the planned frame count (a fixed part plus 12 bytes a frame), so that much is reserved
 /// after <c>ftyp</c> as a <c>free</c> atom, the samples go into one <c>mdat</c> behind it as they come, and at
 /// close the reservation is overwritten with the real <c>moov</c> and a <c>free</c> atom for the rest (the
@@ -34,12 +44,12 @@ namespace WaveDudeNext.Export;
 /// offsets are 64-bit from the start (<c>co64</c>), so the file may grow past 4 GB. One thread at a time.
 /// </summary>
 /// <remarks>
-/// A frame: a 4-byte big-endian length of the whole frame data, a 2-byte header of 0 (a full frame), then
+/// An Animation frame: a 4-byte big-endian length of the whole frame data, a 2-byte header of 0 (a full frame), then
 /// per row a skip code (1 = no skip), run codes (a positive count n: n literal RGB pixels follow; a negative
 /// count −n: one RGB pixel follows, repeated n times; 0: another skip code follows) and −1 at the row's end.
 /// That is what every <c>rle </c> decoder expects (ffmpeg's <c>qtrle</c>, QuickTime's own).
 /// </remarks>
-public sealed class MovAnimationWriter : IFrameSink
+public sealed class MovWriter : IFrameSink
 {
 	/// <summary>The moov's bytes besides the two per-frame tables (measured on the atoms as written, with slack).</summary>
 	private const int MoovFixedBytes = 1024;
@@ -59,10 +69,12 @@ public sealed class MovAnimationWriter : IFrameSink
 	/// <param name="height">Frame height in pixels.</param>
 	/// <param name="framesPerSecond">Playback rate; the movie's time scale.</param>
 	/// <param name="plannedFrames">How many frames will come at most, which sizes the reservation for the leading <c>moov</c>; 0 puts it at the end.</param>
-	public MovAnimationWriter(string path, int width, int height, int framesPerSecond, int plannedFrames = 0)
+	/// <param name="codec">The video codec; the Animation codec by default.</param>
+	public MovWriter(string path, int width, int height, int framesPerSecond, int plannedFrames = 0, MovCodec codec = MovCodec.Animation)
 	{
 		Width = width;
 		Height = height;
+		Codec = codec;
 		FramesPerSecond = Math.Max(1, framesPerSecond);
 		Output = path;
 		PlannedFrames = Math.Max(0, plannedFrames);
@@ -103,6 +115,9 @@ public sealed class MovAnimationWriter : IFrameSink
 	/// <summary>Frames per second, the movie's time scale.</summary>
 	public int FramesPerSecond { get; }
 
+	/// <summary>The video codec the samples are coded with.</summary>
+	public MovCodec Codec { get; }
+
 	/// <summary>The frame count the leading moov was reserved for; 0 for a trailing moov.</summary>
 	public int PlannedFrames { get; }
 
@@ -123,14 +138,26 @@ public sealed class MovAnimationWriter : IFrameSink
 		{
 			throw new ArgumentException("The frame is smaller than the movie.", nameof(pixels));
 		}
-		int length = Encode(pixels, _frame);
 		_offsets.Add(_stream.Position);
+		int length;
+		if (Codec == MovCodec.Png)
+		{
+			// the sample is the PNG file itself, written straight into the mdat
+			long start = _stream.Position;
+			// unfiltered rows: a few percent larger, but what a player's libpng can decode in time (2026-10-19, VLC)
+			PngEncoder.Write(_stream, pixels, Width, Height, PngFilter.None);
+			length = (int)(_stream.Position - start);
+		}
+		else
+		{
+			length = Encode(pixels, _frame);
+			_stream.Write(_frame, 0, length);
+		}
 		_sizes.Add(length);
-		_stream.Write(_frame, 0, length);
 		FrameBytes += length;
 	}
 
-	/// <summary>Run-length codes one frame into <paramref name="target"/>; returns the byte count.</summary>
+	/// <summary>Run-length codes one frame into <paramref name="target"/> the Animation codec's way; returns the byte count.</summary>
 	public int Encode(ReadOnlySpan<int> pixels, byte[] target)
 	{
 		int p = 6; // the length and the header are filled in at the end
@@ -284,12 +311,12 @@ public sealed class MovAnimationWriter : IFrameSink
 		return Atom("hdlr", [0, 0, 0, 0, .. Encoding.ASCII.GetBytes(type), .. Encoding.ASCII.GetBytes(subtype), .. "appl"u8, 0, 0, 0, 0, 0, 0, 0, 0, (byte)nameBytes.Length, .. nameBytes]);
 	}
 
-	/// <summary>The sample description: one 'rle ' entry, 24-bit, spatial quality lossless, named "Animation".</summary>
+	/// <summary>The sample description: one entry, 'rle ' named "Animation" or 'png ' named "PNG", 24-bit, spatial quality lossless.</summary>
 	private byte[] Stsd()
 	{
 		var e = new byte[86];
 		BinaryPrimitives.WriteUInt32BigEndian(e, 86);
-		"rle "u8.CopyTo(e.AsSpan(4));
+		(Codec == MovCodec.Png ? "png "u8 : "rle "u8).CopyTo(e.AsSpan(4));
 		BinaryPrimitives.WriteUInt16BigEndian(e.AsSpan(14), 1); // data reference index
 		"appl"u8.CopyTo(e.AsSpan(20)); // vendor
 		BinaryPrimitives.WriteUInt32BigEndian(e.AsSpan(28), 0x3FF); // spatial quality: lossless
@@ -298,7 +325,7 @@ public sealed class MovAnimationWriter : IFrameSink
 		BinaryPrimitives.WriteUInt32BigEndian(e.AsSpan(36), 0x00480000); // 72 dpi
 		BinaryPrimitives.WriteUInt32BigEndian(e.AsSpan(40), 0x00480000);
 		BinaryPrimitives.WriteUInt16BigEndian(e.AsSpan(48), 1); // frames per sample
-		byte[] name = Encoding.ASCII.GetBytes("Animation");
+		byte[] name = Encoding.ASCII.GetBytes(Codec == MovCodec.Png ? "PNG" : "Animation");
 		e[50] = (byte)name.Length;
 		name.CopyTo(e, 51);
 		BinaryPrimitives.WriteUInt16BigEndian(e.AsSpan(82), 24); // depth

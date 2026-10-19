@@ -53,6 +53,13 @@ internal static class ExportChecks
 			check(png.Length > 8 && png[1] == (byte)'P' && png[2] == (byte)'N' && png[3] == (byte)'G', "png: signature");
 			int[]? decoded = DecodePng(png, w, h);
 			check(decoded != null && decoded.SequenceEqual(frames[0]), "png: in-house decode gives the frame back pixel for pixel");
+			// the unfiltered variant (the PNG movie's, 2026-10-19): every row's filter byte 0, the same picture back
+			using var unfilteredStream = new MemoryStream();
+			PngEncoder.Write(unfilteredStream, frames[0], w, h, PngFilter.None);
+			byte[] unfiltered = unfilteredStream.ToArray();
+			int[]? unfilteredDecoded = DecodePng(unfiltered, w, h);
+			check(unfilteredDecoded != null && unfilteredDecoded.SequenceEqual(frames[0]) && FilterBytes(unfiltered, w, h) is { } filters && filters.All(f => f == 0),
+				"png unfiltered: every row's filter byte is 0 and the frame comes back pixel for pixel");
 			string pngPath = Path.Combine(folder, "one.png");
 			File.WriteAllBytes(pngPath, png);
 			if (Ffmpeg != null)
@@ -188,7 +195,7 @@ internal static class ExportChecks
 			// MOV with the Animation codec: the atoms, ffmpeg's qtrle decoder giving the frames back exactly, a run of one colour compressing
 			string movPath = Path.Combine(folder, "seven.mov");
 			bool moovFirst;
-			using (var mov = new MovAnimationWriter(movPath, w, h, 25, 7))
+			using (var mov = new MovWriter(movPath, w, h, 25, 7))
 			{
 				foreach (int[] frame in frames)
 				{
@@ -205,7 +212,7 @@ internal static class ExportChecks
 				&& IndexOf(movBytes, "free"u8, moovAt, mdatAt) > moovAt && IndexOf(movBytes, "rle "u8, 0, movBytes.Length) > 0 && IndexOf(movBytes, "co64"u8, 0, movBytes.Length) > 0,
 				"mov: ftyp qt, the moov before the mdat with a free atom filling the reservation, an rle sample description, 64-bit offsets");
 			// a writer told nothing about the count has no reservation and puts the moov at the end, still a valid file
-			using (var trailing = new MovAnimationWriter(Path.Combine(folder, "trailing.mov"), w, h, 25))
+			using (var trailing = new MovWriter(Path.Combine(folder, "trailing.mov"), w, h, 25))
 			{
 				foreach (int[] frame in frames)
 				{
@@ -228,10 +235,55 @@ internal static class ExportChecks
 			var flat = new int[w * h];
 			Array.Fill(flat, unchecked((int)0xFF123456));
 			var scratch = new byte[6 + h * (w * 3 + w / 127 + 4)];
-			using (var mov = new MovAnimationWriter(Path.Combine(folder, "flat.mov"), w, h, 25))
+			using (var mov = new MovWriter(Path.Combine(folder, "flat.mov"), w, h, 25))
 			{
 				int flatBytes = mov.Encode(flat, scratch);
 				check(flatBytes < h * 8 + 6, "mov: a flat frame codes to " + flatBytes + " bytes (under " + (h * 8 + 6) + ")");
+			}
+			// MOV with the PNG codec (2026-10-19, for the editing suites): a 'png ' sample description, each sample a whole PNG
+			// file that decodes to its frame, smaller than the Animation codec on these frames, ffmpeg giving the frames back exactly
+			string pngMovPath = Path.Combine(folder, "png.mov");
+			long animationBytes;
+			using (var mov = new MovWriter(movPath + ".again.mov", w, h, 25, 7))
+			{
+				foreach (int[] frame in frames)
+				{
+					mov.Add(frame);
+				}
+				animationBytes = mov.FrameBytes;
+			}
+			using (var mov = new MovWriter(pngMovPath, w, h, 25, 7, MovCodec.Png))
+			{
+				foreach (int[] frame in frames)
+				{
+					mov.Add(frame);
+				}
+				mov.Close();
+				check(mov.FrameCount == 7 && mov.MoovFirst && mov.Codec == MovCodec.Png, "mov png: 7 frames taken, the moov leading");
+				check(mov.FrameBytes < animationBytes, "mov png: smaller than the Animation codec (" + mov.FrameBytes + " against " + animationBytes + " bytes)");
+			}
+			byte[] pngMov = File.ReadAllBytes(pngMovPath);
+			ReadOnlySpan<byte> signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+			int firstSample = IndexOf(pngMov, signature, 0, pngMov.Length);
+			int secondSample = firstSample < 0 ? -1 : IndexOf(pngMov, signature, firstSample + 8, pngMov.Length);
+			check(IndexOf(pngMov, "png "u8, 0, pngMov.Length) > 0 && IndexOf(pngMov, "rle "u8, 0, pngMov.Length) < 0 && firstSample > 0 && secondSample > firstSample,
+				"mov png: a 'png ' sample description and PNG files as samples");
+			int[]? firstFrame = secondSample > firstSample ? DecodePng(pngMov[firstSample..secondSample], w, h) : null;
+			bool firstExact = firstFrame != null;
+			for (int i = 0; firstExact && i < w * h; i++)
+			{
+				firstExact = (firstFrame![i] & 0xFFFFFF) == (frames[0][i] & 0xFFFFFF);
+			}
+			check(firstExact, "mov png: the first sample decodes to the first frame exactly");
+			if (Ffmpeg != null)
+			{
+				byte[]? rgb = Decode(pngMovPath, w, h, out int count);
+				bool exact = rgb != null && count == 7;
+				for (int i = 0; exact && i < 7; i++)
+				{
+					exact = Psnr(rgb!.AsSpan(i * w * h * 3, w * h * 3), frames[i], w, h) >= 99;
+				}
+				check(exact, "mov png: ffmpeg decodes 7 frames, identical" + (rgb == null ? "" : ", got " + count));
 			}
 			// MP4: Media Foundation, when it is there
 			if (OperatingSystem.IsWindows() && ExportFormats.IsAvailable(ExportFormat.Mp4))
@@ -722,7 +774,7 @@ internal static class ExportChecks
 				var clock = Stopwatch.StartNew();
 				job.Start();
 				job.Completion.Wait();
-				string ratio = job.Targets[0].Sink is MovAnimationWriter movSink ? $", {(double)store.Count * w * h * 3 / Math.Max(1, movSink.FrameBytes):0.00} : 1 on the run's frames" : "";
+				string ratio = job.Targets[0].Sink is MovWriter movSink ? $", {(double)store.Count * w * h * 3 / Math.Max(1, movSink.FrameBytes):0.00} : 1 on the run's frames" : "";
 				Console.WriteLine($"  job to {name}: {clock.Elapsed.TotalMilliseconds / store.Count:0.0} ms per frame ({job.State}){ratio}");
 				ExportFormats.PreferredJpeg = preferredJpeg;
 				Mp4Writer.Throttle = true;
@@ -1002,6 +1054,38 @@ internal static class ExportChecks
 	}
 
 	/// <summary>Decodes an 8-bit RGB PNG with any of the five filters; null when it is not one.</summary>
+	/// <summary>The filter byte of every row of a PNG (the first byte of each inflated row), or null when the file does not inflate.</summary>
+	private static byte[]? FilterBytes(byte[] png, int w, int h)
+	{
+		using var idat = new MemoryStream();
+		int p = 8;
+		while (p + 8 <= png.Length)
+		{
+			int length = BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(p));
+			string type = Encoding.ASCII.GetString(png, p + 4, 4);
+			if (type == "IDAT")
+			{
+				idat.Write(png, p + 8, length);
+			}
+			p += 12 + length;
+		}
+		idat.Position = 0;
+		var rows = new byte[(w * 3 + 1) * h];
+		using (var zlib = new ZLibStream(idat, CompressionMode.Decompress))
+		{
+			if (zlib.ReadAtLeast(rows, rows.Length, throwOnEndOfStream: false) != rows.Length)
+			{
+				return null;
+			}
+		}
+		var filters = new byte[h];
+		for (int y = 0; y < h; y++)
+		{
+			filters[y] = rows[y * (w * 3 + 1)];
+		}
+		return filters;
+	}
+
 	private static int[]? DecodePng(byte[] png, int w, int h)
 	{
 		int p = 8;

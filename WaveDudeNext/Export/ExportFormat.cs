@@ -17,23 +17,25 @@
 
 namespace WaveDudeNext.Export;
 
-/// <summary>The export formats, in the order of the Save dialog's filter.</summary>
+/// <summary>The export formats, in the order of the Save dialog's filter: the videos first, then the sequences (the user's order, 2026-10-19).</summary>
 public enum ExportFormat
 {
+	/// <summary>An H.264 MP4 through the Media Foundation of Windows; the quality setting applies.</summary>
+	Mp4,
+	/// <summary>An MPEG-1 program stream of I-pictures (<c>.mpg</c>); the quality setting and the nearest standard frame rate apply.</summary>
+	Mpeg1,
+	/// <summary>An uncompressed AVI with OpenDML indexes; lossless, large.</summary>
+	Avi,
+	/// <summary>A QuickTime movie with the Animation codec: lossless RGB, run-length coded, what the editing suites open natively.</summary>
+	Mov,
+	/// <summary>A QuickTime movie with the PNG codec: lossless RGB, each frame a PNG, far smaller than the Animation codec on a wave picture; for Resolve, Premiere and Final Cut (2026-10-19). Shares the extension with <see cref="Mov"/>: the dialog's filter tells them apart.</summary>
+	MovPng,
 	/// <summary>A PNG per frame in a folder of its own; lossless.</summary>
 	Png,
 	/// <summary>A JPEG per frame in a folder of its own; the quality setting applies.</summary>
 	Jpeg,
 	/// <summary>An OpenEXR file per frame in a folder of its own: the stored 16-bit floats themselves, one channel, uncompressed; data, not a rendered picture (2026-10-18).</summary>
 	Exr,
-	/// <summary>An MPEG-1 program stream of I-pictures (<c>.mpg</c>); the quality setting and the nearest standard frame rate apply.</summary>
-	Mpeg1,
-	/// <summary>An uncompressed AVI with OpenDML indexes; lossless, large.</summary>
-	Avi,
-	/// <summary>An H.264 MP4 through the Media Foundation of Windows; the quality setting applies.</summary>
-	Mp4,
-	/// <summary>A QuickTime movie with the Animation codec: lossless RGB, run-length coded, what the editing suites open natively.</summary>
-	Mov,
 }
 
 /// <summary>What is known about each <see cref="ExportFormat"/>: extensions, whether it is a sequence, how to open its sink.</summary>
@@ -114,34 +116,58 @@ public static class ExportFormats
 		};
 	}
 
-	/// <summary>The formats in filter order.</summary>
-	public static readonly ExportFormat[] All = [ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Exr, ExportFormat.Mpeg1, ExportFormat.Avi, ExportFormat.Mp4, ExportFormat.Mov];
+	/// <summary>The formats in filter order: the videos, then the sequences.</summary>
+	public static readonly ExportFormat[] All = [ExportFormat.Mp4, ExportFormat.Mpeg1, ExportFormat.Avi, ExportFormat.Mov, ExportFormat.MovPng, ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Exr];
 
-	/// <summary>The file extension with its dot.</summary>
-	public static string Extension(ExportFormat format) => format switch
+	/// <summary>The formats a still can take, in the order of the still's filter: the sequence formats.</summary>
+	public static readonly ExportFormat[] Stills = [ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Exr];
+
+	/// <summary>The file extensions a format accepts, with their dots, the first the one it writes; both MOV formats take <c>.mov</c>.</summary>
+	public static string[] Extensions(ExportFormat format) => format switch
 	{
-		ExportFormat.Png => ".png",
-		ExportFormat.Jpeg => ".jpg",
-		ExportFormat.Exr => ".exr",
-		ExportFormat.Mpeg1 => ".mpg",
-		ExportFormat.Avi => ".avi",
-		ExportFormat.Mp4 => ".mp4",
-		ExportFormat.Mov => ".mov",
+		ExportFormat.Png => [".png"],
+		ExportFormat.Jpeg => [".jpg", ".jpeg"],
+		ExportFormat.Exr => [".exr"],
+		ExportFormat.Mpeg1 => [".mpg", ".mpeg", ".m1v"],
+		ExportFormat.Avi => [".avi"],
+		ExportFormat.Mp4 => [".mp4", ".m4v"],
+		ExportFormat.Mov or ExportFormat.MovPng => [".mov", ".qt"],
 		_ => throw new ArgumentOutOfRangeException(nameof(format)),
 	};
 
-	/// <summary>The format of a path by its extension (<c>.jpeg</c> and <c>.mpeg</c> count too), or null.</summary>
-	public static ExportFormat? FromPath(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+	/// <summary>The file extension a format writes, with its dot.</summary>
+	public static string Extension(ExportFormat format) => Extensions(format)[0];
+
+	/// <summary>Whether the path's extension is one the format accepts (case does not matter).</summary>
+	public static bool Accepts(ExportFormat format, string path)
 	{
-		".png" => ExportFormat.Png,
-		".jpg" or ".jpeg" => ExportFormat.Jpeg,
-		".exr" => ExportFormat.Exr,
-		".mpg" or ".mpeg" or ".m1v" => ExportFormat.Mpeg1,
-		".avi" => ExportFormat.Avi,
-		".mp4" or ".m4v" => ExportFormat.Mp4,
-		".mov" or ".qt" => ExportFormat.Mov,
-		_ => null,
-	};
+		string extension = Path.GetExtension(path);
+		foreach (string known in Extensions(format))
+		{
+			if (string.Equals(known, extension, StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// The first format in filter order that accepts the path's extension, or null. The extension alone cannot tell
+	/// the two MOV formats apart (a <c>.mov</c> means the Animation codec here): the dialog's filter decides the
+	/// format, this serves a scripted path (2026-10-19).
+	/// </summary>
+	public static ExportFormat? FromPath(string path)
+	{
+		foreach (ExportFormat format in All)
+		{
+			if (Accepts(format, path))
+			{
+				return format;
+			}
+		}
+		return null;
+	}
 
 	/// <summary>Whether the format writes one file per frame (these are also the formats a still can take).</summary>
 	public static bool IsSequence(ExportFormat format) => format is ExportFormat.Png or ExportFormat.Jpeg or ExportFormat.Exr;
@@ -212,7 +238,9 @@ public static class ExportFormats
 				}
 				return new Mp4Writer(path, width, height, fps, quality);
 			case ExportFormat.Mov:
-				return new MovAnimationWriter(path, width, height, fps, plannedFrames);
+				return new MovWriter(path, width, height, fps, plannedFrames);
+			case ExportFormat.MovPng:
+				return new MovWriter(path, width, height, fps, plannedFrames, MovCodec.Png);
 			default:
 				throw new ArgumentOutOfRangeException(nameof(format));
 		}

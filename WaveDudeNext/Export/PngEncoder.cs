@@ -21,6 +21,15 @@ using System.Text;
 
 namespace WaveDudeNext.Export;
 
+/// <summary>The row filter a PNG is written with.</summary>
+public enum PngFilter
+{
+	/// <summary>No filtering: the cheapest to decode, and on a rendered frame, flat runs of a few dozen palette colours, also the smallest (2026-10-19: 306 KB against Paeth's 387 on a Full HD frame of Example 2; ffmpeg's PNG encoder writes this by default).</summary>
+	None,
+	/// <summary>Paeth on every row: the smallest files for smooth gradients, undone byte by byte by the decoder.</summary>
+	Paeth,
+}
+
 /// <summary>
 /// Writes 24-bit RGB PNG files from packed BGRA32 frames, in-house: the signature, IHDR, the zlib stream
 /// (<see cref="ZLibStream"/>, which writes the zlib header and Adler-32 itself) as IDAT chunks of up to 64 KB
@@ -38,7 +47,8 @@ public static class PngEncoder
 	/// <param name="pixels">Packed BGRA32 pixels, row-major, at least <paramref name="width"/> × <paramref name="height"/>.</param>
 	/// <param name="width">Width in pixels.</param>
 	/// <param name="height">Height in pixels.</param>
-	public static void Write(Stream stream, ReadOnlySpan<int> pixels, int width, int height)
+	/// <param name="filter">The row filter; Paeth unless a fast decode matters more than a few percent of size (2026-10-19: VLC's libpng could not undo Paeth on Full HD frames at 30 fps and showed only the first; ffmpeg's unfiltered frames played).</param>
+	public static void Write(Stream stream, ReadOnlySpan<int> pixels, int width, int height, PngFilter filter = PngFilter.Paeth)
 	{
 		stream.Write(Signature);
 		Span<byte> header = stackalloc byte[13];
@@ -52,7 +62,7 @@ public static class PngEncoder
 		WriteChunk(stream, "IHDR", header);
 		using (var idat = new IdatStream(stream))
 		{
-			Deflate(idat, pixels, width, height);
+			Deflate(idat, pixels, width, height, filter);
 		}
 		WriteChunk(stream, "IEND", default);
 	}
@@ -66,7 +76,7 @@ public static class PngEncoder
 	}
 
 	/// <summary>The filtered rows, zlib-compressed into <paramref name="output"/>.</summary>
-	private static void Deflate(Stream output, ReadOnlySpan<int> pixels, int width, int height)
+	private static void Deflate(Stream output, ReadOnlySpan<int> pixels, int width, int height, PngFilter filter)
 	{
 		int rowBytes = width * 3;
 		var previous = new byte[rowBytes];
@@ -84,13 +94,21 @@ public static class PngEncoder
 					current[x * 3 + 1] = (byte)(argb >> 8);
 					current[x * 3 + 2] = (byte)argb;
 				}
-				filtered[0] = 4; // Paeth
-				for (int i = 0; i < rowBytes; i++)
+				if (filter == PngFilter.None)
 				{
-					int a = i >= 3 ? current[i - 3] : 0;
-					int b = previous[i];
-					int c = i >= 3 ? previous[i - 3] : 0;
-					filtered[i + 1] = (byte)(current[i] - Paeth(a, b, c));
+					filtered[0] = 0;
+					current.CopyTo(filtered, 1);
+				}
+				else
+				{
+					filtered[0] = 4; // Paeth
+					for (int i = 0; i < rowBytes; i++)
+					{
+						int a = i >= 3 ? current[i - 3] : 0;
+						int b = previous[i];
+						int c = i >= 3 ? previous[i - 3] : 0;
+						filtered[i + 1] = (byte)(current[i] - Paeth(a, b, c));
+					}
 				}
 				zlib.Write(filtered, 0, filtered.Length);
 				(previous, current) = (current, previous);

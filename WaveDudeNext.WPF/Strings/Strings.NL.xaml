@@ -204,7 +204,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Ready">Gereed</s:String>
 
 	<!-- export: the Save dialog, the status bar line ({0} frames done, {1} frames) and the questions -->
-	<s:String x:Key="ExportDialogFilter">PNG-beeldreeks (*.png)|*.png|JPEG-beeldreeks (*.jpg)|*.jpg|OpenEXR-beeldreeks, 16-bits drijvendekommagegevens (*.exr)|*.exr|MPEG-1-video (*.mpg)|*.mpg|AVI-video, ongecomprimeerd (*.avi)|*.avi|MP4-video, H.264 (*.mp4)|*.mp4|QuickTime-film, Animation-codec, verliesvrij (*.mov)|*.mov</s:String>
+	<s:String x:Key="ExportDialogFilter">MP4-video, H.264 (*.mp4)|*.mp4|MPEG-1-video (*.mpg)|*.mpg|AVI-video, ongecomprimeerd (*.avi)|*.avi|QuickTime-film, Animation-codec, verliesvrij (*.mov)|*.mov|QuickTime-film, PNG-codec, verliesvrij (*.mov)|*.mov|PNG-beeldreeks (*.png)|*.png|JPEG-beeldreeks (*.jpg)|*.jpg|OpenEXR-beeldreeks, 16-bits drijvendekommagegevens (*.exr)|*.exr</s:String>
 	<s:String x:Key="ExportDialogTitleField">Veld exporteren</s:String>
 	<s:String x:Key="ExportDialogTitleIntensity">Intensiteit exporteren</s:String>
 	<s:String x:Key="ExportDialogTitleBoth">Veld en intensiteit exporteren</s:String>

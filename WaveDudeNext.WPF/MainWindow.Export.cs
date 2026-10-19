@@ -183,8 +183,11 @@ public partial class MainWindow
 			suffix += "_" + stillFrame.ToString("D" + ImageSequenceSink.MinDigits, System.Globalization.CultureInfo.InvariantCulture);
 		}
 		string chosen;
-		// the still's filter lists the sequence formats, which lead the full list in the same order
-		int filterIndex = still ? Math.Clamp(Settings.Default.ExportFilterIndex + 1, 1, ExportFormats.All.Count(ExportFormats.IsSequence)) : Math.Clamp(Settings.Default.ExportFilterIndex + 1, 1, ExportFormats.All.Length);
+		// the remembered filter is an index into the full list; the still's filter lists the sequence formats alone, so a
+		// remembered video means PNG there
+		ExportFormat[] formats = still ? ExportFormats.Stills : ExportFormats.All;
+		ExportFormat remembered = ExportFormats.All[Math.Clamp(Settings.Default.ExportFilterIndex, 0, ExportFormats.All.Length - 1)];
+		int filterIndex = Math.Max(0, Array.IndexOf(formats, remembered)) + 1;
 		string? scripted = Environment.GetEnvironmentVariable("WAVEDUDE_EXPORT_PATH");
 		if (!string.IsNullOrEmpty(scripted))
 		{
@@ -200,7 +203,7 @@ public partial class MainWindow
 				Filter = (string)FindResource(still ? "ExportDialogFilterStill" : "ExportDialogFilter"),
 				FilterIndex = filterIndex,
 				AddExtension = true,
-				DefaultExt = ExportFormats.Extension(ExportFormat.Png),
+				DefaultExt = ExportFormats.Extension(formats[filterIndex - 1]),
 				FileName = ProjectName() + suffix,
 				InitialDirectory = ProjectFolder ?? (Directory.Exists(Settings.Default.LastExportFolder) ? Settings.Default.LastExportFolder : ""),
 			};
@@ -217,12 +220,18 @@ public partial class MainWindow
 			}
 			Settings.Default.LastExportFolder = Path.GetDirectoryName(chosen) ?? "";
 		}
-		ExportFormat format = ExportFormats.FromPath(chosen) ?? ExportFormats.All[Math.Clamp(filterIndex - 1, 0, ExportFormats.All.Length - 1)];
+		// the filter the user chose is the format, whatever extension was typed (the two MOV formats share theirs); a
+		// scripted path has no filter and says its format by its extension, a .mov meaning the Animation codec
+		ExportFormat format = formats[Math.Clamp(filterIndex - 1, 0, formats.Length - 1)];
+		if (!string.IsNullOrEmpty(scripted))
+		{
+			format = ExportFormats.FromPath(chosen) ?? format;
+		}
 		if (still && !ExportFormats.IsSequence(format))
 		{
 			format = ExportFormat.Png;
 		}
-		if (ExportFormats.FromPath(chosen) != format)
+		if (!ExportFormats.Accepts(format, chosen))
 		{
 			chosen = Path.ChangeExtension(chosen, ExportFormats.Extension(format));
 		}

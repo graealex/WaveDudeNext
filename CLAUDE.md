@@ -153,9 +153,12 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   lattice came in disabled and ran black until 2026-10-16).
   **Languages**: four string tables, live switch; converter output needs the language as an extra binding input.
 - **Export**: field, intensity or both, a still of the shown frame, from the current run when fresh and full,
-  else a run is made first; PNG/JPEG sequences (the files numbered by timeline frame, a range export from its first
-  frame, and a still padded the same way, `name_0655.png`; never a step number, 2026-10-19), MPEG-1, OpenDML AVI, H.264 MP4 via Media Foundation (the only
-  Windows-bound library piece besides WIC JPEG, which has an in-house fallback), QuickTime Animation MOV, and
+  else a run is made first; in the dialog's order (2026-10-19) H.264 MP4 via Media Foundation (the only
+  Windows-bound library piece besides WIC JPEG, which has an in-house fallback), MPEG-1, OpenDML AVI, QuickTime
+  MOV with the Animation codec or the PNG codec (2026-10-19, each sample a PNG, for a lossless hand-over to Resolve,
+  Premiere and Final Cut; both share `.mov`, so the dialog's filter decides the format and the extension follows it,
+  while a scripted path goes by its extension, `.mov` meaning Animation), PNG/JPEG sequences (the files numbered by timeline frame, a range export from its first
+  frame, and a still padded the same way, `name_0655.png`; never a step number, 2026-10-19), and
   **probe data as CSV** (2026-10-18: a probe's context menu in the tree and on its graph box; semicolons, decimal
   point, a header row; a point probe one row per step, a line probe one row per frame; the full run like the
   pictures, started first when needed),
