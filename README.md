@@ -1,5 +1,7 @@
 # WaveDude Next
 
+![WaveDude Next](Assets/Screenshot1.png)
+
 <!-- Anchor for the real text. Facts only, checked against the code on 2026-10-16. Rewrite freely. -->
 
 What it is
@@ -70,9 +72,9 @@ dotnet publish WaveDudeNext.WPF/WaveDudeNext.WPF.csproj -p:PublishProfile=Single
 - No external frameworks besides Media Foundation.
 
 Credits (as in the source header)
-- JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+- Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
   <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
-- Manuel (0x23, Diffraction Limited), author of WaveSimulator2D
+- 0x23 (Diffraction Limited), author of WaveSimulator2D
   <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
 
 License

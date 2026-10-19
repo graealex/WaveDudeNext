@@ -4,9 +4,9 @@
 // This file is part of WaveDude Next, a 2D wave simulator.
 //
 // Based on the work of
-//   JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+//   Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
 //     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
-//   Manuel (0x23, Diffraction Limited), author of WaveSimulator2D
+//   0x23 (Diffraction Limited), author of WaveSimulator2D
 //     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
 //
 // WaveDude Next is free software: you can redistribute it and/or modify it under

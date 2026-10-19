@@ -5,9 +5,9 @@ Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 This file is part of WaveDude Next, a 2D wave simulator.
 
 Based on the work of
-  JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+  Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
-  Manuel (0x23, Diffraction Limited), author of WaveSimulator2D
+  0x23 (Diffraction Limited), author of WaveSimulator2D
     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
 
 WaveDude Next is free software: you can redistribute it and/or modify it under
@@ -56,12 +56,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource AboutCredits}" Margin="0,14,0,6" />
 			<!-- the credits are the source header's lines, in English, so every place names the two the same way -->
 			<TextBlock TextWrapping="Wrap" AutomationProperties.AutomationId="AboutCreditVleggaar">
-				JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026<LineBreak />
+				Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026<LineBreak />
 				<Run Text="    " /><Hyperlink NavigateUri="https://www.youtube.com/@HuygensOptics" RequestNavigate="OnNavigate" AutomationProperties.AutomationId="AboutLinkHuygensYouTube">youtube.com/@HuygensOptics</Hyperlink>
 				<Run Text=" &#183; " /><Hyperlink NavigateUri="https://www.huygensoptics.com" RequestNavigate="OnNavigate" AutomationProperties.AutomationId="AboutLinkHuygensSite">huygensoptics.com</Hyperlink>
 			</TextBlock>
-			<TextBlock TextWrapping="Wrap" Margin="0,6,0,0" AutomationProperties.AutomationId="AboutCreditManuel">
-				Manuel (0x23, Diffraction Limited), author of WaveSimulator2D<LineBreak />
+			<TextBlock TextWrapping="Wrap" Margin="0,6,0,0" AutomationProperties.AutomationId="AboutCreditWaveSimulator2D">
+				0x23 (Diffraction Limited), author of WaveSimulator2D<LineBreak />
 				<Run Text="    " /><Hyperlink NavigateUri="https://www.youtube.com/@DiffractionLimited" RequestNavigate="OnNavigate" AutomationProperties.AutomationId="AboutLinkDiffractionYouTube">youtube.com/@DiffractionLimited</Hyperlink>
 				<Run Text=" &#183; " /><Hyperlink NavigateUri="https://github.com/0x23/WaveSimulator2D" RequestNavigate="OnNavigate" AutomationProperties.AutomationId="AboutLinkWaveSimulator2D">github.com/0x23/WaveSimulator2D</Hyperlink>
 			</TextBlock>

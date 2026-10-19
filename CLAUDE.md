@@ -174,8 +174,8 @@ script sometimes comes up active; only the foreground guard fails then.
 
 ## People, name, license
 
-Alexander Graef (the user), author of WaveDude Next. JJM (Jeroen) Vleggaar, Huygens Optics, author of Wave Dude 2D,
-Copyright (C) 2026. Manuel (0x23, Diffraction Limited), author of WaveSimulator2D, which Jeroen's numerics followed.
+Alexander Graef (the user), author of WaveDude Next. Jeroen Vleggaar, Huygens Optics, author of Wave Dude 2D,
+Copyright (C) 2026. 0x23 (Diffraction Limited), author of WaveSimulator2D, which Jeroen's numerics followed; named by his handle only, at his wish (2026-10-19).
 Private addresses stay out of files. The name was agreed with Jeroen (he proposed "Pro"); the GitHub repository
 `graealex/WaveDude` still has the old name. The header text is the editorconfig template, identical in every file,
 never reworded per file.

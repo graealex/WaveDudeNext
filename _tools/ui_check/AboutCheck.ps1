@@ -4,9 +4,9 @@
 # This file is part of WaveDude Next, a 2D wave simulator.
 #
 # Based on the work of
-#   JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+#   Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
 #     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
-#   Manuel (0x23, Diffraction Limited), author of WaveSimulator2D
+#   0x23 (Diffraction Limited), author of WaveSimulator2D
 #     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
 #
 # WaveDude Next is free software: you can redistribute it and/or modify it under
@@ -91,8 +91,8 @@ try {
 	Check "the product line" ((DFind "AboutProduct").Current.Name -eq "WaveDude Next") (DFind "AboutProduct").Current.Name
 	Check "the copyright line" ((DFind "AboutCopyright").Current.Name -eq "Copyright (C) 2026 Alexander Graef") (DFind "AboutCopyright").Current.Name
 	$vleggaar = (DFind "AboutCreditVleggaar").Current.Name
-	$manuel = (DFind "AboutCreditManuel").Current.Name
-	Check "the credits name Jeroen with his copyright and Manuel, as the source header does" (($vleggaar -like "JJM Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026*") -and ($manuel -like "Manuel (0x23, Diffraction Limited), author of WaveSimulator2D*")) ("'{0}' / '{1}'" -f $vleggaar, $manuel)
+	$author0x23 = (DFind "AboutCreditWaveSimulator2D").Current.Name
+	Check "the credits name Jeroen with his copyright and 0x23, as the source header does" (($vleggaar -like "Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026*") -and ($author0x23 -like "0x23 (Diffraction Limited), author of WaveSimulator2D*")) ("'{0}' / '{1}'" -f $vleggaar, $author0x23)
 	$links = @("AboutLinkHuygensYouTube", "AboutLinkHuygensSite", "AboutLinkDiffractionYouTube", "AboutLinkWaveSimulator2D", "AboutLinkGpl") | Where-Object { DHas $_ }
 	Check "the five links exist" ($links.Count -eq 5) ("found " + $links.Count)
 	$system = DValue "AboutSystemText"
