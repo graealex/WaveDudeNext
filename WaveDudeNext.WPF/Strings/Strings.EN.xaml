@@ -438,7 +438,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Source.Frequency">Frequency</s:String>
 	<s:String x:Key="Hint.Source.Frequency">Frequency as a level up to 255, decimals allowed, the same scale as the green channel of image sources. Above 255 the grid cannot sample the wave.</s:String>
 	<s:String x:Key="Label.Source.Amplitude">Amplitude</s:String>
-	<s:String x:Key="Hint.Source.Amplitude">Amplitude in percent, 0 to 100.</s:String>
+	<s:String x:Key="Hint.Source.Amplitude">Amplitude in percent, 0 to 100, decimals allowed.</s:String>
 	<s:String x:Key="Label.Source.Phase">Phase</s:String>
 	<s:String x:Key="Hint.Source.Phase">Phase offset in degrees, -180 to 180.</s:String>
 	<s:String x:Key="Label.Source.Mode">Mode</s:String>

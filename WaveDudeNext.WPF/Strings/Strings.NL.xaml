@@ -436,7 +436,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Source.Frequency">Frequentie</s:String>
 	<s:String x:Key="Hint.Source.Frequency">Frequentie als niveau tot 255, decimalen toegestaan, dezelfde schaal als het groene kanaal van beeldbronnen. Boven 255 kan het raster de golf niet meer bemonsteren.</s:String>
 	<s:String x:Key="Label.Source.Amplitude">Amplitude</s:String>
-	<s:String x:Key="Hint.Source.Amplitude">Amplitude in procent, 0 tot 100.</s:String>
+	<s:String x:Key="Hint.Source.Amplitude">Amplitude in procent, 0 tot 100, decimalen toegestaan.</s:String>
 	<s:String x:Key="Label.Source.Phase">Fase</s:String>
 	<s:String x:Key="Hint.Source.Phase">Faseverschuiving in graden, -180 tot 180.</s:String>
 	<s:String x:Key="Label.Source.Mode">Modus</s:String>

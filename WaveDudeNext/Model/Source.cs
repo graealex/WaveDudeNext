@@ -54,7 +54,7 @@ public sealed class Source : ObservableObject
 	/// <summary>Default <see cref="Frequency"/>.</summary>
 	public const double DefaultLevel = 100.0;
 	/// <summary>Default <see cref="Amplitude"/> in percent.</summary>
-	public const int DefaultAmplitude = 100;
+	public const double DefaultAmplitude = 100.0;
 	/// <summary>Default <see cref="PulseWidth"/> and <see cref="OffWidth"/> in cycles.</summary>
 	public const int DefaultWidth = 10;
 	/// <summary>Value of <see cref="DetachAfter"/> meaning the source stays on for the whole run.</summary>
@@ -65,7 +65,7 @@ public sealed class Source : ObservableObject
 	private int _x;
 	private int _y;
 	private double _frequency = DefaultLevel;
-	private int _amplitude = DefaultAmplitude;
+	private double _amplitude = DefaultAmplitude;
 	private double _phase;
 	private SourceMode _mode = SourceMode.Continuous;
 	private PulseShape _pulseShape = PulseShape.Gaussian;
@@ -126,12 +126,12 @@ public sealed class Source : ObservableObject
 		set => SetProperty(ref _frequency, value);
 	}
 
-	/// <summary>Amplitude in percent, 0 to 100.</summary>
+	/// <summary>Amplitude in percent, 0 to 100, decimals allowed: the engines scale the source by a real factor, and whole percents were only a spin-box setting in Wave Dude 2D.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultAmplitude)]
 	[Category("Wave")]
-	[Description("Amplitude in percent, 0 to 100.")]
-	public int Amplitude
+	[Description("Amplitude in percent, 0 to 100, decimals allowed.")]
+	public double Amplitude
 	{
 		get => _amplitude;
 		set => SetProperty(ref _amplitude, value);
@@ -267,7 +267,7 @@ public sealed class Source : ObservableObject
 	{
 		Name ??= "";
 		Frequency = double.IsFinite(Frequency) ? Math.Clamp(Frequency, MinLevel, MaxLevel) : DefaultLevel;
-		Amplitude = Math.Clamp(Amplitude, 0, 100);
+		Amplitude = double.IsFinite(Amplitude) ? Math.Clamp(Amplitude, 0.0, 100.0) : DefaultAmplitude;
 		Phase = double.IsFinite(Phase) ? Math.Clamp(Phase, -180.0, 180.0) : 0.0;
 		PulseWidth = Math.Max(1, PulseWidth);
 		OffWidth = Math.Max(1, OffWidth);

@@ -187,7 +187,7 @@ public static class LegacyProject
 			}
 			source.DetachAfter = Bool(item, "detach_source", false) ? Int(item, "detach_after_steps", 1000) : Source.NeverDetach;
 			source.Frequency = Double(item, "frequency", Source.DefaultLevel);
-			source.Amplitude = Int(item, "amplitude", Source.DefaultAmplitude);
+			source.Amplitude = Double(item, "amplitude", Source.DefaultAmplitude);
 			source.Phase = Double(item, "phase_deg", 0.0);
 			source.Mode = Text(item, "mode", "continuous") == "pulsed" ? SourceMode.Pulsed : SourceMode.Continuous;
 			source.PulseShape = Text(item, "pulse_shape", "gaussian") == "smoothed_square" ? PulseShape.SmoothedSquare : PulseShape.Gaussian;

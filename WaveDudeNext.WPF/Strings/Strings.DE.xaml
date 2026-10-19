@@ -436,7 +436,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Source.Frequency">Frequenz</s:String>
 	<s:String x:Key="Hint.Source.Frequency">Frequenz als Stufe bis 255, Dezimalstellen erlaubt, dieselbe Skala wie der Grünkanal der Bildquellen. Über 255 kann das Gitter die Welle nicht mehr abtasten.</s:String>
 	<s:String x:Key="Label.Source.Amplitude">Amplitude</s:String>
-	<s:String x:Key="Hint.Source.Amplitude">Amplitude in Prozent, 0 bis 100.</s:String>
+	<s:String x:Key="Hint.Source.Amplitude">Amplitude in Prozent, 0 bis 100, Dezimalstellen erlaubt.</s:String>
 	<s:String x:Key="Label.Source.Phase">Phase</s:String>
 	<s:String x:Key="Hint.Source.Phase">Phasenversatz in Grad, -180 bis 180.</s:String>
 	<s:String x:Key="Label.Source.Mode">Modus</s:String>

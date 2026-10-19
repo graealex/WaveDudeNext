@@ -628,7 +628,7 @@ internal static class Program
 
 	private static void CheckDecimalLevels(int W, int H)
 	{
-		Console.WriteLine("--- decimal frequency and phase");
+		Console.WriteLine("--- decimal frequency, amplitude and phase");
 		var project = new Project();
 		project.Scene.Width = W;
 		project.Scene.Height = H;
@@ -636,17 +636,20 @@ internal static class Program
 		source.X = 20;
 		source.Y = 24;
 		source.Frequency = 120.5;
+		source.Amplitude = 33.3;
 		source.Phase = 12.5;
 		RunSpec spec = RunSpec.Create(project, null, preferGpu: false);
-		Check(spec.Emitters.Length == 1 && spec.Emitters[0].Level == 120.5 && Math.Abs(spec.Emitters[0].PhaseRadians - 12.5 * Math.PI / 180.0) < 1e-12, "a decimal frequency and phase reach the emitter as typed");
+		Check(spec.Emitters.Length == 1 && spec.Emitters[0].Level == 120.5 && Math.Abs(spec.Emitters[0].Amplitude - 0.333) < 1e-12 && Math.Abs(spec.Emitters[0].PhaseRadians - 12.5 * Math.PI / 180.0) < 1e-12, "a decimal frequency, amplitude and phase reach the emitter as typed");
 		source.Frequency = 300;
+		source.Amplitude = 100.5;
 		source.Phase = -200;
 		source.Normalize();
-		Check(source.Frequency == 255 && source.Phase == -180, "the level is capped at 255 (the grid cannot sample above it), the phase at -180");
+		Check(source.Frequency == 255 && source.Amplitude == 100 && source.Phase == -180, "the level is capped at 255 (the grid cannot sample above it), the amplitude at 100, the phase at -180");
 		source.Frequency = 0;
 		source.Normalize();
 		Check(source.Frequency == Source.MinLevel, "a level of 0 becomes the least level");
 		source.Frequency = 120.5;
+		source.Amplitude = 33.3;
 		source.Phase = 12.5;
 		using (var stream = new MemoryStream())
 		{
@@ -654,7 +657,7 @@ internal static class Program
 			string xml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
 			stream.Position = 0;
 			Project back = Project.Load(stream);
-			Check(xml.Contains("Frequency=\"120.5\"") && xml.Contains("Phase=\"12.5\"") && back.Sources[0].Frequency == 120.5 && back.Sources[0].Phase == 12.5, "decimals round-trip through the file");
+			Check(xml.Contains("Frequency=\"120.5\"") && xml.Contains("Amplitude=\"33.3\"") && xml.Contains("Phase=\"12.5\"") && back.Sources[0].Frequency == 120.5 && back.Sources[0].Amplitude == 33.3 && back.Sources[0].Phase == 12.5, "decimals round-trip through the file");
 		}
 		SceneData scene = SceneData.Empty(W, H, 0);
 		var emitters = new List<Emitter> { Make(20, 24, 120, 1.0) with { Level = 120.5, PhaseRadians = 12.5 * Math.PI / 180.0 } };

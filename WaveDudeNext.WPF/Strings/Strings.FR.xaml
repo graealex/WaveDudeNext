@@ -436,7 +436,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Source.Frequency">Fréquence</s:String>
 	<s:String x:Key="Hint.Source.Frequency">Fréquence sous forme de niveau jusqu'à 255, décimales admises, la même échelle que le canal vert des sources d'image. Au-delà de 255, la grille ne peut plus échantillonner l'onde.</s:String>
 	<s:String x:Key="Label.Source.Amplitude">Amplitude</s:String>
-	<s:String x:Key="Hint.Source.Amplitude">Amplitude en pour cent, 0 à 100.</s:String>
+	<s:String x:Key="Hint.Source.Amplitude">Amplitude en pour cent, 0 à 100, décimales admises.</s:String>
 	<s:String x:Key="Label.Source.Phase">Phase</s:String>
 	<s:String x:Key="Hint.Source.Phase">Décalage de phase en degrés, -180 à 180.</s:String>
 	<s:String x:Key="Label.Source.Mode">Mode</s:String>
