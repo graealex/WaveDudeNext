@@ -747,14 +747,35 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		source.AppendLine("}");
 		source.AppendLine();
 		// the index mapping of ColorLut.FieldIndex / IntensityIndex: a NaN field gives the centre, a NaN or
-		// non-positive intensity 0; the sqrt is the card's single-precision one, so an index may differ by one
-		// from the host's double at a boundary
+		// non-positive intensity 0. The sample is first rounded to half precision, as capture_half stores it, so the
+		// index equals the one the CPU renders from a 16-bit frame bit for bit (2026-10-19: an 8-bit run and a 16-bit
+		// run of the same project exported pictures that differed by a palette step in half a percent of the pixels).
+		// The rounding is done on the float's bits, since a half variable needs an extension; it is round to nearest
+		// even, half's subnormals and overflow included. No contraction here: the CPU's multiply and add are separate
+		source.AppendLine("float round_to_half(float f)");
+		source.AppendLine("{");
+		source.AppendLine("    uint u = as_uint(f);");
+		source.AppendLine("    uint sign = u & 0x80000000u;");
+		source.AppendLine("    uint a = u & 0x7FFFFFFFu;");
+		source.AppendLine("    if (a >= 0x7F800000u) return f;                                        // inf or nan");
+		source.AppendLine("    if (a >= 0x477FF000u) return as_float(sign | 0x7F800000u);          // 65520 and up round to inf");
+		source.AppendLine("    if (a < 0x38800000u) {                                                 // below 2^-14: a subnormal half, a multiple of 2^-24");
+		source.AppendLine("        float q = rint(as_float(a) * 16777216.0f) * 5.9604644775390625e-8f;");
+		source.AppendLine("        return as_float(sign | as_uint(q));");
+		source.AppendLine("    }");
+		source.AppendLine("    uint rest = a & 0x1FFFu;                                               // the 13 bits a half drops");
+		source.AppendLine("    uint kept = a & ~0x1FFFu;");
+		source.AppendLine("    if (rest > 0x1000u || (rest == 0x1000u && (kept & 0x2000u))) kept += 0x2000u;");
+		source.AppendLine("    return as_float(sign | kept);");
+		source.AppendLine("}");
+		source.AppendLine();
+		source.AppendLine("#pragma OPENCL FP_CONTRACT OFF");
 		source.AppendLine("__kernel void capture_index(__global const float* src, __global uchar* dst, const int w, const int h, const int stride, const int div, const int fw, const int fh, const float brightness, const int intensity)");
 		source.AppendLine("{");
 		source.AppendLine("    int x = get_global_id(0);");
 		source.AppendLine("    int y = get_global_id(1);");
 		source.AppendLine("    if (x >= fw || y >= fh) return;");
-		source.AppendLine("    float v = capture_sample(src, w, h, stride, div, x, y);");
+		source.AppendLine("    float v = round_to_half(capture_sample(src, w, h, stride, div, x, y));");
 		source.AppendLine("    int index;");
 		source.AppendLine("    if (intensity)");
 		source.AppendLine("        index = v > 0.0f ? (int)(fmin(sqrt(v) * brightness, 1.0f) * 254.0f) : 0;");
@@ -775,7 +796,14 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		IntPtr program = OpenClApi.clCreateProgramWithSource(_context, 1U, new[] { source }, null, ref err);
 		OpenClApi.Check(err, "clCreateProgramWithSource");
 		IntPtr[] deviceIds = { _device.DeviceId };
-		err = OpenClApi.clBuildProgram(program, 1U, deviceIds, "", IntPtr.Zero, IntPtr.Zero);
+		// a correctly rounded square root where the card has one: the 8-bit index capture then equals the CPU's
+		// MathF.Sqrt bit for bit (2026-10-19); the pulse shapes' divisions only come closer to the host's as well
+		string options = _device.CorrectlyRoundedSqrt ? "-cl-fp32-correctly-rounded-divide-sqrt" : "";
+		if (!_device.CorrectlyRoundedSqrt)
+		{
+			Logger.Debug("The card's single-precision square root is not correctly rounded: an 8-bit palette index may differ by one from a 16-bit render at a boundary");
+		}
+		err = OpenClApi.clBuildProgram(program, 1U, deviceIds, options, IntPtr.Zero, IntPtr.Zero);
 		if (err != 0)
 		{
 			string buildLog = OpenClApi.BuildLog(program, _device.DeviceId);
@@ -859,6 +887,9 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 
 	/// <summary>Engine label for the UI/result: "GPU: &lt;device name&gt; (OpenCL)".</summary>
 	public string Description { get; }
+
+	/// <summary>The card this engine runs on.</summary>
+	public GpuDeviceInfo Device => _device;
 
 	/// <summary>Scene width in cells (canvas pixels), excluding the padding.</summary>
 	public int Width => _width;
@@ -1409,6 +1440,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	private IntPtr _probeProgram;
 
 	/// <summary>The device the context lives on; needed again to build the probe program.</summary>
+	private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 	private readonly GpuDeviceInfo _device;
 
 	/// <summary>Scene width in cells (canvas pixels), without padding.</summary>

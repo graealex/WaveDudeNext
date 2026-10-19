@@ -110,7 +110,11 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   in 16-bit, half in 8-bit.
 - **Reduced preview** (View menu): resolution 1/2/4, frames 1/2/4 (the timeline never changes), samples 16-bit or
   **8-bit palette index, the default**: the same pixels at the captured brightness, half the store, half the
-  colouring; 16-bit keeps the brightness turnable after a run. In 8-bit a brightness edit is a simulation edit.
+  colouring; 16-bit keeps the brightness turnable after a run. In 8-bit a brightness edit is a simulation edit. The
+  index is computed from the sample rounded to a half, on the CPU and in the kernel (a bit-level rounding there), and
+  the GPU program is built with a correctly rounded square root where the card has one, so an 8-bit run exports the
+  same bytes as a 16-bit run of the same project (2026-10-19, two such exports had differed by a palette step in half a
+  percent of the pixels).
   A picture export takes an 8-bit run as it is (the same pixels; 2026-10-18); an EXR data export, a reduced resolution or
   skipped frames make the export run the simulation again at full quality first.
 

@@ -98,7 +98,8 @@ public static class FrameConversion
 	/// Converts one plane. For a divisor of 1 a <see cref="FrameFormat.Half"/> plane is the vectorised
 	/// float-to-half conversion; otherwise every block of <see cref="FrameShape.Divisor"/>² cells (fewer at the
 	/// right and bottom edges) is averaged first, then the sample is taken as a half or as the palette index
-	/// (<see cref="ColorLut.FieldIndex"/> or <see cref="ColorLut.IntensityIndex(float, float)"/> with the shape's brightness).
+	/// (<see cref="ColorLut.FieldIndex"/> or <see cref="ColorLut.IntensityIndex(float, float)"/> with the shape's brightness)
+	/// of the sample rounded to a half, so an index frame holds exactly what a half frame renders to (2026-10-19).
 	/// </summary>
 	/// <param name="source">The float values; row y of the canvas starts at <paramref name="offset"/> + y × <paramref name="stride"/>.</param>
 	/// <param name="offset">Index of the canvas's first cell in <paramref name="source"/> (stride + 1 for an engine's padded buffer, 0 for a packed plane).</param>
@@ -146,14 +147,14 @@ public static class FrameConversion
 				{
 					for (int x = 0; x < width; x++)
 					{
-						target[x] = (byte)ColorLut.IntensityIndex(row[x], brightness);
+						target[x] = (byte)ColorLut.IntensityIndex((float)(Half)row[x], brightness);
 					}
 				}
 				else
 				{
 					for (int x = 0; x < width; x++)
 					{
-						target[x] = (byte)ColorLut.FieldIndex(row[x], brightness);
+						target[x] = (byte)ColorLut.FieldIndex((float)(Half)row[x], brightness);
 					}
 				}
 			}

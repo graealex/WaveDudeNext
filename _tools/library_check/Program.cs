@@ -1047,14 +1047,24 @@ internal static class Program
 			for (int x = 0; x < W; x++)
 			{
 				int at = (y + 1) * stride + x + 1;
-				if (indexField[y * W + x] != ColorLut.FieldIndex(field[at], 30f) || indexInten[y * W + x] != ColorLut.IntensityIndex(inten[at], 5f))
+				if (indexField[y * W + x] != ColorLut.FieldIndex((float)(Half)field[at], 30f) || indexInten[y * W + x] != ColorLut.IntensityIndex((float)(Half)inten[at], 5f))
 				{
 					same = false;
 					break;
 				}
 			}
 		}
-		Check(same && indexField.Max() > 127 && indexField.Min() < 127 && indexInten.Max() > 0, "index shape: the renderer's palette index of every cell at brightness 30 and 5, both sides of the centre used");
+		Check(same && indexField.Max() > 127 && indexField.Min() < 127 && indexInten.Max() > 0, "index shape: the renderer's palette index of every cell's half-rounded sample at brightness 30 and 5, both sides of the centre used");
+		// an index frame renders to the same pixels as a half frame of the same floats: the rule behind the 8-bit preview
+		var halfField = new byte[full.PlaneBytes];
+		FrameConversion.Convert(field, stride + 1, stride, full, false, halfField);
+		ReadOnlySpan<Half> storedHalves = MemoryMarshal.Cast<byte, Half>(halfField);
+		bool rendersAlike = true;
+		for (int i = 0; i < W * H && rendersAlike; i++)
+		{
+			rendersAlike = indexField[i] == ColorLut.FieldIndex((float)storedHalves[i], 30f);
+		}
+		Check(rendersAlike, "index shape: every index equals the one a 16-bit frame of the same floats renders to");
 
 		// the CPU engine's captures of every shape equal the reference conversion of its own floats
 		foreach (FrameShape shape in new[] { half, third, index, halfIndex })
@@ -1069,7 +1079,7 @@ internal static class Program
 			Check(snapshot.HasIntensity && snapshot.FieldBytes.AsSpan().SequenceEqual(expectedField) && snapshot.IntensityBytes!.AsSpan().SequenceEqual(expectedInten),
 				$"CPU capture of 1/{shape.Divisor} {shape.Format} equals the reference conversion");
 		}
-		// the GPU's within the card's arithmetic: halves within the tolerance, indices within one
+		// the GPU's: halves within the tolerance, indices exact where the card's square root rounds correctly (within one elsewhere)
 		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, Sources(), out string problems);
 		if (gpu == null)
 		{
@@ -1112,8 +1122,9 @@ internal static class Program
 							worstHalf = Math.Max(worstHalf, Math.Max(Math.Abs((float)gotField[i] - (float)wantField[i]), Math.Abs((float)gotInten[i] - (float)wantInten[i])));
 						}
 					}
-					Check(snapshot.HasIntensity && worstIndex <= 1 && worstHalf < tolerance,
-						$"GPU capture of 1/{shape.Divisor} {shape.Format} matches the reference conversion (index off by at most {worstIndex}, halves by {worstHalf})");
+					int allowed = gpu.Device.CorrectlyRoundedSqrt ? 0 : 1;
+					Check(snapshot.HasIntensity && worstIndex <= allowed && worstHalf < tolerance,
+						$"GPU capture of 1/{shape.Divisor} {shape.Format} matches the reference conversion (index off by at most {worstIndex} of {allowed} allowed, halves by {worstHalf})");
 				}
 			}
 		}

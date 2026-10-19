@@ -90,6 +90,7 @@ public sealed class GpuDeviceInfo
 			Name = name.Length == 0 ? "GPU" : name,
 			Vendor = OpenClApi.DeviceString(id, OpenClApi.DeviceVendor),
 			Discrete = OpenClApi.DeviceNumber(id, OpenClApi.DeviceHostUnifiedMemory) == 0UL,
+			CorrectlyRoundedSqrt = (OpenClApi.DeviceNumber(id, OpenClApi.DeviceSingleFpConfig) & OpenClApi.FpCorrectlyRoundedDivideSqrt) != 0UL,
 			Score = computeUnits * Math.Max(1.0, clockMhz),
 			// Mask the sign bit so an odd 64-bit value cannot turn into a negative size.
 			GlobalMemory = (long)(OpenClApi.DeviceNumber(id, OpenClApi.DeviceGlobalMemSize) & 0x7FFFFFFFFFFFFFFFUL),
@@ -111,6 +112,13 @@ public sealed class GpuDeviceInfo
 
 	/// <summary>True for a card with its own memory (the NVIDIA GeForce; CL_DEVICE_HOST_UNIFIED_MEMORY is 0), false for the graphics of the processor (Intel UHD).</summary>
 	public bool Discrete { get; private init; }
+
+	/// <summary>
+	/// Whether the device can divide and take square roots correctly rounded in single precision (the OpenCL build
+	/// option <c>-cl-fp32-correctly-rounded-divide-sqrt</c>): then the 8-bit palette index it captures equals the one the
+	/// CPU renders from a 16-bit frame, bit for bit (2026-10-19). Without it an index at a boundary may differ by one.
+	/// </summary>
+	public bool CorrectlyRoundedSqrt { get; private init; }
 
 	/// <summary>Compute units times clock (MHz, at least 1): a rough measure of the speed.</summary>
 	public double Score { get; private init; }

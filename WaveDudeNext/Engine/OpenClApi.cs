@@ -360,6 +360,12 @@ internal static class OpenClApi
 	/// <summary>CL_DEVICE_HOST_UNIFIED_MEMORY (0x1035), cl_bool: non-zero for devices sharing host memory (integrated GPUs).</summary>
 	internal const uint DeviceHostUnifiedMemory = 0x1035U;
 
+	/// <summary>CL_DEVICE_SINGLE_FP_CONFIG (0x101B), cl_device_fp_config: the single-precision capabilities as a bit field.</summary>
+	internal const uint DeviceSingleFpConfig = 0x101BU;
+
+	/// <summary>CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT (1 &lt;&lt; 7): the device can build with <c>-cl-fp32-correctly-rounded-divide-sqrt</c>.</summary>
+	internal const ulong FpCorrectlyRoundedDivideSqrt = 1UL << 7;
+
 	/// <summary>CL_PROGRAM_BUILD_LOG (0x1183), string.</summary>
 	internal const uint ProgramBuildLog = 0x1183U;
 }
