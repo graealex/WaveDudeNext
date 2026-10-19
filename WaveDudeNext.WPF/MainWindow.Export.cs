@@ -178,7 +178,9 @@ public partial class MainWindow
 		string suffix = field && intensity ? "" : field ? "_field" : "_intensity";
 		if (still)
 		{
-			suffix += "_" + (stillFrame * Math.Max(1, Project.Simulation.VisualizeEvery)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+			// the frame number, padded like a sequence's files, so a still of frame 655 is named as the sequence names it
+			// (2026-10-19, the user's rule; the step number stood here until then)
+			suffix += "_" + stillFrame.ToString("D" + ImageSequenceSink.MinDigits, System.Globalization.CultureInfo.InvariantCulture);
 		}
 		string chosen;
 		// the still's filter lists the sequence formats, which lead the full list in the same order
@@ -317,7 +319,7 @@ public partial class MainWindow
 				string output = !still && ExportFormats.IsSequence(format) ? ExportFormats.SequenceFolder(path) : path;
 				Func<IFrameSink> open = still
 					? () => ExportFormats.OpenStill(format, path, width, height, quality)
-					: () => ExportFormats.Open(format, path, width, height, fps, quality, frameCount);
+					: () => ExportFormats.Open(format, path, width, height, fps, quality, frameCount, first);
 				targets.Add(new ExportTarget(exportLayer, output, open));
 				if (ExportFormats.IsData(format))
 				{

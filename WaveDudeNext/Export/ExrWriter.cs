@@ -163,28 +163,30 @@ public sealed class ExrSink : IFrameSink
 	private readonly string _folder;
 	private readonly string _baseName;
 	private readonly int _digits;
+	private readonly int _firstFrame;
 	private bool _closed;
 
-	private ExrSink(string? stillPath, string folder, string baseName, int width, int height, int plannedFrames)
+	private ExrSink(string? stillPath, string folder, string baseName, int width, int height, int plannedFrames, int firstFrame)
 	{
 		ArgumentOutOfRangeException.ThrowIfLessThan(width, 1);
 		ArgumentOutOfRangeException.ThrowIfLessThan(height, 1);
 		_stillPath = stillPath;
 		_folder = folder;
 		_baseName = baseName;
-		_digits = Math.Max(4, Math.Max(0, plannedFrames - 1).ToString(CultureInfo.InvariantCulture).Length);
+		_firstFrame = Math.Max(0, firstFrame);
+		_digits = Math.Max(4, Math.Max(0, _firstFrame + plannedFrames - 1).ToString(CultureInfo.InvariantCulture).Length);
 		Width = width;
 		Height = height;
 		Directory.CreateDirectory(folder);
 	}
 
-	/// <summary>A sequence in <paramref name="folder"/> (created when missing) named <paramref name="baseName"/><c>_0000.exr</c> and on.</summary>
-	public static ExrSink Sequence(string folder, string baseName, int width, int height, int plannedFrames) =>
-		new(null, folder, baseName, width, height, plannedFrames);
+	/// <summary>A sequence in <paramref name="folder"/> (created when missing) named <paramref name="baseName"/><c>_0000.exr</c> and on, or from <paramref name="firstFrame"/>, the timeline frame number of the first frame (2026-10-19).</summary>
+	public static ExrSink Sequence(string folder, string baseName, int width, int height, int plannedFrames, int firstFrame = 0) =>
+		new(null, folder, baseName, width, height, plannedFrames, firstFrame);
 
 	/// <summary>One file at <paramref name="path"/>; a second frame is refused.</summary>
 	public static ExrSink Still(string path, int width, int height) =>
-		new(path, Path.GetDirectoryName(Path.GetFullPath(path)) ?? "", Path.GetFileNameWithoutExtension(path), width, height, 1);
+		new(path, Path.GetDirectoryName(Path.GetFullPath(path)) ?? "", Path.GetFileNameWithoutExtension(path), width, height, 1, 0);
 
 	/// <inheritdoc/>
 	public int Width { get; }
@@ -202,7 +204,7 @@ public sealed class ExrSink : IFrameSink
 	public bool WantsHalves => true;
 
 	/// <summary>The file of frame <paramref name="index"/> of a sequence.</summary>
-	public string PathOf(int index) => Path.Combine(_folder, _baseName + "_" + index.ToString("D" + _digits, CultureInfo.InvariantCulture) + ".exr");
+	public string PathOf(int index) => Path.Combine(_folder, _baseName + "_" + (_firstFrame + index).ToString("D" + _digits, CultureInfo.InvariantCulture) + ".exr");
 
 	/// <inheritdoc/>
 	public void Add(ReadOnlySpan<int> pixels) => throw new NotSupportedException("An OpenEXR file holds the store's halves, not rendered pixels.");

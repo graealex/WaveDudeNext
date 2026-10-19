@@ -187,19 +187,20 @@ public static class ExportFormats
 	/// <param name="fps">Frame rate of a video.</param>
 	/// <param name="quality">1..100 for the lossy formats.</param>
 	/// <param name="plannedFrames">How many frames will come at most (the AVI sizes its indexes by it, a sequence the width of its frame numbers).</param>
+	/// <param name="firstFrame">The timeline frame number of the first frame: a sequence's files are numbered from it (2026-10-19).</param>
 	/// <exception cref="NotSupportedException">The format cannot carry the size, or MP4 is not available here.</exception>
-	public static IFrameSink Open(ExportFormat format, string path, int width, int height, int fps, int quality, int plannedFrames)
+	public static IFrameSink Open(ExportFormat format, string path, int width, int height, int fps, int quality, int plannedFrames, int firstFrame = 0)
 	{
 		switch (format)
 		{
 			case ExportFormat.Png:
 				return new ImageSequenceSink(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), ".png", width, height,
-					() => (stream, frame) => PngEncoder.Write(stream, frame.Span, width, height), SequenceWorkers(encoderIsParallel: false), plannedFrames);
+					() => (stream, frame) => PngEncoder.Write(stream, frame.Span, width, height), SequenceWorkers(encoderIsParallel: false), plannedFrames, firstFrame);
 			case ExportFormat.Jpeg:
 				return new ImageSequenceSink(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), ".jpg", width, height,
-					() => JpegWriter(width, height, quality), SequenceWorkers(encoderIsParallel: PreferredJpeg == null), plannedFrames);
+					() => JpegWriter(width, height, quality), SequenceWorkers(encoderIsParallel: PreferredJpeg == null), plannedFrames, firstFrame);
 			case ExportFormat.Exr:
-				return ExrSink.Sequence(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), width, height, plannedFrames);
+				return ExrSink.Sequence(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), width, height, plannedFrames, firstFrame);
 			case ExportFormat.Mpeg1:
 				return new Mpeg1Writer(path, width, height, fps, quality);
 			case ExportFormat.Avi:

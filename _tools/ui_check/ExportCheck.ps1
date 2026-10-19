@@ -117,9 +117,9 @@ try {
 	for ($i = 0; $i -lt 2 -and (PopupFocusedId) -ne "ContextExportFrame"; $i++) { Step "Down" $VK_DOWN 120 }
 	Check "'Export this frame...' is the context menu's first entry" ((PopupFocusedId) -eq "ContextExportFrame") (PopupFocusedId)
 	Step "Enter" $VK_RETURN 200
-	$still = Join-Path $out "tiny_field_0.png"
-	Check "the shown frame lands as tiny_field_0.png" (WaitFor { Test-Path $still } 20000) ((Find "StatusMessage").Current.Name)
-	Check "and is a PNG, with the status bar reporting one frame" ((IsPng $still) -and (WaitFor { (Find "StatusMessage").Current.Name -like "Exported 1 frames to *tiny_field_0.png*" } 5000)) ((Find "StatusMessage").Current.Name)
+	$still = Join-Path $out "tiny_field_0000.png"
+	Check "the shown frame lands as tiny_field_0000.png (the frame number, padded like a sequence's files)" (WaitFor { Test-Path $still } 20000) ((Find "StatusMessage").Current.Name)
+	Check "and is a PNG, with the status bar reporting one frame" ((IsPng $still) -and (WaitFor { (Find "StatusMessage").Current.Name -like "Exported 1 frames to *tiny_field_0000.png*" } 5000)) ((Find "StatusMessage").Current.Name)
 	Check "the app never took the foreground" ((Foreground) -ne "APP") (Foreground)
 }
 finally {

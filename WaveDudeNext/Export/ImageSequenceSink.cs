@@ -52,8 +52,9 @@ public sealed class ImageSequenceSink : IFrameSink
 	/// <param name="height">Frame height in pixels.</param>
 	/// <param name="makeEncoder">Makes an encoder that writes one frame (packed BGRA32, width × height) to a stream; called once per worker.</param>
 	/// <param name="workers">Frames encoded at once; 1 encodes on the caller's thread.</param>
-	/// <param name="plannedFrames">How many frames will come at most; decides the width of the frame numbers (<see cref="Digits"/>).</param>
-	public ImageSequenceSink(string folder, string baseName, string extension, int width, int height, Func<Action<Stream, ReadOnlyMemory<int>>> makeEncoder, int workers = 1, int plannedFrames = 0)
+	/// <param name="plannedFrames">How many frames will come at most; with <paramref name="firstFrame"/> it decides the width of the frame numbers (<see cref="Digits"/>).</param>
+	/// <param name="firstFrame">The number of the first file: the timeline frame number of the first frame added, so a range export is numbered as the timeline is (2026-10-19, the user's rule: the file number is the frame number, never a step or a count from zero).</param>
+	public ImageSequenceSink(string folder, string baseName, string extension, int width, int height, Func<Action<Stream, ReadOnlyMemory<int>>> makeEncoder, int workers = 1, int plannedFrames = 0, int firstFrame = 0)
 	{
 		Folder = folder;
 		BaseName = baseName;
@@ -61,7 +62,8 @@ public sealed class ImageSequenceSink : IFrameSink
 		Width = width;
 		Height = height;
 		Workers = Math.Max(1, workers);
-		Digits = Math.Max(MinDigits, Math.Max(0, plannedFrames - 1).ToString(System.Globalization.CultureInfo.InvariantCulture).Length);
+		FirstFrame = Math.Max(0, firstFrame);
+		Digits = Math.Max(MinDigits, Math.Max(0, FirstFrame + plannedFrames - 1).ToString(System.Globalization.CultureInfo.InvariantCulture).Length);
 		_makeEncoder = makeEncoder;
 		Directory.CreateDirectory(folder);
 		if (Workers == 1)
@@ -96,8 +98,11 @@ public sealed class ImageSequenceSink : IFrameSink
 	/// <summary>Frames encoded at once.</summary>
 	public int Workers { get; }
 
-	/// <summary>Digits of the frame number in every file name of this sequence: <see cref="MinDigits"/>, or more when the planned frame count needs them.</summary>
+	/// <summary>Digits of the frame number in every file name of this sequence: <see cref="MinDigits"/>, or more when the last planned frame number needs them.</summary>
 	public int Digits { get; }
+
+	/// <summary>The frame number of the first file; the files count on from it.</summary>
+	public int FirstFrame { get; }
 
 	/// <inheritdoc/>
 	public int FrameCount { get; private set; }
@@ -106,7 +111,7 @@ public sealed class ImageSequenceSink : IFrameSink
 	public string Output => Folder;
 
 	/// <summary>The path of frame <paramref name="index"/>.</summary>
-	public string PathOf(int index) => Path.Combine(Folder, BaseName + "_" + index.ToString("D" + Digits, System.Globalization.CultureInfo.InvariantCulture) + Extension);
+	public string PathOf(int index) => Path.Combine(Folder, BaseName + "_" + (FirstFrame + index).ToString("D" + Digits, System.Globalization.CultureInfo.InvariantCulture) + Extension);
 
 	/// <inheritdoc/>
 	public void Add(ReadOnlySpan<int> pixels)

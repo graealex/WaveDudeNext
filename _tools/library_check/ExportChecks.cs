@@ -445,11 +445,11 @@ internal static class ExportChecks
 		string exrPath = Path.Combine(folder, "data.exr");
 		var targets = new List<ExportTarget>
 		{
-			new(fieldLayer, ExportFormats.SequenceFolder(seqPath), () => ExportFormats.Open(ExportFormat.Png, seqPath, 64, 48, 30, 70, 6)),
+			new(fieldLayer, ExportFormats.SequenceFolder(seqPath), () => ExportFormats.Open(ExportFormat.Png, seqPath, 64, 48, 30, 70, 6, 2)),
 			new(intensityLayer, aviPath, () => ExportFormats.Open(ExportFormat.Avi, aviPath, 64, 48, 30, 70, 6)),
 			// a data target beside the pictures: the job hands it the stored halves, nothing rendered or decorated
 			new(new ExportLayer(FrameLayer.Field, lut, 30f, null, 0, (_, _) => throw new InvalidOperationException("a data target is never decorated")),
-				ExportFormats.SequenceFolder(exrPath), () => ExportFormats.Open(ExportFormat.Exr, exrPath, 64, 48, 30, 70, 6)),
+				ExportFormats.SequenceFolder(exrPath), () => ExportFormats.Open(ExportFormat.Exr, exrPath, 64, 48, 30, 70, 6, 2)),
 		};
 		var job = new ExportJob(store, 2, 7, targets, null);
 		var states = new List<ExportState>();
@@ -468,21 +468,22 @@ internal static class ExportChecks
 		check(states.SequenceEqual([ExportState.Running, ExportState.Completed]) && job.FramesDone == 6 && job.FrameCount == 6, "job: Running then Completed, 6 of 6 frames");
 		check(decorated.SequenceEqual([2, 3, 4, 5, 6, 7]), "job: the decoration saw frames 2 to 7 in order");
 		string[] files = Directory.GetFiles(Path.Combine(folder, "field"));
-		check(files.Length == 6 && File.Exists(Path.Combine(folder, "field", "field_0005.png")), "job: six PNGs, field_0000 to field_0005");
+		check(files.Length == 6 && File.Exists(Path.Combine(folder, "field", "field_0002.png")) && File.Exists(Path.Combine(folder, "field", "field_0007.png")) && !File.Exists(Path.Combine(folder, "field", "field_0000.png")),
+			"job: six PNGs numbered by timeline frame, field_0002 to field_0007");
 		// the first file is frame 2 rendered with the same LUT and gain, plus the decoration
 		var values = new Half[64 * 48];
 		var expected = new int[64 * 48];
 		store.CopyLayer(2, FrameLayer.Field, values);
 		FrameRenderer.RenderField(values, 64, 48, lut, 30f, expected);
 		expected[0] = unchecked((int)0xFFFF0000);
-		int[]? first = DecodePng(File.ReadAllBytes(Path.Combine(folder, "field", "field_0000.png")), 64, 48);
-		check(first != null && first.SequenceEqual(expected), "job: field_0000.png is frame 2 as the renderer colours it, with the decoration");
+		int[]? first = DecodePng(File.ReadAllBytes(Path.Combine(folder, "field", "field_0002.png")), 64, 48);
+		check(first != null && first.SequenceEqual(expected), "job: field_0002.png is frame 2 as the renderer colours it, with the decoration");
 		AviWalk walk = WalkAvi(File.ReadAllBytes(aviPath));
 		check(walk.Frames == 6 && walk.TotalInDmlh == 6 && walk.EndsAtFileEnd, "job: the intensity AVI holds 6 frames");
-		string exrFirst = Path.Combine(folder, "data", "data_0000.exr");
+		string exrFirst = Path.Combine(folder, "data", "data_0002.exr");
 		Half[]? exrValues = File.Exists(exrFirst) ? ReadExr(File.ReadAllBytes(exrFirst), 64, 48, out _) : null;
 		check(Directory.GetFiles(Path.Combine(folder, "data")).Length == 6 && exrValues != null && MemoryMarshal.AsBytes(exrValues.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(values.AsSpan())),
-			"job: data_0000.exr holds frame 2's stored halves bit for bit, undecorated, beside the pictures");
+			"job: data_0002.exr holds frame 2's stored halves bit for bit, undecorated, beside the pictures");
 
 		// cancelled: a slow decoration lets the cancel land after the first frame
 		using var started = new ManualResetEventSlim();
