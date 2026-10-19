@@ -319,6 +319,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	private void Build(SceneData scene, EngineOptions options)
 	{
 		double sourceFrequencyScale = options.SourceFrequencyScale;
+		_sourceFrequencyScale = sourceFrequencyScale;
 		float sourceAmplitude = (float)options.SourceAmplitude;
 		bool use4thOrderLaplacian = options.FourthOrderLaplacian;
 		double timeDecayFactor = options.TimeDecay;
@@ -436,22 +437,22 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	/// canvas, one entry per element. Uploads one table per <see cref="Emitter"/> property (see the
 	/// <c>apply_object_sources</c> kernel comment for the layout) and binds the two
 	/// <c>apply_object_sources</c> kernels, all registered in <see cref="_emitters"/> so <see cref="SetEmitters"/>
-	/// can replace them. The frequency table (<see cref="_frequencyBuffer"/>, indexed by level) is shared with the
-	/// image sources since both use the same level-to-frequency scale. The cycle anchors start at 0 and every
+	/// can replace them. Each object source carries its angular frequency as a float, computed by the image sources'
+	/// level formula from its decimal level (2026-10-19; the 256-entry table serves the image sources only). The cycle anchors start at 0 and every
 	/// source gets a non-zero xorshift32 seed.
 	/// </summary>
 	private void BuildObjectSourceKernels(List<Emitter> objectSources)
 	{
 		int n = _objSourceCount;
-		int[] index = new int[n], level = new int[n], mode = new int[n], pulseShape = new int[n];
+		int[] index = new int[n], mode = new int[n], pulseShape = new int[n];
 		int[] onWidth = new int[n], offWidth = new int[n], detachStep = new int[n];
 		int[] offWidthBase = new int[n], randomizeOffWidthAmount = new int[n], rngState = new int[n];
-		float[] amplitude = new float[n], phase = new float[n], cycleAnchor = new float[n];
+		float[] omega = new float[n], amplitude = new float[n], phase = new float[n], cycleAnchor = new float[n];
 		for (int i = 0; i < n; i++)
 		{
 			Emitter source = objectSources[i];
 			index[i] = (source.Y + 1) * _stride + source.X + 1;
-			level[i] = source.Level;
+			omega[i] = (float)(source.Level / 255.0 * 0.5 * _sourceFrequencyScale);
 			amplitude[i] = (float)source.Amplitude;
 			phase[i] = (float)source.PhaseRadians;
 			mode[i] = source.Mode == SourceMode.Pulsed ? 1 : 0;
@@ -469,7 +470,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		// (per launch) and 12 the count (scalar), see the apply_object_sources signature.
 		IntPtr[] buffers = new IntPtr[17];
 		buffers[1] = CreateBuffer(index, _emitters);
-		buffers[2] = CreateBuffer(level, _emitters);
+		buffers[2] = CreateBuffer(omega, _emitters);
 		buffers[3] = CreateBuffer(amplitude, _emitters);
 		buffers[4] = CreateBuffer(phase, _emitters);
 		buffers[5] = CreateBuffer(mode, _emitters);
@@ -602,7 +603,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		// apply_object_sources (Sources tab): soft-blends the object sources into the field, one element per
 		// work item k < n, same math as WaveSimulator.ApplySources/ComputePulsePosition/PulseEnvelope on the CPU.
 		// All per-source tables are indexed by k:
-		//   idx, level, amp, phase       cell index, frequency level (into freq), amplitude, phase (radians)
+		//   idx, omega, amp, phase       cell index, angular frequency (radians per step), amplitude, phase (radians)
 		//   mode                         0 = continuous (envelope always 1), 1 = pulsed (Gaussian or smoothed-square
 		//                                envelope, "off" preceding "on" within each onWidth/offWidth cycle of the
 		//                                element's own frequency)
@@ -621,7 +622,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		//                                object-source buffers, offWidth/cycleAnchor/rngState are genuinely
 		//                                mutated by the GPU across steps
 		// The result is u[idx] = 0.9·u + 0.1·sin(phase + f·t)·amp·envelope·detachFade.
-		source.AppendLine("__kernel void apply_object_sources(__global float* u, __global const int* idx, __global const int* level,");
+		source.AppendLine("__kernel void apply_object_sources(__global float* u, __global const int* idx, __global const float* omega,");
 		source.AppendLine("                                   __global const float* amp, __global const float* phase, __global const int* mode,");
 		source.AppendLine("                                   __global const int* pulseShape, __global const int* onWidth, __global int* offWidth,");
 		source.AppendLine("                                   __global const int* detachStep,");
@@ -643,7 +644,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		source.AppendLine("        if (stepsSinceDetach >= " + ramp + ".0f) return;");
 		source.AppendLine("        if (stepsSinceDetach > 0.0f) detachFade = 1.0f - stepsSinceDetach / " + ramp + ".0f;");
 		source.AppendLine("    }");
-		source.AppendLine("    float f = freq[level[k]];");
+		source.AppendLine("    float f = omega[k];");
 		source.AppendLine("    float envelope = 1.0f;");
 		source.AppendLine("    if (mode[k] != 0) {");
 		source.AppendLine("        int ow = offWidth[k];");
@@ -1433,6 +1434,9 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 
 	/// <summary>The emitters inside the canvas as last installed, so <see cref="Reset"/> can rebuild their on-card state.</summary>
 	private List<Emitter> _objSources = [];
+
+	/// <summary>The scale of the level-to-frequency mapping, for the object sources' decimal levels (the image sources use the table).</summary>
+	private double _sourceFrequencyScale;
 
 	/// <summary>Per level 0..255: whether an image source uses it (the object sources are added per <see cref="SetEmitters"/> call).</summary>
 	private readonly bool[] _levelUsed = new bool[256];

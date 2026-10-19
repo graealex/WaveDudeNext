@@ -69,7 +69,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionWave}" />
 			<controls:FormPanel>
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Source.Frequency}" />
-				<controls:NumberBox Text="{Binding Frequency}" Minimum="1" Maximum="255" ToolTip="{meta:Hint model:Source.Frequency}" />
+				<controls:NumberBox Text="{Binding Frequency}" Minimum="0.01" Maximum="255" ToolTip="{meta:Hint model:Source.Frequency}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Source.Amplitude}" />
 				<controls:NumberBox Text="{Binding Amplitude}" Minimum="0" Maximum="100" ToolTip="{meta:Hint model:Source.Amplitude}" />

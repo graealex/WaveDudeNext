@@ -41,17 +41,18 @@ public enum PulseShape
 /// <summary>
 /// One wave source placed on the canvas: a single emitter, or a composite array of emitters
 /// when <see cref="Array"/> is set. Units are those of the editor: positions in canvas pixels,
-/// frequency as a 1..255 level, amplitude in percent, phase in degrees, widths in cycles of the
-/// source frequency, detach time in simulation steps.
+/// frequency as a level up to 255 with decimals (2026-10-19, Jeroen's point 10: the whole-number levels were a
+/// remnant of the 8-bit image channel; above 255 the grid cannot sample the wave), amplitude in percent, phase in
+/// degrees with decimals, widths in cycles of the source frequency, detach time in simulation steps.
 /// </summary>
 public sealed class Source : ObservableObject
 {
-	/// <summary>Smallest frequency level.</summary>
-	public const int MinLevel = 1;
-	/// <summary>Largest frequency level.</summary>
-	public const int MaxLevel = 255;
+	/// <summary>Smallest frequency level: just above 0, a wave of any length.</summary>
+	public const double MinLevel = 0.01;
+	/// <summary>Largest frequency level: the green channel's 255, above which the grid cannot sample the wave.</summary>
+	public const double MaxLevel = 255.0;
 	/// <summary>Default <see cref="Frequency"/>.</summary>
-	public const int DefaultLevel = 100;
+	public const double DefaultLevel = 100.0;
 	/// <summary>Default <see cref="Amplitude"/> in percent.</summary>
 	public const int DefaultAmplitude = 100;
 	/// <summary>Default <see cref="PulseWidth"/> and <see cref="OffWidth"/> in cycles.</summary>
@@ -63,9 +64,9 @@ public sealed class Source : ObservableObject
 	private bool _enabled = true;
 	private int _x;
 	private int _y;
-	private int _frequency = DefaultLevel;
+	private double _frequency = DefaultLevel;
 	private int _amplitude = DefaultAmplitude;
-	private int _phase;
+	private double _phase;
 	private SourceMode _mode = SourceMode.Continuous;
 	private PulseShape _pulseShape = PulseShape.Gaussian;
 	private int _pulseWidth = DefaultWidth;
@@ -114,12 +115,12 @@ public sealed class Source : ObservableObject
 		set => SetProperty(ref _y, value);
 	}
 
-	/// <summary>Frequency as a level 1..255, the same scale as the green channel of image sources (ω = level / 255 × 0.5 × <see cref="Simulation.SourceFrequencyScale"/>).</summary>
+	/// <summary>Frequency as a level up to 255, decimals allowed, the same scale as the green channel of image sources (ω = level / 255 × 0.5 × <see cref="Simulation.SourceFrequencyScale"/>).</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultLevel)]
 	[Category("Wave")]
-	[Description("Frequency as a level from 1 to 255, the same scale as the green channel of image sources.")]
-	public int Frequency
+	[Description("Frequency as a level up to 255, decimals allowed, the same scale as the green channel of image sources. Above 255 the grid cannot sample the wave.")]
+	public double Frequency
 	{
 		get => _frequency;
 		set => SetProperty(ref _frequency, value);
@@ -136,12 +137,12 @@ public sealed class Source : ObservableObject
 		set => SetProperty(ref _amplitude, value);
 	}
 
-	/// <summary>Phase offset in degrees, -180 to 180.</summary>
+	/// <summary>Phase offset in degrees, -180 to 180, decimals allowed.</summary>
 	[XmlAttribute]
-	[DefaultValue(0)]
+	[DefaultValue(0.0)]
 	[Category("Wave")]
 	[Description("Phase offset in degrees, -180 to 180.")]
-	public int Phase
+	public double Phase
 	{
 		get => _phase;
 		set => SetProperty(ref _phase, value);
@@ -265,9 +266,9 @@ public sealed class Source : ObservableObject
 	public void Normalize()
 	{
 		Name ??= "";
-		Frequency = Math.Clamp(Frequency, MinLevel, MaxLevel);
+		Frequency = double.IsFinite(Frequency) ? Math.Clamp(Frequency, MinLevel, MaxLevel) : DefaultLevel;
 		Amplitude = Math.Clamp(Amplitude, 0, 100);
-		Phase = Math.Clamp(Phase, -180, 180);
+		Phase = double.IsFinite(Phase) ? Math.Clamp(Phase, -180.0, 180.0) : 0.0;
 		PulseWidth = Math.Max(1, PulseWidth);
 		OffWidth = Math.Max(1, OffWidth);
 		if (DetachAfter < 0)
@@ -312,7 +313,7 @@ public sealed class Source : ObservableObject
 						X = x + Jitter(rng, array.RandomPosition),
 						Y = y + Jitter(rng, array.RandomPosition),
 						Level = Math.Clamp(Frequency + Jitter(rng, array.RandomFrequency), MinLevel, MaxLevel),
-						Phase = Math.Clamp(Phase + Jitter(rng, array.RandomPhase), -180, 180),
+						Phase = Math.Clamp(Phase + Jitter(rng, array.RandomPhase), -180.0, 180.0),
 						OffWidth = Math.Max(1, OffWidth + Jitter(rng, array.RandomOffWidth)),
 					});
 				}
@@ -505,11 +506,11 @@ public sealed class SourceElement
 	/// <summary>Y in canvas pixels.</summary>
 	public int Y { get; init; }
 
-	/// <summary>Frequency level 1..255.</summary>
-	public int Level { get; init; } = Source.DefaultLevel;
+	/// <summary>Frequency level, up to 255, decimals allowed.</summary>
+	public double Level { get; init; } = Source.DefaultLevel;
 
-	/// <summary>Phase offset in degrees.</summary>
-	public int Phase { get; init; }
+	/// <summary>Phase offset in degrees, decimals allowed.</summary>
+	public double Phase { get; init; }
 
 	/// <summary>Gap between bursts in cycles (pulsed mode).</summary>
 	public int OffWidth { get; init; } = Source.DefaultWidth;

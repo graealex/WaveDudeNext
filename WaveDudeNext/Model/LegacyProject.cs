@@ -186,9 +186,9 @@ public static class LegacyProject
 				notes?.Add($"Source '{source.Name}' had no picked position in the original project; it ran at ({source.X}, {source.Y}) there and does here.");
 			}
 			source.DetachAfter = Bool(item, "detach_source", false) ? Int(item, "detach_after_steps", 1000) : Source.NeverDetach;
-			source.Frequency = Int(item, "frequency", Source.DefaultLevel);
+			source.Frequency = Double(item, "frequency", Source.DefaultLevel);
 			source.Amplitude = Int(item, "amplitude", Source.DefaultAmplitude);
-			source.Phase = Int(item, "phase_deg", 0);
+			source.Phase = Double(item, "phase_deg", 0.0);
 			source.Mode = Text(item, "mode", "continuous") == "pulsed" ? SourceMode.Pulsed : SourceMode.Continuous;
 			source.PulseShape = Text(item, "pulse_shape", "gaussian") == "smoothed_square" ? PulseShape.SmoothedSquare : PulseShape.Gaussian;
 			source.PulseWidth = Int(item, "pulse_width_cycles", Source.DefaultWidth);

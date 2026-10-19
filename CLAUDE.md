@@ -96,7 +96,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   `Reset`, `SetEmitters`, `SetProbes`. Numerics are Jeroen's (dx = dt = 1, leapfrog, 9-point or 4th-order
   Laplacian, soft sources, EMA intensity; a scene pixel with red 0 is a mirror, n = 1000, his V0.30 rule,
   2026-10-18), verified CPU = GPU by the harness; seeds from `Pcg32` make CPU = GPU
-  bit for bit on random gaps. The importer's fallbacks differ from the model's defaults on purpose.
+  bit for bit on random gaps. A source's frequency level and phase take decimals (2026-10-19, Jeroen's point 10); the
+  level is capped at 255, above which the grid cannot sample the wave; object sources carry their frequency as a float on
+  the GPU, the 256-entry table serves the image sources. The importer's fallbacks differ from the model's defaults on purpose.
 - **Frames vs steps**: frame k is the state after step `k × VisualizeEvery`.
 - **The engine choice is a user setting** (Simulation > Use the GPU, default on, CPU fallback logged).
 - **Frame store**: budget = free memory minus 2 GB, capped by Simulation > RAM cache size (Auto or a share); the

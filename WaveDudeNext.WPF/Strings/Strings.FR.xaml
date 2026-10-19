@@ -434,7 +434,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Source.Y">Y</s:String>
 	<s:String x:Key="Hint.Source.Y">Y de l'émetteur, ou du centre du réseau, en pixels de toile.</s:String>
 	<s:String x:Key="Label.Source.Frequency">Fréquence</s:String>
-	<s:String x:Key="Hint.Source.Frequency">Fréquence comme niveau de 1 à 255, la même échelle que le canal vert des sources de l'image.</s:String>
+	<s:String x:Key="Hint.Source.Frequency">Fréquence sous forme de niveau jusqu'à 255, décimales admises, la même échelle que le canal vert des sources d'image. Au-delà de 255, la grille ne peut plus échantillonner l'onde.</s:String>
 	<s:String x:Key="Label.Source.Amplitude">Amplitude</s:String>
 	<s:String x:Key="Hint.Source.Amplitude">Amplitude en pour cent, 0 à 100.</s:String>
 	<s:String x:Key="Label.Source.Phase">Phase</s:String>

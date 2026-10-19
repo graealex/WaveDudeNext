@@ -255,6 +255,7 @@ internal static class Program
 		CheckDeterminism(scene);
 		CheckEmitterMapping();
 		CheckMirror(W, H);
+		CheckDecimalLevels(W, H);
 		CheckFrameStore(scene);
 		CheckPreviewQuality(scene, W, H);
 		CheckRenderer();
@@ -622,6 +623,55 @@ internal static class Program
 			Run(gpu, steps);
 			float diff = MaxDiff(withWall, gpu.FieldData);
 			Check(diff < 1e-3f * Math.Max(1f, MaxAbs(withWall)), "GPU agrees on the wall scene (max diff " + diff + ")");
+		}
+	}
+
+	private static void CheckDecimalLevels(int W, int H)
+	{
+		Console.WriteLine("--- decimal frequency and phase");
+		var project = new Project();
+		project.Scene.Width = W;
+		project.Scene.Height = H;
+		Source source = project.AddSource();
+		source.X = 20;
+		source.Y = 24;
+		source.Frequency = 120.5;
+		source.Phase = 12.5;
+		RunSpec spec = RunSpec.Create(project, null, preferGpu: false);
+		Check(spec.Emitters.Length == 1 && spec.Emitters[0].Level == 120.5 && Math.Abs(spec.Emitters[0].PhaseRadians - 12.5 * Math.PI / 180.0) < 1e-12, "a decimal frequency and phase reach the emitter as typed");
+		source.Frequency = 300;
+		source.Phase = -200;
+		source.Normalize();
+		Check(source.Frequency == 255 && source.Phase == -180, "the level is capped at 255 (the grid cannot sample above it), the phase at -180");
+		source.Frequency = 0;
+		source.Normalize();
+		Check(source.Frequency == Source.MinLevel, "a level of 0 becomes the least level");
+		source.Frequency = 120.5;
+		source.Phase = 12.5;
+		using (var stream = new MemoryStream())
+		{
+			project.Save(stream);
+			string xml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+			stream.Position = 0;
+			Project back = Project.Load(stream);
+			Check(xml.Contains("Frequency=\"120.5\"") && xml.Contains("Phase=\"12.5\"") && back.Sources[0].Frequency == 120.5 && back.Sources[0].Phase == 12.5, "decimals round-trip through the file");
+		}
+		SceneData scene = SceneData.Empty(W, H, 0);
+		var emitters = new List<Emitter> { Make(20, 24, 120, 1.0) with { Level = 120.5, PhaseRadians = 12.5 * Math.PI / 180.0 } };
+		float[] cpu = RunCpu(scene, emitters, 150);
+		float[] whole = RunCpu(scene, [Make(20, 24, 120, 1.0)], 150);
+		Check(MaxAbs(cpu) > 0.01f && MaxDiff(cpu, whole) > 1e-3f, "a level of 120.5 runs and differs from 120");
+		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
+		if (gpu == null)
+		{
+			Console.WriteLine("  skip GPU: " + problems);
+			return;
+		}
+		using (gpu)
+		{
+			Run(gpu, 150);
+			float diff = MaxDiff(cpu, gpu.FieldData);
+			Check(diff < 1e-3f * Math.Max(1f, MaxAbs(cpu)), "GPU agrees on a decimal level and phase (max diff " + diff + ")");
 		}
 	}
 

@@ -152,7 +152,7 @@ public sealed class Simulation : ObservableObject
 	public double WavelengthOf(int level) => Wavelength(level, WaveSpeed, SourceFrequencyScale);
 
 	/// <summary>The formula behind <see cref="WavelengthOf"/> for callers that bind the three inputs separately.</summary>
-	public static double Wavelength(int level, double waveSpeed, double sourceFrequencyScale)
+	public static double Wavelength(double level, double waveSpeed, double sourceFrequencyScale)
 	{
 		double cyclesPerStep = level / 255.0 * 0.5 * sourceFrequencyScale / (2.0 * Math.PI);
 		return cyclesPerStep > 0 ? waveSpeed / cyclesPerStep : double.NaN;

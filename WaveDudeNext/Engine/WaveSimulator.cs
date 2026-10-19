@@ -99,6 +99,7 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 	public WaveSimulator(SceneData scene, EngineOptions options, IReadOnlyList<Emitter>? emitters = null)
 	{
 		double sourceFrequencyScale = options.SourceFrequencyScale;
+		_sourceFrequencyScale = sourceFrequencyScale;
 		bool trackIntensity = options.TrackIntensity;
 		bool use4thOrderLaplacian = options.FourthOrderLaplacian;
 		_sourceAmplitude = options.SourceAmplitude;
@@ -480,9 +481,9 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 	/// </summary>
 	/// <param name="levelUsed">Per level 0..255: whether an image source uses it.</param>
 	/// <param name="objectSources">Object sources to consider as well.</param>
-	internal static int LowestSourceLevel(bool[] levelUsed, IEnumerable<Emitter> objectSources)
+	internal static double LowestSourceLevel(bool[] levelUsed, IEnumerable<Emitter> objectSources)
 	{
-		int minActiveLevel = 0;
+		double minActiveLevel = 0;
 		for (int level = 1; level <= 255; level++)
 		{
 			if (levelUsed[level])
@@ -508,7 +509,7 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 	/// <see cref="Simulation.TimeDecay"/> counts steps at a nominal source level of
 	/// <see cref="NominalDecayLevel"/>. Shared with <see cref="GpuWaveSimulator"/>.
 	/// </summary>
-	internal static float IntensityRetention(double timeDecayFactor, int lowestLevel)
+	internal static float IntensityRetention(double timeDecayFactor, double lowestLevel)
 	{
 		double tauSteps = Math.Max(1.0, timeDecayFactor * NominalDecayLevel / lowestLevel);
 		return (float)Math.Exp(-1.0 / tauSteps);
@@ -560,7 +561,7 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 					detachFade = (float)(1.0 - stepsSinceDetach / Emitter.DetachRampSteps);
 				}
 			}
-			double freq = _levelFrequency[source.Level];
+			double freq = LevelFrequency(source.Level);
 			double envelope = 1.0;
 			if (source.Mode != SourceMode.Continuous)
 			{
@@ -934,8 +935,14 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 	/// <summary>Green level (1..255) of every image source, indexing <see cref="_levelFrequency"/>.</summary>
 	private readonly byte[] _sourceLevel;
 
-	/// <summary>Angular frequency in radians per step for each level 0..255: level/255 × 0.5 × sourceFrequencyScale.</summary>
+	/// <summary>Angular frequency in radians per step for each image level 0..255: level/255 × 0.5 × sourceFrequencyScale.</summary>
 	private readonly double[] _levelFrequency = new double[256];
+
+	/// <summary>The scale of the level-to-frequency mapping, for the object sources' decimal levels.</summary>
+	private readonly double _sourceFrequencyScale;
+
+	/// <summary>Angular frequency in radians per step of a decimal <paramref name="level"/>: the table's formula, rounded to float as the GPU holds it, so CPU = GPU.</summary>
+	private double LevelFrequency(double level) => (float)(level / 255.0 * 0.5 * _sourceFrequencyScale);
 
 	/// <summary>Which levels have at least one image source; only those get a value computed per step.</summary>
 	private readonly bool[] _levelUsed = new bool[256];

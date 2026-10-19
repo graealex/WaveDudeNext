@@ -53,7 +53,7 @@ public sealed record Emitter
 	/// Frequency as a source level 1..255, the same scale as the brightness of image-based sources. The
 	/// engines map it to an angular frequency of <c>Level / 255 × 0.5 × SourceFrequencyScale</c> radians per step.
 	/// </summary>
-	public required int Level { get; init; }
+	public required double Level { get; init; }
 
 	/// <summary>Peak field amplitude 0..1 (the source's 0..100 % divided by 100).</summary>
 	public required double Amplitude { get; init; }

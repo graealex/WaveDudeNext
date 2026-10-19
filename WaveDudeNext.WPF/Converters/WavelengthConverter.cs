@@ -32,7 +32,7 @@ public sealed class WavelengthConverter : IMultiValueConverter
 {
 	public object Convert(object?[] values, Type targetType, object? parameter, CultureInfo culture)
 	{
-		if (values.Length < 4 || values[0] is not int level || values[1] is not double waveSpeed
+		if (values.Length < 4 || values[0] is not double level || values[1] is not double waveSpeed
 			|| values[2] is not double scale || values[3] is not bool fourthOrder)
 		{
 			return "\u2013";

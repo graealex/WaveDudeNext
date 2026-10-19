@@ -434,7 +434,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Source.Y">Y</s:String>
 	<s:String x:Key="Hint.Source.Y">Y des Strahlers bzw. der Anordnungsmitte, in Leinwandpixeln.</s:String>
 	<s:String x:Key="Label.Source.Frequency">Frequenz</s:String>
-	<s:String x:Key="Hint.Source.Frequency">Frequenz als Stufe von 1 bis 255, dieselbe Skala wie der Grünkanal der Bildquellen.</s:String>
+	<s:String x:Key="Hint.Source.Frequency">Frequenz als Stufe bis 255, Dezimalstellen erlaubt, dieselbe Skala wie der Grünkanal der Bildquellen. Über 255 kann das Gitter die Welle nicht mehr abtasten.</s:String>
 	<s:String x:Key="Label.Source.Amplitude">Amplitude</s:String>
 	<s:String x:Key="Hint.Source.Amplitude">Amplitude in Prozent, 0 bis 100.</s:String>
 	<s:String x:Key="Label.Source.Phase">Phase</s:String>
