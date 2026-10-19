@@ -221,6 +221,36 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</Setter.Value>
 			</Setter>
 		</Style>
+		<!-- a part's size grip: a small filled square on the outline's corner; the point handles: a small ring -->
+		<Style x:Key="PartGripMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
+			<Setter Property="Width" Value="14" />
+			<Setter Property="Height" Value="14" />
+			<Setter Property="Cursor" Value="SizeNWSE" />
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type controls:MarkerThumb}">
+						<Grid Background="Transparent">
+							<Rectangle Width="9" Height="9" Fill="Black" Opacity="0.75" />
+							<Rectangle Width="7" Height="7" Fill="{TemplateBinding BorderBrush}" />
+						</Grid>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+		<Style x:Key="PartPointMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
+			<Setter Property="Width" Value="14" />
+			<Setter Property="Height" Value="14" />
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type controls:MarkerThumb}">
+						<Grid Background="Transparent">
+							<Ellipse Width="10" Height="10" Fill="{TemplateBinding Background}" Stroke="Black" StrokeThickness="{TemplateBinding HaloThickness}" Opacity="0.75" />
+							<Ellipse Width="10" Height="10" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding StrokeThickness}" />
+						</Grid>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
 		<StreamGeometry x:Key="AngleGlyph">M15,10 A5,5 0 1 1 12.5,5.67 M12.5,5.67 L9.2,5.3 M12.5,5.67 L13,9</StreamGeometry>
 		<Style x:Key="AngleMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
 			<Setter Property="Cursor" Value="Hand" />
@@ -502,7 +532,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 										       Stretch="Uniform" IsHitTestVisible="False" />
 										<!-- the handles: sources, emitter dots, probe points and lines. Styled here, not implicitly: WPF applies
 										     implicit styles inside a template only to Controls, and the overlay is a Panel -->
-										<controls:SceneOverlay SourceStyle="{StaticResource SourceMarker}" PartStyle="{StaticResource PartMarker}" ProbeStyle="{StaticResource ProbeMarker}" AngleStyle="{StaticResource AngleMarker}"
+										<controls:SceneOverlay SourceStyle="{StaticResource SourceMarker}" PartStyle="{StaticResource PartMarker}" GripStyle="{StaticResource PartGripMarker}" PointStyle="{StaticResource PartPointMarker}" ProbeStyle="{StaticResource ProbeMarker}" AngleStyle="{StaticResource AngleMarker}"
 										                       LineBrush="White" LabelBrush="White" AccentBrush="{DynamicResource Accent}"
 										                       Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
 										                       CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"

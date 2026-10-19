@@ -178,6 +178,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipPreviewShowIntensity">Intensiteitsbeeld tonen</s:String>
 	<s:String x:Key="TipMarkerFormat">{0}: slepen om te verplaatsen; met toetsenbordfocus verplaatsen de pijltoetsen één pixel, tien met Shift</s:String>
 	<s:String x:Key="TipAngleMarkerFormat">{0}: slepen om het raster te draaien (Shift klikt vast op 15 graden); met toetsenbordfocus draaien de pijltoetsen het één graad, tien met Shift</s:String>
+	<s:String x:Key="TipGripFormat">{0}: slepen om de grootte te wijzigen; met toetsenbordfocus verplaatsen de pijltoetsen de greep één pixel, tien met Shift</s:String>
+	<s:String x:Key="TipPointFormat">{0}, punt {1}: slepen om te verplaatsen; met toetsenbordfocus verplaatsen de pijltoetsen één pixel, tien met Shift</s:String>
 	<s:String x:Key="TipProbeBoxFormat">Grafiek van {0}: slepen om het kader te verplaatsen; met toetsenbordfocus verplaatsen de pijltoetsen het één pixel, tien met Shift</s:String>
 	<s:String x:Key="TipProbeBoxCornerFormat">Grafiek van {0}: slepen om het kader te vergroten of verkleinen (het klikt vast op de vaste maten); met toetsenbordfocus wijzigen de pijltoetsen de maat één pixel, tien met Shift</s:String>
 	<s:String x:Key="LabelPreviewStep">stap</s:String>

@@ -180,6 +180,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipPreviewShowIntensity">Show the intensity picture</s:String>
 	<s:String x:Key="TipMarkerFormat">{0}: drag to move; with keyboard focus the arrow keys move it by a pixel, ten with Shift</s:String>
 	<s:String x:Key="TipAngleMarkerFormat">{0}: drag to turn the array (Shift snaps to 15 degrees); with keyboard focus the arrow keys turn it by a degree, ten with Shift</s:String>
+	<s:String x:Key="TipGripFormat">{0}: drag to resize; with keyboard focus the arrow keys move the grip by a pixel, ten with Shift</s:String>
+	<s:String x:Key="TipPointFormat">{0}, point {1}: drag to move it; with keyboard focus the arrow keys move it by a pixel, ten with Shift</s:String>
 	<s:String x:Key="TipProbeBoxFormat">Graph of {0}: drag to move the box; with keyboard focus the arrow keys move it by a pixel, ten with Shift</s:String>
 	<s:String x:Key="TipProbeBoxCornerFormat">Graph of {0}: drag to resize the box (it snaps to the fixed sizes); with keyboard focus the arrow keys resize it by a pixel, ten with Shift</s:String>
 	<s:String x:Key="LabelPreviewStep">step</s:String>

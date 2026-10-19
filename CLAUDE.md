@@ -150,7 +150,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   per kind; painted into the scene's red channel (4 × 4 supersampled, a mirror by the pixel-centre test as red 0, a
   coating band of √n, later parts over earlier ones; a part's centre is the corner of pixel (X, Y), so even sizes cover
   whole pixels). A part edit is a simulation edit. Tree folder "Parts", "+ Part" opens a menu of kinds (Space, arrows,
-  Enter), a handle plus a rotation lever on the pictures, the shape shows through the glowing outline.
+  Enter), a handle plus a rotation lever on the pictures; while selected, the outline as painted in the accent colour,
+  a size grip on a corner or vertex (rectangle, lens, polygon, triangle, GRIN, Bragg) and a handle per point of an outline
+  or fibre (2026-10-19); the shape shows through the glowing outline otherwise.
 - File types `.wdproj` / `.wdscheme` are registered per user at start-up; unsaved edits ask on close.
 
 ## Numbers (workstation: 10-core Xeon without AVX2, RTX 2080, 64 GB)
@@ -159,7 +161,8 @@ GPU step at 1080p 0.25–0.5 ms, CPU 6–14 ms; OpenCL build 0.3 s; a full-HD ru
 the GPU readback. Renderer per 2880×1080 layer on ten cores: 8-bit 1.0 ms, 16-bit 2.0; vector rows gain 2× per
 core over scalar. Presenter about 7 ms a frame quiet, 20 during a run. JPEG 1080p at 4:4:4: WIC 26 ms a frame
 single-threaded (9 ms a frame in a sequence job on half the cores), in-house 9.8 ms on ten cores (15 in a job);
-MP4 job 16 ms a frame. Laptop (2 cores, HD 520, HDD): iGPU 4.3 ms a step against CPU 14.7; the ball
+MP4 job 16 ms a frame. Part painter on a Full HD canvas (ten cores): a 400 × 330 outline 30 ms, a 400 px lens 5, a hexagon 8;
+the glowing edges 22 ms; the preview's scene pictures about 100 ms more, so the scene rebuild is coalesced at background priority. Laptop (2 cores, HD 520, HDD): iGPU 4.3 ms a step against CPU 14.7; the ball
 lens run 105 s full quality (disk-bound), 61 s at half resolution with every second frame, in RAM. Settled by these
 numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Direct3D display path.
 

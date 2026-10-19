@@ -130,6 +130,38 @@ public abstract class OpticalPart : ObservableObject
 	[Browsable(false)]
 	public abstract double AxisReach { get; }
 
+	/// <summary>
+	/// The part's outline for drawing, as points in the part frame (relative to the centre, before rotation, canvas
+	/// pixels): a closed polygon unless <see cref="OutlineClosed"/> says otherwise. Out-of-range values are guarded as
+	/// the painter guards them, so the drawn outline is the painted one. UI thread.
+	/// </summary>
+	public abstract (double X, double Y)[] Outline();
+
+	/// <summary>Whether <see cref="Outline"/> closes back to its first point (a fibre's path does not).</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public virtual bool OutlineClosed => true;
+
+	/// <summary>Maps a point of the part frame to canvas coordinates: the centre at (X, Y), the frame turned by the angle (counter-clockwise on the screen).</summary>
+	public (double X, double Y) ToCanvas(double x, double y)
+	{
+		double radians = Angle * Math.PI / 180.0;
+		double cos = Math.Cos(radians);
+		double sin = Math.Sin(radians);
+		return (X + x * cos + y * sin, Y + y * cos - x * sin);
+	}
+
+	/// <summary>Maps canvas coordinates into the part frame (the inverse of <see cref="ToCanvas"/>).</summary>
+	public (double X, double Y) ToFrame(double canvasX, double canvasY)
+	{
+		double radians = Angle * Math.PI / 180.0;
+		double cos = Math.Cos(radians);
+		double sin = Math.Sin(radians);
+		double ox = canvasX - X;
+		double oy = canvasY - Y;
+		return (ox * cos - oy * sin, ox * sin + oy * cos);
+	}
+
 	/// <summary>Clamps every value into its valid range; the angle is brought into (-180, 180].</summary>
 	public virtual void Normalize()
 	{
@@ -358,6 +390,37 @@ public sealed class LensPart : OpticalPart
 		}
 	}
 
+	/// <summary>Points per surface of the drawn outline.</summary>
+	private const int OutlineSteps = 32;
+
+	/// <inheritdoc/>
+	public override (double X, double Y)[] Outline()
+	{
+		(double r1, double r2) = FitRadii(Diameter, Thickness, R1, R2);
+		double half = Math.Max(2, Diameter) / 2.0;
+		double vertex = Math.Max(1, Thickness) / 2.0;
+		var points = new (double X, double Y)[2 * (OutlineSteps + 1)];
+		for (int i = 0; i <= OutlineSteps; i++)
+		{
+			// down the first surface, then up the second
+			double y = -half + 2.0 * half * i / OutlineSteps;
+			points[i] = (-vertex + SurfaceSag(r1, y), y);
+			points[2 * OutlineSteps + 1 - i] = (vertex + SurfaceSag(r2, y), y);
+		}
+		return points;
+	}
+
+	/// <summary>Where a surface of signed <paramref name="radius"/> lies along x' at <paramref name="y"/> from the axis, relative to its vertex: 0 for flat, positive toward +x'.</summary>
+	private static double SurfaceSag(double radius, double y)
+	{
+		if (radius == 0.0)
+		{
+			return 0.0;
+		}
+		double inside = Math.Max(0.0, radius * radius - y * y);
+		return radius - Math.CopySign(Math.Sqrt(inside), radius);
+	}
+
 	/// <summary>Thickness at the rim in pixels: the centre thickness less what the convex surfaces take, plus what the concave ones add; never negative after <see cref="FitRadii"/>.</summary>
 	[XmlIgnore]
 	[Browsable(false)]
@@ -493,6 +556,9 @@ public abstract class ShapePart : OpticalPart
 
 	/// <inheritdoc/>
 	public override double AxisReach => Vertices().Select(v => Math.Abs(v.X)).DefaultIfEmpty(0.0).Max();
+
+	/// <inheritdoc/>
+	public override (double X, double Y)[] Outline() => Vertices();
 
 	/// <inheritdoc/>
 	public override void Normalize()
@@ -937,6 +1003,12 @@ public sealed class FiberPart : OpticalPart
 	/// <inheritdoc/>
 	public override double AxisReach => (Points.Count > 0 ? Points.Max(p => Math.Abs(p.X)) : 0) + OuterRadius;
 
+	/// <summary>The path itself; the core and cladding bands show through the scene outline.</summary>
+	public override (double X, double Y)[] Outline() => Points.Select(p => ((double)p.X, (double)p.Y)).ToArray();
+
+	/// <inheritdoc/>
+	public override bool OutlineClosed => false;
+
 	/// <summary>
 	/// The default straight path, from (-100, 0) to (100, 0). Given to a new fibre by <see cref="Project.AddPart"/>, not by
 	/// the constructor: <see cref="XmlSerializer"/> appends a file's points to the list it finds, so the constructor's list
@@ -1077,6 +1149,14 @@ public sealed class BraggReflectorPart : OpticalPart
 	public override double AxisReach => Length / 2.0;
 
 	/// <inheritdoc/>
+	public override (double X, double Y)[] Outline()
+	{
+		double l = Math.Clamp(Pairs, 1, MaxPairs) * (Math.Max(1, Thickness1) + Math.Max(1, Thickness2)) / 2.0;
+		double w = Math.Max(1, Width) / 2.0;
+		return [(-l, -w), (l, -w), (l, w), (-l, w)];
+	}
+
+	/// <inheritdoc/>
 	public override void Normalize()
 	{
 		base.Normalize();
@@ -1177,6 +1257,14 @@ public sealed class GrinLensPart : OpticalPart
 
 	/// <inheritdoc/>
 	public override double AxisReach => Length / 2.0;
+
+	/// <inheritdoc/>
+	public override (double X, double Y)[] Outline()
+	{
+		double l = Math.Max(1, Length) / 2.0;
+		double d = Math.Max(1, Diameter) / 2.0;
+		return [(-l, -d), (l, -d), (l, d), (-l, d)];
+	}
 
 	/// <inheritdoc/>
 	public override void Normalize()

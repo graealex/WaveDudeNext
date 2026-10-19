@@ -185,6 +185,47 @@ internal static class Program
 			}
 			return 0;
 		}
+		if (args.Length > 0 && args[0] == "bench-paint")
+		{
+			// how long the part painter takes on a Full HD canvas: an outline, a lens, a polygon (2026-10-19, a drag was sluggish)
+			var project = new Project();
+			project.Scene.Width = 1920;
+			project.Scene.Height = 1080;
+			var outline = (OutlinePart)project.AddPart(PartKind.Outline);
+			foreach ((int px, int py) in new[] { (-200, -150), (200, -120), (150, 180), (-180, 120) })
+			{
+				outline.Points.Add(new PartPoint { X = px, Y = py });
+			}
+			var lens = (LensPart)project.AddPart(PartKind.Lens);
+			lens.Diameter = 400;
+			var polygon = (PolygonPart)project.AddPart(PartKind.Polygon);
+			polygon.Side = 150;
+			foreach (OpticalPart part in project.Parts)
+			{
+				var single = new List<OpticalPart> { part };
+				PartPainter.Paint(null, 1920, 1080, 1.0, single);
+				var timer = Stopwatch.StartNew();
+				for (int i = 0; i < 10; i++)
+				{
+					PartPainter.Paint(null, 1920, 1080, 1.0, single);
+				}
+				Console.WriteLine($"  {part.Kind}: {timer.Elapsed.TotalMilliseconds / 10:0.0} ms per paint");
+			}
+			var blank = Stopwatch.StartNew();
+			for (int i = 0; i < 10; i++)
+			{
+				PartPainter.Paint(null, 1920, 1080, 1.0, [new OutlinePart { Name = "empty" }]);
+			}
+			Console.WriteLine($"  blank canvas alone: {blank.Elapsed.TotalMilliseconds / 10:0.0} ms");
+			var edges = Stopwatch.StartNew();
+			ScenePixels painted = PartPainter.Paint(null, 1920, 1080, 1.0, project.Parts)!;
+			for (int i = 0; i < 10; i++)
+			{
+				GlowingEdges.Compute(painted.Bgra, painted.Width, painted.Height, painted.StrideBytes);
+			}
+			Console.WriteLine($"  glowing edges: {edges.Elapsed.TotalMilliseconds / 10:0.0} ms");
+			return 0;
+		}
 		if (args.Length > 0 && args[0] == "bench-render")
 		{
 			BenchRender(args.Length > 1 ? int.Parse(args[1]) : 1920, args.Length > 2 ? int.Parse(args[2]) : 1080, args.Length > 3 && args[3] == "load");

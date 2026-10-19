@@ -438,8 +438,29 @@ public partial class MainWindow
 		}
 	}
 
-	/// <summary>Hands the preview the scene pixels (null for a canvas without parts, or when the image cannot be read: that is logged once the run reports it).</summary>
+	/// <summary>
+	/// Hands the preview the scene pixels (null for a canvas without parts, or when the image cannot be read: that is
+	/// logged once the run reports it). Coalesced at background priority: a drag of a part fires a change per mouse
+	/// move, and composing the scene plus rebuilding its pictures is far too slow to do for each (2026-10-19); the
+	/// overlay draws the selected part's outline itself, so what the user drags stays live meanwhile.
+	/// </summary>
 	private void UpdateScenePixels()
+	{
+		if (_scenePixelsPending)
+		{
+			return;
+		}
+		_scenePixelsPending = true;
+		Dispatcher.InvokeAsync(() =>
+		{
+			_scenePixelsPending = false;
+			UpdateScenePixelsNow();
+		}, DispatcherPriority.Background);
+	}
+
+	private bool _scenePixelsPending;
+
+	private void UpdateScenePixelsNow()
 	{
 		if (previewPane == null)
 		{
@@ -447,7 +468,11 @@ public partial class MainWindow
 		}
 		try
 		{
-			previewPane.ScenePixels = LoadSceneImage();
+			long started = System.Diagnostics.Stopwatch.GetTimestamp();
+			ScenePixels? pixels = LoadSceneImage();
+			long painted = System.Diagnostics.Stopwatch.GetTimestamp();
+			previewPane.ScenePixels = pixels;
+			Logger.Debug("Scene pixels updated: composed in {Paint:0.0} ms, pictures in {Pictures:0.0} ms", System.Diagnostics.Stopwatch.GetElapsedTime(started, painted).TotalMilliseconds, System.Diagnostics.Stopwatch.GetElapsedTime(painted).TotalMilliseconds);
 		}
 		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException or RunSpecException)
 		{

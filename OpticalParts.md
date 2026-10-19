@@ -18,8 +18,11 @@ shown), `OutlinePart` (points). The "+ Part" menu lists the optics, a separator,
 source's circular crosshair with an inner ring (a lens-shaped glyph read as squashed). A lens's diameter and centre
 thickness are its bulk: radii too curved for them are raised to the smallest that fits (`LensPart.FitRadii`), so the lens
 always fills its diameter; the form shows the edge thickness (a diameter of 2000 with radii of 300 had given a tiny lens).
-A "Concave (diverging)" box shows the lens's state from the lensmaker's sign and, ticked, flips both radii. Not built: stage 3 (`PartCheck.ps1`, the three
-examples) and the selected part's accent outline. The open points at the end still stand.
+A "Concave (diverging)" box shows the lens's state from the lensmaker's sign and, ticked, flips both radii.
+While a part is selected the overlay draws its outline (`OpticalPart.Outline()`, the painted shape) in the accent colour,
+a size grip on a corner or vertex sets the extents by drag or arrow keys, and an outline's or fibre's points each have a
+handle (2026-10-19). Not built: stage 3 (`PartCheck.ps1`, the three
+examples). The open points at the end still stand.
 
 ## What is asked
 

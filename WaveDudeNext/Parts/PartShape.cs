@@ -68,6 +68,30 @@ public abstract class PartShape
 	/// <summary>Thickness of the anti-reflection band inside the outline in pixels; 0 for none.</summary>
 	protected abstract int Coating { get; }
 
+	/// <summary>The coating band's thickness in pixels, for the painter's shortcut past pixels well inside the body or the band.</summary>
+	public int CoatingWidth => Coating;
+
+	/// <summary>
+	/// Whether the index steps somewhere inside the outline (a Bragg stack's layers), so a pixel well inside still
+	/// needs its samples; false where the inside is one index or varies smoothly (the GRIN profile).
+	/// </summary>
+	public virtual bool HasInnerEdges => false;
+
+	/// <summary>How far inside the outline the canvas point lies, in pixels (negative outside): the exact distance for straight and circular edges, so the painter can tell a pixel wholly inside or outside from one sample.</summary>
+	public double DepthAt(double canvasX, double canvasY)
+	{
+		(double x, double y) = ToFrame(canvasX, canvasY);
+		return Depth(x, y);
+	}
+
+	/// <summary>Maps a canvas point into the part frame: the inverse of the composite source's turn (x = dx cos + dy sin, y = dy cos - dx sin), the transpose.</summary>
+	private (double X, double Y) ToFrame(double canvasX, double canvasY)
+	{
+		double ox = canvasX - _centreX;
+		double oy = canvasY - _centreY;
+		return (ox * _cos - oy * _sin, ox * _sin + oy * _cos);
+	}
+
 	/// <summary>Farthest the outline reaches from the centre, in pixels (a bound, not necessarily tight).</summary>
 	protected abstract double Extent { get; }
 
@@ -95,11 +119,7 @@ public abstract class PartShape
 	/// </summary>
 	public double? IndexAt(double canvasX, double canvasY)
 	{
-		// the inverse of the composite source's turn (x = dx cos + dy sin, y = dy cos - dx sin): the transpose
-		double ox = canvasX - _centreX;
-		double oy = canvasY - _centreY;
-		double x = ox * _cos - oy * _sin;
-		double y = ox * _sin + oy * _cos;
+		(double x, double y) = ToFrame(canvasX, canvasY);
 		double depth = Depth(x, y);
 		if (depth < 0.0)
 		{
@@ -298,6 +318,7 @@ public abstract class PartShape
 
 		public override bool IsMirror => false;
 		protected override int Coating => 0;
+		public override bool HasInnerEdges => true;
 		protected override double Extent => Math.Sqrt(_halfLength * _halfLength + _halfWidth * _halfWidth);
 		protected override double Depth(double x, double y) => Math.Min(_halfLength - Math.Abs(x), _halfWidth - Math.Abs(y));
 

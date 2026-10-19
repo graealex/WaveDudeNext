@@ -15,6 +15,7 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
@@ -33,8 +34,9 @@ namespace WaveDudeNext.WPF.Controls;
 /// handles (<see cref="MarkerThumb"/>): a source's position, a part's centre, a point probe's point, a line probe's two
 /// ends with the line between them, plus the emitters of a composite source as dots, its rotation handle on
 /// the row axis (shown while the source is selected; drag turns the array; Shift snaps to 15°; the arrow keys
-/// turn it by a degree, 2026-10-14), the same handle on a part's axis (2026-10-18; the part's shape itself shows
-/// through the glowing outline of the scene) and the item names as labels. Dragging a handle, or moving it with the arrow keys while it has keyboard focus, writes the
+/// turn it by a degree, 2026-10-14), the same handle on a part's axis (2026-10-18), and, while a part is selected, its
+/// outline in the accent colour with a size grip on a corner or vertex (drag sets the extents) and a handle on each
+/// point of an outline's or fibre's list (2026-10-19, the user's request), plus the item names as labels. Dragging a handle, or moving it with the arrow keys while it has keyboard focus, writes the
 /// new canvas coordinates to the model; grabbing or focusing a handle makes its item the
 /// <see cref="SelectedItem"/>. The overlay fills the same rectangle as the picture (an
 /// <see cref="Image"/> with <see cref="Stretch.Uniform"/>), so it maps canvas pixels to its own
@@ -72,6 +74,14 @@ public sealed class SceneOverlay : Panel
 	public static readonly DependencyProperty PartStyleProperty = DependencyProperty.Register(
 		nameof(PartStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
 
+	/// <summary>Identifies the <see cref="GripStyle"/> property.</summary>
+	public static readonly DependencyProperty GripStyleProperty = DependencyProperty.Register(
+		nameof(GripStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
+
+	/// <summary>Identifies the <see cref="PointStyle"/> property.</summary>
+	public static readonly DependencyProperty PointStyleProperty = DependencyProperty.Register(
+		nameof(PointStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
+
 	/// <summary>Identifies the <see cref="AngleStyle"/> property.</summary>
 	public static readonly DependencyProperty AngleStyleProperty = DependencyProperty.Register(
 		nameof(AngleStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
@@ -107,6 +117,7 @@ public sealed class SceneOverlay : Panel
 	private static readonly Typeface LabelTypeface = new("Segoe UI");
 
 	private readonly HashSet<INotifyPropertyChanged> _subscribed = [];
+	private readonly HashSet<INotifyCollectionChanged> _pointLists = [];
 	private bool _regenerating;
 
 	public SceneOverlay()
@@ -171,6 +182,20 @@ public sealed class SceneOverlay : Panel
 	{
 		get => (Style?)GetValue(PartStyleProperty);
 		set => SetValue(PartStyleProperty, value);
+	}
+
+	/// <summary>Style of a part's size grip (a <see cref="MarkerThumb"/> style).</summary>
+	public Style? GripStyle
+	{
+		get => (Style?)GetValue(GripStyleProperty);
+		set => SetValue(GripStyleProperty, value);
+	}
+
+	/// <summary>Style of the handles on an outline's or fibre's points (a <see cref="MarkerThumb"/> style).</summary>
+	public Style? PointStyle
+	{
+		get => (Style?)GetValue(PointStyleProperty);
+		set => SetValue(PointStyleProperty, value);
 	}
 
 	/// <summary>Style of the rotation handles of composite sources and parts (a <see cref="MarkerThumb"/> style).</summary>
@@ -238,6 +263,11 @@ public sealed class SceneOverlay : Panel
 			item.PropertyChanged -= OnItemPropertyChanged;
 		}
 		_subscribed.Clear();
+		foreach (INotifyCollectionChanged list in _pointLists)
+		{
+			list.CollectionChanged -= OnCollectionChanged;
+		}
+		_pointLists.Clear();
 		Children.Clear();
 		if (Project is not { } project)
 		{
@@ -263,6 +293,23 @@ public sealed class SceneOverlay : Panel
 			Subscribe(part);
 			AddThumb(part, MarkerRole.Part, PartStyle, part.Name, "Part:" + part.Name);
 			AddThumb(part, MarkerRole.PartAngle, AngleStyle, part.Name, "PartAngle:" + part.Name, "TipAngleMarkerFormat");
+			if (GripOf(part) != null)
+			{
+				AddThumb(part, MarkerRole.PartGrip, GripStyle, part.Name, "PartGrip:" + part.Name, "TipGripFormat");
+			}
+			if (PointsOf(part) is { } points)
+			{
+				// the list and its points: a point added, removed or moved rebuilds or re-arranges
+				if (_pointLists.Add(points))
+				{
+					points.CollectionChanged += OnCollectionChanged;
+				}
+				for (int i = 0; i < points.Count; i++)
+				{
+					Subscribe(points[i]);
+					AddThumb(part, MarkerRole.PartPoint, PointStyle, part.Name, $"PartPoint:{part.Name}:{i}", "TipPointFormat", i);
+				}
+			}
 		}
 		foreach (Probe probe in project.Probes)
 		{
@@ -289,10 +336,10 @@ public sealed class SceneOverlay : Panel
 		}
 	}
 
-	private void AddThumb(object item, MarkerRole role, Style? style, string name, string automationId, string tipKey = "TipMarkerFormat")
+	private void AddThumb(object item, MarkerRole role, Style? style, string name, string automationId, string tipKey = "TipMarkerFormat", int index = -1)
 	{
-		var thumb = new MarkerThumb(item, role) { Style = style };
-		thumb.ToolTip = TryFindResource(tipKey) is string format ? string.Format(CultureInfo.CurrentUICulture, format, name) : name;
+		var thumb = new MarkerThumb(item, role, index) { Style = style };
+		thumb.ToolTip = TryFindResource(tipKey) is string format ? string.Format(CultureInfo.CurrentUICulture, format, name, index) : name;
 		AutomationProperties.SetName(thumb, name);
 		AutomationProperties.SetAutomationId(thumb, automationId);
 		thumb.DragStarted += OnDragStarted;
@@ -308,6 +355,7 @@ public sealed class SceneOverlay : Panel
 		{
 			case Probe when e.PropertyName is nameof(Probe.Kind) or nameof(Probe.Layer):
 			case Source when e.PropertyName == nameof(Source.Array):
+			case OutlinePart or FiberPart when e.PropertyName == "Points":
 				Rebuild();
 				return;
 			case Source source:
@@ -351,9 +399,9 @@ public sealed class SceneOverlay : Panel
 		foreach (MarkerThumb thumb in Children)
 		{
 			thumb.IsSelectedMarker = ReferenceEquals(thumb.Item, selected);
-			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle)
+			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle or MarkerRole.PartGrip or MarkerRole.PartPoint)
 			{
-				// the rotation handle only while its source or part is selected (the user's rule, 2026-10-14); collapsed, it is out of the Tab cycle too
+				// the rotation handle, grip and point handles only while their source or part is selected (the user's rule, 2026-10-14); collapsed, they are out of the Tab cycle too
 				thumb.Visibility = thumb.IsSelectedMarker ? Visibility.Visible : Visibility.Collapsed;
 			}
 		}
@@ -392,6 +440,81 @@ public sealed class SceneOverlay : Panel
 
 	/// <summary>The centre of canvas pixel (x, y) in this element's coordinates at its current size.</summary>
 	private Point ToView(int x, int y) => ToView(x, y, RenderSize);
+
+	/// <summary>A continuous canvas point (pixel (x, y) spanning [x, x + 1)) in this element's coordinates, for an element of <paramref name="size"/>.</summary>
+	private Point ToViewExact(double x, double y, Size size)
+	{
+		double scale = ScaleFor(size);
+		double originX = (size.Width - CanvasWidth * scale) / 2;
+		double originY = (size.Height - CanvasHeight * scale) / 2;
+		return new Point(originX + x * scale, originY + y * scale);
+	}
+
+	// ---------------------------------------------------------------- a part's grip and points
+
+	/// <summary>The point list a part's handles edit: an outline's or a fibre's; null for the other kinds.</summary>
+	private static ObservableCollection<PartPoint>? PointsOf(OpticalPart part) => part switch
+	{
+		OutlinePart outline => outline.Points,
+		FiberPart fiber => fiber.Points,
+		_ => null,
+	};
+
+	/// <summary>
+	/// Where a part's size grip sits in the part frame: the corner of a rectangle, lens (thickness, diameter), GRIN lens
+	/// or Bragg stack, the first vertex of a polygon, the second end of a triangle's base; null for a kind without one.
+	/// </summary>
+	private static (double X, double Y)? GripOf(OpticalPart part) => part switch
+	{
+		RectanglePart rectangle => (rectangle.Length / 2.0, rectangle.Width / 2.0),
+		LensPart lens => (lens.Thickness / 2.0, lens.Diameter / 2.0),
+		PolygonPart polygon => polygon.Vertices()[0],
+		TrianglePart triangle => triangle.Vertices()[1],
+		GrinLensPart grin => (grin.Length / 2.0, grin.Diameter / 2.0),
+		BraggReflectorPart bragg => (bragg.Length / 2.0, bragg.Width / 2.0),
+		_ => null,
+	};
+
+	/// <summary>Sets the extents a grip stands for from the grip's new canvas position: whole pixels, never below the kind's least size.</summary>
+	private static void SetGrip(OpticalPart part, double canvasX, double canvasY)
+	{
+		(double x, double y) = part.ToFrame(canvasX, canvasY);
+		int across = (int)Math.Round(2.0 * Math.Abs(y));
+		int along = (int)Math.Round(2.0 * Math.Abs(x));
+		switch (part)
+		{
+			case RectanglePart rectangle:
+				rectangle.Length = Math.Max(1, along);
+				rectangle.Width = Math.Max(1, across);
+				break;
+			case LensPart lens:
+				lens.Thickness = Math.Max(1, along);
+				lens.Diameter = Math.Max(2, across);
+				break;
+			case PolygonPart polygon:
+				// the vertex stays on its ray; its distance is the circumradius
+				polygon.Side = Math.Max(2, (int)Math.Round(2.0 * Math.Sqrt(x * x + y * y) * Math.Sin(Math.PI / Math.Clamp(polygon.Sides, PolygonPart.MinSides, PolygonPart.MaxSides))));
+				break;
+			case TrianglePart triangle:
+				triangle.Base = Math.Max(2, across);
+				break;
+			case GrinLensPart grin:
+				grin.Length = Math.Max(1, along);
+				grin.Diameter = Math.Max(2, across);
+				break;
+			case BraggReflectorPart bragg:
+				bragg.Width = Math.Max(2, across);
+				break;
+		}
+	}
+
+	/// <summary>The canvas position of a grip or point handle (continuous coordinates), or null when the handle has nothing to stand on.</summary>
+	private static (double X, double Y)? CanvasOf(MarkerThumb thumb) => (thumb.Item, thumb.Role) switch
+	{
+		(OpticalPart part, MarkerRole.PartGrip) when GripOf(part) is { } grip => part.ToCanvas(grip.X, grip.Y),
+		(OpticalPart part, MarkerRole.PartPoint) when PointsOf(part) is { } points && thumb.Index >= 0 && thumb.Index < points.Count => part.ToCanvas(points[thumb.Index].X, points[thumb.Index].Y),
+		_ => null,
+	};
 
 	/// <summary>The picture's rectangle in this element's coordinates for an element of <paramref name="size"/>: the canvas at its uniform scale, centred (the element fills the cell, the picture is letterboxed in it).</summary>
 	private Rect PictureRect(Size size)
@@ -457,6 +580,7 @@ public sealed class SceneOverlay : Panel
 	private static (int X, int Y) PointOf(MarkerThumb thumb) => (thumb.Item, thumb.Role) switch
 	{
 		(Source source, _) => (source.X, source.Y),
+		(OpticalPart, MarkerRole.PartGrip or MarkerRole.PartPoint) when CanvasOf(thumb) is { } canvas => ((int)Math.Round(canvas.X), (int)Math.Round(canvas.Y)),
 		(OpticalPart part, _) => (part.X, part.Y),
 		(Probe probe, MarkerRole.ProbeB) => (probe.BX, probe.BY),
 		(Probe probe, _) => (probe.AX, probe.AY),
@@ -472,6 +596,17 @@ public sealed class SceneOverlay : Panel
 			case (Source source, _):
 				source.X = x;
 				source.Y = y;
+				break;
+			case (OpticalPart part, MarkerRole.PartGrip):
+				SetGrip(part, x, y);
+				break;
+			case (OpticalPart part, MarkerRole.PartPoint):
+				if (PointsOf(part) is { } points && thumb.Index >= 0 && thumb.Index < points.Count)
+				{
+					(double fx, double fy) = part.ToFrame(x, y);
+					points[thumb.Index].X = (int)Math.Round(fx);
+					points[thumb.Index].Y = (int)Math.Round(fy);
+				}
 				break;
 			case (OpticalPart part, _):
 				part.X = x;
@@ -517,11 +652,16 @@ public sealed class SceneOverlay : Panel
 		foreach (MarkerThumb thumb in Children)
 		{
 			(int x, int y) = PointOf(thumb);
-			Point centre = thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle ? AnglePoint(thumb.Item, finalSize) : ToView(x, y, finalSize);
+			Point centre = thumb.Role switch
+			{
+				MarkerRole.SourceAngle or MarkerRole.PartAngle => AnglePoint(thumb.Item, finalSize),
+				MarkerRole.PartGrip or MarkerRole.PartPoint when CanvasOf(thumb) is { } canvas => ToViewExact(canvas.X, canvas.Y, finalSize),
+				_ => ToView(x, y, finalSize),
+			};
 			Size size = thumb.DesiredSize;
 			var rect = new Rect(centre.X - size.Width / 2, centre.Y - size.Height / 2, size.Width, size.Height);
 			thumb.Arrange(rect);
-			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle)
+			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle or MarkerRole.PartGrip or MarkerRole.PartPoint)
 			{
 				// the rotation handle stays on the row axis, however far out; what falls outside the picture is clipped
 				// (2026-10-16, the user's rule: the lever bending to keep the handle inside made no sense). The other
@@ -583,6 +723,25 @@ public sealed class SceneOverlay : Panel
 		}
 		if (selected is OpticalPart selectedPart && project.Parts.Contains(selectedPart))
 		{
+			// the part's outline as painted, in the accent colour, so the shape reads apart from the scene's glow
+			(double X, double Y)[] outline = selectedPart.Outline();
+			if (outline.Length >= 2)
+			{
+				var geometry = new StreamGeometry();
+				using (StreamGeometryContext context = geometry.Open())
+				{
+					(double x0, double y0) = selectedPart.ToCanvas(outline[0].X, outline[0].Y);
+					context.BeginFigure(ToViewExact(x0, y0, RenderSize), false, selectedPart.OutlineClosed);
+					for (int i = 1; i < outline.Length; i++)
+					{
+						(double x, double y) = selectedPart.ToCanvas(outline[i].X, outline[i].Y);
+						context.LineTo(ToViewExact(x, y, RenderSize), true, true);
+					}
+				}
+				geometry.Freeze();
+				dc.DrawGeometry(null, new Pen(HaloBrush, 3.0) { LineJoin = PenLineJoin.Round }, geometry);
+				dc.DrawGeometry(null, new Pen(AccentBrush, 1.0) { LineJoin = PenLineJoin.Round }, geometry);
+			}
 			// the part's axis from the centre to its rotation handle, the lever, while it is selected
 			Point axisEnd = AnglePoint(selectedPart, RenderSize);
 			dc.DrawLine(new Pen(HaloBrush, 3.0), ToView(selectedPart.X, selectedPart.Y), axisEnd);
@@ -591,7 +750,7 @@ public sealed class SceneOverlay : Panel
 		dc.Pop();
 		foreach (MarkerThumb thumb in Children.OfType<MarkerThumb>().OrderBy(thumb => thumb.IsSelectedMarker))
 		{
-			if (thumb.Role is MarkerRole.ProbeB or MarkerRole.SourceAngle or MarkerRole.PartAngle)
+			if (thumb.Role is MarkerRole.ProbeB or MarkerRole.SourceAngle or MarkerRole.PartAngle or MarkerRole.PartGrip or MarkerRole.PartPoint)
 			{
 				continue;
 			}

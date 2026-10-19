@@ -31,6 +31,10 @@ public enum MarkerRole
 	Part,
 	/// <summary>The rotation handle of an optical part: sits on the part's axis beyond its reach and turns it.</summary>
 	PartAngle,
+	/// <summary>The size grip of an optical part: a corner or vertex of its outline that sets its extents (2026-10-19).</summary>
+	PartGrip,
+	/// <summary>One point of an outline's or fibre's point list (<see cref="MarkerThumb.Index"/> says which).</summary>
+	PartPoint,
 	/// <summary>Point A of a probe (the point of a point probe, the start of a line probe).</summary>
 	ProbeA,
 	/// <summary>Point B of a line probe.</summary>
@@ -68,12 +72,17 @@ public sealed class MarkerThumb : Thumb
 
 	/// <param name="item">The source, part or probe.</param>
 	/// <param name="role">Which point of it.</param>
-	public MarkerThumb(object item, MarkerRole role)
+	/// <param name="index">For <see cref="MarkerRole.PartPoint"/>, the index in the part's point list.</param>
+	public MarkerThumb(object item, MarkerRole role, int index = -1)
 	{
 		Item = item;
 		Role = role;
+		Index = index;
 		Focusable = true;
 	}
+
+	/// <summary>For a point handle, the index in the part's point list; -1 otherwise.</summary>
+	public int Index { get; }
 
 	/// <summary>The source, part or probe this handle moves.</summary>
 	public object Item { get; }

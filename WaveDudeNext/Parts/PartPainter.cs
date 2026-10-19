@@ -28,7 +28,10 @@ namespace WaveDudeNext.Parts;
 /// touched. Parts are painted in list order, a later one over an earlier one. Refractive parts are supersampled
 /// 4 × 4 per pixel and the sample indices averaged, a sample outside the part counting the pixel's existing index
 /// (red 0 as 1); a mirror part tests the pixel centre alone and writes red 0, since an averaged mirror edge would
-/// clamp to glass. Pure geometry, no UI; any thread. The per-kind tests are in <see cref="PartShape"/> so the
+/// clamp to glass. Only pixels near an edge (the outline, the coating band's inner edge, a Bragg layer) are
+/// supersampled: the shape's depth at the pixel centre is an exact distance, so a pixel farther than a sample's
+/// reach from every edge takes its centre's index in one go (2026-10-19, a drag of a part was sluggish).
+/// Pure geometry, no UI; any thread. The per-kind tests are in <see cref="PartShape"/> so the
 /// harness can check them.
 /// </summary>
 public static class PartPainter
@@ -37,6 +40,9 @@ public static class PartPainter
 
 	/// <summary>Samples per pixel edge for refractive parts.</summary>
 	public const int Supersample = 4;
+
+	/// <summary>How far a sample can lie from the pixel centre, with a margin: beyond this depth from an edge, every sample falls on the same side.</summary>
+	private const double SampleReach = 0.6;
 
 	/// <summary>
 	/// The scene pixels with the enabled parts painted in: <paramref name="image"/> itself (the same reference, so
@@ -121,12 +127,28 @@ public static class PartPainter
 		}
 		const double step = 1.0 / Supersample;
 		const double half = step / 2.0;
+		int coating = shape.CoatingWidth;
+		bool innerEdges = shape.HasInnerEdges;
 		Parallel.For(y0, y1 + 1, y =>
 		{
 			int row = y * stride;
 			for (int x = x0; x <= x1; x++)
 			{
 				int offset = row + x * 4 + 2;
+				double depth = shape.DepthAt(x + 0.5, y + 0.5);
+				if (depth < -SampleReach)
+				{
+					continue;   // every sample outside
+				}
+				if (!innerEdges && depth > SampleReach && (coating == 0 || Math.Abs(depth - coating) > SampleReach))
+				{
+					// every sample inside, all in the body or all in the coating band: the centre's index stands for the pixel
+					if (shape.IndexAt(x + 0.5, y + 0.5) is { } whole)
+					{
+						bgra[offset] = (byte)Math.Clamp((int)Math.Round(whole * 100.0), 1, 255);
+					}
+					continue;
+				}
 				int red = bgra[offset];
 				// red 0 is a mirror the engine reads as index 1000; averaging it in as glass of index 1 is the user's rule
 				double existing = red == 0 ? 1.0 : red / 100.0;
