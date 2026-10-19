@@ -371,6 +371,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<KeyBinding Key="X" Command="{x:Static commands:PreviewCommands.ClearRange}" />
 		<KeyBinding Key="L" Command="{x:Static commands:PreviewCommands.ToggleLoop}" />
 		<KeyBinding Key="F" Command="{x:Static commands:PreviewCommands.ToggleLive}" />
+		<KeyBinding Key="A" Modifiers="Ctrl" Command="{x:Static commands:ProjectCommands.SelectAll}" />
 	</UserControl.InputBindings>
 
 	<DockPanel>
@@ -538,7 +539,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 										                       CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
 										                       CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
 										                       Layer="{Binding Path=(local:PreviewPane.Layer), RelativeSource={RelativeSource TemplatedParent}}"
-										                       SelectedItem="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Mode=TwoWay}" />
+										                       SelectedItem="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Mode=TwoWay}"
+										                       SelectedItems="{Binding SelectedItems, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}" />
 										<!-- the probes' graph boxes, over the handles: no handle or emitter dot is ever drawn on a graph (the user's
 										     rule, 2026-10-18; until then the boxes lay under the handles, to keep a handle over a box grabbable, and
 										     a handle under a box is reached by Tab or the tree instead); which probes depends on the cell's layer

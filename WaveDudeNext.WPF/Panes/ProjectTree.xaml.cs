@@ -17,6 +17,8 @@
 
 using WaveDudeNext.Rendering;
 using System.Collections;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -33,7 +35,10 @@ namespace WaveDudeNext.WPF.Panes;
 /// The project tree: the <see cref="Project"/> as root with its sections, sources, optical parts and probes
 /// beneath. Nodes are the model objects themselves; the templates in the XAML decide how each
 /// type is shown and which properties form its children. Sources, parts and probes can be reordered
-/// by dragging a row onto a sibling (line above or below) or onto their folder (append).
+/// by dragging a row onto a sibling (line above or below) or onto their folder (append). Several sources, parts and
+/// probes can be selected at once (2026-10-19, the user's request): Ctrl+click or Insert toggles a row, Shift+click or
+/// Shift with the arrows selects the range from the anchor (the last plain selection), Ctrl+A everything; the extra
+/// rows are marked through <see cref="IsInSelectionProperty"/>, the TreeView's own selection stays the current item.
 /// </summary>
 public partial class ProjectTree : UserControl
 {
@@ -49,9 +54,19 @@ public partial class ProjectTree : UserControl
 	/// <summary>Identifies the <see cref="SelectedItem"/> property.</summary>
 	public static readonly DependencyProperty SelectedItemProperty = SelectedItemKey.DependencyProperty;
 
+	/// <summary>Identifies the <see cref="SelectedItems"/> property.</summary>
+	public static readonly DependencyProperty SelectedItemsProperty = DependencyProperty.Register(
+		nameof(SelectedItems), typeof(ObservableCollection<object>), typeof(ProjectTree), new PropertyMetadata(null, OnSelectedItemsChanged));
+
+	/// <summary>Attached to a row whose item is in <see cref="SelectedItems"/>; the row style highlights it.</summary>
+	public static readonly DependencyProperty IsInSelectionProperty = DependencyProperty.RegisterAttached(
+		"IsInSelection", typeof(bool), typeof(ProjectTree), new PropertyMetadata(false));
+
 	private object? _dragCandidate;
 	private Point _dragStart;
 	private InsertionAdorner? _adorner;
+	private object? _anchor;
+	private bool _mirroring;
 
 	public ProjectTree()
 	{
@@ -75,18 +90,79 @@ public partial class ProjectTree : UserControl
 	/// <summary>Raised when <see cref="SelectedItem"/> changes.</summary>
 	public event RoutedPropertyChangedEventHandler<object>? SelectedItemChanged;
 
-	/// <summary>Selects the node of a model object once the tree has generated it; with <paramref name="focus"/> the node also takes keyboard focus.</summary>
+	/// <summary>The shared selection (the main window's); the tree adds and removes items on Ctrl, Shift, Insert and marks their rows.</summary>
+	public ObservableCollection<object>? SelectedItems
+	{
+		get => (ObservableCollection<object>?)GetValue(SelectedItemsProperty);
+		set => SetValue(SelectedItemsProperty, value);
+	}
+
+	/// <summary>Whether a row's item is in the selection beside the current one.</summary>
+	public static bool GetIsInSelection(DependencyObject element) => (bool)element.GetValue(IsInSelectionProperty);
+
+	/// <summary>Sets <see cref="IsInSelectionProperty"/>.</summary>
+	public static void SetIsInSelection(DependencyObject element, bool value) => element.SetValue(IsInSelectionProperty, value);
+
+	private static void OnSelectedItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+	{
+		var owner = (ProjectTree)d;
+		if (e.OldValue is ObservableCollection<object> old)
+		{
+			old.CollectionChanged -= owner.OnSelectionChanged;
+		}
+		if (e.NewValue is ObservableCollection<object> set)
+		{
+			set.CollectionChanged += owner.OnSelectionChanged;
+		}
+		owner.UpdateRowStates();
+	}
+
+	private void OnSelectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateRowStates();
+
+	/// <summary>Marks the rows of the selected items; a row not generated yet is marked when the selection next changes.</summary>
+	private void UpdateRowStates()
+	{
+		ObservableCollection<object>? set = SelectedItems;
+		MarkRows(tree, row => set != null && set.Contains(row.DataContext));
+	}
+
+	private static void MarkRows(ItemsControl parent, Func<TreeViewItem, bool> inSelection)
+	{
+		foreach (object node in parent.Items)
+		{
+			if (parent.ItemContainerGenerator.ContainerFromItem(node) is TreeViewItem row)
+			{
+				SetIsInSelection(row, inSelection(row));
+				MarkRows(row, inSelection);
+			}
+		}
+	}
+
 	/// <summary>Deselects the selected node, if any; the tree then raises its change with null (2026-10-15, a click on empty preview space).</summary>
 	public void ClearSelection()
 	{
 		if (tree.SelectedItem is { } item)
 		{
-			tree.SetSelectedItem(item, expand: false, focus: false, select: false);
+			Mirror(() => tree.SetSelectedItem(item, expand: false, focus: false, select: false));
 		}
 	}
 
+	/// <summary>Selects the node of a model object once the tree has generated it; with <paramref name="focus"/> the node also takes keyboard focus. A selection mirrored from elsewhere leaves the shared selection as it is.</summary>
 	public void Select(object item, bool focus = true) =>
-		Dispatcher.InvokeAsync(() => tree.SetSelectedItem(item, expand: true, focus), DispatcherPriority.Loaded);
+		Dispatcher.InvokeAsync(() => Mirror(() => tree.SetSelectedItem(item, expand: true, focus)), DispatcherPriority.Loaded);
+
+	private void Mirror(Action action)
+	{
+		_mirroring = true;
+		try
+		{
+			action();
+		}
+		finally
+		{
+			_mirroring = false;
+		}
+	}
 
 	/// <summary>Selects the root node; call after setting <see cref="Project"/>.</summary>
 	public void SelectRoot()
@@ -124,10 +200,90 @@ public partial class ProjectTree : UserControl
 		return null;
 	}
 
+	/// <summary>
+	/// The TreeView's selection changed: by the user (a click, the arrows) the shared selection becomes that item alone,
+	/// or with Shift held the range from the anchor to it; mirrored from elsewhere it is left alone. Then the window hears.
+	/// </summary>
 	private void OnSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
 	{
+		if (!_mirroring && SelectedItems is { } set && e.NewValue is Source or OpticalPart or Probe)
+		{
+			if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0 && _anchor != null && !ReferenceEquals(_anchor, e.NewValue))
+			{
+				SelectRange(_anchor, e.NewValue);
+			}
+			else
+			{
+				set.Clear();
+				set.Add(e.NewValue);
+				_anchor = e.NewValue;
+			}
+		}
 		SelectedItem = e.NewValue;
 		SelectedItemChanged?.Invoke(this, e);
+	}
+
+	/// <summary>Every source, part and probe in tree order.</summary>
+	private IEnumerable<object> Selectable() =>
+		Project == null ? [] : Project.Sources.Cast<object>().Concat(Project.Parts).Concat(Project.Probes);
+
+	/// <summary>Makes the selection the items from <paramref name="from"/> to <paramref name="to"/> in tree order, either way round.</summary>
+	private void SelectRange(object from, object to)
+	{
+		if (SelectedItems is not { } set)
+		{
+			return;
+		}
+		object[] all = [.. Selectable()];
+		int a = Array.IndexOf(all, from), b = Array.IndexOf(all, to);
+		if (a < 0 || b < 0)
+		{
+			return;
+		}
+		set.Clear();
+		for (int i = Math.Min(a, b); i <= Math.Max(a, b); i++)
+		{
+			set.Add(all[i]);
+		}
+	}
+
+	/// <summary>Ctrl+click toggles the row; Shift+click selects the range from the anchor. Both make the row current without the TreeView's own plain selection.</summary>
+	private bool TryModifiedClick(object item)
+	{
+		if (SelectedItems is not { } set || item is not (Source or OpticalPart or Probe))
+		{
+			return false;
+		}
+		if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+		{
+			if (set.Contains(item))
+			{
+				set.Remove(item);
+				object? current = set.LastOrDefault();
+				if (current != null)
+				{
+					Mirror(() => tree.SetSelectedItem(current, expand: false, focus: true));
+				}
+				else
+				{
+					ClearSelection();
+				}
+			}
+			else
+			{
+				set.Add(item);
+				_anchor = item;
+				Mirror(() => tree.SetSelectedItem(item, expand: false, focus: true));
+			}
+			return true;
+		}
+		if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+		{
+			SelectRange(_anchor ?? tree.SelectedItem ?? item, item);
+			Mirror(() => tree.SetSelectedItem(item, expand: false, focus: true));
+			return true;
+		}
+		return false;
 	}
 
 	// ----- drag-and-drop reordering -----
@@ -142,6 +298,11 @@ public partial class ProjectTree : UserControl
 		}
 		if (FindAncestor<TreeViewItem>(origin) is { DataContext: Source or OpticalPart or Probe or ColorScheme } row)
 		{
+			if (TryModifiedClick(row.DataContext))
+			{
+				e.Handled = true;   // the TreeView would make the row its plain selection
+				return;
+			}
 			_dragCandidate = row.DataContext;
 			_dragStart = e.GetPosition(tree);
 		}

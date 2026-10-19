@@ -80,7 +80,7 @@ public enum ProbeScaleMode
 /// A measurement point or line on the canvas and the graph that shows its values. Positions are
 /// canvas pixels with the origin at the top left.
 /// </summary>
-public sealed class Probe : ObservableObject
+public sealed class Probe : ObservableObject, IMovable
 {
 	/// <summary>Default <see cref="Window"/> in steps.</summary>
 	public const int DefaultWindow = 500;
@@ -422,6 +422,24 @@ public sealed class Probe : ObservableObject
 	/// <summary>The measurements a probe on <paramref name="layer"/> can record (the editor offers only these).</summary>
 	public static ProbeMeasurement[] MeasurementsFor(ProbeLayer layer) =>
 		layer == ProbeLayer.Field ? [ProbeMeasurement.Amplitude] : [ProbeMeasurement.Value, ProbeMeasurement.IntegratedValue];
+
+
+	/// <inheritdoc/>
+	[XmlIgnore]
+	[Browsable(false)]
+	public IEnumerable<(int X, int Y)> Anchors => Kind == ProbeKind.Line ? [(AX, AY), (BX, BY)] : [(AX, AY)];
+
+	/// <summary>Moves point A, and point B of a line probe, by the delta; the graph box follows while it sits on point A.</summary>
+	public void MoveBy(int dx, int dy)
+	{
+		AX += dx;
+		AY += dy;
+		if (Kind == ProbeKind.Line)
+		{
+			BX += dx;
+			BY += dy;
+		}
+	}
 
 	/// <summary>
 	/// Forces a consistent state: the field only allows <see cref="ProbeMeasurement.Amplitude"/>,

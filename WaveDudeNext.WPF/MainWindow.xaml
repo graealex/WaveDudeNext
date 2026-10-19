@@ -184,6 +184,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="{x:Static commands:ProjectCommands.MoveUp}" CanExecute="CanMoveUp" Executed="OnMoveUp" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.MoveDown}" CanExecute="CanMoveDown" Executed="OnMoveDown" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.ToggleEnabled}" CanExecute="CanToggleEnabled" Executed="OnToggleEnabled" />
+		<CommandBinding Command="{x:Static commands:ProjectCommands.SelectAll}" CanExecute="CanSelectAll" Executed="OnSelectAll" />
+		<CommandBinding Command="{x:Static commands:ProjectCommands.ToggleSelected}" CanExecute="CanToggleSelected" Executed="OnToggleSelected" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.BrowseSceneImage}" Executed="OnBrowseSceneImage" />
 		<CommandBinding Command="{x:Static commands:HelpCommands.About}" Executed="OnHelpAbout" />
 	</Window.CommandBindings>
@@ -341,7 +343,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<docking:DockHost x:Name="dockHost">
 			<docking:DockHost.Items>
 				<docking:DockItem x:Name="projectDock" Id="project" Title="{StaticResource PaneProject}" DefaultSide="Left">
-					<panes:ProjectTree x:Name="projectTree" Project="{Binding Project}" SelectedItemChanged="OnTreeSelectionChanged" />
+					<panes:ProjectTree x:Name="projectTree" Project="{Binding Project}" SelectedItems="{Binding SelectedItems}" SelectedItemChanged="OnTreeSelectionChanged" />
 				</docking:DockItem>
 				<docking:DockItem x:Name="propertiesDock" Id="properties" Title="{StaticResource PaneProperties}" DefaultSide="Right">
 					<panes:PropertiesPane x:Name="propertiesPane" SelectedObject="{Binding SelectedItem}" Project="{Binding Project}" />
@@ -352,7 +354,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</docking:DockHost.Items>
 			<docking:DockHost.DocumentContent>
 				<Border BorderThickness="1" BorderBrush="{DynamicResource ToolWindowBorder}">
-					<panes:PreviewPane x:Name="previewPane" Project="{Binding Project}" Run="{Binding Run}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+					<panes:PreviewPane x:Name="previewPane" Project="{Binding Project}" Run="{Binding Run}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}" SelectedItems="{Binding SelectedItems}"
 					                   IsStale="{Binding IsRunStale}" IsProbesStale="{Binding IsProbesStale}" ScratchFrame="{Binding ScratchFrame}"
 					                   IsComputing="{Binding IsComputingFrame}"
 					                   Position="{Binding PreviewPosition, Mode=TwoWay}" IsPlaying="{Binding IsPreviewPlaying, Mode=OneWayToSource}"

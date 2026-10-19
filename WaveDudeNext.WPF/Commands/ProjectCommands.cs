@@ -50,6 +50,12 @@ public static class ProjectCommands
 	/// <summary>Swaps a source or probe with its successor.</summary>
 	public static readonly RoutedUICommand MoveDown = new("Move down", nameof(MoveDown), typeof(ProjectCommands));
 
+	/// <summary>Selects every source, part and probe (Ctrl+A in the tree and on the preview; the tree's context menu).</summary>
+	public static readonly RoutedUICommand SelectAll = new("Select all", nameof(SelectAll), typeof(ProjectCommands));
+
+	/// <summary>Adds the item to the selection or takes it out again (Insert or Ctrl+Space on the tree row; the tree's context menu).</summary>
+	public static readonly RoutedUICommand ToggleSelected = new("Select or deselect", nameof(ToggleSelected), typeof(ProjectCommands));
+
 	/// <summary>Flips a source's or part's Enabled or a probe's Active (the tree's check boxes; Space on the selected row).</summary>
 	public static readonly RoutedUICommand ToggleEnabled = new("Enable or disable", nameof(ToggleEnabled), typeof(ProjectCommands));
 

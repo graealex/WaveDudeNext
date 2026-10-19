@@ -15,6 +15,7 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.IO;
@@ -150,12 +151,20 @@ public partial class MainWindow : Window
 		set => SetValue(IsDirtyProperty, value);
 	}
 
-	/// <summary>The model object selected in the project tree (or on the preview's pictures), or null.</summary>
+	/// <summary>The model object selected in the project tree (or on the preview's pictures), or null: the current item, always one of <see cref="SelectedItems"/>.</summary>
 	public object? SelectedItem
 	{
 		get => GetValue(SelectedItemProperty);
 		set => SetValue(SelectedItemProperty, value);
 	}
+
+	/// <summary>
+	/// The selected sources, parts and probes (2026-10-19, the user's request): one shared list the tree, the preview's
+	/// overlays and the commands all edit and watch. <see cref="SelectedItem"/> is the current one among them, the one
+	/// the properties pane shows; setting a current item that is not in the list makes the list that item alone, and
+	/// null empties it. The tree and the overlays add and remove the rest (Ctrl and Shift, the marquee).
+	/// </summary>
+	public ObservableCollection<object> SelectedItems { get; } = [];
 
 	/// <summary>
 	/// A selection made elsewhere (a marker or graph box on the preview) is mirrored in the tree, which then
@@ -167,10 +176,17 @@ public partial class MainWindow : Window
 		CommandManager.InvalidateRequerySuggested();
 		if (item == null)
 		{
+			SelectedItems.Clear();
 			// deselected on the preview (a click on empty space): the tree lets go too
 			projectTree.ClearSelection();
 		}
-		else if (!ReferenceEquals(projectTree.SelectedItem, item))
+		else if (!SelectedItems.Contains(item))
+		{
+			// a plain selection: the item alone (the tree and the overlays put an item in first when they mean to extend)
+			SelectedItems.Clear();
+			SelectedItems.Add(item);
+		}
+		if (item != null && !ReferenceEquals(projectTree.SelectedItem, item))
 		{
 			projectTree.Select(item, focus: false);
 		}

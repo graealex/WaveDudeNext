@@ -130,10 +130,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		          PreviewMouseLeftButtonDown="OnPreviewMouseLeftButtonDown" PreviewMouseMove="OnPreviewMouseMove"
 		          DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop">
 
-			<!-- keys act on the selection; only while the tree has focus -->
+			<!-- keys act on the selection; only while the tree has focus. Insert and Ctrl+Space put the row into the selection or
+			     take it out, Ctrl+A selects every item (2026-10-19); Shift with the arrows extends a range through the TreeView's own
+			     selection change (the code-behind) -->
 			<TreeView.InputBindings>
 				<KeyBinding Key="Delete" Command="{x:Static commands:ProjectCommands.Remove}" />
 				<KeyBinding Key="Space" Command="{x:Static commands:ProjectCommands.ToggleEnabled}" />
+				<KeyBinding Key="Insert" Command="{x:Static commands:ProjectCommands.ToggleSelected}" />
+				<KeyBinding Key="Space" Modifiers="Ctrl" Command="{x:Static commands:ProjectCommands.ToggleSelected}" />
+				<KeyBinding Key="A" Modifiers="Ctrl" Command="{x:Static commands:ProjectCommands.SelectAll}" />
 				<KeyBinding Key="D" Modifiers="Ctrl" Command="{x:Static commands:ProjectCommands.Duplicate}" />
 				<KeyBinding Key="Up" Modifiers="Alt" Command="{x:Static commands:ProjectCommands.MoveUp}" />
 				<KeyBinding Key="Down" Modifiers="Alt" Command="{x:Static commands:ProjectCommands.MoveDown}" />
@@ -169,6 +174,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 								</MenuItem>
 								<MenuItem Header="{DynamicResource MenuProjectAddProbe}" Command="{x:Static commands:ProjectCommands.AddProbe}" />
 								<Separator />
+								<MenuItem Header="{DynamicResource MenuProjectToggleSelected}" Command="{x:Static commands:ProjectCommands.ToggleSelected}" InputGestureText="Ins" AutomationProperties.AutomationId="ContextToggleSelected" />
+								<MenuItem Header="{DynamicResource MenuProjectSelectAll}" Command="{x:Static commands:ProjectCommands.SelectAll}" InputGestureText="Ctrl+A" AutomationProperties.AutomationId="ContextSelectAll" />
+								<Separator />
 								<MenuItem Header="{DynamicResource MenuProjectToggleEnabled}" Command="{x:Static commands:ProjectCommands.ToggleEnabled}" InputGestureText="Space" />
 								<MenuItem Header="{DynamicResource MenuProjectDuplicate}" Command="{x:Static commands:ProjectCommands.Duplicate}" InputGestureText="Ctrl+D" />
 								<MenuItem Header="{DynamicResource MenuProjectRemove}" Command="{x:Static commands:ProjectCommands.Remove}" InputGestureText="Del" />
@@ -182,6 +190,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 							</ContextMenu>
 						</Setter.Value>
 					</Setter>
+					<Style.Triggers>
+						<!-- a row in the selection beside the current one: the inactive-selection colours; the TreeView's own
+						     selection (the current row) is drawn by the template's trigger and wins. The status tells a harness -->
+						<Trigger Property="local:ProjectTree.IsInSelection" Value="True">
+							<Setter Property="Background" Value="{DynamicResource TreeViewItemSelectedInactive}" />
+							<Setter Property="Foreground" Value="{DynamicResource TreeViewItemSelectedInactiveForeground}" />
+							<Setter Property="AutomationProperties.ItemStatus" Value="InSelection" />
+						</Trigger>
+					</Style.Triggers>
 				</Style>
 			</TreeView.ItemContainerStyle>
 

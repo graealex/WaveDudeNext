@@ -37,6 +37,63 @@ public partial class MainWindow
 {
 	private object? Target(object? parameter) => parameter ?? SelectedItem;
 
+	/// <summary>
+	/// What a command acts on: the whole selection when its target is one of several selected items (Explorer's rule,
+	/// 2026-10-19), else the target alone. A snapshot, since acting changes the selection.
+	/// </summary>
+	private object[] Group(object? parameter)
+	{
+		object? target = Target(parameter);
+		if (target == null)
+		{
+			return [];
+		}
+		return SelectedItems.Count > 1 && SelectedItems.Contains(target) ? [.. SelectedItems] : [target];
+	}
+
+	/// <summary>Every source, part and probe in tree order; the range selections and Select all draw on it.</summary>
+	private IEnumerable<object> Selectable() => Project.Sources.Cast<object>().Concat(Project.Parts).Concat(Project.Probes);
+
+	private void CanSelectAll(object sender, CanExecuteRoutedEventArgs e) => e.CanExecute = Selectable().Any();
+
+	/// <summary>Ctrl+A: every source, part and probe; the last one becomes the current item.</summary>
+	private void OnSelectAll(object sender, ExecutedRoutedEventArgs e)
+	{
+		object[] all = [.. Selectable()];
+		SelectedItems.Clear();
+		foreach (object item in all)
+		{
+			SelectedItems.Add(item);
+		}
+		SelectedItem = all.Length > 0 ? all[^1] : null;
+	}
+
+	private void CanToggleSelected(object sender, CanExecuteRoutedEventArgs e) =>
+		e.CanExecute = Target(e.Parameter) is Source or OpticalPart or Probe;
+
+	/// <summary>Insert or Ctrl+Space on a tree row: into the selection, or out of it (the current item then moves to the last one left).</summary>
+	private void OnToggleSelected(object sender, ExecutedRoutedEventArgs e)
+	{
+		object? item = Target(e.Parameter);
+		if (item is not (Source or OpticalPart or Probe))
+		{
+			return;
+		}
+		if (SelectedItems.Contains(item))
+		{
+			SelectedItems.Remove(item);
+			if (ReferenceEquals(SelectedItem, item))
+			{
+				SelectedItem = SelectedItems.LastOrDefault();
+			}
+		}
+		else
+		{
+			SelectedItems.Add(item);
+			SelectedItem = item;
+		}
+	}
+
 	/// <summary>The project list a tree node stands for: a folder's list, or the list containing an item.</summary>
 	private IList? ListOf(object? node) => node switch
 	{
@@ -113,70 +170,89 @@ public partial class MainWindow
 	private void CanToggleEnabled(object sender, CanExecuteRoutedEventArgs e) =>
 		e.CanExecute = Target(e.Parameter) is Source or OpticalPart or Probe;
 
-	/// <summary>The tree's check boxes by keyboard: Space on a selected source, part or probe flips it (the author's point 11, 2026-10-13).</summary>
+	/// <summary>The tree's check boxes by keyboard: Space on a selected source, part or probe flips it (the author's point 11, 2026-10-13); each of a selected group flips on its own.</summary>
 	private void OnToggleEnabled(object sender, ExecutedRoutedEventArgs e)
 	{
-		switch (Target(e.Parameter))
+		foreach (object item in Group(e.Parameter))
 		{
-			case Source source:
-				source.Enabled = !source.Enabled;
-				break;
-			case OpticalPart part:
-				part.Enabled = !part.Enabled;
-				break;
-			case Probe probe:
-				probe.Active = !probe.Active;
-				break;
+			switch (item)
+			{
+				case Source source:
+					source.Enabled = !source.Enabled;
+					break;
+				case OpticalPart part:
+					part.Enabled = !part.Enabled;
+					break;
+				case Probe probe:
+					probe.Active = !probe.Active;
+					break;
+			}
 		}
 	}
 
+	/// <summary>A copy after each original; the copies become the selection, the last one the current item with the caret in its name.</summary>
 	private void OnDuplicate(object sender, ExecutedRoutedEventArgs e)
 	{
-		switch (Target(e.Parameter))
+		var copies = new List<object>();
+		foreach (object item in Group(e.Parameter))
 		{
-			case Source source:
-				Added(Project.Duplicate(source));
-				break;
-			case OpticalPart part:
-				Added(Project.Duplicate(part));
-				break;
-			case Probe probe:
-				Added(Project.Duplicate(probe));
-				break;
-			case ColorScheme scheme:
-				Added(Project.Duplicate(scheme));
-				break;
+			object? copy = item switch
+			{
+				Source source => Project.Duplicate(source),
+				OpticalPart part => Project.Duplicate(part),
+				Probe probe => Project.Duplicate(probe),
+				ColorScheme scheme => Project.Duplicate(scheme),
+				_ => null,
+			};
+			if (copy != null)
+			{
+				copies.Add(copy);
+			}
 		}
-	}
-
-	private void OnRemove(object sender, ExecutedRoutedEventArgs e)
-	{
-		object? item = Target(e.Parameter);
-		IList? list = ListOf(item);
-		if (list == null)
+		if (copies.Count == 0)
 		{
 			return;
 		}
-		int index = list.IndexOf(item);
-		switch (item)
+		SelectedItems.Clear();
+		foreach (object copy in copies)
 		{
-			case Source source:
-				Project.Remove(source);
-				break;
-			case OpticalPart part:
-				Project.Remove(part);
-				break;
-			case Probe probe:
-				Project.Remove(probe);
-				break;
-			case ColorScheme scheme:
-				Project.Remove(scheme);
-				break;
+			SelectedItems.Add(copy);
+		}
+		Added(copies[^1]);
+	}
+
+	/// <summary>Removes the target, or the whole selection it belongs to; the user is kept in place at the slot of the last one removed.</summary>
+	private void OnRemove(object sender, ExecutedRoutedEventArgs e)
+	{
+		object[] group = Group(e.Parameter);
+		if (group.Length == 0 || ListOf(group[^1]) is not { } list)
+		{
+			return;
+		}
+		int index = list.IndexOf(group[^1]);
+		foreach (object item in group)
+		{
+			SelectedItems.Remove(item);
+			switch (item)
+			{
+				case Source source:
+					Project.Remove(source);
+					break;
+				case OpticalPart part:
+					Project.Remove(part);
+					break;
+				case Probe probe:
+					Project.Remove(probe);
+					break;
+				case ColorScheme scheme:
+					Project.Remove(scheme);
+					break;
+			}
 		}
 		// keep the user in place: the item that took the slot, else the folder
 		if (list.Count > 0)
 		{
-			projectTree.Select(list[Math.Min(index, list.Count - 1)]!);
+			projectTree.Select(list[Math.Clamp(index, 0, list.Count - 1)]!);
 		}
 		else
 		{

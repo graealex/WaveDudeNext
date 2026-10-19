@@ -442,8 +442,12 @@ public sealed class ProbeGraphOverlay : Panel
 		{
 			(thumb.DragStartX, thumb.DragStartY) = (probe.BoxX, probe.BoxY);
 		}
-		thumb.DragDeltaX = 0;
-		thumb.DragDeltaY = 0;
+		// the drag is measured from the mouse's absolute position (in canvas units; only the difference matters): the
+		// thumb's own deltas come from where the box is, and a box held at the canvas edge or snapped to a size would
+		// add the miss again on every move (2026-10-19, the same loop the scene overlay's handles had)
+		double pressScale = ScaleFor(RenderSize);
+		Point press = Mouse.GetPosition(this);
+		(thumb.PressCanvasX, thumb.PressCanvasY) = pressScale > 0 ? (press.X / pressScale, press.Y / pressScale) : (0.0, 0.0);
 		SelectedItem = probe;
 		thumb.Focus();
 	}
@@ -456,10 +460,9 @@ public sealed class ProbeGraphOverlay : Panel
 		{
 			return;
 		}
-		thumb.DragDeltaX += e.HorizontalChange / scale;
-		thumb.DragDeltaY += e.VerticalChange / scale;
-		int x = thumb.DragStartX + (int)Math.Round(thumb.DragDeltaX);
-		int y = thumb.DragStartY + (int)Math.Round(thumb.DragDeltaY);
+		Point mouse = Mouse.GetPosition(this);
+		int x = thumb.DragStartX + (int)Math.Round(mouse.X / scale - thumb.PressCanvasX);
+		int y = thumb.DragStartY + (int)Math.Round(mouse.Y / scale - thumb.PressCanvasY);
 		var probe = (Probe)thumb.Item;
 		if (thumb.Role == MarkerRole.ProbeBoxCorner)
 		{

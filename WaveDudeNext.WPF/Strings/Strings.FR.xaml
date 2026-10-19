@@ -123,6 +123,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuProjectRemove">_Supprimer</s:String>
 	<s:String x:Key="MenuProjectMoveUp">_Monter</s:String>
 	<s:String x:Key="MenuProjectMoveDown">D_escendre</s:String>
+	<s:String x:Key="MenuProjectSelectAll">_Tout sélectionner</s:String>
+	<s:String x:Key="MenuProjectToggleSelected">Ajouter à la sélection ou en re_tirer</s:String>
 	<s:String x:Key="ToolAddSource">+ Source</s:String>
 	<s:String x:Key="ToolAddProbe">+ Sonde</s:String>
 	<s:String x:Key="ToolAddPart">+ Composant</s:String>

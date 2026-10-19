@@ -113,11 +113,11 @@ public sealed class MarkerThumb : Thumb
 	/// <summary>Model coordinate of the point (or the box's height, for a corner) when the current drag started (canvas pixels).</summary>
 	internal int DragStartY { get; set; }
 
-	/// <summary>Mouse movement since the drag started, in canvas pixels (fractional, so slow drags add up).</summary>
-	internal double DragDeltaX { get; set; }
+	/// <summary>Where the mouse was when the drag started, in continuous canvas coordinates; a drag is measured from here against the mouse's absolute position, never from the handle, which may be held back (a clamp, a group's limit) and would feed the miss back (2026-10-19).</summary>
+	internal double PressCanvasX { get; set; }
 
-	/// <summary>Mouse movement since the drag started, in canvas pixels.</summary>
-	internal double DragDeltaY { get; set; }
+	/// <summary>The vertical part of <see cref="PressCanvasX"/>.</summary>
+	internal double PressCanvasY { get; set; }
 
 	/// <summary>For a grip or point handle: where the mouse took hold, relative to the handle's canvas position (canvas pixels), so the handle keeps that grip while it follows the mouse.</summary>
 	internal double GrabOffsetX { get; set; }

@@ -256,6 +256,7 @@ internal static class Program
 		CheckEmitterMapping();
 		CheckMirror(W, H);
 		CheckDecimalLevels(W, H);
+		CheckMovable();
 		CheckFrameStore(scene);
 		CheckPreviewQuality(scene, W, H);
 		CheckRenderer();
@@ -676,6 +677,39 @@ internal static class Program
 			float diff = MaxDiff(cpu, gpu.FieldData);
 			Check(diff < 1e-3f * Math.Max(1f, MaxAbs(cpu)), "GPU agrees on a decimal level and phase (max diff " + diff + ")");
 		}
+	}
+
+	private static void CheckMovable()
+	{
+		Console.WriteLine("--- movable items (group move)");
+		var project = new Project();
+		project.Scene.Width = 64;
+		project.Scene.Height = 48;
+		Source source = project.AddSource();
+		source.X = 10;
+		source.Y = 10;
+		OpticalPart part = project.AddPart(PartKind.Rectangle);
+		part.X = 50;
+		part.Y = 40;
+		Probe probe = project.AddProbe();
+		probe.Kind = ProbeKind.Line;
+		probe.AX = 5;
+		probe.AY = 5;
+		probe.BX = 20;
+		probe.BY = 30;
+		probe.BoxX = probe.AX;
+		probe.BoxY = probe.AY;
+		IMovable[] items = [source, part, probe];
+		Check(source.Anchors.SequenceEqual([(10, 10)]) && part.Anchors.SequenceEqual([(50, 40)]) && probe.Anchors.SequenceEqual([(5, 5), (20, 30)]), "anchors: a source's and a part's position, both ends of a line probe");
+		Check(Movable.Limit(items, -10, -10, 64, 48) == (-5, -5), "a move up and left stops when the first anchor reaches the edge");
+		Check(Movable.Limit(items, 100, 100, 64, 48) == (13, 7), "a move down and right stops when the last anchor reaches the edge");
+		Check(Movable.Limit(items, 3, -2, 64, 48) == (3, -2), "a move that fits passes unchanged");
+		Check(Movable.Limit([], 9, 9, 64, 48) == (9, 9), "no anchors, no limit");
+		Movable.MoveAll(items, 3, 2);
+		Check(source.X == 13 && source.Y == 12 && part.X == 53 && part.Y == 42 && probe.AX == 8 && probe.AY == 7 && probe.BX == 23 && probe.BY == 32, "every item moved by the same delta");
+		Check(probe.BoxX == 8 && probe.BoxY == 7 && probe.IsBoxAttached, "the attached graph box followed point A");
+		probe.Kind = ProbeKind.Point;
+		Check(probe.Anchors.SequenceEqual([(8, 7)]), "a point probe anchors at point A alone");
 	}
 
 	/// <summary>Max |u| over the canvas columns <paramref name="x0"/>..<paramref name="x1"/> of a padded field.</summary>

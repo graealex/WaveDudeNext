@@ -129,7 +129,14 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   the layer it measures (2026-10-18), sources on both; graph boxes lie over every handle and dot, the selected
   item is drawn last among its kind, except the handles themselves (Panel.ZIndex breaks the Tab cycle, 2026-10-18);
   arrows nudge, selection syncs with the tree, a click on
-  empty space deselects. Probe graph boxes follow their probe while attached, resize by a grip, keep their text
+  empty space deselects. **Group selection** (2026-10-19): one shared `SelectedItems` list on the window beside the
+  current `SelectedItem` (the properties pane shows the current one); in the tree Ctrl+click, Insert or Ctrl+Space
+  toggles a row, Shift+click or Shift+arrows selects the range from the anchor, Ctrl+A everything, the row's context
+  menu has both; on the pictures a drag on empty space is a marquee (Shift adds, Ctrl toggles), Ctrl+click on a handle
+  toggles, Shift+click adds; a drag of the handle of one of several selected items, or the arrows on it, moves them all
+  through `IMovable` with the delta limited so none leaves the canvas (the formation holds); Escape during a drag puts
+  things back; Remove, Duplicate and Enabled act on the whole selection when their target is in it; the lever, grips
+  and point handles belong to the current item alone. Probe graph boxes follow their probe while attached, resize by a grip, keep their text
   size; an amplitude axis is symmetric about zero.
 - **Colour schemes** are stop lists in `.wdscheme` XML, shipped ones embedded, user ones in
   `%LOCALAPPDATA%\WaveDudeNext\ColorSchemes`, project ones in the `.wdproj`; an in-house picker edits stops;
@@ -174,10 +181,10 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts).
+`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts, group move).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 38, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
-`ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18. Test projects `tiny*.wdproj` sit beside them. A harness
+`ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness
 sets the persisted settings it expects (split orientation, preview quality). Known flake: a second app start in one
 script sometimes comes up active; only the foreground guard fails then.
 

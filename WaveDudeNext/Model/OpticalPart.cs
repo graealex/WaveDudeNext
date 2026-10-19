@@ -52,7 +52,7 @@ public enum PartKind
 /// Refractive indices run from 1.00 to 2.55 in steps of 0.01 (red = index × 100). One subclass per kind; the kind is
 /// chosen when the part is added and never changes.
 /// </summary>
-public abstract class OpticalPart : ObservableObject
+public abstract class OpticalPart : ObservableObject, IMovable
 {
 	/// <summary>Smallest refractive index a part can have.</summary>
 	public const double MinIndex = 1.0;
@@ -160,6 +160,18 @@ public abstract class OpticalPart : ObservableObject
 		double ox = canvasX - X;
 		double oy = canvasY - Y;
 		return (ox * cos - oy * sin, ox * sin + oy * cos);
+	}
+
+	/// <inheritdoc/>
+	[XmlIgnore]
+	[Browsable(false)]
+	public IEnumerable<(int X, int Y)> Anchors => [(X, Y)];
+
+	/// <inheritdoc/>
+	public void MoveBy(int dx, int dy)
+	{
+		X += dx;
+		Y += dy;
 	}
 
 	/// <summary>Clamps every value into its valid range; the angle is brought into (-180, 180].</summary>

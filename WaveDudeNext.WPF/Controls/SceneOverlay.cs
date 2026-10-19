@@ -38,10 +38,14 @@ namespace WaveDudeNext.WPF.Controls;
 /// outline in the accent colour with a size grip on a corner or vertex (drag sets the extents) and a handle on each
 /// point of an outline's or fibre's list (2026-10-19, the user's request), plus the item names as labels. Dragging a handle, or moving it with the arrow keys while it has keyboard focus, writes the
 /// new canvas coordinates to the model; grabbing or focusing a handle makes its item the
-/// <see cref="SelectedItem"/>. The overlay fills the same rectangle as the picture (an
-/// <see cref="Image"/> with <see cref="Stretch.Uniform"/>), so it maps canvas pixels to its own
-/// coordinates with the same uniform scale and centring. UI thread; listens to the model's change
-/// notifications.
+/// <see cref="SelectedItem"/>. Several items can be selected at once (<see cref="SelectedItems"/>, 2026-10-19, the
+/// user's request): a drag on empty picture space draws a marquee that selects the items whose handles it covers
+/// (Shift adds, Ctrl toggles), Ctrl+click on a handle toggles its item and Shift+click adds it, and a drag of the
+/// handle of one of several selected items, or the arrow keys on it, moves them all by the same delta, limited so
+/// that none leaves the canvas (<see cref="Movable.Limit"/>); Escape during a drag puts things back. The rotation
+/// lever, grips and point handles belong to the current item alone. The overlay fills the same rectangle as the
+/// picture (an <see cref="Image"/> with <see cref="Stretch.Uniform"/>), so it maps canvas pixels to its own
+/// coordinates with the same uniform scale and centring. UI thread; listens to the model's change notifications.
 /// </summary>
 public sealed class SceneOverlay : Panel
 {
@@ -61,6 +65,10 @@ public sealed class SceneOverlay : Panel
 	public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register(
 		nameof(SelectedItem), typeof(object), typeof(SceneOverlay),
 		new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, (d, _) => ((SceneOverlay)d).UpdateSelection()));
+
+	/// <summary>Identifies the <see cref="SelectedItems"/> property.</summary>
+	public static readonly DependencyProperty SelectedItemsProperty = DependencyProperty.Register(
+		nameof(SelectedItems), typeof(ObservableCollection<object>), typeof(SceneOverlay), new PropertyMetadata(null, OnSelectedItemsChanged));
 
 	/// <summary>Identifies the <see cref="Layer"/> property.</summary>
 	public static readonly DependencyProperty LayerProperty = DependencyProperty.Register(
@@ -120,10 +128,25 @@ public sealed class SceneOverlay : Panel
 	private readonly HashSet<INotifyCollectionChanged> _pointLists = [];
 	private bool _regenerating;
 
+	/// <summary>Where a press on empty picture space happened, in this element's coordinates; a move beyond the drag threshold opens the marquee.</summary>
+	private Point? _marqueeStart;
+	/// <summary>The marquee while it is drawn.</summary>
+	private Rect? _marquee;
+	/// <summary>The items a drag of one of their handles moves together; null for a single-item drag.</summary>
+	private List<IMovable>? _group;
+	/// <summary>How far the group has been moved in the current drag (canvas pixels), to take it back on Escape.</summary>
+	private (int Dx, int Dy) _groupApplied;
+	/// <summary>A press with Ctrl or Shift on a handle changes the selection and does not drag.</summary>
+	private bool _suppressDrag;
+	/// <summary>The angle a rotation handle's item had when its drag started, to restore on Escape.</summary>
+	private double _dragStartAngle;
+
 	public SceneOverlay()
 	{
-		// no background: a click beside the handles falls through to the probe graph boxes under this layer
-		// (and on to the picture), 2026-10-14
+		// a transparent background takes the press for the marquee; the press still bubbles on to the pane, which
+		// focuses itself and clears the selection unless Shift or Ctrl is held (2026-10-19; until then no background,
+		// so a click fell through to the graph boxes, which lie over this layer since 2026-10-18 anyway)
+		Background = Brushes.Transparent;
 		IsHitTestVisible = true;
 		Focusable = false;
 	}
@@ -149,12 +172,41 @@ public sealed class SceneOverlay : Panel
 		set => SetValue(CanvasHeightProperty, value);
 	}
 
-	/// <summary>The source, part or probe selected in the project (highlighted); set when a handle is grabbed or focused.</summary>
+	/// <summary>The source, part or probe selected in the project (highlighted); set when a handle is grabbed or focused. The current item of <see cref="SelectedItems"/>.</summary>
 	public object? SelectedItem
 	{
 		get => GetValue(SelectedItemProperty);
 		set => SetValue(SelectedItemProperty, value);
 	}
+
+	/// <summary>The shared selection (the main window's): every item in it is highlighted and moves with a group drag; the overlay adds and removes items by marquee, Ctrl and Shift.</summary>
+	public ObservableCollection<object>? SelectedItems
+	{
+		get => (ObservableCollection<object>?)GetValue(SelectedItemsProperty);
+		set => SetValue(SelectedItemsProperty, value);
+	}
+
+	private static void OnSelectedItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+	{
+		var overlay = (SceneOverlay)d;
+		if (e.OldValue is ObservableCollection<object> old)
+		{
+			old.CollectionChanged -= overlay.OnSelectionChanged;
+		}
+		if (e.NewValue is ObservableCollection<object> set)
+		{
+			set.CollectionChanged += overlay.OnSelectionChanged;
+		}
+		overlay.UpdateSelection();
+	}
+
+	private void OnSelectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateSelection();
+
+	/// <summary>Whether <paramref name="item"/> is the current item or one of the selected ones.</summary>
+	private bool IsSelected(object item) => ReferenceEquals(item, SelectedItem) || (SelectedItems?.Contains(item) ?? false);
+
+	/// <summary>The handle roles that move an item as a whole (not a lever, grip or point): the ones a group drag starts from.</summary>
+	private static bool MovesWhole(MarkerRole role) => role is MarkerRole.Source or MarkerRole.Part or MarkerRole.ProbeA or MarkerRole.ProbeB;
 
 	/// <summary>
 	/// The picture's layer: only the probes measuring it get handles and lines here (2026-10-18, the user's rule: a probe
@@ -344,7 +396,16 @@ public sealed class SceneOverlay : Panel
 		AutomationProperties.SetAutomationId(thumb, automationId);
 		thumb.DragStarted += OnDragStarted;
 		thumb.DragDelta += OnDragDelta;
-		thumb.GotKeyboardFocus += (_, _) => SelectedItem = item;
+		thumb.DragCompleted += OnDragCompleted;
+		// Tab to a handle selects its item; a press is left to the drag start, which reads Ctrl and Shift first (the
+		// thumb focuses itself before it raises the drag start)
+		thumb.GotKeyboardFocus += (_, _) =>
+		{
+			if (Mouse.LeftButton != MouseButtonState.Pressed)
+			{
+				SelectedItem = item;
+			}
+		};
 		UpdateOpacity(thumb);
 		Children.Add(thumb);
 	}
@@ -398,11 +459,11 @@ public sealed class SceneOverlay : Panel
 		object? selected = SelectedItem;
 		foreach (MarkerThumb thumb in Children)
 		{
-			thumb.IsSelectedMarker = ReferenceEquals(thumb.Item, selected);
+			thumb.IsSelectedMarker = IsSelected(thumb.Item);
 			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle or MarkerRole.PartGrip or MarkerRole.PartPoint)
 			{
-				// the rotation handle, grip and point handles only while their source or part is selected (the user's rule, 2026-10-14); collapsed, they are out of the Tab cycle too
-				thumb.Visibility = thumb.IsSelectedMarker ? Visibility.Visible : Visibility.Collapsed;
+				// the rotation handle, grip and point handles only while their source or part is the current item (the user's rule, 2026-10-14); collapsed, they are out of the Tab cycle too
+				thumb.Visibility = ReferenceEquals(thumb.Item, selected) ? Visibility.Visible : Visibility.Collapsed;
 			}
 		}
 		InvalidateVisual();
@@ -702,7 +763,7 @@ public sealed class SceneOverlay : Panel
 			{
 				continue;
 			}
-			bool isSelected = ReferenceEquals(probe, selected);
+			bool isSelected = IsSelected(probe);
 			Point a = ToView(probe.AX, probe.AY);
 			Point b = ToView(probe.BX, probe.BY);
 			// a dark line under the dashed light one, so the line reads on any picture
@@ -715,10 +776,10 @@ public sealed class SceneOverlay : Panel
 			{
 				continue;
 			}
-			bool isSelected = ReferenceEquals(source, selected);
+			bool isSelected = IsSelected(source);
 			Brush dots = isSelected ? AccentBrush : LineBrush;
 			var halo = new Pen(HaloBrush, 1.5);
-			if (isSelected)
+			if (ReferenceEquals(source, selected))
 			{
 				// the row axis from the centre to the rotation handle, so the turn reads as a lever; with the handle, only while selected
 				Point axisEnd = AnglePoint(source, RenderSize);
@@ -730,20 +791,24 @@ public sealed class SceneOverlay : Panel
 				dc.DrawEllipse(dots, halo, ToView(element.X, element.Y), ElementDotRadius, ElementDotRadius);
 			}
 		}
-		if (selected is OpticalPart selectedPart && project.Parts.Contains(selectedPart))
+		foreach (OpticalPart part in SelectedLast(project.Parts, selected))
 		{
+			if (!IsSelected(part))
+			{
+				continue;
+			}
 			// the part's outline as painted, in the accent colour, so the shape reads apart from the scene's glow
-			(double X, double Y)[] outline = selectedPart.Outline();
+			(double X, double Y)[] outline = part.Outline();
 			if (outline.Length >= 2)
 			{
 				var geometry = new StreamGeometry();
 				using (StreamGeometryContext context = geometry.Open())
 				{
-					(double x0, double y0) = selectedPart.ToCanvas(outline[0].X, outline[0].Y);
-					context.BeginFigure(ToViewExact(x0, y0, RenderSize), false, selectedPart.OutlineClosed);
+					(double x0, double y0) = part.ToCanvas(outline[0].X, outline[0].Y);
+					context.BeginFigure(ToViewExact(x0, y0, RenderSize), false, part.OutlineClosed);
 					for (int i = 1; i < outline.Length; i++)
 					{
-						(double x, double y) = selectedPart.ToCanvas(outline[i].X, outline[i].Y);
+						(double x, double y) = part.ToCanvas(outline[i].X, outline[i].Y);
 						context.LineTo(ToViewExact(x, y, RenderSize), true, true);
 					}
 				}
@@ -751,10 +816,21 @@ public sealed class SceneOverlay : Panel
 				dc.DrawGeometry(null, new Pen(HaloBrush, 3.0) { LineJoin = PenLineJoin.Round }, geometry);
 				dc.DrawGeometry(null, new Pen(AccentBrush, 1.0) { LineJoin = PenLineJoin.Round }, geometry);
 			}
-			// the part's axis from the centre to its rotation handle, the lever, while it is selected
-			Point axisEnd = AnglePoint(selectedPart, RenderSize);
-			dc.DrawLine(new Pen(HaloBrush, 3.0), ToView(selectedPart.X, selectedPart.Y), axisEnd);
-			dc.DrawLine(new Pen(AccentBrush, 1.0) { DashStyle = DashStyles.Dot }, ToView(selectedPart.X, selectedPart.Y), axisEnd);
+			if (ReferenceEquals(part, selected))
+			{
+				// the part's axis from the centre to its rotation handle, the lever, while it is the current item
+				Point axisEnd = AnglePoint(part, RenderSize);
+				dc.DrawLine(new Pen(HaloBrush, 3.0), ToView(part.X, part.Y), axisEnd);
+				dc.DrawLine(new Pen(AccentBrush, 1.0) { DashStyle = DashStyles.Dot }, ToView(part.X, part.Y), axisEnd);
+			}
+		}
+		if (_marquee is { } marquee)
+		{
+			// the marquee: a faint accent fill under a dashed accent edge
+			Brush fill = AccentBrush.Clone();
+			fill.Opacity = 0.15;
+			fill.Freeze();
+			dc.DrawRectangle(fill, new Pen(AccentBrush, 1.0) { DashStyle = DashStyles.Dash }, marquee);
 		}
 		dc.Pop();
 		foreach (MarkerThumb thumb in Children.OfType<MarkerThumb>().OrderBy(thumb => thumb.IsSelectedMarker))
@@ -778,29 +854,210 @@ public sealed class SceneOverlay : Panel
 		}
 	}
 
+	// ---------------------------------------------------------------- the marquee
+
+	/// <inheritdoc/>
+	protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+	{
+		base.OnMouseLeftButtonDown(e);
+		// a press on empty space (the handles are thumbs and handle their own press): maybe the start of a marquee;
+		// not handled, so the pane focuses itself and clears the selection as before
+		_marqueeStart = e.Handled ? null : e.GetPosition(this);
+	}
+
+	/// <inheritdoc/>
+	protected override void OnMouseMove(MouseEventArgs e)
+	{
+		base.OnMouseMove(e);
+		if (_marqueeStart is not { } start || e.LeftButton != MouseButtonState.Pressed)
+		{
+			return;
+		}
+		Point at = e.GetPosition(this);
+		if (_marquee == null)
+		{
+			if (Math.Abs(at.X - start.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(at.Y - start.Y) < SystemParameters.MinimumVerticalDragDistance)
+			{
+				return;
+			}
+			CaptureMouse();
+		}
+		_marquee = new Rect(start, at);
+		InvalidateVisual();
+	}
+
+	/// <inheritdoc/>
+	protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+	{
+		base.OnMouseLeftButtonUp(e);
+		if (_marquee is { } marquee)
+		{
+			EndMarquee();
+			ApplyMarquee(marquee);
+			e.Handled = true;
+		}
+		_marqueeStart = null;
+	}
+
+	/// <inheritdoc/>
+	protected override void OnLostMouseCapture(MouseEventArgs e)
+	{
+		base.OnLostMouseCapture(e);
+		if (_marquee != null)
+		{
+			EndMarquee();
+		}
+		_marqueeStart = null;
+	}
+
+	private void EndMarquee()
+	{
+		_marquee = null;
+		if (IsMouseCaptured)
+		{
+			ReleaseMouseCapture();
+		}
+		InvalidateVisual();
+	}
+
+	/// <summary>
+	/// Selects the items whose whole-item handles lie in <paramref name="marquee"/>: with Ctrl each is toggled, with
+	/// Shift they are added, else they become the selection (the pane cleared it on the press); the last one becomes
+	/// the current item.
+	/// </summary>
+	private void ApplyMarquee(Rect marquee)
+	{
+		if (SelectedItems is not { } set)
+		{
+			return;
+		}
+		var covered = new List<object>();
+		foreach (MarkerThumb thumb in Children)
+		{
+			if (!MovesWhole(thumb.Role) || covered.Contains(thumb.Item))
+			{
+				continue;
+			}
+			(int x, int y) = PointOf(thumb);
+			if (marquee.Contains(ToView(x, y)))
+			{
+				covered.Add(thumb.Item);
+			}
+		}
+		ModifierKeys modifiers = Keyboard.Modifiers;
+		if ((modifiers & ModifierKeys.Control) != 0)
+		{
+			foreach (object item in covered)
+			{
+				if (!set.Remove(item))
+				{
+					set.Add(item);
+				}
+			}
+		}
+		else
+		{
+			if ((modifiers & ModifierKeys.Shift) == 0)
+			{
+				set.Clear();
+			}
+			foreach (object item in covered)
+			{
+				if (!set.Contains(item))
+				{
+					set.Add(item);
+				}
+			}
+		}
+		SelectedItem = set.LastOrDefault();
+	}
+
 	// ---------------------------------------------------------------- dragging and keys
 
+	/// <summary>
+	/// A press on a handle: with Ctrl the item is toggled in the selection, with Shift added, and no drag follows; a
+	/// press on one of several selected items prepares a drag of them all; any other press makes the item the selection.
+	/// </summary>
 	private void OnDragStarted(object sender, DragStartedEventArgs e)
 	{
 		var thumb = (MarkerThumb)sender;
 		(thumb.DragStartX, thumb.DragStartY) = PointOf(thumb);
-		thumb.DragDeltaX = 0;
-		thumb.DragDeltaY = 0;
+		(thumb.PressCanvasX, thumb.PressCanvasY) = ToCanvasExact(Mouse.GetPosition(this));
+		_group = null;
+		_groupApplied = (0, 0);
+		_suppressDrag = false;
+		_dragStartAngle = AngleOf(thumb.Item);
 		if (thumb.Role is MarkerRole.PartGrip or MarkerRole.PartPoint && CanvasOf(thumb) is { } handle)
 		{
 			(double mouseX, double mouseY) = ToCanvasExact(Mouse.GetPosition(this));
 			thumb.GrabOffsetX = mouseX - handle.X;
 			thumb.GrabOffsetY = mouseY - handle.Y;
 		}
+		if (MovesWhole(thumb.Role) && SelectedItems is { } set)
+		{
+			ModifierKeys modifiers = Keyboard.Modifiers;
+			if ((modifiers & ModifierKeys.Control) != 0)
+			{
+				_suppressDrag = true;
+				if (set.Remove(thumb.Item))
+				{
+					SelectedItem = set.LastOrDefault();
+					return;
+				}
+				set.Add(thumb.Item);
+			}
+			else if ((modifiers & ModifierKeys.Shift) != 0)
+			{
+				_suppressDrag = true;
+				if (!set.Contains(thumb.Item))
+				{
+					set.Add(thumb.Item);
+				}
+			}
+			else if (set.Count > 1 && set.Contains(thumb.Item))
+			{
+				_group = [.. set.OfType<IMovable>()];
+			}
+		}
 		SelectedItem = thumb.Item;
 		thumb.Focus();
+	}
+
+	/// <summary>A drag that ends where it began on one of a group makes that item the selection (as a click would); a cancelled drag (Escape) puts the item or group back.</summary>
+	private void OnDragCompleted(object sender, DragCompletedEventArgs e)
+	{
+		var thumb = (MarkerThumb)sender;
+		if (e.Canceled)
+		{
+			if (_group != null)
+			{
+				Movable.MoveAll(_group, -_groupApplied.Dx, -_groupApplied.Dy);
+			}
+			else if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle)
+			{
+				SetAngle(thumb.Item, _dragStartAngle);
+			}
+			else if (!_suppressDrag)
+			{
+				SetPoint(thumb, thumb.DragStartX, thumb.DragStartY);
+			}
+		}
+		else if (_group != null && _groupApplied == (0, 0) && SelectedItems is { } set && Keyboard.Modifiers == ModifierKeys.None)
+		{
+			set.Clear();
+			set.Add(thumb.Item);
+			SelectedItem = thumb.Item;
+		}
+		_group = null;
+		_groupApplied = (0, 0);
+		_suppressDrag = false;
 	}
 
 	private void OnDragDelta(object sender, DragDeltaEventArgs e)
 	{
 		var thumb = (MarkerThumb)sender;
 		double scale = Scale;
-		if (scale <= 0)
+		if (scale <= 0 || _suppressDrag)
 		{
 			return;
 		}
@@ -819,9 +1076,24 @@ public sealed class SceneOverlay : Panel
 			SetPoint(thumb, (int)Math.Round(mouseX - thumb.GrabOffsetX), (int)Math.Round(mouseY - thumb.GrabOffsetY));
 			return;
 		}
-		thumb.DragDeltaX += e.HorizontalChange / scale;
-		thumb.DragDeltaY += e.VerticalChange / scale;
-		SetPoint(thumb, thumb.DragStartX + (int)Math.Round(thumb.DragDeltaX), thumb.DragStartY + (int)Math.Round(thumb.DragDeltaY));
+		// the move so far, from the mouse's absolute position: the thumb's own deltas are measured from where the handle
+		// is, and a handle held back by the canvas edge or a group's limit would add the miss again on every move
+		// (2026-10-19: a group with a tall probe, once stopped at the top, could then only jump between the extremes)
+		(double nowX, double nowY) = ToCanvasExact(Mouse.GetPosition(this));
+		int movedX = (int)Math.Round(nowX - thumb.PressCanvasX);
+		int movedY = (int)Math.Round(nowY - thumb.PressCanvasY);
+		if (_group != null)
+		{
+			// the group follows the mouse as far as the canvas lets its outermost member go; the limit is taken step by
+			// step on the anchors as they are, which is the same limit since the formation never changes
+			int wantedX = movedX - _groupApplied.Dx;
+			int wantedY = movedY - _groupApplied.Dy;
+			(int dx, int dy) = Movable.Limit(_group, wantedX, wantedY, CanvasWidth, CanvasHeight);
+			Movable.MoveAll(_group, dx, dy);
+			_groupApplied = (_groupApplied.Dx + dx, _groupApplied.Dy + dy);
+			return;
+		}
+		SetPoint(thumb, thumb.DragStartX + movedX, thumb.DragStartY + movedY);
 	}
 
 	private static Brush Freeze(Brush brush)
@@ -830,12 +1102,18 @@ public sealed class SceneOverlay : Panel
 		return brush;
 	}
 
-	/// <summary>The arrow keys move the focused handle by one canvas pixel, ten with Shift; on a rotation handle they turn the array or part by a degree (Right and Up counter-clockwise), ten with Shift.</summary>
+	/// <summary>The arrow keys move the focused handle by one canvas pixel, ten with Shift (every selected item when the handle's item is one of several); on a rotation handle they turn the array or part by a degree (Right and Up counter-clockwise), ten with Shift. Escape cancels a drag in progress.</summary>
 	protected override void OnKeyDown(KeyEventArgs e)
 	{
 		base.OnKeyDown(e);
 		if (e.Handled || e.OriginalSource is not MarkerThumb thumb)
 		{
+			return;
+		}
+		if (e.Key == Key.Escape && thumb.IsDragging)
+		{
+			thumb.CancelDrag();   // raises the completed event as cancelled, which puts things back
+			e.Handled = true;
 			return;
 		}
 		int step = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? KeyStepFast : KeyStep;
@@ -859,6 +1137,14 @@ public sealed class SceneOverlay : Panel
 		};
 		if (dx == 0 && dy == 0)
 		{
+			return;
+		}
+		if (MovesWhole(thumb.Role) && SelectedItems is { Count: > 1 } set && set.Contains(thumb.Item))
+		{
+			List<IMovable> group = [.. set.OfType<IMovable>()];
+			(dx, dy) = Movable.Limit(group, dx, dy, CanvasWidth, CanvasHeight);
+			Movable.MoveAll(group, dx, dy);
+			e.Handled = true;
 			return;
 		}
 		(int x, int y) = PointOf(thumb);

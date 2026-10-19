@@ -137,6 +137,7 @@ public partial class MainWindow
 	/// <summary>A new project: watch it instead of the old one; nothing is stale and no scratch frame applies.</summary>
 	private void OnProjectReplaced(Project? project)
 	{
+		SelectedItems.Clear();
 		_watcher?.Dispose();
 		_watcher = null;
 		_imageCache = null;

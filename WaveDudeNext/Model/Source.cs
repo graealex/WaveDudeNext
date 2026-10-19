@@ -45,7 +45,7 @@ public enum PulseShape
 /// remnant of the 8-bit image channel; above 255 the grid cannot sample the wave), amplitude in percent, phase in
 /// degrees with decimals, widths in cycles of the source frequency, detach time in simulation steps.
 /// </summary>
-public sealed class Source : ObservableObject
+public sealed class Source : ObservableObject, IMovable
 {
 	/// <summary>Smallest frequency level: just above 0, a wave of any length.</summary>
 	public const double MinLevel = 0.01;
@@ -261,6 +261,18 @@ public sealed class Source : ObservableObject
 	/// the same name in the same project always jitters the same way regardless of list order.
 	/// </summary>
 	public Pcg32 CreateRandom(int projectSeed) => new((ulong)(uint)projectSeed, Pcg32.StableHash(Name));
+
+	/// <inheritdoc/>
+	[XmlIgnore]
+	[Browsable(false)]
+	public IEnumerable<(int X, int Y)> Anchors => [(X, Y)];
+
+	/// <inheritdoc/>
+	public void MoveBy(int dx, int dy)
+	{
+		X += dx;
+		Y += dy;
+	}
 
 	/// <summary>Clamps every value into its valid range.</summary>
 	public void Normalize()

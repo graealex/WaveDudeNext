@@ -15,6 +15,7 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
@@ -191,6 +192,10 @@ public partial class PreviewPane : UserControl
 	/// <summary>Identifies the <see cref="SelectedItem"/> property.</summary>
 	public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register(
 		nameof(SelectedItem), typeof(object), typeof(PreviewPane), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+
+	/// <summary>Identifies the <see cref="SelectedItems"/> property.</summary>
+	public static readonly DependencyProperty SelectedItemsProperty = DependencyProperty.Register(
+		nameof(SelectedItems), typeof(ObservableCollection<object>), typeof(PreviewPane));
 
 	/// <summary>Identifies the <see cref="IsStale"/> property.</summary>
 	public static readonly DependencyProperty IsStaleProperty = DependencyProperty.Register(
@@ -470,6 +475,13 @@ public partial class PreviewPane : UserControl
 	{
 		get => GetValue(SelectedItemProperty);
 		set => SetValue(SelectedItemProperty, value);
+	}
+
+	/// <summary>The shared selection of sources, parts and probes (the main window's), handed to the overlays, which highlight, extend and drag it.</summary>
+	public ObservableCollection<object>? SelectedItems
+	{
+		get => (ObservableCollection<object>?)GetValue(SelectedItemsProperty);
+		set => SetValue(SelectedItemsProperty, value);
 	}
 
 	/// <summary>Whether the project was edited since the run started, so the stored frames no longer show it; the available-frames shading goes grey.</summary>
@@ -1093,11 +1105,12 @@ public partial class PreviewPane : UserControl
 	/// <summary>
 	/// A click on the pictures gives the pane keyboard focus so that Space toggles playback, and a left click on
 	/// empty space (the handles and graph boxes are thumbs, which handle their own press) deselects the current
-	/// item (the user's rule, 2026-10-15).
+	/// item (the user's rule, 2026-10-15), unless Shift or Ctrl is held: then a marquee that follows adds to the
+	/// selection (2026-10-19).
 	/// </summary>
 	private void OnPicturesMouseDown(object sender, MouseButtonEventArgs e)
 	{
-		if (e.ChangedButton == MouseButton.Left)
+		if (e.ChangedButton == MouseButton.Left && (Keyboard.Modifiers & (ModifierKeys.Shift | ModifierKeys.Control)) == 0)
 		{
 			SelectedItem = null;
 		}

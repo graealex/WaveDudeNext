@@ -125,6 +125,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuProjectRemove">_Remove</s:String>
 	<s:String x:Key="MenuProjectMoveUp">Move _up</s:String>
 	<s:String x:Key="MenuProjectMoveDown">Move _down</s:String>
+	<s:String x:Key="MenuProjectSelectAll">Select _all</s:String>
+	<s:String x:Key="MenuProjectToggleSelected">Add to or remove from selec_tion</s:String>
 	<s:String x:Key="ToolAddSource">+ Source</s:String>
 	<s:String x:Key="ToolAddProbe">+ Probe</s:String>
 	<s:String x:Key="ToolAddPart">+ Part</s:String>
