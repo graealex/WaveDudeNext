@@ -34,6 +34,10 @@ harnesses run.
 - **Keyboard first in the app**: every control reachable with Tab and the arrows, focus visible; a mouse-only
   control is a bug. The menu bar is out of the Tab cycle (F10).
 - **Commands writing outside the repo** hit the sandbox prompt: set `dangerouslyDisableSandbox` up front.
+- **No scratch files in the repo tree** (2026-10-19, after screenshots and probe scripts were left behind for the user to
+  clean up): edit scripts, one-off probes, test projects and screenshots live under `%TEMP%\WaveDudeNext` (create it,
+  `dangerouslyDisableSandbox`), are named once with their full path when the user should look, and are deleted by the
+  session that made them; a harness project file beside `Common.ps1` is deleted in the script's `finally`.
 - **He writes his own prose** (README, mails): offer verified facts and screenshots; never "I" sentences for him,
   never claims about him he has not made.
 - **Spelling**: British in the UI, except **"license"** everywhere (the GPL's own word). No talk of BOMs or line
