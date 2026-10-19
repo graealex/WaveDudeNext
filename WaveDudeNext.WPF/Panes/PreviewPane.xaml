@@ -631,7 +631,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			                        local:PreviewPane.OverlayImage="{Binding FieldOverlay, ElementName=pane}"
 			                        Visibility="{Binding FieldSettings.Preview, ElementName=pane, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">
 				<HeaderedContentControl.ContextMenu>
-					<!-- export of this picture first, then the other and both; the commands route from the cell (CommandTarget) up to the window -->
+					<!-- a still of this picture first, then the exports in the File menu's order; the commands route from the cell (CommandTarget) up to the window -->
 					<ContextMenu>
 						<ContextMenu.Resources>
 							<Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
@@ -654,7 +654,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			                        local:PreviewPane.OverlayImage="{Binding IntensityOverlay, ElementName=pane}"
 			                        Visibility="{Binding IntensitySettings.Preview, ElementName=pane, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">
 				<HeaderedContentControl.ContextMenu>
-					<!-- export of this picture first, then the other and both; the commands route from the cell (CommandTarget) up to the window -->
+					<!-- a still of this picture first, then the exports in the File menu's order; the commands route from the cell (CommandTarget) up to the window -->
 					<ContextMenu>
 						<ContextMenu.Resources>
 							<Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
@@ -663,8 +663,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						</ContextMenu.Resources>
 						<MenuItem Header="{DynamicResource MenuExportThisFrame}" Command="{x:Static commands:ExportCommands.IntensityFrame}" AutomationProperties.AutomationId="ContextExportFrame" />
 						<Separator />
-						<MenuItem Header="{DynamicResource MenuFileExportIntensity}" Command="{x:Static commands:ExportCommands.Intensity}" AutomationProperties.AutomationId="ContextExportIntensity" />
 						<MenuItem Header="{DynamicResource MenuFileExportField}" Command="{x:Static commands:ExportCommands.Field}" AutomationProperties.AutomationId="ContextExportField" />
+						<MenuItem Header="{DynamicResource MenuFileExportIntensity}" Command="{x:Static commands:ExportCommands.Intensity}" AutomationProperties.AutomationId="ContextExportIntensity" />
 						<MenuItem Header="{DynamicResource MenuFileExportBoth}" Command="{x:Static commands:ExportCommands.Both}" AutomationProperties.AutomationId="ContextExportBoth" />
 					</ContextMenu>
 				</HeaderedContentControl.ContextMenu>
