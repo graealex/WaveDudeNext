@@ -61,10 +61,18 @@ public partial class App : Application
 		Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WaveDudeNext");
 
 	/// <summary>
+	/// The folder the executable was started from: <see cref="Environment.ProcessPath"/>'s, not
+	/// <see cref="AppContext.BaseDirectory"/>, which for the single-file publish is the bundle's extraction folder under
+	/// %Temp% (2026-10-19, the user found the log there).
+	/// </summary>
+	public static string ExecutableDirectory { get; } =
+		Path.GetDirectoryName(Environment.ProcessPath) is { Length: > 0 } folder ? folder : AppContext.BaseDirectory;
+
+	/// <summary>
 	/// Path of the current log file. Next to the executable when that folder is writable,
 	/// otherwise in <see cref="LocalAppDataDirectory"/>. Set by <see cref="SetupLoggingConfig"/>.
 	/// </summary>
-	public static string LogFile { get; private set; } = Path.Combine(AppContext.BaseDirectory, LogFileName);
+	public static string LogFile { get; private set; } = Path.Combine(ExecutableDirectory, LogFileName);
 
 	/// <summary>
 	/// Replaces the NLog configuration with the application's targets: a rolling file next to
@@ -80,10 +88,12 @@ public partial class App : Application
 		var fileTarget = new FileTarget("logfile")
 		{
 			FileName = LogFile,
+			// one rolling file: it grows across sessions and rolls over at 20 MB, the previous one kept as the single
+			// archive, so the last 20 to 40 MB are always there (the user's choice, 2026-10-19; archiving at every start
+			// had left each session's log as an archive before anyone looked at it)
 			ArchiveFileName = Path.ChangeExtension(LogFile, "archive.log"), // NLog 6 appends _00, _01 itself
-			MaxArchiveFiles = 2,
-			ArchiveAboveSize = 8 * 1024 * 1024,
-			ArchiveOldFileOnStartup = true,
+			MaxArchiveFiles = 1,
+			ArchiveAboveSize = 20 * 1024 * 1024,
 			KeepFileOpen = true,
 			Layout = FileLayout,
 		};
@@ -138,9 +148,9 @@ public partial class App : Application
 	/// <summary>The executable's folder if a file can be created there, else <see cref="LocalAppDataDirectory"/>.</summary>
 	private static string ResolveLogDirectory()
 	{
-		if (IsWritable(AppContext.BaseDirectory))
+		if (IsWritable(ExecutableDirectory))
 		{
-			return AppContext.BaseDirectory;
+			return ExecutableDirectory;
 		}
 		Directory.CreateDirectory(LocalAppDataDirectory);
 		return LocalAppDataDirectory;

@@ -538,9 +538,10 @@ public partial class MainWindow : Window
 			Settings.Default.Save();
 			Logger.Debug("User settings saved");
 		}
-		catch (ConfigurationErrorsException ex)
+		catch (Exception ex) when (ex is ConfigurationErrorsException or IOException or UnauthorizedAccessException)
 		{
-			// Losing window placement or the recent list is not worth interrupting the user.
+			// Losing window placement or the recent list is not worth interrupting the user. The file errors: two
+			// instances closing at once replace the same user.config, and the second one finds it gone (2026-10-19)
 			Logger.Warn(ex, "Could not save the user settings");
 		}
 	}
