@@ -39,6 +39,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileExportFieldFrame">Feld-Ein_zelbild exportieren...</s:String>
 	<s:String x:Key="MenuFileExportIntensityFrame">Intensitäts-Einzelbild e_xportieren...</s:String>
 	<s:String x:Key="MenuExportThisFrame">_Dieses Bild exportieren...</s:String>
+	<s:String x:Key="MenuBrightness">_Helligkeit</s:String>
+	<s:String x:Key="MenuAutoBrightness">_Automatische Helligkeit</s:String>
+	<s:String x:Key="ButtonAutoBrightness">Auto</s:String>
+	<s:String x:Key="TipAutoBrightness">Die Helligkeit einmal an das gezeigte Bild anpassen: das hellste halbe Prozent erreicht das obere Ende des Farbschemas. Die Helligkeit bleibt danach, wie sie ist.</s:String>
 	<s:String x:Key="MenuExportProbeCsv">Sonden_daten als CSV exportieren...</s:String>
 	<s:String x:Key="MenuFileExit">_Beenden</s:String>
 	<s:String x:Key="MenuView">_Ansicht</s:String>

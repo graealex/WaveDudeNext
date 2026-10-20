@@ -39,6 +39,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileExportFieldFrame">Exporter l'i_mage du champ...</s:String>
 	<s:String x:Key="MenuFileExportIntensityFrame">Exporter l'image de l'intensi_té...</s:String>
 	<s:String x:Key="MenuExportThisFrame">Exporter _cette image...</s:String>
+	<s:String x:Key="MenuBrightness">_Luminosité</s:String>
+	<s:String x:Key="MenuAutoBrightness">Luminosité _automatique</s:String>
+	<s:String x:Key="ButtonAutoBrightness">Auto</s:String>
+	<s:String x:Key="TipAutoBrightness">Ajuster une fois la luminosité à l'image affichée : le demi-pour-cent le plus clair atteint le haut du jeu de couleurs. La luminosité reste ensuite telle quelle.</s:String>
 	<s:String x:Key="MenuExportProbeCsv">Exporter les _données de la sonde en CSV...</s:String>
 	<s:String x:Key="MenuFileExit">_Quitter</s:String>
 	<s:String x:Key="MenuView">_Affichage</s:String>

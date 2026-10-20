@@ -266,6 +266,7 @@ internal static class Program
 		CheckImport();
 		CheckParts();
 		CheckAbsorbingParts();
+		CheckBrightnessFit();
 		CheckRun();
 		ExportChecks.Run(Check);
 
@@ -2257,6 +2258,33 @@ internal static class Program
 			float diff = MaxDiff(cpuField, gpu.FieldData);
 			Check(diff < 1e-3f * Math.Max(1f, MaxAbs(cpuField)), "GPU agrees with the CPU through an absorbing lens (max diff " + diff + ")");
 		}
+	}
+
+	private static void CheckBrightnessFit()
+	{
+		Console.WriteLine("--- brightness fit");
+		// 10 000 samples: |v| = 0.001 × i for i in 0..9999 (sign alternating), one source cell of 50 among them
+		var field = new Half[10_000];
+		for (int i = 0; i < field.Length; i++)
+		{
+			field[i] = (Half)((i % 2 == 0 ? 1 : -1) * 0.001f * i);
+		}
+		field[1234] = (Half)50f;
+		double? fit = BrightnessFit.For(field, FrameLayer.Field);
+		// the 99.5th percentile of |v| is about 9.95 (the source cell moves it by one rank), so the gain is about 0.1
+		Check(fit is >= 0.099 and <= 0.102, "the field fit brings the 99.5th percentile of |value| to the palette's top, a source cell of 50 aside (" + fit + ")");
+		var intensity = new Half[10_000];
+		for (int i = 0; i < intensity.Length; i++)
+		{
+			intensity[i] = (Half)(0.0001f * i);
+		}
+		double? intensityFit = BrightnessFit.For(intensity, FrameLayer.Intensity);
+		// √(0.0001 × 9949) = 0.9974, its inverse 1.003, three digits
+		Check(intensityFit == 1.0, "the intensity fit works on the square root, as the renderer colours it (" + intensityFit + ")");
+		Check(BrightnessFit.For(new Half[100], FrameLayer.Field) == null && BrightnessFit.For([Half.NaN, Half.PositiveInfinity], FrameLayer.Field) == null, "an empty frame has nothing to fit");
+		Check(BrightnessFit.For([(Half)1e-6f, (Half)1e-6f], FrameLayer.Field) == 1e5, "the fit is clamped to the model's range (1e5 at most)");
+		double? rounded = BrightnessFit.For([(Half)0.03f, (Half)0.03f], FrameLayer.Field);
+		Check(rounded is { } r && r.ToString(CultureInfo.InvariantCulture).Length <= 4, "the fit is rounded to three significant digits (" + rounded + ")");
 	}
 
 	private static void CheckRun()

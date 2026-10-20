@@ -173,6 +173,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="{x:Static commands:ViewCommands.SetPreviewResolution}" Executed="OnSetPreviewResolution" />
 		<CommandBinding Command="{x:Static commands:ViewCommands.SetPreviewFrames}" Executed="OnSetPreviewFrames" />
 		<CommandBinding Command="{x:Static commands:ViewCommands.SetPreviewSamples}" Executed="OnSetPreviewSamples" />
+		<!-- the pictures' Auto brightness; handler in MainWindow.Display.cs -->
+		<CommandBinding Command="{x:Static commands:DisplayCommands.AutoBrightness}" CanExecute="CanAutoBrightness" Executed="OnAutoBrightness" />
 
 		<!-- project structure; handlers in MainWindow.Project.cs -->
 		<CommandBinding Command="{x:Static commands:ProjectCommands.AddSource}" Executed="OnAddSource" />

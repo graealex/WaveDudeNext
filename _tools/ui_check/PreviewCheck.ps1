@@ -45,9 +45,10 @@ try {
 	FocusOn "PreviewPlay"
 	Check "Tab reaches play while the window stays inactive" (((FocusedId) -eq "PreviewPlay") -and ((Foreground) -ne "APP")) (FocusedId)
 	$order = @()
-	for ($i = 0; $i -lt 12; $i++) { Key $VK_TAB 120; $order += (FocusedId) }
-	# pause, clear-range and live are disabled and skipped; the split group is one stop (its checked radio); timeline; splitter; then the pane is left
-	Check "tab order play > step back/forward > in > out > loop > speed > show field/intensity > split > timeline > splitter > out of the pane" (($order[0..10] -join ",") -eq "PreviewStepBack,PreviewStepForward,PreviewSetIn,PreviewSetOut,PreviewLoop,PreviewSpeed,PreviewShowField,PreviewShowIntensity,PreviewSideBySide,PreviewTimeline,PreviewSplitter" -and $order[11] -notlike "Preview*") ($order -join ",")
+	for ($i = 0; $i -lt 16; $i++) { Key $VK_TAB 120; $order += (FocusedId) }
+	# pause, clear-range and live are disabled and skipped; the split group is one stop (its checked radio); timeline; each picture's
+	# brightness box and Auto button in its header (2026-10-20), the splitter between them; then the pane is left
+	Check "tab order play > step back/forward > in > out > loop > speed > show field/intensity > split > timeline > field brightness > splitter > intensity brightness > out of the pane" (($order[0..14] -join ",") -eq "PreviewStepBack,PreviewStepForward,PreviewSetIn,PreviewSetOut,PreviewLoop,PreviewSpeed,PreviewShowField,PreviewShowIntensity,PreviewSideBySide,PreviewTimeline,PreviewFieldImageBrightness,PreviewFieldImageAutoBrightness,PreviewSplitter,PreviewIntensityImageBrightness,PreviewIntensityImageAutoBrightness" -and $order[15] -notlike "Preview*") ($order -join ",")
 	# the picture toggles: Space on the intensity toggle hides that picture, again shows it
 	FocusOn "PreviewShowIntensity"
 	$fwBoth = (Find "PreviewFieldImage").Current.BoundingRectangle.Width

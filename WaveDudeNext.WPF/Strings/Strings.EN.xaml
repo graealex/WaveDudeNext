@@ -39,6 +39,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileExportFieldFrame">Export field f_rame...</s:String>
 	<s:String x:Key="MenuFileExportIntensityFrame">Export intensity fra_me...</s:String>
 	<s:String x:Key="MenuExportThisFrame">Export _this frame...</s:String>
+	<s:String x:Key="MenuBrightness">_Brightness</s:String>
+	<s:String x:Key="MenuAutoBrightness">_Auto brightness</s:String>
+	<s:String x:Key="ButtonAutoBrightness">Auto</s:String>
+	<s:String x:Key="TipAutoBrightness">Fit the brightness once to the frame shown: the brightest half percent of it reaches the top of the colour scheme. The brightness then stays as it is.</s:String>
 	<s:String x:Key="MenuExportProbeCsv">Export probe _data as CSV...</s:String>
 	<s:String x:Key="MenuFileExit">E_xit</s:String>
 	<s:String x:Key="MenuView">_View</s:String>

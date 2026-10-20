@@ -185,6 +185,23 @@ public partial class PreviewPane : UserControl
 
 	public static void SetLayer(DependencyObject element, ProbeLayer value) => element.SetValue(LayerProperty, value);
 
+	/// <summary>Attached to each picture cell: the display settings of its layer, which the brightness box in its header edits.</summary>
+	public static readonly DependencyProperty SettingsProperty = DependencyProperty.RegisterAttached(
+		"Settings", typeof(DisplayLayer), typeof(PreviewPane));
+
+	public static DisplayLayer? GetSettings(DependencyObject element) => (DisplayLayer?)element.GetValue(SettingsProperty);
+
+	public static void SetSettings(DependencyObject element, DisplayLayer? value) => element.SetValue(SettingsProperty, value);
+
+	/// <summary>
+	/// The frames the pictures show and the index of the one shown (the scratch frame, index 0, or the run's frame at the
+	/// position), or null when nothing is shown; for the brightness fit. UI thread.
+	/// </summary>
+	public (IFrameSource Source, int Frame)? ShownFrame => _presenter.Source is { } source ? (source, _shownFrame) : null;
+
+	/// <summary>Index of the frame last asked of the presenter in its source (see <see cref="ShownFrame"/>).</summary>
+	private int _shownFrame;
+
 	/// <summary>Identifies the <see cref="IntensityImage"/> property.</summary>
 	public static readonly DependencyProperty IntensityImageProperty = DependencyProperty.Register(
 		nameof(IntensityImage), typeof(ImageSource), typeof(PreviewPane));
@@ -662,6 +679,7 @@ public partial class PreviewPane : UserControl
 			_presenter.Source = _scratchSource;
 			GraphScratch = scratch;
 			UpdateCanvas(_scratchSource);
+			_shownFrame = 0;
 			_presenter.Show(0);
 		}
 		else if (run != null && run.FrameCount > Position)
@@ -671,6 +689,7 @@ public partial class PreviewPane : UserControl
 			// the stored frame is right even with the probes stale; the graphs then take the scratch recording for this position once it is there
 			GraphScratch = IsProbesStale && scratch is { Snapshot: not null } && scratch.Frame == Position ? scratch : null;
 			UpdateCanvas(run.Frames);
+			_shownFrame = Position;
 			_presenter.Show(Position);
 		}
 		else if (run == null && scratch == null && _presenter.Source != null)
@@ -1163,5 +1182,16 @@ public partial class PreviewPane : UserControl
 		next.SetCurrentValue(ToggleButton.IsCheckedProperty, true);
 		next.Focus();
 		e.Handled = true;
+	}
+
+	/// <summary>The context menu's "Brightness": the keyboard focus goes to the brightness box in that picture's header.</summary>
+	private void OnEditBrightness(object sender, ExecutedRoutedEventArgs e)
+	{
+		HeaderedContentControl cell = e.Parameter is ProbeLayer.Intensity ? intensityCell : fieldCell;
+		if (cell.Template?.FindName("brightnessBox", cell) is UIElement box)
+		{
+			box.Focus();
+			Keyboard.Focus(box);
+		}
 	}
 }

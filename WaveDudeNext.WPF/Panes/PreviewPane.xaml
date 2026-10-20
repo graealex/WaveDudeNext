@@ -24,6 +24,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns:converters="clr-namespace:WaveDudeNext.WPF.Converters"
              xmlns:controls="clr-namespace:WaveDudeNext.WPF.Controls"
              xmlns:commands="clr-namespace:WaveDudeNext.WPF.Commands"
+             xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext"
              Background="{DynamicResource DocumentBackground}" Focusable="True" IsTabStop="False">
 
 	<UserControl.Resources>
@@ -360,6 +361,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="{x:Static commands:PreviewCommands.ClearRange}" CanExecute="CanClearRange" Executed="OnClearRange" />
 		<CommandBinding Command="{x:Static commands:PreviewCommands.ToggleLoop}" CanExecute="CanTransport" Executed="OnToggleLoop" />
 		<CommandBinding Command="{x:Static commands:PreviewCommands.ToggleLive}" CanExecute="CanToggleLive" Executed="OnToggleLive" />
+		<CommandBinding Command="{x:Static commands:DisplayCommands.EditBrightness}" Executed="OnEditBrightness" />
 	</UserControl.CommandBindings>
 	<!-- plain letters are not valid KeyGestures on a command, so these live here; CanTransport keeps them out of text boxes -->
 	<UserControl.InputBindings>
@@ -522,9 +524,26 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					<Setter Property="Template">
 						<Setter.Value>
 							<ControlTemplate TargetType="{x:Type HeaderedContentControl}">
-								<!-- the label goes above the picture, or rotated to its left when the cell is wider than the picture -->
+								<!-- the label goes above the picture, or rotated to its left when the cell is wider than the picture; it is a
+								     strip of the title and, at its far end, the layer's brightness with its Auto button (2026-10-20, Jeroen's
+								     point 9: his previews had the scale factor beside them), so turned on the side the box and button turn
+								     with it and end at the picture's bottom edge; the caption gives way first when the strip is short -->
 								<controls:PictureFrame>
-									<TextBlock Style="{StaticResource PictureLabel}" Text="{TemplateBinding Header}" />
+									<controls:HeaderStrip Margin="0,10,0,4">
+										<TextBlock Style="{StaticResource PictureLabel}" Margin="0" TextTrimming="CharacterEllipsis" Text="{TemplateBinding Header}" />
+										<TextBlock Text="{DynamicResource Label.DisplayLayer.Brightness}" Foreground="{DynamicResource WindowForeground}" Margin="0,0,4,0" />
+										<StackPanel Orientation="Horizontal">
+											<controls:NumberBox x:Name="brightnessBox" Width="64" Minimum="0.0001" Maximum="100000"
+											                    Text="{Binding Path=(local:PreviewPane.Settings).Brightness, RelativeSource={RelativeSource TemplatedParent}}"
+											                    ToolTip="{DynamicResource Hint.DisplayLayer.Brightness}"
+											                    AutomationProperties.Name="{DynamicResource Label.DisplayLayer.Brightness}"
+											                    AutomationProperties.AutomationId="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, StringFormat={}{0}Brightness}" />
+											<Button Margin="4,0,0,0" Padding="6,0" Content="{DynamicResource ButtonAutoBrightness}" ToolTip="{DynamicResource TipAutoBrightness}"
+											        Command="{x:Static commands:DisplayCommands.AutoBrightness}"
+											        CommandParameter="{Binding Path=(local:PreviewPane.Layer), RelativeSource={RelativeSource TemplatedParent}}"
+											        AutomationProperties.AutomationId="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, StringFormat={}{0}AutoBrightness}" />
+										</StackPanel>
+									</controls:HeaderStrip>
 									<!-- the picture with the source/probe handles over it; both fill the same rectangle -->
 									<Grid>
 										<Image Source="{TemplateBinding Content}" Stretch="Uniform" AutomationProperties.AutomationId="{TemplateBinding Tag}" />
@@ -627,17 +646,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<RowDefinition Height="*" />
 			</Grid.RowDefinitions>
 			<HeaderedContentControl x:Name="fieldCell" Style="{StaticResource PictureCell}" Header="{DynamicResource SectionField}"
-			                        Content="{Binding FieldImage, ElementName=pane}" Tag="PreviewFieldImage" local:PreviewPane.Layer="Field"
+			                        Content="{Binding FieldImage, ElementName=pane}" Tag="PreviewFieldImage" local:PreviewPane.Layer="Field" local:PreviewPane.Settings="{Binding FieldSettings, ElementName=pane}"
 			                        local:PreviewPane.OverlayImage="{Binding FieldOverlay, ElementName=pane}"
 			                        Visibility="{Binding FieldSettings.Preview, ElementName=pane, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">
 				<HeaderedContentControl.ContextMenu>
-					<!-- a still of this picture first, then the exports in the File menu's order; the commands route from the cell (CommandTarget) up to the window -->
+					<!-- the brightness first, then a still of this picture, then the exports in the File menu's order; the commands route from the cell (CommandTarget) up to the pane and the window -->
 					<ContextMenu>
 						<ContextMenu.Resources>
 							<Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
 								<Setter Property="CommandTarget" Value="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
 							</Style>
 						</ContextMenu.Resources>
+						<MenuItem Header="{DynamicResource MenuBrightness}" Command="{x:Static commands:DisplayCommands.EditBrightness}" CommandParameter="{x:Static model:ProbeLayer.Field}" AutomationProperties.AutomationId="ContextBrightness" />
+						<MenuItem Header="{DynamicResource MenuAutoBrightness}" Command="{x:Static commands:DisplayCommands.AutoBrightness}" CommandParameter="{x:Static model:ProbeLayer.Field}" AutomationProperties.AutomationId="ContextAutoBrightness" />
+						<Separator />
 						<MenuItem Header="{DynamicResource MenuExportThisFrame}" Command="{x:Static commands:ExportCommands.FieldFrame}" AutomationProperties.AutomationId="ContextExportFrame" />
 						<Separator />
 						<MenuItem Header="{DynamicResource MenuFileExportField}" Command="{x:Static commands:ExportCommands.Field}" AutomationProperties.AutomationId="ContextExportField" />
@@ -650,17 +672,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			              AutomationProperties.Name="{DynamicResource TipPreviewSplitter}" AutomationProperties.AutomationId="PreviewSplitter"
 			              MouseDoubleClick="OnSplitterMouseDoubleClick" KeyDown="OnSplitterKeyDown" />
 			<HeaderedContentControl x:Name="intensityCell" Style="{StaticResource SecondPictureCell}" Header="{DynamicResource SectionIntensity}"
-			                        Content="{Binding IntensityImage, ElementName=pane}" Tag="PreviewIntensityImage" local:PreviewPane.Layer="Intensity"
+			                        Content="{Binding IntensityImage, ElementName=pane}" Tag="PreviewIntensityImage" local:PreviewPane.Layer="Intensity" local:PreviewPane.Settings="{Binding IntensitySettings, ElementName=pane}"
 			                        local:PreviewPane.OverlayImage="{Binding IntensityOverlay, ElementName=pane}"
 			                        Visibility="{Binding IntensitySettings.Preview, ElementName=pane, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">
 				<HeaderedContentControl.ContextMenu>
-					<!-- a still of this picture first, then the exports in the File menu's order; the commands route from the cell (CommandTarget) up to the window -->
+					<!-- the brightness first, then a still of this picture, then the exports in the File menu's order; the commands route from the cell (CommandTarget) up to the pane and the window -->
 					<ContextMenu>
 						<ContextMenu.Resources>
 							<Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
 								<Setter Property="CommandTarget" Value="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
 							</Style>
 						</ContextMenu.Resources>
+						<MenuItem Header="{DynamicResource MenuBrightness}" Command="{x:Static commands:DisplayCommands.EditBrightness}" CommandParameter="{x:Static model:ProbeLayer.Intensity}" AutomationProperties.AutomationId="ContextBrightness" />
+						<MenuItem Header="{DynamicResource MenuAutoBrightness}" Command="{x:Static commands:DisplayCommands.AutoBrightness}" CommandParameter="{x:Static model:ProbeLayer.Intensity}" AutomationProperties.AutomationId="ContextAutoBrightness" />
+						<Separator />
 						<MenuItem Header="{DynamicResource MenuExportThisFrame}" Command="{x:Static commands:ExportCommands.IntensityFrame}" AutomationProperties.AutomationId="ContextExportFrame" />
 						<Separator />
 						<MenuItem Header="{DynamicResource MenuFileExportField}" Command="{x:Static commands:ExportCommands.Field}" AutomationProperties.AutomationId="ContextExportField" />

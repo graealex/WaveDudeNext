@@ -133,6 +133,10 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   is paused while a scratch frame computes. Every scratch request is computed, however long.
 - **A picture changes only when a frame for its position arrives**; otherwise the last picture stays. A long wait
   dims the pictures under a spinner, mirrored on the taskbar.
+- **Brightness** (2026-10-20, Jeroen's point 9) sits in each picture's header strip (`HeaderStrip`: title, a caption that
+  gives way first, the box and **Auto** at the far end; turned on its side with the title); Auto fits once to the frame
+  shown (the 99.5th percentile of |field| or √intensity at the palette's top, the user's choice of the variants), an
+  8-bit preview computing that frame in 16-bit first; the context menu has Brightness and Auto brightness.
 - **Play means "show me the simulation"**: it starts an automatic run when needed and holds at the newest frame
   until the run catches up. Live follows a running run until the user scrubs; it ends with a last follow to the
   final frame. A replaced project goes to frame 0; a discarded run keeps the position. In/out points are steps.
