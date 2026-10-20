@@ -149,7 +149,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   through `IMovable` with the delta limited so none leaves the canvas (the formation holds); Escape during a drag puts
   things back; Remove, Duplicate and Enabled act on the whole selection when their target is in it; the lever, grips
   and point handles belong to the current item alone. Probe graph boxes follow their probe while attached, resize by a grip, keep their text
-  size; an amplitude axis is symmetric about zero.
+  size; an amplitude axis is symmetric about zero; an intensity graph's value axis can be logarithmic (2026-10-20,
+  Jeroen's point 8: `Decades` below the fitted top, zeros on the bottom line, powers-of-ten ticks; the field stays linear).
 - **Colour schemes** are stop lists in `.wdscheme` XML, shipped ones embedded, user ones in
   `%LOCALAPPDATA%\WaveDudeNext\ColorSchemes`, project ones in the `.wdproj`; an in-house picker edits stops;
   renaming a project scheme repoints its layers. **The scene image** is embedded and follows its file on disk;

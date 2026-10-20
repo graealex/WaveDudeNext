@@ -376,6 +376,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.Probe.YMin">Ondergrens van de waardenas zonder automatische schaling.</s:String>
 	<s:String x:Key="Label.Probe.YMax">Maximumwaarde</s:String>
 	<s:String x:Key="Hint.Probe.YMax">Bovengrens van de waardenas zonder automatische schaling.</s:String>
+	<s:String x:Key="Label.Probe.YScale">Waardenas</s:String>
+	<s:String x:Key="Hint.Probe.YScale">Lineaire of logaritmische waardenas; alleen intensiteitssondes, het veld is altijd lineair.</s:String>
+	<s:String x:Key="Label.Probe.Decades">Decaden</s:String>
+	<s:String x:Key="Hint.Probe.Decades">Decaden die een logaritmische waardenas onder zijn bovenkant toont; kleinere waarden, nul inbegrepen, liggen op de onderste lijn.</s:String>
 	<s:String x:Key="Label.Probe.Window">Venster</s:String>
 	<s:String x:Key="Hint.Probe.Window">Breedte van het schuivende stappenvenster, in stappen.</s:String>
 	<s:String x:Key="Label.Probe.StartAfter">Start na stap</s:String>
@@ -499,6 +503,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.ProbeBoxSize.Custom">Eigen maat</s:String>
 	<s:String x:Key="Enum.ProbeScaleMode.Running">Schuivend</s:String>
 	<s:String x:Key="Enum.ProbeScaleMode.Full">Hele run</s:String>
+	<s:String x:Key="Enum.ProbeValueScale.Linear">Lineair</s:String>
+	<s:String x:Key="Enum.ProbeValueScale.Logarithmic">Logaritmisch</s:String>
 	<s:String x:Key="Enum.SceneMode.Canvas">Canvas</s:String>
 	<s:String x:Key="Enum.SceneMode.Image">Afbeelding</s:String>
 	<s:String x:Key="Enum.EdgeMode.Open">Open</s:String>

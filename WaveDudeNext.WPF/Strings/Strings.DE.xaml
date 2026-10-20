@@ -376,6 +376,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.Probe.YMin">Untere Grenze der Werteachse ohne automatische Skalierung.</s:String>
 	<s:String x:Key="Label.Probe.YMax">Wert Maximum</s:String>
 	<s:String x:Key="Hint.Probe.YMax">Obere Grenze der Werteachse ohne automatische Skalierung.</s:String>
+	<s:String x:Key="Label.Probe.YScale">Werteachse</s:String>
+	<s:String x:Key="Hint.Probe.YScale">Lineare oder logarithmische Werteachse; nur Intensitätssonden, das Feld ist immer linear.</s:String>
+	<s:String x:Key="Label.Probe.Decades">Dekaden</s:String>
+	<s:String x:Key="Hint.Probe.Decades">Dekaden, die eine logarithmische Werteachse unter ihrem oberen Ende zeigt; kleinere Werte, auch null, liegen auf der unteren Linie.</s:String>
 	<s:String x:Key="Label.Probe.Window">Fenster</s:String>
 	<s:String x:Key="Hint.Probe.Window">Breite des gleitenden Schrittfensters, in Schritten.</s:String>
 	<s:String x:Key="Label.Probe.StartAfter">Start nach Schritt</s:String>
@@ -499,6 +503,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.ProbeBoxSize.Custom">Eigene</s:String>
 	<s:String x:Key="Enum.ProbeScaleMode.Running">Gleitend</s:String>
 	<s:String x:Key="Enum.ProbeScaleMode.Full">Ganzer Lauf</s:String>
+	<s:String x:Key="Enum.ProbeValueScale.Linear">Linear</s:String>
+	<s:String x:Key="Enum.ProbeValueScale.Logarithmic">Logarithmisch</s:String>
 	<s:String x:Key="Enum.SceneMode.Canvas">Leinwand</s:String>
 	<s:String x:Key="Enum.SceneMode.Image">Bild</s:String>
 	<s:String x:Key="Enum.EdgeMode.Open">Offen</s:String>

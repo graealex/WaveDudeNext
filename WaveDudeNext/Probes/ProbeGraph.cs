@@ -251,14 +251,15 @@ public static class ProbeGraph
 	/// The axis ranges of a probe graph. For series graphs x is the step number (sample i sits at x = i + 1),
 	/// spanning either the whole run or a running window; for profiles x is the distance along the line in
 	/// canvas pixels. y comes from the probe's fixed range (falling back to -1..1 when it is empty or inverted)
-	/// or, with auto-scaling, from the visible data plus a small margin.
+	/// or, with auto-scaling, from the visible data plus a small margin. A logarithmic axis
+	/// (<see cref="Probe.IsLogarithmic"/>) gets a positive range, see <see cref="LogRange"/>.
 	/// </summary>
 	/// <param name="probe">Selects kind, scale mode, fixed y range and auto-scaling.</param>
 	/// <param name="data">The data shown; <c>default</c> yields the ranges of an empty graph.</param>
 	/// <param name="totalSteps">Total steps of the run; the upper x limit of full-scale series graphs without auto-scaling.</param>
 	/// <param name="xMin">Receives the lower x limit.</param>
 	/// <param name="xMax">Receives the upper x limit, always greater than <paramref name="xMin"/>.</param>
-	/// <param name="yMin">Receives the lower y limit.</param>
+	/// <param name="yMin">Receives the lower y limit; positive on a logarithmic axis.</param>
 	/// <param name="yMax">Receives the upper y limit, always greater than <paramref name="yMin"/>.</param>
 	public static void ComputeRanges(Probe probe, in ProbeGraphData data, int totalSteps, out double xMin, out double xMax, out double yMin, out double yMax)
 	{
@@ -309,14 +310,21 @@ public static class ProbeGraph
 			xMax = xMin + 1.0;
 		}
 		FixedRange(probe, out yMin, out yMax);
+		float hi = 0f;
+		bool fitted = false;
 		if (probe.AutoScaleY && count > 0)
 		{
 			int firstIndex = Math.Max(0, (int)Math.Floor(xMin) - 1);
 			int lastIndex = Math.Min(count - 1, (int)Math.Ceiling(xMax));
-			if (Extent(data.Values!, firstIndex, lastIndex, out float lo, out float hi))
+			if (Extent(data.Values!, firstIndex, lastIndex, out float lo, out hi))
 			{
+				fitted = true;
 				AutoRange(probe, lo, hi, ref yMin, ref yMax);
 			}
+		}
+		if (probe.IsLogarithmic)
+		{
+			LogRange(probe, fitted, hi, ref yMin, ref yMax);
 		}
 	}
 
@@ -330,9 +338,16 @@ public static class ProbeGraph
 		xMin = 0.0;
 		xMax = data.Profile != null && data.ProfileLength > 0.0 ? data.ProfileLength : 1.0;
 		FixedRange(probe, out yMin, out yMax);
-		if (probe.AutoScaleY && data.Profile is { } profile && Extent(profile, 0, profile.Length - 1, out float lo, out float hi))
+		float hi = 0f;
+		bool fitted = false;
+		if (probe.AutoScaleY && data.Profile is { } profile && Extent(profile, 0, profile.Length - 1, out float lo, out hi))
 		{
+			fitted = true;
 			AutoRange(probe, lo, hi, ref yMin, ref yMax);
+		}
+		if (probe.IsLogarithmic)
+		{
+			LogRange(probe, fitted, hi, ref yMin, ref yMax);
 		}
 	}
 
@@ -399,6 +414,127 @@ public static class ProbeGraph
 
 	/// <summary>Room above the largest value (and below the smallest of a symmetric axis), as a fraction, so the curve does not touch the plot border.</summary>
 	private const double Margin = 0.08;
+
+	/// <summary>
+	/// The range of a logarithmic value axis, from the linear one: auto-scaled with data above zero, the top is the
+	/// largest value raised by 8 % of the axis height (<see cref="Margin"/> × the decades, in decades) and the
+	/// bottom <see cref="Probe.Decades"/> decades below it, so the axis keeps its height in decades while the
+	/// data grows; otherwise the fixed maximum (1 when it is not positive) with a positive fixed minimum, or the
+	/// decades below the maximum when the minimum is not positive or the axis is auto-scaled (data still all
+	/// zero, the case of every intensity probe before the wave arrives).
+	/// </summary>
+	/// <param name="probe">Provides the decades and the fixed range.</param>
+	/// <param name="fitted">Whether the axis is auto-scaled and the data has a finite value.</param>
+	/// <param name="hi">Largest data value when <paramref name="fitted"/>.</param>
+	/// <param name="yMin">Receives the lower limit, positive.</param>
+	/// <param name="yMax">Receives the upper limit, greater than <paramref name="yMin"/>.</param>
+	private static void LogRange(Probe probe, bool fitted, double hi, ref double yMin, ref double yMax)
+	{
+		double decades = Math.Clamp(probe.Decades, Probe.MinDecades, Probe.MaxDecades);
+		if (fitted && hi > 0.0)
+		{
+			double top = Math.Log10(hi) + Margin * decades;
+			yMax = Math.Pow(10.0, top);
+			yMin = Math.Pow(10.0, top - decades);
+			return;
+		}
+		FixedRange(probe, out yMin, out yMax);
+		if (!(yMax > 0.0))
+		{
+			yMax = 1.0;
+		}
+		if (probe.AutoScaleY || !(yMin > 0.0) || !(yMin < yMax))
+		{
+			yMin = yMax / Math.Pow(10.0, decades);
+		}
+	}
+
+	/// <summary>
+	/// Tick values of a logarithmic axis over [lo, hi] (both positive): powers of ten, every first, second, third,
+	/// fifth or tenth decade so that at most <paramref name="target"/> + 1 of them remain; an axis holding fewer
+	/// than two powers of ten gets the "nice" ticks of <see cref="NiceTicks"/> instead (placed by their logarithm).
+	/// </summary>
+	/// <param name="lo">Lower end of the axis range, positive.</param>
+	/// <param name="hi">Upper end of the axis range.</param>
+	/// <param name="target">Approximate number of ticks wanted.</param>
+	/// <returns>Ascending tick values, all positive.</returns>
+	public static List<double> LogTicks(double lo, double hi, int target)
+	{
+		if (!(lo > 0.0) || !(hi > lo) || double.IsInfinity(hi))
+		{
+			return [];
+		}
+		int first = (int)Math.Ceiling(Math.Log10(lo) - 1e-9);
+		int last = (int)Math.Floor(Math.Log10(hi) + 1e-9);
+		if (last - first < 1)
+		{
+			return NiceTicks(lo, hi, target).FindAll(t => t > 0.0);
+		}
+		int every = 10;
+		foreach (int candidate in new[] { 1, 2, 3, 5 })
+		{
+			if ((last - first) / candidate + 1 <= target + 1)
+			{
+				every = candidate;
+				break;
+			}
+		}
+		// the decades counted from a multiple of the spacing, so 1e-6, 1e-4, 1e-2 rather than 1e-5, 1e-3, 1e-1 shifting with the range
+		var ticks = new List<double>();
+		for (int exponent = first; exponent <= last; exponent++)
+		{
+			if (exponent % every == 0)
+			{
+				// a negative power as a division, which is correctly rounded: 1e-6 is the literal 1e-6
+				ticks.Add(exponent >= 0 ? Math.Pow(10.0, exponent) : 1.0 / Math.Pow(10.0, -exponent));
+			}
+		}
+		return ticks;
+	}
+
+	/// <summary>Formats a logarithmic axis tick: a power of ten from 0.01 to 100 as a plain number, beyond as "1e-6"; other values like <see cref="FormatTick"/>.</summary>
+	public static string FormatLogTick(double v, IFormatProvider culture)
+	{
+		double exponent = Math.Round(Math.Log10(v));
+		if (Math.Abs(v / Math.Pow(10.0, exponent) - 1.0) > 1e-6 || Math.Abs(exponent) <= 2)
+		{
+			return FormatTick(v, culture);
+		}
+		return "1e" + exponent.ToString("0", culture);
+	}
+
+	/// <summary>
+	/// The value axis of a laid-out plot: maps a value to a pixel y inside it (bottom edge = minimum, top edge =
+	/// maximum), linearly or by the value's logarithm; on a logarithmic axis a value at or below the minimum,
+	/// zero and negative values included, lands on the bottom edge. Results are clamped to ±30000 so a renderer
+	/// never sees coordinates far outside its surface.
+	/// </summary>
+	private readonly struct ValueAxis
+	{
+		private readonly double _lo;
+		private readonly double _hi;
+		private readonly bool _log;
+		private readonly float _plotY;
+		private readonly float _plotHeight;
+
+		/// <summary>An axis from <paramref name="min"/> to <paramref name="max"/> (both positive when <paramref name="log"/>) over the plot rows.</summary>
+		public ValueAxis(double min, double max, bool log, float plotY, float plotHeight)
+		{
+			_log = log;
+			_lo = log ? Math.Log10(min) : min;
+			_hi = log ? Math.Log10(max) : max;
+			_plotY = plotY;
+			_plotHeight = plotHeight;
+		}
+
+		/// <summary>The pixel y of <paramref name="v"/>.</summary>
+		public float ToPixel(double v)
+		{
+			double t = _log ? (v > 0.0 ? Math.Max(Math.Log10(v), _lo) : _lo) : v;
+			double py = _plotY + _plotHeight - (t - _lo) / (_hi - _lo) * _plotHeight;
+			return (float)Math.Clamp(py, -30000.0, 30000.0);
+		}
+	}
 
 	/// <summary>
 	/// "Nice" (1/2/5 × 10ⁿ) tick positions covering [lo, hi], at most 40 of them. A tick within rounding
@@ -476,11 +612,14 @@ public static class ProbeGraph
 		// SeriesRanges, not hidden); only a line probe uses the gated data, to stay blank until it starts
 		ComputeRanges(probe, isLine ? shown : data, totalSteps, out double xMin, out double xMax, out double yMin, out double yMax);
 		// the value labels decide the left margin; fewer of them when the plot is low
-		List<double> yValues = NiceTicks(yMin, yMax, 4);
+		bool log = probe.IsLogarithmic;
+		List<double> YValues(int target) => log ? LogTicks(yMin, yMax, target) : NiceTicks(yMin, yMax, target);
+		string YLabel(double tick) => log ? FormatLogTick(tick, culture) : FormatTick(tick, culture);
+		List<double> yValues = YValues(4);
 		float widestY = 0f;
 		foreach (double tick in yValues)
 		{
-			widestY = Math.Max(widestY, style.Measure(FormatTick(tick, culture)));
+			widestY = Math.Max(widestY, style.Measure(YLabel(tick)));
 		}
 		float plotX = EdgePad + widestY + LabelGap;
 		float plotY = titleHeight;
@@ -509,13 +648,14 @@ public static class ProbeGraph
 				{
 					break;
 				}
-				yValues = NiceTicks(yMin, yMax, target);
+				yValues = YValues(target);
 			}
 		}
+		var axis = new ValueAxis(yMin, yMax, log, plotY, plotHeight);
 		var yTicks = new List<GraphTick>();
 		foreach (double tick in yValues)
 		{
-			yTicks.Add(new GraphTick(ToPixelY(tick, plotY, plotHeight, yMin, yMax), showLabels ? FormatTick(tick, culture) : "", tick == 0.0));
+			yTicks.Add(new GraphTick(axis.ToPixel(tick), showLabels ? YLabel(tick) : "", tick == 0.0));
 		}
 		// the step/position labels: as many as fit side by side, 5 wanted
 		var xTicks = new List<GraphTick>();
@@ -535,8 +675,8 @@ public static class ProbeGraph
 			}
 		}
 		Vector2[] curve = isLine
-			? ProfilePoints(shown.Profile, plotX, plotY, plotWidth, plotHeight, yMin, yMax)
-			: SeriesPoints(data.Values, data.Count, plotX, plotY, plotWidth, plotHeight, xMin, xMax, yMin, yMax);
+			? ProfilePoints(shown.Profile, plotX, plotWidth, axis)
+			: SeriesPoints(data.Values, data.Count, plotX, plotWidth, xMin, xMax, axis);
 		return new ProbeGraphLayout(width, height, true, true, style.FontSize, lineWidth, plotX, plotY, plotWidth, plotHeight, yTicks, xTicks, showLabels, curve, probe.Name, ReadoutText(isLine, shown, culture));
 	}
 
@@ -560,21 +700,11 @@ public static class ProbeGraph
 	}
 
 	/// <summary>
-	/// Maps a data value to a pixel y inside the plot (bottom edge = yMin, top edge = yMax). The result is
-	/// clamped to ±30000 so a renderer never sees coordinates far outside its surface.
-	/// </summary>
-	private static float ToPixelY(double v, float plotY, float plotHeight, double yMin, double yMax)
-	{
-		double py = plotY + plotHeight - (v - yMin) / (yMax - yMin) * plotHeight;
-		return (float)Math.Clamp(py, -30000.0, 30000.0);
-	}
-
-	/// <summary>
 	/// The points of a time series: sample i is placed at x = i + 1 (its step number); NaN and infinite samples
 	/// are skipped. With more than two samples per pixel column each column gets a vertical min/max segment
 	/// instead of individual points.
 	/// </summary>
-	private static Vector2[] SeriesPoints(float[]? values, int count, float plotX, float plotY, float plotWidth, float plotHeight, double xMin, double xMax, double yMin, double yMax)
+	private static Vector2[] SeriesPoints(float[]? values, int count, float plotX, float plotWidth, double xMin, double xMax, in ValueAxis axis)
 	{
 		if (values == null || count < 1)
 		{
@@ -598,13 +728,13 @@ public static class ProbeGraph
 				float value = values[i];
 				if (float.IsFinite(value))
 				{
-					points.Add(new Vector2((float)(plotX + (i + 1 - xMin) * xScale), ToPixelY(value, plotY, plotHeight, yMin, yMax)));
+					points.Add(new Vector2((float)(plotX + (i + 1 - xMin) * xScale), axis.ToPixel(value)));
 				}
 			}
 		}
 		else
 		{
-			BinColumns(values, firstIndex, visibleCount, lastIndex, columns, plotX, plotY, plotHeight, yMin, yMax, points);
+			BinColumns(values, firstIndex, visibleCount, lastIndex, columns, plotX, axis, points);
 		}
 		return [.. points];
 	}
@@ -613,7 +743,7 @@ public static class ProbeGraph
 	/// The points of a line profile stretched over the full plot width (first value at the left edge, last at
 	/// the right edge), min/max binned per pixel column when dense. NaN and infinite values are skipped.
 	/// </summary>
-	private static Vector2[] ProfilePoints(float[]? profile, float plotX, float plotY, float plotWidth, float plotHeight, double yMin, double yMax)
+	private static Vector2[] ProfilePoints(float[]? profile, float plotX, float plotWidth, in ValueAxis axis)
 	{
 		if (profile == null || profile.Length < 1)
 		{
@@ -630,13 +760,13 @@ public static class ProbeGraph
 				if (float.IsFinite(value))
 				{
 					double fraction = count > 1 ? i / (count - 1.0) : 0.0;
-					points.Add(new Vector2((float)(plotX + fraction * plotWidth), ToPixelY(value, plotY, plotHeight, yMin, yMax)));
+					points.Add(new Vector2((float)(plotX + fraction * plotWidth), axis.ToPixel(value)));
 				}
 			}
 		}
 		else
 		{
-			BinColumns(profile, 0, count, count - 1, columns, plotX, plotY, plotHeight, yMin, yMax, points);
+			BinColumns(profile, 0, count, count - 1, columns, plotX, axis, points);
 		}
 		return [.. points];
 	}
@@ -646,7 +776,7 @@ public static class ProbeGraph
 	/// from first + c × visible / columns on; the long arithmetic keeps c × visible inside the range for
 	/// long runs. Columns without a finite value are skipped.
 	/// </summary>
-	private static void BinColumns(float[] values, int first, int visible, int last, int columns, float plotX, float plotY, float plotHeight, double yMin, double yMax, List<Vector2> points)
+	private static void BinColumns(float[] values, int first, int visible, int last, int columns, float plotX, in ValueAxis axis, List<Vector2> points)
 	{
 		for (int column = 0; column < columns; column++)
 		{
@@ -659,8 +789,8 @@ public static class ProbeGraph
 			if (Extent(values, binStart, Math.Min(binEnd, last), out float binMin, out float binMax))
 			{
 				float px = plotX + column + 0.5f;
-				points.Add(new Vector2(px, ToPixelY(binMin, plotY, plotHeight, yMin, yMax)));
-				points.Add(new Vector2(px, ToPixelY(binMax, plotY, plotHeight, yMin, yMax)));
+				points.Add(new Vector2(px, axis.ToPixel(binMin)));
+				points.Add(new Vector2(px, axis.ToPixel(binMax)));
 			}
 		}
 	}

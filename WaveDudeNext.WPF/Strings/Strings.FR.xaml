@@ -376,6 +376,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.Probe.YMin">Borne inférieure de l'axe des valeurs sans échelle automatique.</s:String>
 	<s:String x:Key="Label.Probe.YMax">Valeur maximale</s:String>
 	<s:String x:Key="Hint.Probe.YMax">Borne supérieure de l'axe des valeurs sans échelle automatique.</s:String>
+	<s:String x:Key="Label.Probe.YScale">Axe des valeurs</s:String>
+	<s:String x:Key="Hint.Probe.YScale">Axe des valeurs linéaire ou logarithmique ; sondes d'intensité seulement, le champ est toujours linéaire.</s:String>
+	<s:String x:Key="Label.Probe.Decades">Décades</s:String>
+	<s:String x:Key="Hint.Probe.Decades">Décades couvertes par un axe logarithmique sous son sommet ; les valeurs plus petites, zéro compris, se posent sur la ligne du bas.</s:String>
 	<s:String x:Key="Label.Probe.Window">Fenêtre</s:String>
 	<s:String x:Key="Hint.Probe.Window">Largeur de la fenêtre glissante, en pas.</s:String>
 	<s:String x:Key="Label.Probe.StartAfter">Début après le pas</s:String>
@@ -499,6 +503,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.ProbeBoxSize.Custom">Personnalisée</s:String>
 	<s:String x:Key="Enum.ProbeScaleMode.Running">Glissant</s:String>
 	<s:String x:Key="Enum.ProbeScaleMode.Full">Toute l'exécution</s:String>
+	<s:String x:Key="Enum.ProbeValueScale.Linear">Linéaire</s:String>
+	<s:String x:Key="Enum.ProbeValueScale.Logarithmic">Logarithmique</s:String>
 	<s:String x:Key="Enum.SceneMode.Canvas">Toile</s:String>
 	<s:String x:Key="Enum.SceneMode.Image">Image</s:String>
 	<s:String x:Key="Enum.EdgeMode.Open">Ouvert</s:String>

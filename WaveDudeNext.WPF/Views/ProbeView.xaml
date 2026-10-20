@@ -49,6 +49,22 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</DataTrigger>
 			</Style.Triggers>
 		</Style>
+		<!-- a logarithmic value axis only on the intensity layer (the field's amplitude changes sign), the decades only with it -->
+		<Style x:Key="IntensityOnlyCombo" TargetType="{x:Type ComboBox}" BasedOn="{StaticResource EnumComboBox}">
+			<Style.Triggers>
+				<DataTrigger Binding="{Binding Layer}" Value="Field">
+					<Setter Property="IsEnabled" Value="False" />
+				</DataTrigger>
+			</Style.Triggers>
+		</Style>
+		<Style x:Key="LogarithmicOnly" TargetType="{x:Type controls:NumberBox}" BasedOn="{StaticResource {x:Type controls:NumberBox}}">
+			<Setter Property="IsEnabled" Value="False" />
+			<Style.Triggers>
+				<DataTrigger Binding="{Binding IsLogarithmic}" Value="True">
+					<Setter Property="IsEnabled" Value="True" />
+				</DataTrigger>
+			</Style.Triggers>
+		</Style>
 		<!-- the box width and height only apply to a custom box size (set by dragging the box's corner, too) -->
 		<Style x:Key="CustomSizeOnly" TargetType="{x:Type controls:NumberBox}" BasedOn="{StaticResource {x:Type controls:NumberBox}}">
 			<Setter Property="IsEnabled" Value="False" />
@@ -137,6 +153,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				          IsChecked="{Binding AutoScaleX}" ToolTip="{meta:Hint model:Probe.AutoScaleX}" />
 				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Probe.AutoScaleY}"
 				          IsChecked="{Binding AutoScaleY}" ToolTip="{meta:Hint model:Probe.AutoScaleY}" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Probe.YScale}" />
+				<ComboBox Style="{StaticResource IntensityOnlyCombo}" ItemsSource="{meta:EnumValues model:ProbeValueScale}"
+				          SelectedItem="{Binding YScale}" ToolTip="{meta:Hint model:Probe.YScale}" AutomationProperties.AutomationId="ProbeYScale" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Probe.Decades}" />
+				<controls:NumberBox Style="{StaticResource LogarithmicOnly}" Text="{Binding Decades}" Minimum="1" Maximum="12" ToolTip="{meta:Hint model:Probe.Decades}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Probe.YMin}" />
 				<controls:NumberBox Text="{Binding YMin}" Increment="0.1" ToolTip="{meta:Hint model:Probe.YMin}" />

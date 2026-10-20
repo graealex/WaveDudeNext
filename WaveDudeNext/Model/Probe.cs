@@ -76,6 +76,15 @@ public enum ProbeScaleMode
 	Full,
 }
 
+/// <summary>How the value axis of a probe graph maps values to heights.</summary>
+public enum ProbeValueScale
+{
+	/// <summary>Equal steps in value are equal steps in height.</summary>
+	Linear,
+	/// <summary>Equal factors in value are equal steps in height, over <see cref="Probe.Decades"/> decades; intensity probes only.</summary>
+	Logarithmic,
+}
+
 /// <summary>
 /// A measurement point or line on the canvas and the graph that shows its values. Positions are
 /// canvas pixels with the origin at the top left.
@@ -98,6 +107,12 @@ public sealed class Probe : ObservableObject, IMovable
 	public const int MinBoxHeight = 30;
 	/// <summary>Largest accepted <see cref="BoxWidth"/> and <see cref="BoxHeight"/>.</summary>
 	public const int MaxBoxSide = 4096;
+	/// <summary>Default <see cref="Decades"/>.</summary>
+	public const int DefaultDecades = 6;
+	/// <summary>Smallest accepted <see cref="Decades"/>.</summary>
+	public const int MinDecades = 1;
+	/// <summary>Largest accepted <see cref="Decades"/>.</summary>
+	public const int MaxDecades = 12;
 
 	private string _name = "";
 	private bool _active = true;
@@ -118,6 +133,8 @@ public sealed class Probe : ObservableObject, IMovable
 	private bool _autoScaleY = true;
 	private double _yMin = -1.0;
 	private double _yMax = 1.0;
+	private ProbeValueScale _yScale = ProbeValueScale.Linear;
+	private int _decades = DefaultDecades;
 	private int _window = DefaultWindow;
 	private int _startAfter;
 
@@ -156,6 +173,11 @@ public sealed class Probe : ObservableObject, IMovable
 			{
 				// the measurement follows the layer at once, so the editor never shows an impossible pair
 				Measurement = MeasurementsFor(value).Contains(Measurement) ? Measurement : MeasurementsFor(value)[0];
+				if (value == ProbeLayer.Field)
+				{
+					YScale = ProbeValueScale.Linear;
+				}
+				OnPropertyChanged(nameof(IsLogarithmic));
 			}
 		}
 	}
@@ -375,6 +397,49 @@ public sealed class Probe : ObservableObject, IMovable
 		set => SetProperty(ref _yMax, value);
 	}
 
+	/// <summary>
+	/// A linear or a logarithmic value axis; logarithmic only on the intensity layer (the field's amplitude changes
+	/// sign): setting the layer to the field coerces it, <see cref="Normalize"/> re-checks it. A graph setting, not
+	/// a measurement: the recordings and the CSV export keep the plain values.
+	/// </summary>
+	[XmlAttribute]
+	[DefaultValue(ProbeValueScale.Linear)]
+	[Category("Axes")]
+	[DisplayName("Value axis")]
+	[Description("A linear or a logarithmic value axis; intensity probes only, the field is always linear.")]
+	public ProbeValueScale YScale
+	{
+		get => _yScale;
+		set
+		{
+			if (SetProperty(ref _yScale, value))
+			{
+				OnPropertyChanged(nameof(IsLogarithmic));
+			}
+		}
+	}
+
+	/// <summary>
+	/// Decades a logarithmic value axis spans below its top (auto-scaled or <see cref="YMax"/>); smaller values,
+	/// zero included, are drawn on the bottom line. The bottom is <see cref="YMin"/> instead when the axis is
+	/// fixed and <see cref="YMin"/> is positive. Clamped to <see cref="MinDecades"/>..<see cref="MaxDecades"/>.
+	/// </summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultDecades)]
+	[Category("Axes")]
+	[DisplayName("Decades")]
+	[Description("Decades a logarithmic value axis spans below its top; smaller values, zero included, sit on the bottom line.")]
+	public int Decades
+	{
+		get => _decades;
+		set => SetProperty(ref _decades, value);
+	}
+
+	/// <summary>Whether the graph's value axis is logarithmic: <see cref="YScale"/> says so and the probe is on the intensity layer. Raises its change with either.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public bool IsLogarithmic => YScale == ProbeValueScale.Logarithmic && Layer == ProbeLayer.Intensity;
+
 	/// <summary>Width of the sliding step window for <see cref="ProbeScaleMode.Running"/>, in steps.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultWindow)]
@@ -443,8 +508,8 @@ public sealed class Probe : ObservableObject, IMovable
 
 	/// <summary>
 	/// Forces a consistent state: the field only allows <see cref="ProbeMeasurement.Amplitude"/>,
-	/// the intensity output never does; an empty or inverted Y range becomes -1..1; the window,
-	/// the custom box size and the start step are clamped.
+	/// the intensity output never does; the field's value axis is linear; an empty or inverted Y range becomes
+	/// -1..1; the window, the custom box size, the start step and the decades are clamped.
 	/// </summary>
 	public void Normalize()
 	{
@@ -452,6 +517,7 @@ public sealed class Probe : ObservableObject, IMovable
 		if (Layer == ProbeLayer.Field)
 		{
 			Measurement = ProbeMeasurement.Amplitude;
+			YScale = ProbeValueScale.Linear;
 		}
 		else if (Measurement == ProbeMeasurement.Amplitude)
 		{
@@ -466,6 +532,7 @@ public sealed class Probe : ObservableObject, IMovable
 		BoxWidth = Math.Clamp(BoxWidth, MinBoxWidth, MaxBoxSide);
 		BoxHeight = Math.Clamp(BoxHeight, MinBoxHeight, MaxBoxSide);
 		StartAfter = Math.Max(0, StartAfter);
+		Decades = Math.Clamp(Decades, MinDecades, MaxDecades);
 	}
 
 	/// <summary>A copy with the same settings and no change subscribers.</summary>

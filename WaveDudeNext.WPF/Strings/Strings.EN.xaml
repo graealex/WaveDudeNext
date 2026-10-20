@@ -378,6 +378,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.Probe.YMin">Lower bound of the value axis when it is not auto-scaled.</s:String>
 	<s:String x:Key="Label.Probe.YMax">Value maximum</s:String>
 	<s:String x:Key="Hint.Probe.YMax">Upper bound of the value axis when it is not auto-scaled.</s:String>
+	<s:String x:Key="Label.Probe.YScale">Value axis</s:String>
+	<s:String x:Key="Hint.Probe.YScale">A linear or a logarithmic value axis; intensity probes only, the field is always linear.</s:String>
+	<s:String x:Key="Label.Probe.Decades">Decades</s:String>
+	<s:String x:Key="Hint.Probe.Decades">Decades a logarithmic value axis spans below its top; smaller values, zero included, sit on the bottom line.</s:String>
 	<s:String x:Key="Label.Probe.Window">Window</s:String>
 	<s:String x:Key="Hint.Probe.Window">Width of the sliding step window, in steps.</s:String>
 	<s:String x:Key="Label.Probe.StartAfter">Start after step</s:String>
@@ -501,6 +505,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.ProbeBoxSize.Custom">Custom</s:String>
 	<s:String x:Key="Enum.ProbeScaleMode.Running">Running</s:String>
 	<s:String x:Key="Enum.ProbeScaleMode.Full">Full</s:String>
+	<s:String x:Key="Enum.ProbeValueScale.Linear">Linear</s:String>
+	<s:String x:Key="Enum.ProbeValueScale.Logarithmic">Logarithmic</s:String>
 	<s:String x:Key="Enum.SceneMode.Canvas">Canvas</s:String>
 	<s:String x:Key="Enum.SceneMode.Image">Image</s:String>
 	<s:String x:Key="Enum.EdgeMode.Open">Open</s:String>

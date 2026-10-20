@@ -1696,6 +1696,36 @@ internal static class Program
 		ProbeGraphLayout after = ProbeGraph.Layout(line, new ProbeGraphData(null, 0, profile, 49, 100), 2500, 400, 200, style, inv);
 		Check(before.Curve.Length == 0 && before.Readout == "" && before.XTicks[^1].Label == "1", "line probe blank before its start step");
 		Check(after.Curve.Length == 50 && after.Readout == "max 4.9" && after.XTicks[^1].Label == "40" && after.YTicks[0].Label == "0", "line probe after its start step: profile over 0..49 pixels, intensity fitted from 0");
+
+		// a logarithmic value axis: intensity only, the decades below a fitted top, zeros on the bottom line
+		var logProbe = new Probe { Name = "Log", Layer = ProbeLayer.Intensity, YScale = ProbeValueScale.Logarithmic };
+		float[] spread = new float[16];
+		spread[2] = 1e-5f;
+		spread[9] = 0.01f;
+		ProbeGraph.ComputeRanges(logProbe, new ProbeGraphData(spread, 16, null, 0, 16), 2500, out _, out _, out double logMin, out double logMax);
+		Check(logProbe.IsLogarithmic && Math.Abs(Math.Log10(logMax) - (-2 + 0.48)) < 1e-6 && Math.Abs(Math.Log10(logMax / logMin) - 6) < 1e-9,
+			"log axis: six decades below the largest value raised by 8 % of the axis (" + logMin.ToString("G3", inv) + ".." + logMax.ToString("G3", inv) + ")");
+		ProbeGraph.ComputeRanges(logProbe, new ProbeGraphData(new float[16], 16, null, 0, 16), 2500, out _, out _, out double logZeroMin, out double logZeroMax);
+		Check(logZeroMax == 1 && Math.Abs(logZeroMin - 1e-6) < 1e-18, "log axis on all-zero data: the fixed top (1 for -1..1), six decades below it");
+		logProbe.AutoScaleY = false;
+		logProbe.YMin = 1e-4;
+		logProbe.YMax = 10;
+		ProbeGraph.ComputeRanges(logProbe, default, 2500, out _, out _, out double logFixedMin, out double logFixedMax);
+		Check(logFixedMin == 1e-4 && logFixedMax == 10, "log axis, fixed: a positive minimum is the bottom");
+		logProbe.AutoScaleY = true;
+		ProbeGraphLayout logLayout = ProbeGraph.Layout(logProbe, new ProbeGraphData(spread, 16, null, 0, 16), 2500, 400, 200, style, inv);
+		float bottom = logLayout.PlotY + logLayout.PlotHeight;
+		Check(logLayout.YTicks.All(t => !t.IsZero) && string.Join(" ", logLayout.YTicks.Select(t => t.Label)) == "1e-6 1e-4 0.01",
+			"log axis ticks: every second power of ten over 1e-7.5..1e-1.5 (" + string.Join(" ", logLayout.YTicks.Select(t => t.Label)) + ")");
+		Check(logLayout.Curve.Length == 16 && logLayout.Curve.Count(p => Math.Abs(p.Y - bottom) < 0.01) == 14 && logLayout.Curve[9].Y < logLayout.Curve[2].Y && logLayout.Curve[9].Y > logLayout.PlotY,
+			"log axis: zeros on the bottom line, 0.01 above 1e-5, both inside the plot");
+		Check(ProbeGraph.LogTicks(1e-6, 1, 4) is [1e-6, 1e-4, 1e-2, 1] && ProbeGraph.LogTicks(1e-12, 1, 4) is [1e-12, 1e-9, 1e-6, 1e-3, 1] && ProbeGraph.LogTicks(2, 8, 4).All(t => t is > 0 and <= 8),
+			"log ticks: every second or third decade, aligned; nice ticks within a decade");
+		Check(ProbeGraph.FormatLogTick(1e-6, inv) == "1e-6" && ProbeGraph.FormatLogTick(0.01, inv) == "0.01" && ProbeGraph.FormatLogTick(1e3, inv) == "1e3" && ProbeGraph.FormatLogTick(5, inv) == "5", "log tick labels: plain from 0.01 to 100, 1e-n beyond");
+		logProbe.Layer = ProbeLayer.Field;
+		var normalised = new Probe { Layer = ProbeLayer.Intensity, YScale = ProbeValueScale.Logarithmic, Decades = 40 };
+		normalised.Normalize();
+		Check(logProbe is { YScale: ProbeValueScale.Linear, IsLogarithmic: false } && normalised.Decades == 12 && normalised.IsLogarithmic, "a field probe's axis is linear; the decades are clamped to 12");
 	}
 
 	/// <summary>The repository root (the folder holding the author's examples), found by walking up from the harness binary; null when not found.</summary>
