@@ -53,6 +53,7 @@ public sealed class RunSpec
 		Width = width;
 		Height = height;
 		DampingEdge = project.Scene.DampingEdge;
+		Edges = project.Scene.Edges;
 		RefractiveIndex = project.Scene.RefractiveIndex;
 		// a canvas scene with painted parts has pixels too, but no green to emit from (the parts never touch green)
 		ImageSources = project.Scene.Mode == SceneMode.Image && image != null && project.Scene.ImageSources;
@@ -118,6 +119,12 @@ public sealed class RunSpec
 	/// <summary>Thickness of the absorbing border in pixels; 0 for none.</summary>
 	public int DampingEdge { get; }
 
+	/// <summary>What the grid's edge does with a wave (<see cref="Scene.Edges"/>).</summary>
+	public EdgeMode Edges { get; }
+
+	/// <summary>Cells the engine simulates beyond each side of the canvas: a damping edge outside the canvas (a negative <see cref="DampingEdge"/>), else 0.</summary>
+	public int Rim => Math.Max(0, -DampingEdge);
+
 	/// <summary>Background refractive index of a blank canvas.</summary>
 	public double RefractiveIndex { get; }
 
@@ -181,7 +188,7 @@ public sealed class RunSpec
 	/// damping, refractive index, image sources), the same solver options and engine choice. The emitters may differ.
 	/// </summary>
 	public bool SameSceneAs(RunSpec other) =>
-		Width == other.Width && Height == other.Height && ReferenceEquals(Image, other.Image) && DampingEdge == other.DampingEdge
+		Width == other.Width && Height == other.Height && ReferenceEquals(Image, other.Image) && DampingEdge == other.DampingEdge && Edges == other.Edges
 		&& RefractiveIndex == other.RefractiveIndex && ImageSources == other.ImageSources && Engine == other.Engine && PreferGpu == other.PreferGpu;
 
 	/// <summary>Whether the object sources are the same emitters, value for value.</summary>
@@ -189,6 +196,6 @@ public sealed class RunSpec
 
 	/// <summary>Builds the engine's scene input from the snapshot. Worker; allocates the per-pixel maps.</summary>
 	internal SceneData BuildScene() => Image is { } image
-		? SceneData.FromBgra(image.Bgra, image.Width, image.Height, image.StrideBytes, ImageSources, DampingEdge)
-		: SceneData.Empty(Width, Height, DampingEdge, RefractiveIndex);
+		? SceneData.FromBgra(image.Bgra, image.Width, image.Height, image.StrideBytes, ImageSources, DampingEdge, Edges == EdgeMode.Open)
+		: SceneData.Empty(Width, Height, DampingEdge, RefractiveIndex, Edges == EdgeMode.Open);
 }

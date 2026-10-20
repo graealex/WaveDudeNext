@@ -115,7 +115,9 @@ public static class LegacyProject
 		scene.Mode = Text(section, "mode", "user_defined") == "image" ? SceneMode.Image : SceneMode.Canvas;
 		scene.Width = Int(section, "user_width", Scene.DefaultWidth);
 		scene.Height = Int(section, "user_height", Scene.DefaultHeight);
-		scene.DampingEdge = Bool(section, "damping_edge_enabled", false) ? Int(section, "damping_edge_size_px", Scene.DefaultDampingEdge) : 0;
+		// his program has walls, with his band in front of them when enabled (64 px when the size is missing, his default)
+		scene.Edges = EdgeMode.Reflective;
+		scene.DampingEdge = Bool(section, "damping_edge_enabled", false) ? Math.Abs(Int(section, "damping_edge_size_px", 64)) : 0;
 		scene.ImageSources = Bool(section, "use_sources", false);
 		scene.ImageSourceScale = Double(section, "image_source_scale", Scene.DefaultImageSourceScale);
 		scene.ObjectSources = Bool(section, "use_object_sources", false);

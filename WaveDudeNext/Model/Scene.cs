@@ -29,6 +29,15 @@ public enum SceneMode
 	Image,
 }
 
+/// <summary>What the outermost cells of the grid do with a wave that reaches them (2026-10-19, the user's request).</summary>
+public enum EdgeMode
+{
+	/// <summary>The wave walks off the grid (Mur's first-order absorbing condition on the ring outside the canvas): a pulse returns well under a tenth of a percent, as good as a void.</summary>
+	Open,
+	/// <summary>A hard wall: the wave comes back in full, as in Wave Dude 2D; a damping edge in front of it softens that.</summary>
+	Reflective,
+}
+
 /// <summary>
 /// The simulation canvas: its origin (blank or image), the damping border and the options for
 /// sources painted into the image. Positions throughout the project are canvas pixels with the
@@ -46,7 +55,7 @@ public sealed class Scene : ObservableObject
 	/// <summary>Largest accepted canvas width or height in pixels.</summary>
 	public const int MaxSize = 16384;
 	/// <summary>Damping frame thickness the editor proposes when the frame is switched on.</summary>
-	public const int DefaultDampingEdge = 64;
+	public const int DefaultDampingEdge = 0;
 	/// <summary>Largest accepted <see cref="DampingEdge"/> in pixels.</summary>
 	public const int MaxDampingEdge = 8192;
 	/// <summary>Default <see cref="ImageSourceScale"/>.</summary>
@@ -65,7 +74,8 @@ public sealed class Scene : ObservableObject
 	private string _imagePath = "";
 	private int _width = DefaultWidth;
 	private int _height = DefaultHeight;
-	private int _dampingEdge;
+	private int _dampingEdge = DefaultDampingEdge;
+	private EdgeMode _edges = EdgeMode.Open;
 	private double _refractiveIndex = DefaultRefractiveIndex;
 	private bool _imageSources;
 	private double _imageSourceScale = DefaultImageSourceScale;
@@ -189,16 +199,32 @@ public sealed class Scene : ObservableObject
 		set => SetProperty(ref _height, value);
 	}
 
-	/// <summary>Thickness of the absorbing frame around the canvas in pixels; 0 turns it off.</summary>
+	/// <summary>
+	/// Thickness of the absorbing frame in pixels: positive inside the canvas, where it shows as a dark margin (Jeroen's
+	/// band), negative outside the canvas, where the engine simulates that much more and shows none of it (2026-10-19,
+	/// the user's rule for the sign); 0 turns it off.
+	/// </summary>
 	[XmlAttribute]
-	[DefaultValue(0)]
+	[DefaultValue(DefaultDampingEdge)]
 	[Category("Canvas")]
 	[DisplayName("Damping edge")]
-	[Description("Thickness in pixels of the absorbing frame around the canvas. 0 turns it off.")]
+	[Description("Thickness in pixels of the absorbing frame: positive inside the canvas, where it is visible, negative outside it, where it is not. 0 turns it off.")]
 	public int DampingEdge
 	{
 		get => _dampingEdge;
 		set => SetProperty(ref _dampingEdge, value);
+	}
+
+	/// <summary>What the edge of the grid does with a wave: lets it leave, or reflects it.</summary>
+	[XmlAttribute]
+	[DefaultValue(EdgeMode.Open)]
+	[Category("Canvas")]
+	[DisplayName("Edges")]
+	[Description("Open lets a wave leave the grid; Reflective is a hard wall, as in Wave Dude 2D.")]
+	public EdgeMode Edges
+	{
+		get => _edges;
+		set => SetProperty(ref _edges, value);
 	}
 
 	/// <summary>Refractive index of a blank canvas, 1.0 to 2.55; the wave speed is 1/n cells per step.</summary>
@@ -254,7 +280,7 @@ public sealed class Scene : ObservableObject
 	[Browsable(false)]
 	public bool IsDefault =>
 		Mode == SceneMode.Canvas && Image.Length == 0 && ImagePath.Length == 0 && ImageData == null && Width == DefaultWidth && Height == DefaultHeight
-		&& DampingEdge == 0 && RefractiveIndex == DefaultRefractiveIndex && !ImageSources
+		&& DampingEdge == DefaultDampingEdge && Edges == EdgeMode.Open && RefractiveIndex == DefaultRefractiveIndex && !ImageSources
 		&& ImageSourceScale == DefaultImageSourceScale && ObjectSources;
 
 	/// <summary>Clamps every value into its valid range.</summary>
@@ -264,7 +290,7 @@ public sealed class Scene : ObservableObject
 		ImagePath ??= "";
 		Width = Math.Clamp(Width, MinSize, MaxSize);
 		Height = Math.Clamp(Height, MinSize, MaxSize);
-		DampingEdge = Math.Clamp(DampingEdge, 0, MaxDampingEdge);
+		DampingEdge = Math.Clamp(DampingEdge, -MaxDampingEdge, MaxDampingEdge);
 		RefractiveIndex = Math.Clamp(RefractiveIndex, MinRefractiveIndex, MaxRefractiveIndex);
 		ImageSourceScale = Math.Clamp(ImageSourceScale, 0, MaxImageSourceScale);
 	}

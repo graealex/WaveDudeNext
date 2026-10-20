@@ -32,7 +32,11 @@ namespace WaveDudeNext.Engine;
 /// Created by the run on its worker from the decoded scene pixels (<see cref="FromBgra"/>) or
 /// <see cref="Empty"/> and then copied into the padded grids of <see cref="WaveSimulator"/> /
 /// <see cref="GpuWaveSimulator"/>. The arrays are row-major (<c>y * Width + x</c>) without padding and are
-/// not modified after construction, so any thread may read them.
+/// not modified after construction, so any thread may read them. The grid may be larger than the canvas: a
+/// negative damping edge puts the absorbing band in a rim of <see cref="Rim"/> cells outside the canvas, which the
+/// engines simulate and never show (2026-10-19, the user's request: waves leave the picture, no visible margin);
+/// the canvas then starts at (<see cref="Rim"/>, <see cref="Rim"/>) of the grid, the rim continues the canvas's
+/// edge cells, and <see cref="OpenEdges"/> says whether the ring beyond the grid absorbs or reflects.
 /// </summary>
 public sealed class SceneData
 {
@@ -43,16 +47,30 @@ public sealed class SceneData
 	/// </summary>
 	public const double MirrorRefractiveIndex = 1000.0;
 
-	private SceneData(int w, int h, float[] c2, float[] d, int[] srcX, int[] srcY, byte[] srcLevel)
+	private SceneData(int w, int h, int rim, bool openEdges, float[] c2, float[] d, int[] srcX, int[] srcY, byte[] srcLevel)
 	{
 		Width = w;
 		Height = h;
+		Rim = rim;
+		OpenEdges = openEdges;
 		C2 = c2;
 		D = d;
 		SourceX = srcX;
 		SourceY = srcY;
 		SourceLevel = srcLevel;
 	}
+
+	/// <summary>Cells of the grid beyond each side of the canvas (a damping edge outside the canvas); 0 when the grid is the canvas.</summary>
+	public int Rim { get; }
+
+	/// <summary>Whether the ring beyond the grid lets a wave leave (Mur's first-order condition) rather than reflecting it.</summary>
+	public bool OpenEdges { get; }
+
+	/// <summary>Width of the canvas in cells: <see cref="Width"/> less the rim on both sides.</summary>
+	public int CanvasWidth => Width - 2 * Rim;
+
+	/// <summary>Height of the canvas in cells.</summary>
+	public int CanvasHeight => Height - 2 * Rim;
 
 	/// <summary>Number of image-defined source pixels (length of <see cref="SourceX"/>, <see cref="SourceY"/> and <see cref="SourceLevel"/>).</summary>
 	public int SourceCount => SourceX.Length;
@@ -68,8 +86,9 @@ public sealed class SceneData
 	/// <param name="height">Canvas height in pixels.</param>
 	/// <param name="strideBytes">Bytes per row (at least 4 × <paramref name="width"/>).</param>
 	/// <param name="useSources">Collect green pixels as sources; otherwise the source arrays are empty.</param>
-	/// <param name="dampingEdge">Thickness of the absorbing border in pixels; 0 or less for none.</param>
-	public static SceneData FromBgra(ReadOnlySpan<byte> bgra, int width, int height, int strideBytes, bool useSources, int dampingEdge)
+	/// <param name="dampingEdge">Thickness of the absorbing border in pixels: positive inside the canvas, negative outside it (the rim), 0 for none.</param>
+	/// <param name="openEdges">Whether the ring beyond the grid absorbs a wave rather than reflecting it.</param>
+	public static SceneData FromBgra(ReadOnlySpan<byte> bgra, int width, int height, int strideBytes, bool useSources, int dampingEdge, bool openEdges = false)
 	{
 		float[] c2 = new float[width * height];
 		float[] d = new float[width * height];
@@ -98,8 +117,51 @@ public sealed class SceneData
 				}
 			}
 		}
-		ApplyBorder(d, width, height, dampingEdge);
-		return new SceneData(width, height, c2, d, sourceX.ToArray(), sourceY.ToArray(), sourceLevel.ToArray());
+		return WithRim(width, height, dampingEdge, openEdges, c2, d, sourceX.ToArray(), sourceY.ToArray(), sourceLevel.ToArray());
+	}
+
+	/// <summary>
+	/// The scene as the engines take it: for a damping edge inside the canvas the canvas itself with the band applied; for one
+	/// outside it a grid grown by that many cells on each side, the rim continuing the canvas's edge cells, with the band in
+	/// the rim, and the sources moved into grid coordinates.
+	/// </summary>
+	private static SceneData WithRim(int width, int height, int dampingEdge, bool openEdges, float[] c2, float[] d, int[] sourceX, int[] sourceY, byte[] sourceLevel)
+	{
+		int rim = Math.Max(0, -dampingEdge);
+		if (rim == 0)
+		{
+			ApplyBorder(d, width, height, dampingEdge);
+			return new SceneData(width, height, 0, openEdges, c2, d, sourceX, sourceY, sourceLevel);
+		}
+		int gridWidth = width + 2 * rim;
+		int gridHeight = height + 2 * rim;
+		float[] gridC2 = Grow(c2, width, height, rim);
+		float[] gridD = Grow(d, width, height, rim);
+		ApplyRim(gridD, gridWidth, gridHeight, rim);
+		for (int i = 0; i < sourceX.Length; i++)
+		{
+			sourceX[i] += rim;
+			sourceY[i] += rim;
+		}
+		return new SceneData(gridWidth, gridHeight, rim, openEdges, gridC2, gridD, sourceX, sourceY, sourceLevel);
+	}
+
+	/// <summary>A <paramref name="w"/> × <paramref name="h"/> array embedded in one grown by <paramref name="rim"/> cells on each side, the rim repeating the nearest edge cell.</summary>
+	private static float[] Grow(float[] values, int w, int h, int rim)
+	{
+		int gw = w + 2 * rim;
+		int gh = h + 2 * rim;
+		var grid = new float[gw * gh];
+		for (int gy = 0; gy < gh; gy++)
+		{
+			int y = Math.Clamp(gy - rim, 0, h - 1);
+			for (int gx = 0; gx < gw; gx++)
+			{
+				int x = Math.Clamp(gx - rim, 0, w - 1);
+				grid[gy * gw + gx] = values[y * w + x];
+			}
+		}
+		return grid;
 	}
 
 	/// <summary>
@@ -109,17 +171,17 @@ public sealed class SceneData
 	/// </summary>
 	/// <param name="w">Canvas width in pixels.</param>
 	/// <param name="h">Canvas height in pixels.</param>
-	/// <param name="dampingEdge">Thickness of the absorbing border in pixels; 0 or less for none.</param>
+	/// <param name="dampingEdge">Thickness of the absorbing border in pixels: positive inside the canvas, negative outside it (the rim), 0 for none.</param>
 	/// <param name="refractiveIndex">Background refractive index (1.0 by default, the same rule as a scene image's red channel: index = red / 100).</param>
-	public static SceneData Empty(int w, int h, int dampingEdge, double refractiveIndex = 1.0)
+	/// <param name="openEdges">Whether the ring beyond the grid absorbs a wave rather than reflecting it.</param>
+	public static SceneData Empty(int w, int h, int dampingEdge, double refractiveIndex = 1.0, bool openEdges = false)
 	{
 		float speed = (float)(1.0 / Math.Clamp(refractiveIndex, 1.0, 10.0));
 		float[] c2 = new float[w * h];
 		float[] d = new float[w * h];
 		Array.Fill(c2, speed * speed);
 		Array.Fill(d, 1f);
-		ApplyBorder(d, w, h, dampingEdge);
-		return new SceneData(w, h, c2, d, [], [], []);
+		return WithRim(w, h, dampingEdge, openEdges, c2, d, [], [], []);
 	}
 
 	/// <summary>
@@ -145,6 +207,37 @@ public sealed class SceneData
 			}
 		}
 		return count;
+	}
+
+	/// <summary>
+	/// The damping of a rim outside the canvas: the loss of velocity per step rises linearly from nothing at the
+	/// canvas's edge to a tenth at the outer ring. Measured on a pulse (2026-10-19): a rim damped to a standstill, as
+	/// Jeroen's square-root band is, sent about 1 % of the pulse back, since cells whose velocity is wiped keep their
+	/// displacement and let it creep back; this mild ramp sends back 0.1 to 0.2 % at 32 cells and 0.06 % at 64, while
+	/// the open ring alone (<see cref="OpenEdges"/>) returns 0.05 to 0.09 %, so a rim is an option, not the default.
+	/// </summary>
+	/// <param name="d">Damping array of the whole grid, row-major, modified in place.</param>
+	/// <param name="w">Grid width in cells.</param>
+	/// <param name="h">Grid height in cells.</param>
+	/// <param name="rim">Cells of the rim on each side.</param>
+	internal static void ApplyRim(float[] d, int w, int h, int rim)
+	{
+		for (int i = 0; i < rim; i++)
+		{
+			// i cells from the outer ring: (rim - i) / rim of the way into the rim, a tenth of that lost per step
+			double into = (double)(rim - i) / rim;
+			float factor = (float)(1.0 - 0.1 * into);
+			for (int x = i; x <= w - 1 - i; x++)
+			{
+				d[i * w + x] = factor;
+				d[(h - 1 - i) * w + x] = factor;
+			}
+			for (int y = i; y <= h - 1 - i; y++)
+			{
+				d[y * w + i] = factor;
+				d[y * w + w - 1 - i] = factor;
+			}
+		}
 	}
 
 	/// <summary>

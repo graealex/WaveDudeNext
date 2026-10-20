@@ -35,7 +35,7 @@ namespace WaveDudeNext.Model;
 public sealed class Project : ObservableObject
 {
 	/// <summary>Format version written to new files; bump when the layout changes incompatibly.</summary>
-	public const int CurrentVersion = 1;
+	public const int CurrentVersion = 2;
 
 	private int _version = CurrentVersion;
 	private int _seed = NewSeed();
@@ -533,6 +533,13 @@ public sealed class Project : ObservableObject
 		if (project.Version > CurrentVersion)
 		{
 			Logger.Warn("Project file version {Version} is newer than the supported {Supported}; unknown settings are ignored", project.Version, CurrentVersion);
+		}
+		if (project.Version < 2)
+		{
+			// version 1 (until 2026-10-19) knew only reflective edges; the open edges that are the default since must not
+			// reach an old file, which keeps the walls it was made with
+			project.Scene.Edges = EdgeMode.Reflective;
+			project.Version = CurrentVersion;
 		}
 		project.Normalize();
 		Logger.Debug("Loaded project: version {Version}, seed {Seed}, {Sources} sources, {Parts} parts, {Probes} probes", project.Version, project.Seed, project.Sources.Count, project.Parts.Count, project.Probes.Count);

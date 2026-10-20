@@ -22,7 +22,8 @@ namespace WaveDudeNext.Engine;
 /// <summary>
 /// A wave-field solver (CPU <see cref="WaveSimulator"/> or OpenCL <see cref="GpuWaveSimulator"/>), created by
 /// <see cref="WaveEngineFactory"/> and driven by the run on its worker task. The field and intensity buffers
-/// are padded by one cell on each side, so row y of the scene starts at index (y + 1) * Stride + 1.
+/// are padded by one cell on each side of the grid, and the grid may carry a rim of <see cref="Rim"/> cells around the
+/// canvas (<see cref="SceneData.Rim"/>), so canvas row y starts at index (y + 1 + Rim) * Stride + 1 + Rim.
 /// Exactly one thread drives an engine at a time and nothing else reads it; the engines have no internal
 /// synchronisation and no thread affinity. Implementations that own native resources are <see cref="IDisposable"/>;
 /// the interface deliberately is not, the driver disposes through <c>(engine as IDisposable)?.Dispose()</c>.
@@ -38,11 +39,14 @@ public interface IWaveEngine
 	/// <summary>Scene height in cells (= canvas pixels), without padding.</summary>
 	int Height { get; }
 
-	/// <summary>Row pitch of <see cref="FieldData"/> and <see cref="IntensityData"/>: <see cref="Width"/> + 2. Pixel (x, y) is at (y + 1) * Stride + x + 1.</summary>
+	/// <summary>Row pitch of <see cref="FieldData"/> and <see cref="IntensityData"/>: <see cref="Width"/> + 2 + 2 × <see cref="Rim"/>. Canvas pixel (x, y) is at (y + 1 + Rim) * Stride + x + 1 + Rim.</summary>
 	int Stride { get; }
 
+	/// <summary>Cells simulated beyond each side of the canvas (a damping edge outside it); 0 when the grid is the canvas.</summary>
+	int Rim { get; }
+
 	/// <summary>
-	/// The field of the last completed step, <see cref="Stride"/> * (<see cref="Height"/> + 2) floats. Valid for
+	/// The field of the last completed step, <see cref="Stride"/> * (<see cref="Height"/> + 2 + 2 × <see cref="Rim"/>) floats. Valid for
 	/// reading after <see cref="PrepareFrame"/>(true, ...); the CPU engine exposes its live buffer (a different
 	/// array instance after every sub-step, so re-read the property per frame), the GPU engine a host copy.
 	/// Do not change.

@@ -174,7 +174,7 @@ public sealed class ScratchRunner : IDisposable
 		int steps = frame * spec.VisualizeEvery + 1;
 		IWaveEngine engine = EngineFor(spec);
 		// the spec's probes, installed per request (Reset removes them; a fresh engine has none)
-		ProbeSampler? sampler = spec.Probes.Length > 0 ? ProbeSampler.Build(spec.Probes, spec.Width, spec.Height) : null;
+		ProbeSampler? sampler = spec.Probes.Length > 0 ? ProbeSampler.Build(spec.Probes, spec.Width, spec.Height, spec.Rim) : null;
 		engine.SetProbes(sampler);
 		var clock = Stopwatch.StartNew();
 		for (int i = 0; i < steps; i++)

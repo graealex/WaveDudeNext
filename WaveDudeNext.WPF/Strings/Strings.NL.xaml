@@ -404,7 +404,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Scene.Height">Hoogte</s:String>
 	<s:String x:Key="Hint.Scene.Height">Hoogte van een leeg canvas in pixels.</s:String>
 	<s:String x:Key="Label.Scene.DampingEdge">Dempingsrand</s:String>
-	<s:String x:Key="Hint.Scene.DampingEdge">Dikte in pixels van de absorberende rand rond het canvas. 0 schakelt hem uit.</s:String>
+	<s:String x:Key="Hint.Scene.DampingEdge">Dikte in pixels van de absorberende rand: positief binnen het canvas, waar hij als donkere marge zichtbaar is; negatief erbuiten, gesimuleerd maar nooit getoond. 0 schakelt hem uit.</s:String>
+	<s:String x:Key="Label.Scene.Edges">Randen</s:String>
+	<s:String x:Key="Hint.Scene.Edges">Open laat een golf het raster verlaten, alsof het canvas in de vrije ruimte ligt; Reflecterend is een harde wand, zoals in Wave Dude 2D.</s:String>
 	<s:String x:Key="Label.Scene.RefractiveIndex">Brekingsindex</s:String>
 	<s:String x:Key="Hint.Scene.RefractiveIndex">Brekingsindex van een leeg canvas, 1,0 tot 2,55. De golfsnelheid is 1/n cellen per stap.</s:String>
 	<s:String x:Key="Label.Scene.ImageSources">Afbeeldingsbronnen</s:String>
@@ -500,6 +502,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.ProbeScaleMode.Full">Hele run</s:String>
 	<s:String x:Key="Enum.SceneMode.Canvas">Canvas</s:String>
 	<s:String x:Key="Enum.SceneMode.Image">Afbeelding</s:String>
+	<s:String x:Key="Enum.EdgeMode.Open">Open</s:String>
+	<s:String x:Key="Enum.EdgeMode.Reflective">Reflecterend</s:String>
 	<s:String x:Key="Enum.SourceMode.Continuous">Continu</s:String>
 	<s:String x:Key="Enum.SourceMode.Pulsed">Gepulst</s:String>
 	<s:String x:Key="Enum.PulseShape.Gaussian">Gaussisch</s:String>

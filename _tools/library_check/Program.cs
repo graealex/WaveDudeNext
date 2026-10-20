@@ -257,6 +257,7 @@ internal static class Program
 		CheckMirror(W, H);
 		CheckDecimalLevels(W, H);
 		CheckMovable();
+		CheckOpenEdges(W, H);
 		CheckFrameStore(scene);
 		CheckPreviewQuality(scene, W, H);
 		CheckRenderer();
@@ -710,6 +711,94 @@ internal static class Program
 		Check(probe.BoxX == 8 && probe.BoxY == 7 && probe.IsBoxAttached, "the attached graph box followed point A");
 		probe.Kind = ProbeKind.Point;
 		Check(probe.Anchors.SequenceEqual([(8, 7)]), "a point probe anchors at point A alone");
+	}
+
+	private static void CheckOpenEdges(int W, int H)
+	{
+		Console.WriteLine("--- open edges and the damping rim");
+		// a scene image with a green pixel: a negative damping edge grows the grid, moves the source into grid coordinates
+		// and continues the canvas's edge cells into the rim
+		var bgra = new byte[8 * 8 * 4];
+		for (int i = 0; i < 64; i++)
+		{
+			bgra[i * 4 + 2] = 100;
+			bgra[i * 4 + 3] = 255;
+		}
+		bgra[(3 * 8 + 2) * 4 + 1] = 120;   // a source at (2, 3)
+		bgra[2] = 200;                     // index 2 at the corner (0, 0)
+		SceneData rimmed = SceneData.FromBgra(bgra, 8, 8, 32, true, -4, true);
+		Check(rimmed.Width == 16 && rimmed.Height == 16 && rimmed.Rim == 4 && rimmed.CanvasWidth == 8 && rimmed.CanvasHeight == 8 && rimmed.OpenEdges,
+			"a damping edge of -4 grows an 8x8 scene to a 16x16 grid with a rim of 4, open");
+		Check(rimmed.SourceCount == 1 && rimmed.SourceX[0] == 6 && rimmed.SourceY[0] == 7, "the image source moved into grid coordinates");
+		Check(rimmed.D[0] == 0.9f && rimmed.D[4 * 16 + 4] == 1f && rimmed.C2[0] == rimmed.C2[4 * 16 + 4] && rimmed.C2[0] == 0.25f,
+			"the rim loses a tenth per step at its outer ring, the canvas nothing, and the rim repeats the canvas's corner cell");
+		SceneData plain = SceneData.Empty(W, H, 8);
+		Check(plain.Rim == 0 && plain.Width == W && !plain.OpenEdges && plain.D[0] == 0f && plain.D[8 * W + 8] == 1f, "a positive damping edge stays inside the canvas, reflective by default");
+		// what comes back: a Gaussian pulse from the centre, its peak amplitude on the way out against the largest
+		// amplitude found in the canvas once it has had time to leave (steps 300 to 700)
+		(string Name, int Edge, bool Open)[] configs = [("reflective, no damping", 0, false), ("reflective, a 24 px band inside", 24, false), ("open, no damping", 0, true), ("open, a 32 px rim outside", -32, true)];
+		double[] back = new double[configs.Length];
+		for (int c = 0; c < configs.Length; c++)
+		{
+			SceneData scene = SceneData.Empty(W, H, configs[c].Edge, 1.0, configs[c].Open);
+			var pulse = new List<Emitter> { Make(W / 2, H / 2, 120, 1.0) with { Mode = SourceMode.Pulsed, PulseShape = PulseShape.Gaussian, OnWidthCycles = 3, OffWidthCycles = 100000, OffWidthBase = 100000 } };
+			var cpu = new WaveSimulator(scene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), pulse);
+			double peak = 0, returned = 0;
+			for (int step = 1; step <= 700; step++)
+			{
+				cpu.AdvanceOneStep();
+				if (step % 5 == 0)
+				{
+					double amplitude = CanvasPeak(cpu);
+					if (step <= 150)
+					{
+						peak = Math.Max(peak, amplitude);
+					}
+					else if (step >= 300)
+					{
+						returned = Math.Max(returned, amplitude);
+					}
+				}
+			}
+			back[c] = returned / peak;
+			Console.WriteLine($"  {configs[c].Name}: {back[c] * 100:0.000} % of the pulse's amplitude is back in the canvas between steps 300 and 700");
+		}
+		Check(back[2] < 0.002, "open edges alone: under 0.2 % of the amplitude comes back");
+		Check(back[3] < 0.005, "open edges with a 32 px rim outside: under half a percent comes back");
+		Check(back[0] > 0.5, "a reflective box without damping sends it all back");
+		// CPU = GPU with the rim and the open edge
+		SceneData openScene = SceneData.Empty(W, H, -32, 1.0, true);
+		var wave = new List<Emitter> { Make(W / 2, H / 2, 120, 1.0) };
+		float[] cpuField = RunCpu(openScene, wave, 300);
+		Check(cpuField.Length == (W + 66) * (H + 66), "the engine's buffer holds the grid with its rim and padding");
+		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(openScene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), wave, out string problems);
+		if (gpu == null)
+		{
+			Console.WriteLine("  skip GPU: " + problems);
+			return;
+		}
+		using (gpu)
+		{
+			Run(gpu, 300);
+			float diff = MaxDiff(cpuField, gpu.FieldData);
+			Check(gpu.Rim == 32 && gpu.Width == W && gpu.Stride == W + 66 && diff < 1e-3f * Math.Max(1f, MaxAbs(cpuField)), "GPU agrees with the CPU on the rim and the open edge (max diff " + diff + ")");
+		}
+	}
+
+	/// <summary>Max |u| over the canvas cells of an engine's field (the rim and padding left out).</summary>
+	private static double CanvasPeak(IWaveEngine engine)
+	{
+		float[] u = engine.FieldData;
+		double peak = 0;
+		for (int y = 0; y < engine.Height; y++)
+		{
+			int row = (y + 1 + engine.Rim) * engine.Stride + 1 + engine.Rim;
+			for (int x = 0; x < engine.Width; x++)
+			{
+				peak = Math.Max(peak, Math.Abs(u[row + x]));
+			}
+		}
+		return peak;
 	}
 
 	/// <summary>Max |u| over the canvas columns <paramref name="x0"/>..<paramref name="x1"/> of a padded field.</summary>
@@ -1228,7 +1317,7 @@ internal static class Program
 				"a run in that quality completes with 50 stored frames of 32x24 index bytes covering all 100 timeline frames");
 			// stored frame 49 is timeline frame 98, step 196: an engine stepped 197 times and captured in the shape gives the same bytes,
 			// and timeline frame 99 (not stored) reads the same stored frame
-			IWaveEngine reference = WaveEngineFactory.Create(SceneData.Empty(W, H, spec.DampingEdge, spec.RefractiveIndex), spec.Engine, false, spec.Emitters, out _);
+			IWaveEngine reference = WaveEngineFactory.Create(SceneData.Empty(W, H, spec.DampingEdge, spec.RefractiveIndex, spec.Edges == EdgeMode.Open), spec.Engine, false, spec.Emitters, out _);
 			Run(reference, 197);
 			var expected = new FrameSnapshot(spec.Shape, spec.TrackIntensity);
 			reference.CaptureFrame(expected, spec.TrackIntensity);

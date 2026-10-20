@@ -302,20 +302,21 @@ public sealed unsafe class FrameStore : IFrameSource, IDisposable
 	/// <param name="frame">Index of the frame; must equal <see cref="Count"/>.</param>
 	/// <param name="field">Padded field buffer, <c>stride × (canvas height + 2)</c> floats.</param>
 	/// <param name="intensity">Padded intensity buffer, or null when the store has no intensity plane.</param>
-	/// <param name="stride">Row pitch of the padded buffers (<see cref="CanvasWidth"/> + 2).</param>
+	/// <param name="stride">Row pitch of the padded buffers (<see cref="CanvasWidth"/> + 2, plus twice the rim).</param>
+	/// <param name="rim">Cells of the grid beyond each side of the canvas (<see cref="Engine.IWaveEngine.Rim"/>): the canvas starts that far into the padded rows.</param>
 	/// <exception cref="ArgumentOutOfRangeException"><paramref name="frame"/> is not the next frame or beyond <see cref="Capacity"/>.</exception>
 	/// <exception cref="ArgumentNullException">The store has an intensity plane but <paramref name="intensity"/> is null.</exception>
 	/// <exception cref="ObjectDisposedException">The store is disposed.</exception>
-	public void Write(int frame, float[] field, float[]? intensity, int stride)
+	public void Write(int frame, float[] field, float[]? intensity, int stride, int rim = 0)
 	{
 		byte[] fieldPlane = _staging;
-		FrameConversion.Convert(field, stride + 1, stride, Shape, false, fieldPlane);
+		FrameConversion.Convert(field, (rim + 1) * stride + rim + 1, stride, Shape, false, fieldPlane);
 		byte[]? intensityPlane = null;
 		if (Has(FrameLayer.Intensity))
 		{
 			ArgumentNullException.ThrowIfNull(intensity);
 			intensityPlane = _staging2 ??= new byte[Shape.PlaneBytes];
-			FrameConversion.Convert(intensity, stride + 1, stride, Shape, true, intensityPlane);
+			FrameConversion.Convert(intensity, (rim + 1) * stride + rim + 1, stride, Shape, true, intensityPlane);
 		}
 		Write(frame, fieldPlane, intensityPlane);
 	}

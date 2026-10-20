@@ -135,6 +135,10 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		_device = device;
 		_width = scene.Width;
 		_height = scene.Height;
+		_rim = scene.Rim;
+		_canvasWidth = scene.CanvasWidth;
+		_canvasHeight = scene.CanvasHeight;
+		_openEdges = scene.OpenEdges;
 		_stride = _width + 2;
 		_cells = _stride * (_height + 2);
 		_track = options.TrackIntensity;
@@ -170,7 +174,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		{
 			foreach (Emitter source in emitters)
 			{
-				if (source.X >= 0 && source.X < _width && source.Y >= 0 && source.Y < _height)
+				if (source.X >= 0 && source.X < _canvasWidth && source.Y >= 0 && source.Y < _canvasHeight)
 				{
 					sourcesInScene.Add(source);
 				}
@@ -218,7 +222,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	public void CaptureFrame(FrameSnapshot snapshot, bool needIntensity)
 	{
 		FrameShape shape = snapshot.Shape;
-		if (shape.CanvasWidth != _width || shape.CanvasHeight != _height)
+		if (shape.CanvasWidth != _canvasWidth || shape.CanvasHeight != _canvasHeight)
 		{
 			throw new ArgumentException("The snapshot's canvas does not match the engine's size.", nameof(snapshot));
 		}
@@ -230,16 +234,19 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		{
 			// lazily: most engines never capture (the harness, the probes-only paths). The staging planes have room
 			// for any shape: a plane is at most the whole canvas as halves
-			_stagingField = CreateBuffer((long)_width * _height * 2, _scene);
-			_stagingIntensity = _track ? CreateBuffer((long)_width * _height * 2, _scene) : IntPtr.Zero;
+			_stagingField = CreateBuffer((long)_canvasWidth * _canvasHeight * 2, _scene);
+			_stagingIntensity = _track ? CreateBuffer((long)_canvasWidth * _canvasHeight * 2, _scene) : IntPtr.Zero;
 			_captureHalfKernel = CreateKernel(_scene, _scene.Program, "capture_half");
 			_captureIndexKernel = CreateKernel(_scene, _scene.Program, "capture_index");
 			foreach (IntPtr kernel in new[] { _captureHalfKernel, _captureIndexKernel })
 			{
-				SetInt(kernel, 2U, _width);
-				SetInt(kernel, 3U, _height);
+				// the canvas, which the captures cover, and where it starts in the grid
+				SetInt(kernel, 2U, _canvasWidth);
+				SetInt(kernel, 3U, _canvasHeight);
 				SetInt(kernel, 4U, _stride);
 			}
+			SetInt(_captureHalfKernel, 8U, _rim);
+			SetInt(_captureIndexKernel, 10U, _rim);
 		}
 		if (_captureShape == null || _captureShape.Divisor != shape.Divisor || !_captureShape.SameLayoutAs(shape))
 		{
@@ -414,7 +421,20 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 			SetMem(step, 11U, intensityStage1Buffer);
 			SetMem(step, 12U, _intensityOutBuffer);
 			SetFloat(step, 13U, intensityScale);
+			if (_openEdges)
+			{
+				// the ring after the step, reading the field the step read and writing the one it wrote
+				IntPtr edges = _edgeKernel[k] = CreateKernel(_scene, "open_edges");
+				SetMem(edges, 0U, _field[k]);
+				SetMem(edges, 1U, _field[1 - k]);
+				SetMem(edges, 2U, c2Buffer);
+				SetInt(edges, 3U, _width);
+				SetInt(edges, 4U, _height);
+				SetInt(edges, 5U, _stride);
+				SetFloat(edges, 6U, c2Mult);
+			}
 		}
+		_edgeGrid1D = [new IntPtr(_width + 2 + _height)];
 		if (_sourceCount > 0)
 		{
 			IntPtr indexBuffer = CreateBuffer(indices, _scene);
@@ -451,7 +471,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		for (int i = 0; i < n; i++)
 		{
 			Emitter source = objectSources[i];
-			index[i] = (source.Y + 1) * _stride + source.X + 1;
+			index[i] = (source.Y + 1 + _rim) * _stride + source.X + 1 + _rim;
 			omega[i] = (float)(source.Level / 255.0 * 0.5 * _sourceFrequencyScale);
 			amplitude[i] = (float)source.Amplitude;
 			phase[i] = (float)source.PhaseRadians;
@@ -726,24 +746,24 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		// right and bottom edges, averaged into one sample, stored as a half or as the palette index the renderer
 		// would compute at the given brightness; so a frame crosses the bus at half the size or less and the host
 		// converts nothing. vstore_half is core OpenCL C; only half arithmetic would need cl_khr_fp16.
-		source.AppendLine("float capture_sample(__global const float* src, const int w, const int h, const int stride, const int div, const int x, const int y)");
+		source.AppendLine("float capture_sample(__global const float* src, const int w, const int h, const int stride, const int div, const int rim, const int x, const int y)");
 		source.AppendLine("{");
-		source.AppendLine("    if (div == 1) return src[(y + 1) * stride + x + 1];");
+		source.AppendLine("    if (div == 1) return src[(y + 1 + rim) * stride + x + 1 + rim];");
 		source.AppendLine("    int x0 = x * div, y0 = y * div;");
 		source.AppendLine("    int x1 = min(w, x0 + div), y1 = min(h, y0 + div);");
 		source.AppendLine("    float sum = 0.0f;");
 		source.AppendLine("    for (int cy = y0; cy < y1; cy++)");
 		source.AppendLine("        for (int cx = x0; cx < x1; cx++)");
-		source.AppendLine("            sum += src[(cy + 1) * stride + cx + 1];");
+		source.AppendLine("            sum += src[(cy + 1 + rim) * stride + cx + 1 + rim];");
 		source.AppendLine("    return sum / (float)((y1 - y0) * (x1 - x0));");
 		source.AppendLine("}");
 		source.AppendLine();
-		source.AppendLine("__kernel void capture_half(__global const float* src, __global half* dst, const int w, const int h, const int stride, const int div, const int fw, const int fh)");
+		source.AppendLine("__kernel void capture_half(__global const float* src, __global half* dst, const int w, const int h, const int stride, const int div, const int fw, const int fh, const int rim)");
 		source.AppendLine("{");
 		source.AppendLine("    int x = get_global_id(0);");
 		source.AppendLine("    int y = get_global_id(1);");
 		source.AppendLine("    if (x >= fw || y >= fh) return;");
-		source.AppendLine("    vstore_half(capture_sample(src, w, h, stride, div, x, y), y * fw + x, dst);");
+		source.AppendLine("    vstore_half(capture_sample(src, w, h, stride, div, rim, x, y), y * fw + x, dst);");
 		source.AppendLine("}");
 		source.AppendLine();
 		// the index mapping of ColorLut.FieldIndex / IntensityIndex: a NaN field gives the centre, a NaN or
@@ -770,12 +790,12 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		source.AppendLine("}");
 		source.AppendLine();
 		source.AppendLine("#pragma OPENCL FP_CONTRACT OFF");
-		source.AppendLine("__kernel void capture_index(__global const float* src, __global uchar* dst, const int w, const int h, const int stride, const int div, const int fw, const int fh, const float brightness, const int intensity)");
+		source.AppendLine("__kernel void capture_index(__global const float* src, __global uchar* dst, const int w, const int h, const int stride, const int div, const int fw, const int fh, const float brightness, const int intensity, const int rim)");
 		source.AppendLine("{");
 		source.AppendLine("    int x = get_global_id(0);");
 		source.AppendLine("    int y = get_global_id(1);");
 		source.AppendLine("    if (x >= fw || y >= fh) return;");
-		source.AppendLine("    float v = round_to_half(capture_sample(src, w, h, stride, div, x, y));");
+		source.AppendLine("    float v = round_to_half(capture_sample(src, w, h, stride, div, rim, x, y));");
 		source.AppendLine("    int index;");
 		source.AppendLine("    if (intensity)");
 		source.AppendLine("        index = v > 0.0f ? (int)(fmin(sqrt(v) * brightness, 1.0f) * 254.0f) : 0;");
@@ -784,6 +804,32 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		source.AppendLine("        index = isnan(s) ? 127 : (int)(clamp(s, -1.0f, 1.0f) * 127.0f + 127.0f);");
 		source.AppendLine("    }");
 		source.AppendLine("    dst[y * fw + x] = (uchar)index;");
+		source.AppendLine("}");
+		source.AppendLine();
+		// open_edges: Mur's first-order absorbing condition on the ring, WaveSimulator.ApplyOpenEdges cell for cell and
+		// operation for operation (no contraction, see above): one work item per column of the top and bottom rows
+		// (corners take their diagonal neighbour), then one per row of the left and right columns
+		source.AppendLine("void absorb(__global const float* u, __global float* up, __global const float* c2, const float c2Scale, const int ring, const int inner)");
+		source.AppendLine("{");
+		source.AppendLine("    float s = sqrt(c2[inner] * c2Scale) * " + EdgeSpeedFactorLiteral + ";");
+		source.AppendLine("    float k = (s - 1.0f) / (s + 1.0f);");
+		source.AppendLine("    up[ring] = u[inner] + k * (up[inner] - u[ring]);");
+		source.AppendLine("}");
+		source.AppendLine();
+		source.AppendLine("__kernel void open_edges(__global const float* u, __global float* up, __global const float* c2, const int w, const int h, const int stride, const float c2Scale)");
+		source.AppendLine("{");
+		source.AppendLine("    int id = get_global_id(0);");
+		source.AppendLine("    if (id < w + 2) {");
+		source.AppendLine("        int x = id;");
+		source.AppendLine("        int ix = clamp(x, 1, w);");
+		source.AppendLine("        absorb(u, up, c2, c2Scale, x, stride + ix);");
+		source.AppendLine("        absorb(u, up, c2, c2Scale, (h + 1) * stride + x, h * stride + ix);");
+		source.AppendLine("    } else {");
+		source.AppendLine("        int y = id - (w + 2) + 1;");
+		source.AppendLine("        if (y > h) return;");
+		source.AppendLine("        absorb(u, up, c2, c2Scale, y * stride, y * stride + 1);");
+		source.AppendLine("        absorb(u, up, c2, c2Scale, y * stride + w + 1, y * stride + w);");
+		source.AppendLine("    }");
 		source.AppendLine("}");
 		return source.ToString();
 	}
@@ -892,10 +938,13 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	public GpuDeviceInfo Device => _device;
 
 	/// <summary>Scene width in cells (canvas pixels), excluding the padding.</summary>
-	public int Width => _width;
+	public int Width => _canvasWidth;
+
+	/// <inheritdoc/>
+	public int Rim => _rim;
 
 	/// <summary>Scene height in cells (canvas pixels), excluding the padding.</summary>
-	public int Height => _height;
+	public int Height => _canvasHeight;
 
 	/// <summary>Row pitch of the padded buffers: <see cref="Width"/> + 2.</summary>
 	public int Stride => _stride;
@@ -942,6 +991,10 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 				SetInt(_stepKernel[current], 8U, subStep == _subSteps && _track ? 1 : 0);
 			}
 			Enqueue(_stepKernel[current], _grid2D, "step");
+			if (_openEdges)
+			{
+				Enqueue(_edgeKernel[current], _edgeGrid1D, "edges");
+			}
 			current = 1 - current;
 		}
 		// the buffer that received the new values is now the current field
@@ -1442,6 +1495,15 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	/// <summary>The device the context lives on; needed again to build the probe program.</summary>
 	private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 	private readonly GpuDeviceInfo _device;
+	private readonly int _rim;
+	private readonly int _canvasWidth;
+	private readonly int _canvasHeight;
+	private readonly bool _openEdges;
+	private readonly IntPtr[] _edgeKernel = new IntPtr[2];
+	private IntPtr[] _edgeGrid1D = [new IntPtr(1)];
+
+	/// <summary><see cref="WaveSimulator.EdgeSpeedFactor"/> as the kernel source spells it, so both engines use the same float.</summary>
+	private static readonly string EdgeSpeedFactorLiteral = WaveSimulator.EdgeSpeedFactor.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f";
 
 	/// <summary>Scene width in cells (canvas pixels), without padding.</summary>
 	private readonly int _width;

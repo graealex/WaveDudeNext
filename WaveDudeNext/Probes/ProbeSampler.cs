@@ -73,7 +73,8 @@ public sealed class ProbeSampler
 	/// <param name="probes">Run probe list; the per-probe arrays of the result use the same order.</param>
 	/// <param name="w">Canvas width in pixels.</param>
 	/// <param name="h">Canvas height in pixels.</param>
-	public static ProbeSampler Build(IReadOnlyList<ProbeSpec> probes, int w, int h)
+	/// <param name="rim">Cells of the engine's grid beyond each side of the canvas (<see cref="Engine.SceneData.Rim"/>); the indices are moved into the grid.</param>
+	public static ProbeSampler Build(IReadOnlyList<ProbeSpec> probes, int w, int h, int rim = 0)
 	{
 		int count = probes.Count;
 		int[][] pixels = new int[count][];
@@ -84,7 +85,8 @@ public sealed class ProbeSampler
 		double[] lengths = new double[count];
 		bool[] useStartAfterStep = new bool[count];
 		int[] startAfterStep = new int[count];
-		int stride = w + 2;
+		int stride = w + 2 + 2 * rim;
+		int shift = rim * stride + rim;   // the canvas starts that far into a grid with a rim (SceneData.Rim)
 		for (int i = 0; i < count; i++)
 		{
 			ProbeSpec probe = probes[i];
@@ -112,6 +114,13 @@ public sealed class ProbeSampler
 			useStartAfterStep[i] = probe.StartAfter > 0;
 			startAfterStep[i] = probe.StartAfter;
 		}
+		if (shift > 0)
+		{
+			foreach (int[] indices in pixels)
+			{
+				Shift(indices, shift);
+			}
+		}
 		return new ProbeSampler(pixels, isProfile, useIntensity, cumulative, integrate, lengths, useStartAfterStep, startAfterStep);
 	}
 
@@ -129,12 +138,21 @@ public sealed class ProbeSampler
 		return value;
 	}
 
+	/// <summary>Moves every index by <paramref name="shift"/>: the rim's offset into the grid.</summary>
+	private static void Shift(int[] indices, int shift)
+	{
+		for (int i = 0; i < indices.Length; i++)
+		{
+			indices[i] += shift;
+		}
+	}
+
 	/// <summary>Bresenham walk from (x0, y0) to (x1, y1), both inclusive, returning padded-grid indices in walking order (A first).</summary>
 	/// <param name="x0">Start x in canvas pixels.</param>
 	/// <param name="y0">Start y in canvas pixels.</param>
 	/// <param name="x1">End x in canvas pixels.</param>
 	/// <param name="y1">End y in canvas pixels.</param>
-	/// <param name="stride">Row length of the padded grid (canvas width + 2).</param>
+	/// <param name="stride">Row length of the padded grid (canvas width + 2, plus twice the rim).</param>
 	private static int[] LinePixels(int x0, int y0, int x1, int y1, int stride)
 	{
 		var indices = new List<int>();

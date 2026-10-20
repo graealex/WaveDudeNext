@@ -107,6 +107,10 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 		_intensityScale = (float)options.IntensityScale;
 		_width = scene.Width;
 		_height = scene.Height;
+		_rim = scene.Rim;
+		_canvasWidth = scene.CanvasWidth;
+		_canvasHeight = scene.CanvasHeight;
+		_openEdges = scene.OpenEdges;
 		_stride = _width + 2;
 		int cellCount = _stride * (_height + 2);
 		_u = new float[cellCount];
@@ -177,10 +181,10 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 		{
 			foreach (Emitter source in emitters)
 			{
-				if (source.X >= 0 && source.X < _width && source.Y >= 0 && source.Y < _height)
+				if (source.X >= 0 && source.X < _canvasWidth && source.Y >= 0 && source.Y < _canvasHeight)
 				{
 					insideSources.Add(source);
-					insideIndices.Add((source.Y + 1) * _stride + source.X + 1);
+					insideIndices.Add((source.Y + 1 + _rim) * _stride + source.X + 1 + _rim);
 				}
 			}
 		}
@@ -232,11 +236,11 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 	/// </summary>
 	public void CaptureFrame(FrameSnapshot snapshot, bool needIntensity)
 	{
-		if (snapshot.Shape.CanvasWidth != _width || snapshot.Shape.CanvasHeight != _height)
+		if (snapshot.Shape.CanvasWidth != _canvasWidth || snapshot.Shape.CanvasHeight != _canvasHeight)
 		{
 			throw new ArgumentException("The snapshot's canvas does not match the engine's size.", nameof(snapshot));
 		}
-		int cells = _width * _height;
+		int cells = _canvasWidth * _canvasHeight;
 		snapshot.FieldFloats ??= new float[cells];
 		CopyInterior(_u, snapshot.FieldFloats);
 		snapshot.HasIntensity = needIntensity && _intensityOut != null && snapshot.IntensityBytes != null;
@@ -257,26 +261,30 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 		}
 		snapshot.PendingConversion = false;
 		// the shape's shrinking and format (FrameConversion), on the awaiting thread
-		FrameConversion.Convert(snapshot.FieldFloats!, 0, _width, snapshot.Shape, false, snapshot.FieldBytes);
+		FrameConversion.Convert(snapshot.FieldFloats!, 0, _canvasWidth, snapshot.Shape, false, snapshot.FieldBytes);
 		if (snapshot.HasIntensity)
 		{
-			FrameConversion.Convert(snapshot.IntensityFloats!, 0, _width, snapshot.Shape, true, snapshot.IntensityBytes!);
+			FrameConversion.Convert(snapshot.IntensityFloats!, 0, _canvasWidth, snapshot.Shape, true, snapshot.IntensityBytes!);
 		}
 	}
 
 	/// <summary>The interior rows of a padded buffer into a tightly packed plane.</summary>
 	private void CopyInterior(float[] source, float[] target)
 	{
-		int width = _width;
+		int width = _canvasWidth;
 		int stride = _stride;
-		Parallel.For(0, _height, y => source.AsSpan((y + 1) * stride + 1, width).CopyTo(target.AsSpan(y * width, width)));
+		int rim = _rim;
+		Parallel.For(0, _canvasHeight, y => source.AsSpan((y + 1 + rim) * stride + 1 + rim, width).CopyTo(target.AsSpan(y * width, width)));
 	}
 
-	/// <summary>Scene width in cells (canvas pixels), excluding the padding.</summary>
-	public int Width => _width;
+	/// <summary>Canvas width in cells, excluding the padding and the rim.</summary>
+	public int Width => _canvasWidth;
+
+	/// <inheritdoc/>
+	public int Rim => _rim;
 
 	/// <summary>Scene height in cells (canvas pixels), excluding the padding.</summary>
-	public int Height => _height;
+	public int Height => _canvasHeight;
 
 	/// <summary>Row pitch of the padded buffers: <see cref="Width"/> + 2. Pixel (x, y) is at (y + 1) * Stride + x + 1.</summary>
 	public int Stride => _stride;
@@ -803,9 +811,56 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 			}
 		});
 
+		if (_openEdges)
+		{
+			ApplyOpenEdges(u, uPrev, c2, mult, w, h, stride);
+		}
 		// the array that received the new values is now the current field
 		_uPrev = u;
 		_u = uPrev;
+	}
+
+	/// <summary>
+	/// The phase speed of the 9-point stencil for a wave of c² = 1 in cells per step: a plane wave of small k sees
+	/// lap ≈ −(0.184 + 2 × 0.066) k² = −0.316 k², so the speed is √0.316 (Jeroen's c of 0.563). The cell next to the
+	/// ring always uses that stencil, so the open edge is tuned to it in both stencil modes.
+	/// </summary>
+	internal const float EdgeSpeedFactor = 0.56213877f;
+
+	/// <summary>
+	/// Mur's first-order absorbing condition on the ring outside the grid, after a sub-step (2026-10-19): each ring cell
+	/// takes what a wave travelling straight out would leave behind, u_ring' = u_in + k (u_in' − u_ring) with
+	/// k = (s − 1) / (s + 1) and s the local speed in cells per sub-step, so a head-on wave walks off the grid; an
+	/// oblique one partly returns, which the damping rim in front of the ring takes care of. A corner takes its
+	/// diagonal neighbour. The GPU kernel <c>open_edges</c> does the same operations in the same order.
+	/// </summary>
+	/// <param name="old">The field before the sub-step.</param>
+	/// <param name="next">The field after it, whose ring this writes.</param>
+	/// <param name="c2">Squared speed per cell (the padded layout).</param>
+	/// <param name="mult">The sub-step's c² scale.</param>
+	/// <param name="w">Grid width without padding.</param>
+	/// <param name="h">Grid height without padding.</param>
+	/// <param name="stride">Row pitch.</param>
+	internal static void ApplyOpenEdges(float[] old, float[] next, float[] c2, float mult, int w, int h, int stride)
+	{
+		for (int x = 0; x <= w + 1; x++)
+		{
+			int ix = Math.Clamp(x, 1, w);
+			Absorb(old, next, c2, mult, x, stride + ix);
+			Absorb(old, next, c2, mult, (h + 1) * stride + x, h * stride + ix);
+		}
+		for (int y = 1; y <= h; y++)
+		{
+			Absorb(old, next, c2, mult, y * stride, y * stride + 1);
+			Absorb(old, next, c2, mult, y * stride + w + 1, y * stride + w);
+		}
+	}
+
+	private static void Absorb(float[] old, float[] next, float[] c2, float mult, int ring, int inner)
+	{
+		float s = MathF.Sqrt(c2[inner] * mult) * EdgeSpeedFactor;
+		float k = (s - 1f) / (s + 1f);
+		next[ring] = old[inner] + k * (next[inner] - old[ring]);
 	}
 
 	/// <summary>Weight of the four diagonal neighbours in the 9-point Laplacian.</summary>
@@ -884,6 +939,10 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 	/// otherwise a separate array of it raised to the power 1/<see cref="_subSteps"/>.
 	/// </summary>
 	private readonly float[] _damping;
+	private readonly int _rim;
+	private readonly int _canvasWidth;
+	private readonly int _canvasHeight;
+	private readonly bool _openEdges;
 
 	/// <summary>1/<see cref="_subSteps"/>², scaling c² for the shorter sub-step (or exactly 1.0F when _subSteps = 1, a bit-for-bit no-op multiply).</summary>
 	private readonly float _c2Mult;

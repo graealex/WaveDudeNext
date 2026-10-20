@@ -76,8 +76,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.Height}" />
 				<controls:NumberBox Style="{StaticResource CanvasOnly}" Text="{Binding Height}" Minimum="8" Maximum="16384" ToolTip="{meta:Hint model:Scene.Height}" />
 
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.Edges}" />
+				<ComboBox Style="{StaticResource EnumComboBox}" ItemsSource="{meta:EnumValues model:EdgeMode}"
+				          SelectedItem="{Binding Edges}" ToolTip="{meta:Hint model:Scene.Edges}" AutomationProperties.AutomationId="SceneEdges" />
+
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.DampingEdge}" />
-				<controls:NumberBox Text="{Binding DampingEdge}" Minimum="0" Maximum="8192" ToolTip="{meta:Hint model:Scene.DampingEdge}" />
+				<controls:NumberBox Text="{Binding DampingEdge}" Minimum="-8192" Maximum="8192" ToolTip="{meta:Hint model:Scene.DampingEdge}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.RefractiveIndex}" />
 				<controls:NumberBox Text="{Binding RefractiveIndex}" Minimum="1" Maximum="2.55" Increment="0.01" ToolTip="{meta:Hint model:Scene.RefractiveIndex}" />

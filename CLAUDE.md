@@ -91,7 +91,12 @@ ExportJob (own STA thread): CopyLayer -> FrameRenderer -> outline -> probe boxes
 FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDATA%\WaveDudeNext\cache, DeleteOnClose)
 ```
 
-- **Engine contract**: padded grid (`Stride = Width + 2`), one driver thread at a time, no locking; captures
+- **Engine contract**: padded grid (`Stride = Width + 2 + 2 × Rim`: a negative damping edge is a rim of that many cells
+  outside the canvas, simulated and never shown, the canvas starting at (Rim, Rim); `Scene.Edges` Open puts Mur's
+  first-order absorbing condition on the ring, Reflective is Jeroen's wall; a new project is Open with no damping edge
+  (2026-10-19, the user's choice: measured on a pulse, the open ring alone returns 0.05 to 0.09 % of the amplitude, a
+  rim at its best the same, a rim damped to a standstill 1 %, the reflective box 72 %); a version-1 file loads as
+  Reflective, an import as Reflective with his band; one driver thread at a time, no locking; captures
   deliver planes in the spec's `FrameShape` (halves or palette index bytes, the GPU converting on the card);
   `Reset`, `SetEmitters`, `SetProbes`. Numerics are Jeroen's (dx = dt = 1, leapfrog, 9-point or 4th-order
   Laplacian, soft sources, EMA intensity; a scene pixel with red 0 is a mirror, n = 1000, his V0.30 rule,
@@ -192,7 +197,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts, group move).
+`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 38, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness

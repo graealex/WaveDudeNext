@@ -404,7 +404,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Scene.Height">Hauteur</s:String>
 	<s:String x:Key="Hint.Scene.Height">Hauteur d'une toile vierge en pixels.</s:String>
 	<s:String x:Key="Label.Scene.DampingEdge">Bord amortissant</s:String>
-	<s:String x:Key="Hint.Scene.DampingEdge">Épaisseur en pixels du cadre absorbant autour de la toile. 0 le désactive.</s:String>
+	<s:String x:Key="Hint.Scene.DampingEdge">Épaisseur en pixels du cadre absorbant : positive à l'intérieur de la toile, où il apparaît comme une marge sombre ; négative à l'extérieur, simulée mais jamais affichée. 0 le désactive.</s:String>
+	<s:String x:Key="Label.Scene.Edges">Bords</s:String>
+	<s:String x:Key="Hint.Scene.Edges">Ouvert laisse l'onde quitter la grille, comme si la toile était dans l'espace libre ; Réfléchissant est un mur dur, comme dans Wave Dude 2D.</s:String>
 	<s:String x:Key="Label.Scene.RefractiveIndex">Indice de réfraction</s:String>
 	<s:String x:Key="Hint.Scene.RefractiveIndex">Indice de réfraction d'une toile vierge, 1,0 à 2,55. La vitesse d'onde est de 1/n cellules par pas.</s:String>
 	<s:String x:Key="Label.Scene.ImageSources">Sources de l'image</s:String>
@@ -500,6 +502,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.ProbeScaleMode.Full">Toute l'exécution</s:String>
 	<s:String x:Key="Enum.SceneMode.Canvas">Toile</s:String>
 	<s:String x:Key="Enum.SceneMode.Image">Image</s:String>
+	<s:String x:Key="Enum.EdgeMode.Open">Ouvert</s:String>
+	<s:String x:Key="Enum.EdgeMode.Reflective">Réfléchissant</s:String>
 	<s:String x:Key="Enum.SourceMode.Continuous">Continu</s:String>
 	<s:String x:Key="Enum.SourceMode.Pulsed">Pulsé</s:String>
 	<s:String x:Key="Enum.PulseShape.Gaussian">Gaussienne</s:String>

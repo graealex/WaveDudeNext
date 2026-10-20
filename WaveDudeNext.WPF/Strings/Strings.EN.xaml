@@ -406,7 +406,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Scene.Height">Height</s:String>
 	<s:String x:Key="Hint.Scene.Height">Height of a blank canvas in pixels.</s:String>
 	<s:String x:Key="Label.Scene.DampingEdge">Damping edge</s:String>
-	<s:String x:Key="Hint.Scene.DampingEdge">Thickness in pixels of the absorbing frame around the canvas. 0 turns it off.</s:String>
+	<s:String x:Key="Hint.Scene.DampingEdge">Thickness in pixels of the absorbing frame: positive inside the canvas, where it shows as a dark margin; negative outside it, simulated but never shown. 0 turns it off.</s:String>
+	<s:String x:Key="Label.Scene.Edges">Edges</s:String>
+	<s:String x:Key="Hint.Scene.Edges">Open lets a wave leave the grid, as if the canvas sat in open space; Reflective is a hard wall, as in Wave Dude 2D.</s:String>
 	<s:String x:Key="Label.Scene.RefractiveIndex">Refractive index</s:String>
 	<s:String x:Key="Hint.Scene.RefractiveIndex">Refractive index of a blank canvas, 1.0 to 2.55. The wave speed is 1/n cells per step.</s:String>
 	<s:String x:Key="Label.Scene.ImageSources">Image sources</s:String>
@@ -502,6 +504,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.ProbeScaleMode.Full">Full</s:String>
 	<s:String x:Key="Enum.SceneMode.Canvas">Canvas</s:String>
 	<s:String x:Key="Enum.SceneMode.Image">Image</s:String>
+	<s:String x:Key="Enum.EdgeMode.Open">Open</s:String>
+	<s:String x:Key="Enum.EdgeMode.Reflective">Reflective</s:String>
 	<s:String x:Key="Enum.SourceMode.Continuous">Continuous</s:String>
 	<s:String x:Key="Enum.SourceMode.Pulsed">Pulsed</s:String>
 	<s:String x:Key="Enum.PulseShape.Gaussian">Gaussian</s:String>
