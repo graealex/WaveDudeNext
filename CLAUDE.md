@@ -179,7 +179,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   the shapes under `ShapePart` (`PolygonPart` regular, `RectanglePart`, `EllipsePart` as a polygon of a vertex per 3 px of
   circumference, 2026-10-20; both carry a `Linked` flag, the chain toggle between width and length of the image editors,
   which keeps them equal through the boxes, the grip and the file, `TrianglePart` by base and base angles with presets, `OutlinePart` by points), `FiberPart`, `BraggReflectorPart`, `GrinLensPart` in `Project.Parts`, one XML element
-  per kind; painted into the scene's red channel (4 × 4 supersampled, a mirror by the pixel-centre test as red 0, a
+  per kind; a lens or shape can absorb (2026-10-20, Jeroen's point 11: Absorption 0..255 painted into blue over a quadratic
+  ramp from the outline, the larger blue kept; measured, see `OpticalParts.md` 6a); painted into the scene's red channel (4 × 4 supersampled, a mirror by the pixel-centre test as red 0, a
   coating band of √n, later parts over earlier ones; a part's centre is the corner of pixel (X, Y), so even sizes cover
   whole pixels). A part edit is a simulation edit. Tree folder "Parts", "+ Part" opens a menu of kinds (Space, arrows,
   Enter), a handle plus a rotation lever on the pictures; while selected, the outline as painted in the accent colour,

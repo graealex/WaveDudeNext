@@ -24,8 +24,9 @@ namespace WaveDudeNext.Parts;
 /// <summary>
 /// Paints the enabled <see cref="OpticalPart"/>s of a project into the red channel of the scene pixels, the
 /// channel the engines read as the refractive index (red = index × 100; red 0 is a mirror, see
-/// <see cref="Engine.SceneData.MirrorRefractiveIndex"/>). Green (image sources) and blue (damping) are never
-/// touched. Parts are painted in list order, a later one over an earlier one. Refractive parts are supersampled
+/// <see cref="Engine.SceneData.MirrorRefractiveIndex"/>), and an absorbing part's absorption into the blue channel
+/// (damping, see <see cref="PaintAbsorption"/>). Green (image sources) is never touched. Parts are painted in list
+/// order, a later one's index over an earlier one's. Refractive parts are supersampled
 /// 4 × 4 per pixel and the sample indices averaged, a sample outside the part counting the pixel's existing index
 /// (red 0 as 1); a mirror part tests the pixel centre alone and writes red 0, since an averaged mirror edge would
 /// clamp to glass. Only pixels near an edge (the outline, the coating band's inner edge, a Bragg layer) are
@@ -94,7 +95,7 @@ public static class PartPainter
 		return new ScenePixels(width, height, stride, bgra);
 	}
 
-	/// <summary>Paints one part into the red channel of <paramref name="bgra"/> (rows <paramref name="stride"/> bytes apart).</summary>
+	/// <summary>Paints one part into the red channel of <paramref name="bgra"/> (rows <paramref name="stride"/> bytes apart), and its absorption into the blue channel.</summary>
 	public static void Paint(byte[] bgra, int width, int height, int stride, OpticalPart part)
 	{
 		PartShape? shape = PartShape.For(part);
@@ -110,6 +111,10 @@ public static class PartPainter
 			return;
 		}
 		Logger.Debug("Painting part '{Name}' ({Kind}) at ({X}, {Y}), {Angle}°, rows {Y0}..{Y1}", part.Name, part.Kind, part.X, part.Y, part.Angle, y0, y1);
+		if (shape.Absorption > 0)
+		{
+			PaintAbsorption(bgra, stride, shape, x0, y0, x1, y1);
+		}
 		if (shape.IsMirror)
 		{
 			Parallel.For(y0, y1 + 1, y =>
@@ -173,6 +178,56 @@ public static class PartPainter
 				if (inside > 0)
 				{
 					bgra[offset] = (byte)Math.Clamp((int)Math.Round(sum / (Supersample * Supersample) * 100.0), 1, 255);
+				}
+			}
+		});
+	}
+
+	/// <summary>
+	/// Paints a part's absorption into the blue channel: at a pixel whose centre lies at depth δ inside the outline,
+	/// round(<see cref="PartShape.Absorption"/> × <see cref="PartShape.AbsorptionProfile"/>(δ / ramp)), the ramp being
+	/// the part's, shortened to the deepest pixel centre when the part is thinner than twice it (so a thin part still
+	/// reaches its full absorption in its middle). The larger of that and the blue already there is kept, so a part
+	/// never lowers the damping of the image or of an earlier part. The profile is continuous and 0 at the outline, so
+	/// the pixel centre alone stands for the pixel; no supersampling.
+	/// </summary>
+	private static void PaintAbsorption(byte[] bgra, int stride, PartShape shape, int x0, int y0, int x1, int y1)
+	{
+		int columns = x1 - x0 + 1;
+		float[] depths = new float[columns * (y1 - y0 + 1)];
+		double deepest = 0.0;
+		var gate = new Lock();
+		Parallel.For(y0, y1 + 1, () => 0.0, (y, _, local) =>
+		{
+			int row = (y - y0) * columns;
+			for (int x = x0; x <= x1; x++)
+			{
+				double depth = shape.DepthAt(x + 0.5, y + 0.5);
+				depths[row + x - x0] = (float)depth;
+				local = Math.Max(local, depth);
+			}
+			return local;
+		}, local =>
+		{
+			lock (gate)
+			{
+				deepest = Math.Max(deepest, local);
+			}
+		});
+		double ramp = Math.Min(shape.AbsorptionRamp, deepest);
+		int full = shape.Absorption;
+		Logger.Debug("Absorption {Absorption} over a ramp of {Ramp:0.#} px (the part reaches {Deepest:0.#} px deep)", full, ramp, deepest);
+		Parallel.For(y0, y1 + 1, y =>
+		{
+			int row = (y - y0) * columns;
+			for (int x = x0; x <= x1; x++)
+			{
+				float depth = depths[row + x - x0];
+				if (depth >= 0f)
+				{
+					int offset = y * stride + x * 4;
+					int blue = (int)Math.Round(full * PartShape.AbsorptionProfile(ramp > 0.0 ? depth / ramp : 1.0));
+					bgra[offset] = (byte)Math.Max(bgra[offset], blue);
 				}
 			}
 		});

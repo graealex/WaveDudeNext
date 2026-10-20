@@ -25,7 +25,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext">
 
 	<UserControl.Resources>
-		<!-- a mirror has no index and no coating -->
+		<!-- a mirror has no index, no coating and no absorption -->
 		<Style x:Key="GlassOnly" TargetType="{x:Type controls:NumberBox}" BasedOn="{StaticResource {x:Type controls:NumberBox}}">
 			<Style.Triggers>
 				<DataTrigger Binding="{Binding Mirror}" Value="True">
@@ -35,7 +35,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		</Style>
 	</UserControl.Resources>
 
-	<!-- the material of a shape part (polygon, rectangle, triangle, outline): mirror or glass, the index, the coating -->
+	<!-- the material of a shape part (polygon, rectangle, triangle, outline): mirror or glass, the index, the coating, the absorption -->
 	<StackPanel>
 		<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionMaterial}" />
 		<controls:FormPanel>
@@ -49,6 +49,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:ShapePart.Coating}" />
 			<controls:NumberBox Style="{StaticResource GlassOnly}" Text="{Binding Coating}" Minimum="0" Maximum="50"
 			                    ToolTip="{meta:Hint model:ShapePart.Coating}" AutomationProperties.AutomationId="PartCoating" />
+
+			<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:ShapePart.Absorption}" />
+			<controls:NumberBox Style="{StaticResource GlassOnly}" Text="{Binding Absorption}" Minimum="0" Maximum="255" Increment="5"
+			                    ToolTip="{meta:Hint model:ShapePart.Absorption}" AutomationProperties.AutomationId="PartAbsorption" />
+
+			<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:ShapePart.AbsorptionRamp}" />
+			<controls:NumberBox Style="{StaticResource GlassOnly}" Text="{Binding AbsorptionRamp}" Minimum="1" Maximum="400" Increment="5"
+			                    ToolTip="{meta:Hint model:ShapePart.AbsorptionRamp}" AutomationProperties.AutomationId="PartAbsorptionRamp" />
 		</controls:FormPanel>
 	</StackPanel>
 </UserControl>

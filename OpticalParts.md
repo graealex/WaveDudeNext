@@ -43,8 +43,10 @@ diameter, cladding index and thickness; a "Shape coordinates (list)" box). Mirro
    before the pixels go anywhere. Both engines, the glowing outline over the pictures (`GlowingEdges.Compute` in
    `PreviewPane.OnScenePixelsChanged`), the export outline (`MainWindow.Export.cs`) and the scratch frames then
    work unchanged. The price is Jeroen's own range: index 1.00 to 2.55 in steps of 0.01 (red = index × 100).
-2. **Red only.** The painter writes the red channel and never touches green or blue. Green shades are source
-   frequencies (WaveSimulator2D's warning: never anti-alias green), blue is damping; both stay as the image has them.
+2. **Red, and blue for absorbers.** The painter writes the red channel and never touches green: green shades are
+   source frequencies (WaveSimulator2D's warning: never anti-alias green). Blue is damping (each step a cell's
+   velocity times 1 − blue / 255); a lens or shape with an Absorption above 0 (Jeroen's point 11, 2026-10-20) paints
+   it there, keeping the larger of its value and the blue already there (the image's or an earlier part's).
 3. **A red value of 0 is a mirror** (index 1000, commit `5dbefa6`, Jeroen's V0.30 rule). Red 1..99 is index 1.
 4. **One subclass per kind, one XML element name per kind** (the user's choice: a schema can then say which
    attributes each element requires). `OpticalPart` is abstract; `LensPart`, `PolygonPart`, `FiberPart`,
@@ -58,6 +60,16 @@ diameter, cladding index and thickness; a "Shape coordinates (list)" box). Mirro
    outer boundary gets the index √n (rounded to 0.01), the quarter-wave idea without a wavelength tie. The hint
    may say that a quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.
    Mirrors and Bragg reflectors ignore it.
+6a. **Absorption** (lens and shapes): Absorption (int, 0..255 as blue, 0) rising over AbsorptionRamp (int px,
+   1..400, 40) from 0 at the outline as blue = round(Absorption × (δ / ramp)²), δ the depth of the pixel centre
+   (no supersampling: the profile is continuous and 0 at the outline); the ramp is cut to the deepest pixel centre
+   of a part thinner than twice it. A jump in damping reflects like a jump in index, so the profile and strength
+   were measured (2026-10-20): a pulse from an open grid onto a deep absorbing slab, the reflected peak against a
+   mirror slab's, for waves of level 120 and 60. At absorption 255 every profile reflects a lot (a 40 px ramp:
+   linear 9 / 25 %, quadratic 2 / 11 %, cubic 1.7 / 9 %, a smooth step 4.7 / 20 %, an error-function step
+   4.2 / 18 %, Jeroen's √ band 4.5 / 16 %); at 64 a quadratic 80 px ramp reflects 0.5 / 1.5 % and lets nothing
+   through 160 px; at 16 the reflection is lower still but up to 6 % passes through 160 px. Quadratic was chosen.
+   Mirrors ignore it.
 7. **Rasterisation**: 4 × 4 supersampling per pixel for refractive parts; each sample is classified (outside,
    coating, body, or a GRIN/fibre zone), the sample indices are averaged (an existing red of 0 counts as index 1 in
    that average) and rounded to red. A mirror part uses the pixel-centre test alone and writes red 0 (a half-covered
@@ -86,14 +98,14 @@ written `model:OpticalPart.X` and kind members `model:LensPart.R1`. Positions an
 | `Normalize()` | abstract | | | |
 
 **`LensPart`** — Mirror (bool, false), RefractiveIndex (1.00..2.55, 1.50; hidden/disabled while Mirror),
-Coating (int px, 0..50, 0), Diameter (int, 200, ≥ 2), R1 (double, 300), R2 (double, −300), Thickness (int, 40, ≥ 1).
+Coating (int px, 0..50, 0), Absorption (int, 0..255, 0), AbsorptionRamp (int px, 1..400, 40), Diameter (int, 200, ≥ 2), R1 (double, 300), R2 (double, −300), Thickness (int, 40, ≥ 1).
 R is signed: R1 > 0 and R2 < 0 bulge outward (biconvex); 0 means flat; |R| < Diameter / 2 is clamped to Diameter / 2.
 Shape in the part frame (x' along the axis, y' across): the strip |y'| ≤ D/2 between the surfaces
 x'₁(y') = −t/2 + s₁(y') and x'₂(y') = t/2 + s₂(y'), with the sag s(y') = R − sign(R)·√(R² − y'²) for R ≠ 0 and
 0 for flat; a point is inside when x'₁ ≤ x' ≤ x'₂ (empty where convex surfaces cross, which caps a thin lens).
 A curved mirror is the same shape with Mirror on, e.g. R1 = −400, R2 = 0, Thickness 20.
 
-**`PolygonPart`** — Mirror, RefractiveIndex, Coating as the lens; Sides (int, 6, 3..64), Side (int px, 60, ≥ 2);
+**`PolygonPart`** — Mirror, RefractiveIndex, Coating, Absorption, AbsorptionRamp as the lens; Sides (int, 6, 3..64), Side (int px, 60, ≥ 2);
 `Points` (a list, `[XmlElement("Point")]` of a small `PartPoint { X, Y }` record class, relative to the centre,
 before rotation; empty by default). A non-empty list replaces the regular polygon. Regular: circumradius
 R = Side / (2 sin(π / Sides)), the first vertex on +x'. A flat mirror is a thin rectangle from four points.

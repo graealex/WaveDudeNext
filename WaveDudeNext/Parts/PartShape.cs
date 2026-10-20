@@ -71,6 +71,26 @@ public abstract class PartShape
 	/// <summary>The coating band's thickness in pixels, for the painter's shortcut past pixels well inside the body or the band.</summary>
 	public int CoatingWidth => Coating;
 
+	/// <summary>The absorption at full depth, 0 to 255 as the blue channel; 0 for none (and always for a mirror).</summary>
+	public virtual int Absorption => 0;
+
+	/// <summary>Depth in pixels over which the absorption rises from 0 at the outline to <see cref="Absorption"/>, at least 1.</summary>
+	public virtual int AbsorptionRamp => 1;
+
+	/// <summary>
+	/// The share of the full absorption at <paramref name="t"/>, the depth inside the outline over the ramp: 0 at the
+	/// outline, 1 from the ramp's end on, t² between. Chosen by measuring what a ramp reflects (2026-10-20, a pulse on a
+	/// deep absorbing slab against a mirror slab): a jump in damping reflects like a jump in index, and of linear,
+	/// quadratic, cubic, smooth-step, error-function and √ ramps the quadratic did best over the strengths that absorb,
+	/// cubic close behind; see OpticalParts.md.
+	/// </summary>
+	/// <param name="t">Depth over ramp; clamped to 0..1.</param>
+	public static double AbsorptionProfile(double t)
+	{
+		t = Math.Clamp(t, 0.0, 1.0);
+		return t * t;
+	}
+
 	/// <summary>
 	/// Whether the index steps somewhere inside the outline (a Bragg stack's layers), so a pixel well inside still
 	/// needs its samples; false where the inside is one index or varies smoothly (the GRIN profile).
@@ -136,6 +156,12 @@ public abstract class PartShape
 	/// <summary>A refractive index within the part range.</summary>
 	protected static double GuardIndex(double index) => double.IsFinite(index) ? Math.Clamp(index, OpticalPart.MinIndex, OpticalPart.MaxIndex) : OpticalPart.MinIndex;
 
+	/// <summary>An absorption within range.</summary>
+	protected static int GuardAbsorption(int absorption) => Math.Clamp(absorption, 0, OpticalPart.MaxAbsorption);
+
+	/// <summary>An absorption ramp within range.</summary>
+	protected static int GuardAbsorptionRamp(int ramp) => Math.Clamp(ramp, 1, OpticalPart.MaxAbsorptionRamp);
+
 	/// <summary>A coating thickness within range.</summary>
 	protected static int GuardCoating(int coating) => Math.Clamp(coating, 0, OpticalPart.MaxCoating);
 
@@ -192,6 +218,8 @@ public abstract class PartShape
 			_index = GuardIndex(lens.RefractiveIndex);
 			IsMirror = lens.Mirror;
 			Coating = lens.Mirror ? 0 : GuardCoating(lens.Coating);
+			Absorption = lens.Mirror ? 0 : GuardAbsorption(lens.Absorption);
+			AbsorptionRamp = GuardAbsorptionRamp(lens.AbsorptionRamp);
 			// the surfaces stay within the vertex and its sag at the lens edge, convex or concave
 			double reach = _vertex2 + Math.Max(Sag(_r1), Sag(_r2));
 			_extent = Math.Sqrt(reach * reach + _half * _half);
@@ -199,6 +227,8 @@ public abstract class PartShape
 
 		public override bool IsMirror { get; }
 		protected override int Coating { get; }
+		public override int Absorption { get; }
+		public override int AbsorptionRamp { get; }
 		protected override double Extent => _extent;
 		protected override double BodyIndex(double x, double y) => _index;
 
@@ -249,11 +279,15 @@ public abstract class PartShape
 			_index = GuardIndex(shape.RefractiveIndex);
 			IsMirror = shape.Mirror;
 			Coating = shape.Mirror ? 0 : GuardCoating(shape.Coating);
+			Absorption = shape.Mirror ? 0 : GuardAbsorption(shape.Absorption);
+			AbsorptionRamp = GuardAbsorptionRamp(shape.AbsorptionRamp);
 			_extent = _vertices.Max(v => Math.Sqrt(v.X * v.X + v.Y * v.Y));
 		}
 
 		public override bool IsMirror { get; }
 		protected override int Coating { get; }
+		public override int Absorption { get; }
+		public override int AbsorptionRamp { get; }
 		protected override double Extent => _extent;
 		protected override double Depth(double x, double y) => PolygonDepth(_vertices, x, y);
 		protected override double BodyIndex(double x, double y) => _index;

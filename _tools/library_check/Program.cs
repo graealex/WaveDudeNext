@@ -265,6 +265,7 @@ internal static class Program
 		CheckProbeGraph();
 		CheckImport();
 		CheckParts();
+		CheckAbsorbingParts();
 		CheckRun();
 		ExportChecks.Run(Check);
 
@@ -2159,6 +2160,103 @@ internal static class Program
 		back.Parts[1].Angle = 10;
 		Check(changes.Count == 3 && changes.All(c => c.AffectsSimulation) && !changes.Any(c => c.AffectsProbes), "the watcher reports a point edit, a point added and a part edit, each as a simulation edit");
 		watched.Dispose();
+	}
+
+	private static int BlueAt(ScenePixels pixels, int x, int y) => pixels.Bgra[y * pixels.StrideBytes + x * 4];
+
+	private static void CheckAbsorbingParts()
+	{
+		Console.WriteLine("--- absorbing parts");
+		const int W = 200, H = 120;
+		var project = new Project();
+		project.Scene.Width = W;
+		project.Scene.Height = H;
+		// a 100 × 100 square of index 1 centred on the corner of pixel (100, 60): x = 50..149, y = 10..109
+		var square = (RectanglePart)project.AddPart(PartKind.Rectangle);
+		square.X = 100;
+		square.Y = 60;
+		square.Length = 100;
+		square.Width = 100;
+		square.RefractiveIndex = 1.0;
+		ScenePixels painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(square.Absorption == 0 && square.AbsorptionRamp == OpticalPart.DefaultAbsorptionRamp && painted.Bgra.Where((_, i) => i % 4 == 0).All(b => b == 0), "a part without absorption paints no blue");
+		square.Absorption = 200;
+		square.AbsorptionRamp = 20;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		int Expected(double depth) => (int)Math.Round(200 * PartShape.AbsorptionProfile(depth / 20));
+		Check(BlueAt(painted, 49, 60) == 0 && BlueAt(painted, 50, 60) == Expected(0.5) && BlueAt(painted, 59, 60) == Expected(9.5) && BlueAt(painted, 69, 60) == Expected(19.5) && BlueAt(painted, 70, 60) == 200 && BlueAt(painted, 100, 60) == 200 && BlueAt(painted, 149, 60) == Expected(0.5),
+			"absorption 200 over a 20 px ramp: the profile of the depth at the pixel centre, full from 20 px in, nothing outside (" + string.Join(" ", new[] { 50, 59, 69, 70 }.Select(x => BlueAt(painted, x, 60))) + ")");
+		Check(RedAt(painted, 100, 60) == 100 && RedAt(painted, 50, 60) == 100 && painted.Bgra.Where((_, i) => i % 4 == 1).All(g => g == 0), "the index stays as set (red 100) and green untouched");
+		Check(PartShape.AbsorptionProfile(0) == 0 && PartShape.AbsorptionProfile(1) == 1 && PartShape.AbsorptionProfile(2) == 1 && PartShape.AbsorptionProfile(0.3) < PartShape.AbsorptionProfile(0.6), "the profile rises from 0 at the outline to 1 at the ramp's end");
+		// the image's blue and an earlier part's: the larger value is kept
+		(byte[] bgra, int stride) = ScenePixels(W, H);
+		bgra[60 * stride + 51 * 4] = 230;   // strong damping in the ramp
+		bgra[60 * stride + 100 * 4] = 10;   // weak damping in the full part
+		bgra[5 * stride + 5 * 4] = 77;      // outside
+		ScenePixels over = PartPainter.Paint(new ScenePixels(W, H, stride, bgra), W, H, 1.0, project.Parts)!;
+		Check(BlueAt(over, 51, 60) == 230 && BlueAt(over, 100, 60) == 200 && BlueAt(over, 5, 5) == 77, "over the image's blue the larger value wins: 230 stays in the ramp, 10 becomes 200, 77 outside stays");
+		// a part thinner than twice the ramp reaches its full absorption in its middle
+		square.Length = 10;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		int deepest = painted.Bgra.Where((_, i) => i % 4 == 0).Max(b => (int)b);
+		Check(deepest == 200, "a 10 px thin part with a 20 px ramp: the ramp is cut to its middle, which gets the full 200 (" + deepest + ")");
+		square.Length = 100;
+		square.Mirror = true;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(painted.Bgra.Where((_, i) => i % 4 == 0).All(b => b == 0), "a mirror ignores its absorption");
+		square.Mirror = false;
+		// the lens carries the same two settings
+		project.Remove(square);
+		var lens = (LensPart)project.AddPart(PartKind.Lens);
+		lens.X = 100;
+		lens.Y = 60;
+		lens.Diameter = 100;
+		lens.Thickness = 40;
+		lens.Absorption = 120;
+		lens.AbsorptionRamp = 10;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(BlueAt(painted, 100, 60) == 120 && BlueAt(painted, 80, 60) == (int)Math.Round(120 * PartShape.AbsorptionProfile(0.05)) && BlueAt(painted, 79, 60) == 0 && RedAt(painted, 100, 60) == 150,
+			"an absorbing lens: 120 inside, the ramp from its surface, glass of 1.5 still");
+		// the file: attributes only where they differ from the defaults; Normalize clamps
+		string xml;
+		using (var stream = new MemoryStream())
+		{
+			project.Save(stream);
+			xml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+		}
+		Check(xml.Contains("Absorption=\"120\" AbsorptionRamp=\"10\""), "the lens's absorption and ramp are written as attributes");
+		lens.AbsorptionRamp = OpticalPart.DefaultAbsorptionRamp;
+		lens.Absorption = 0;
+		using (var stream = new MemoryStream())
+		{
+			project.Save(stream);
+			xml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+		}
+		Check(!xml.Contains("Absorption"), "at their defaults neither is written");
+		lens.Absorption = 300;
+		lens.AbsorptionRamp = 0;
+		lens.Normalize();
+		Check(lens.Absorption == 255 && lens.AbsorptionRamp == 1, "Normalize clamps the absorption to 255 and the ramp to at least 1");
+		// CPU = GPU on an absorbing part
+		lens.Absorption = 64;
+		lens.AbsorptionRamp = 15;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		SceneData scene = SceneData.FromBgra(painted.Bgra, W, H, painted.StrideBytes, false, 0, true);
+		var wave = new List<Emitter> { Make(20, 60, 120, 1.0) };
+		float[] cpuField = RunCpu(scene, wave, 300);
+		Check(scene.D[60 * W + 100] < 0.76f && scene.D[60 * W + 100] > 0.74f, "the engines read blue 64 as a damping of 1 − 64/255");
+		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), wave, out string problems);
+		if (gpu == null)
+		{
+			Console.WriteLine("  skip GPU: " + problems);
+			return;
+		}
+		using (gpu)
+		{
+			Run(gpu, 300);
+			float diff = MaxDiff(cpuField, gpu.FieldData);
+			Check(diff < 1e-3f * Math.Max(1f, MaxAbs(cpuField)), "GPU agrees with the CPU through an absorbing lens (max diff " + diff + ")");
+		}
 	}
 
 	private static void CheckRun()
