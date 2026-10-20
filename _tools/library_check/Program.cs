@@ -1918,6 +1918,36 @@ internal static class Program
 		Check(Math.Abs(area - 1200.0) < 2.0 && RedAt(painted, 100 - 30, 60) == 150 && RedAt(painted, 100 - 31, 60) == 100 && RedAt(painted, 100 + 29, 60) == 150 && RedAt(painted, 100, 60 + 9) == 150 && RedAt(painted, 100, 60 + 10) == 100,
 			$"a rectangle of length 60 and width 20 lies square to the axis, x = 70..129, y = 50..69 ({area:F1} px)");
 		project.Parts.Clear();
+		var ellipse = (EllipsePart)project.AddPart(PartKind.Ellipse);
+		ellipse.X = 100;
+		ellipse.Y = 60;
+		ellipse.Length = 60;
+		ellipse.Width = 40;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		area = PaintedArea(painted, 1.5);
+		expected = Math.PI * 30 * 20;
+		Check(Math.Abs(area - expected) < 0.01 * expected && RedAt(painted, 100 + 28, 60) == 150 && RedAt(painted, 100 + 31, 60) == 100 && RedAt(painted, 100, 60 + 18) == 150 && RedAt(painted, 100, 60 + 21) == 100,
+			$"an ellipse of 60 by 40 covers {area:F1} px against π·30·20 = {expected:F1}, reaching 30 px along the axis and 20 across");
+		ellipse.Width = 60;
+		(double X, double Y)[] round = ellipse.Vertices();
+		Check(round.Length == ellipse.VertexCount && round.Length == 63 && round.All(v => Math.Abs(Math.Sqrt(v.X * v.X + v.Y * v.Y) - 30) < 1e-9) && Math.Abs(ellipse.AxisReach - 30) < 1e-9,
+			"a circle of 60: one vertex per three pixels of circumference (63), all 30 px from the centre");
+		Check(new EllipsePart { Length = 4, Width = 4 }.VertexCount == EllipsePart.MinVertices && new EllipsePart { Length = 2000, Width = 2000 }.VertexCount == EllipsePart.MaxVertices, "the vertex count stays within its limits");
+		// the chain: linking takes the length into the width, then either side moves the other
+		var linked = new RectanglePart { Length = 50, Width = 20 };
+		linked.Linked = true;
+		bool follows = linked.Width == 50;
+		linked.Length = 70;
+		follows &= linked.Width == 70;
+		linked.Width = 30;
+		follows &= linked.Length == 30;
+		linked.Linked = false;
+		linked.Length = 80;
+		Check(follows && linked.Width == 30, "a linked rectangle keeps width and length equal, an unlinked one not");
+		ellipse.Width = 10;
+		ellipse.Linked = true;
+		Check(ellipse.Width == 60 && ellipse.Vertices().All(v => Math.Abs(Math.Sqrt(v.X * v.X + v.Y * v.Y) - 30) < 1e-9), "a linked ellipse is a circle");
+		project.Parts.Clear();
 		var triangle = (TrianglePart)project.AddPart(PartKind.Triangle);
 		triangle.X = 100;
 		triangle.Y = 60;
@@ -2057,6 +2087,9 @@ internal static class Program
 		polygon.Mirror = true;
 		project.AddPart(PartKind.Polygon);
 		((RectanglePart)project.AddPart(PartKind.Rectangle)).Width = 7;
+		var roundOne = (EllipsePart)project.AddPart(PartKind.Ellipse);
+		roundOne.Linked = true;
+		roundOne.Width = 9;
 		((TrianglePart)project.AddPart(PartKind.Triangle)).Type = TriangleType.RightIsosceles;
 		project.AddPart(PartKind.Fiber);
 		var reflector = (BraggReflectorPart)project.AddPart(PartKind.BraggReflector);
@@ -2064,8 +2097,8 @@ internal static class Program
 		reflector.Index2 = 2.2;
 		project.AddPart(PartKind.GrinLens);
 		OpticalPart copy = project.Duplicate(reflector);
-		Check(copy is BraggReflectorPart { Name: "Bragg reflector 1 copy", Angle: 45, Index2: 2.2 } && project.Parts.IndexOf(copy) == 7 && project.Parts.Count == 9, "Duplicate: a deep copy right after the original, named '… copy'");
-		Check(project.Remove(copy) && project.Move(reflector, 0) && project.Parts[0] == reflector && project.Parts.Count == 8, "Remove and Move work on the parts list");
+		Check(copy is BraggReflectorPart { Name: "Bragg reflector 1 copy", Angle: 45, Index2: 2.2 } && project.Parts.IndexOf(copy) == 8 && project.Parts.Count == 10, "Duplicate: a deep copy right after the original, named '… copy'");
+		Check(project.Remove(copy) && project.Move(reflector, 0) && project.Parts[0] == reflector && project.Parts.Count == 9, "Remove and Move work on the parts list");
 		string xml;
 		using (var stream = new MemoryStream())
 		{
@@ -2076,17 +2109,17 @@ internal static class Program
 			"the file holds one element per kind, attributes only where they differ from the defaults");
 		Check(xml.Contains("<Outline Name=\"Outline 1\" X=\"100\" Y=\"60\" Mirror=\"true\">\r\n\t\t<Point X=\"3\" Y=\"-4\" />\r\n\t</Outline>".Replace("\r\n", Environment.NewLine)) || xml.Contains("<Outline Name=\"Outline 1\" X=\"100\" Y=\"60\" Mirror=\"true\">\n\t\t<Point X=\"3\" Y=\"-4\" />\n\t</Outline>"),
 			"an outline's points are Point children");
-		Check(xml.Contains("<Polygon Name=\"Polygon 1\" X=\"100\" Y=\"60\" />") && xml.Contains("<Rectangle Name=\"Rectangle 1\" X=\"100\" Y=\"60\" Width=\"7\" />") && xml.Contains("<Triangle Name=\"Triangle 1\" X=\"100\" Y=\"60\" Type=\"RightIsosceles\" AngleA=\"45\" AngleB=\"45\" />"),
-			"the polygon, rectangle and triangle elements, sparse");
+		Check(xml.Contains("<Polygon Name=\"Polygon 1\" X=\"100\" Y=\"60\" />") && xml.Contains("<Rectangle Name=\"Rectangle 1\" X=\"100\" Y=\"60\" Width=\"7\" />") && xml.Contains("<Ellipse Name=\"Ellipse 1\" X=\"100\" Y=\"60\" Length=\"9\" Width=\"9\" Linked=\"true\" />") && xml.Contains("<Triangle Name=\"Triangle 1\" X=\"100\" Y=\"60\" Type=\"RightIsosceles\" AngleA=\"45\" AngleB=\"45\" />"),
+			"the polygon, rectangle, ellipse and triangle elements, sparse");
 		Check(xml.IndexOf("<Source", StringComparison.Ordinal) < 0 && xml.IndexOf("<Lens", StringComparison.Ordinal) < xml.IndexOf("<Probe", StringComparison.Ordinal) || !xml.Contains("<Probe"), "the parts sit between the sources and the probes");
 		Project back;
 		using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(xml)))
 		{
 			back = Project.Load(stream);
 		}
-		Check(back.Parts.Count == 8 && back.Parts.Select(p => p.Kind).SequenceEqual([PartKind.BraggReflector, PartKind.Lens, PartKind.Outline, PartKind.Polygon, PartKind.Rectangle, PartKind.Triangle, PartKind.Fiber, PartKind.GrinLens]), "the eight kinds load back in order");
-		Check(back.Parts[6] is FiberPart { Points.Count: 2 } loaded && loaded.Points[0].X == -100 && loaded.Points[1].X == 100, "a loaded fibre has its two points, not the default path on top of them");
-		Check(back.Parts[2] is OutlinePart { Mirror: true, Points.Count: 1 } && back.Parts[0] is BraggReflectorPart { Angle: 45, Index2: 2.2, Pairs: 10 } && back.Parts[4] is RectanglePart { Width: 7, Length: 60 } && back.Parts[5] is TrianglePart { Type: TriangleType.RightIsosceles, AngleB: 45 },
+		Check(back.Parts.Count == 9 && back.Parts.Select(p => p.Kind).SequenceEqual([PartKind.BraggReflector, PartKind.Lens, PartKind.Outline, PartKind.Polygon, PartKind.Rectangle, PartKind.Ellipse, PartKind.Triangle, PartKind.Fiber, PartKind.GrinLens]), "the nine kinds load back in order");
+		Check(back.Parts[7] is FiberPart { Points.Count: 2 } loaded && loaded.Points[0].X == -100 && loaded.Points[1].X == 100, "a loaded fibre has its two points, not the default path on top of them");
+		Check(back.Parts[2] is OutlinePart { Mirror: true, Points.Count: 1 } && back.Parts[0] is BraggReflectorPart { Angle: 45, Index2: 2.2, Pairs: 10 } && back.Parts[4] is RectanglePart { Width: 7, Length: 60 } && back.Parts[5] is EllipsePart { Width: 9, Length: 9, Linked: true } && back.Parts[6] is TrianglePart { Type: TriangleType.RightIsosceles, AngleB: 45 },
 			"a loaded outline keeps its point and mirror flag, the reflector its angle and index, the rectangle its width, the triangle its type");
 		var watched = new ProjectWatcher(back);
 		var changes = new List<ProjectChange>();

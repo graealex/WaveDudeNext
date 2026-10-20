@@ -113,6 +113,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuAddLens">_Linse oder Spiegel</s:String>
 	<s:String x:Key="MenuAddPolygon">_Polygon</s:String>
 	<s:String x:Key="MenuAddRectangle">_Rechteck</s:String>
+	<s:String x:Key="MenuAddEllipse">_Ellipse</s:String>
 	<s:String x:Key="MenuAddTriangle">_Dreieck</s:String>
 	<s:String x:Key="MenuAddOutline">_Umriss</s:String>
 	<s:String x:Key="MenuAddFiber">_Faser</s:String>
@@ -267,8 +268,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ButtonAddPoint">Punkt hinzufügen</s:String>
 	<s:String x:Key="TipAddPoint">Punkt nach dem letzten anfügen</s:String>
 	<s:String x:Key="TipRemovePoint">Diesen Punkt entfernen</s:String>
-	<s:String x:Key="ButtonSquare">Quadrat</s:String>
-	<s:String x:Key="TipSquare">Die Breite gleich der Länge setzen</s:String>
 	<s:String x:Key="LabelApexAngle">Winkel an der Spitze</s:String>
 	<s:String x:Key="TipApexAngle">Der Winkel an der Spitze: 180° minus die beiden Grundwinkel</s:String>
 	<s:String x:Key="LabelEdgeThickness">Randdicke</s:String>
@@ -558,6 +557,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.RectanglePart.Length">Ausdehnung entlang der Achse in Pixeln.</s:String>
 	<s:String x:Key="Label.RectanglePart.Width">Breite</s:String>
 	<s:String x:Key="Hint.RectanglePart.Width">Ausdehnung quer zur Achse in Pixeln.</s:String>
+	<s:String x:Key="Label.RectanglePart.Linked">Verkettet</s:String>
+	<s:String x:Key="Hint.RectanglePart.Linked">Die Breite gleich der Länge halten: ein Quadrat.</s:String>
+	<s:String x:Key="Label.EllipsePart.Length">Länge</s:String>
+	<s:String x:Key="Hint.EllipsePart.Length">Durchmesser entlang der Achse in Pixeln.</s:String>
+	<s:String x:Key="Label.EllipsePart.Width">Breite</s:String>
+	<s:String x:Key="Hint.EllipsePart.Width">Durchmesser quer zur Achse in Pixeln.</s:String>
+	<s:String x:Key="Label.EllipsePart.Linked">Verkettet</s:String>
+	<s:String x:Key="Hint.EllipsePart.Linked">Die Breite gleich der Länge halten: ein Kreis.</s:String>
 	<s:String x:Key="Label.TrianglePart.Base">Grundseite</s:String>
 	<s:String x:Key="Hint.TrianglePart.Base">Länge der Grundseite in Pixeln; sie liegt quer zur Achse, einer Quelle links zugewandt.</s:String>
 	<s:String x:Key="Label.TrianglePart.Type">Typ</s:String>
@@ -605,6 +612,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.PartKind.Lens">Linse oder Spiegel</s:String>
 	<s:String x:Key="Enum.PartKind.Polygon">Polygon</s:String>
 	<s:String x:Key="Enum.PartKind.Rectangle">Rechteck</s:String>
+	<s:String x:Key="Enum.PartKind.Ellipse">Ellipse</s:String>
 	<s:String x:Key="Enum.PartKind.Triangle">Dreieck</s:String>
 	<s:String x:Key="Enum.PartKind.Outline">Umriss</s:String>
 	<s:String x:Key="Enum.PartKind.Fiber">Faser</s:String>

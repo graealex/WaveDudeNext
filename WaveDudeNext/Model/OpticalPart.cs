@@ -30,6 +30,8 @@ public enum PartKind
 	Polygon,
 	/// <summary>A rectangle (<see cref="RectanglePart"/>).</summary>
 	Rectangle,
+	/// <summary>An ellipse or circle (<see cref="EllipsePart"/>).</summary>
+	Ellipse,
 	/// <summary>A triangle shaped by its base angles (<see cref="TrianglePart"/>).</summary>
 	Triangle,
 	/// <summary>A free outline from a point list (<see cref="OutlinePart"/>).</summary>
@@ -665,6 +667,7 @@ public sealed class RectanglePart : ShapePart
 
 	private int _length = DefaultSize;
 	private int _width = DefaultSize;
+	private bool _linked;
 
 	/// <inheritdoc/>
 	public override PartKind Kind => PartKind.Rectangle;
@@ -677,7 +680,13 @@ public sealed class RectanglePart : ShapePart
 	public int Length
 	{
 		get => _length;
-		set => SetProperty(ref _length, value);
+		set
+		{
+			if (SetProperty(ref _length, value) && Linked)
+			{
+				Width = value;
+			}
+		}
 	}
 
 	/// <summary>Extent across the axis in pixels.</summary>
@@ -688,7 +697,31 @@ public sealed class RectanglePart : ShapePart
 	public int Width
 	{
 		get => _width;
-		set => SetProperty(ref _width, value);
+		set
+		{
+			if (SetProperty(ref _width, value) && Linked)
+			{
+				Length = value;
+			}
+		}
+	}
+
+	/// <summary>Keeps <see cref="Width"/> equal to <see cref="Length"/> (a square): a change of either sets the other, and the size grip moves both (2026-10-20, the user's request: the chain between width and height of the image editors).</summary>
+	[XmlAttribute]
+	[DefaultValue(false)]
+	[Category("Shape")]
+	[DisplayName("Linked")]
+	[Description("Keep the width equal to the length.")]
+	public bool Linked
+	{
+		get => _linked;
+		set
+		{
+			if (SetProperty(ref _linked, value) && value)
+			{
+				Width = Length;
+			}
+		}
 	}
 
 	/// <inheritdoc/>
@@ -709,6 +742,121 @@ public sealed class RectanglePart : ShapePart
 
 	/// <inheritdoc/>
 	public override OpticalPart Clone() => ShallowClone<RectanglePart>();
+}
+
+/// <summary>
+/// An ellipse of <see cref="Length"/> along the axis and <see cref="Width"/> across, centred; a circle when the two are
+/// equal, which <see cref="Linked"/> keeps (2026-10-20, the user's request). Painted and outlined as a polygon of enough vertices for the chord error to
+/// stay far below a pixel: a vertex every three pixels of circumference, 24 at least, 180 at most.
+/// </summary>
+public sealed class EllipsePart : ShapePart
+{
+	/// <summary>Default <see cref="Length"/> and <see cref="Width"/> in pixels.</summary>
+	public const int DefaultSize = 60;
+
+	/// <summary>Fewest vertices of the outline.</summary>
+	public const int MinVertices = 24;
+
+	/// <summary>Most vertices of the outline: a 1000 px circle still has a chord sag under 0.2 px.</summary>
+	public const int MaxVertices = 180;
+
+	private int _length = DefaultSize;
+	private int _width = DefaultSize;
+	private bool _linked;
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.Ellipse;
+
+	/// <summary>Diameter along the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultSize)]
+	[Category("Shape")]
+	[Description("Diameter along the axis in pixels.")]
+	public int Length
+	{
+		get => _length;
+		set
+		{
+			if (SetProperty(ref _length, value) && Linked)
+			{
+				Width = value;
+			}
+		}
+	}
+
+	/// <summary>Diameter across the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultSize)]
+	[Category("Shape")]
+	[Description("Diameter across the axis in pixels.")]
+	public int Width
+	{
+		get => _width;
+		set
+		{
+			if (SetProperty(ref _width, value) && Linked)
+			{
+				Length = value;
+			}
+		}
+	}
+
+	/// <summary>Keeps <see cref="Width"/> equal to <see cref="Length"/> (a circle): a change of either sets the other, and the size grip moves both (2026-10-20, the user's request: the chain between width and height of the image editors).</summary>
+	[XmlAttribute]
+	[DefaultValue(false)]
+	[Category("Shape")]
+	[DisplayName("Linked")]
+	[Description("Keep the width equal to the length.")]
+	public bool Linked
+	{
+		get => _linked;
+		set
+		{
+			if (SetProperty(ref _linked, value) && value)
+			{
+				Width = Length;
+			}
+		}
+	}
+
+	/// <summary>How many vertices the outline gets: one per three pixels of circumference (Ramanujan's estimate), within the limits.</summary>
+	public int VertexCount
+	{
+		get
+		{
+			double a = Math.Max(1, Length) / 2.0;
+			double b = Math.Max(1, Width) / 2.0;
+			double h = (a - b) * (a - b) / ((a + b) * (a + b));
+			double circumference = Math.PI * (a + b) * (1 + 3 * h / (10 + Math.Sqrt(4 - 3 * h)));
+			return Math.Clamp((int)Math.Round(circumference / 3.0), MinVertices, MaxVertices);
+		}
+	}
+
+	/// <inheritdoc/>
+	public override (double X, double Y)[] Vertices()
+	{
+		double a = Math.Max(1, Length) / 2.0;
+		double b = Math.Max(1, Width) / 2.0;
+		int n = VertexCount;
+		var vertices = new (double X, double Y)[n];
+		for (int k = 0; k < n; k++)
+		{
+			double theta = 2.0 * Math.PI * k / n;
+			vertices[k] = (a * Math.Cos(theta), b * Math.Sin(theta));
+		}
+		return vertices;
+	}
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		Length = Math.Max(1, Length);
+		Width = Math.Max(1, Width);
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<EllipsePart>();
 }
 
 /// <summary>The presets of a <see cref="TrianglePart"/>: which base angles are fixed.</summary>

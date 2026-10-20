@@ -97,6 +97,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Separator />
 			<MenuItem Header="{DynamicResource MenuAddPolygon}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Polygon}" AutomationProperties.AutomationId="AddPart:Polygon" />
 			<MenuItem Header="{DynamicResource MenuAddRectangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Rectangle}" AutomationProperties.AutomationId="AddPart:Rectangle" />
+			<MenuItem Header="{DynamicResource MenuAddEllipse}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Ellipse}" AutomationProperties.AutomationId="AddPart:Ellipse" />
 			<MenuItem Header="{DynamicResource MenuAddTriangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Triangle}" AutomationProperties.AutomationId="AddPart:Triangle" />
 			<MenuItem Header="{DynamicResource MenuAddOutline}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Outline}" AutomationProperties.AutomationId="AddPart:Outline" />
 		</ContextMenu>
@@ -169,6 +170,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 									<Separator />
 									<MenuItem Header="{DynamicResource MenuAddPolygon}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Polygon}" />
 									<MenuItem Header="{DynamicResource MenuAddRectangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Rectangle}" />
+									<MenuItem Header="{DynamicResource MenuAddEllipse}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Ellipse}" />
 									<MenuItem Header="{DynamicResource MenuAddTriangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Triangle}" />
 									<MenuItem Header="{DynamicResource MenuAddOutline}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Outline}" />
 								</MenuItem>

@@ -113,6 +113,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuAddLens">_Lens of spiegel</s:String>
 	<s:String x:Key="MenuAddPolygon">_Polygoon</s:String>
 	<s:String x:Key="MenuAddRectangle">_Rechthoek</s:String>
+	<s:String x:Key="MenuAddEllipse">_Ellips</s:String>
 	<s:String x:Key="MenuAddTriangle">_Driehoek</s:String>
 	<s:String x:Key="MenuAddOutline">_Omtrek</s:String>
 	<s:String x:Key="MenuAddFiber">_Vezel</s:String>
@@ -267,8 +268,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ButtonAddPoint">Punt toevoegen</s:String>
 	<s:String x:Key="TipAddPoint">Punt na het laatste toevoegen</s:String>
 	<s:String x:Key="TipRemovePoint">Dit punt verwijderen</s:String>
-	<s:String x:Key="ButtonSquare">Vierkant</s:String>
-	<s:String x:Key="TipSquare">De breedte gelijk aan de lengte maken</s:String>
 	<s:String x:Key="LabelApexAngle">Tophoek</s:String>
 	<s:String x:Key="TipApexAngle">De hoek aan de top: 180° min de twee basishoeken</s:String>
 	<s:String x:Key="LabelEdgeThickness">Randdikte</s:String>
@@ -558,6 +557,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.RectanglePart.Length">Afmeting langs de as in pixels.</s:String>
 	<s:String x:Key="Label.RectanglePart.Width">Breedte</s:String>
 	<s:String x:Key="Hint.RectanglePart.Width">Afmeting dwars op de as in pixels.</s:String>
+	<s:String x:Key="Label.RectanglePart.Linked">Gekoppeld</s:String>
+	<s:String x:Key="Hint.RectanglePart.Linked">De breedte gelijk aan de lengte houden: een vierkant.</s:String>
+	<s:String x:Key="Label.EllipsePart.Length">Lengte</s:String>
+	<s:String x:Key="Hint.EllipsePart.Length">Diameter langs de as in pixels.</s:String>
+	<s:String x:Key="Label.EllipsePart.Width">Breedte</s:String>
+	<s:String x:Key="Hint.EllipsePart.Width">Diameter dwars op de as in pixels.</s:String>
+	<s:String x:Key="Label.EllipsePart.Linked">Gekoppeld</s:String>
+	<s:String x:Key="Hint.EllipsePart.Linked">De breedte gelijk aan de lengte houden: een cirkel.</s:String>
 	<s:String x:Key="Label.TrianglePart.Base">Basis</s:String>
 	<s:String x:Key="Hint.TrianglePart.Base">Lengte van de basis in pixels; ze ligt dwars op de as, naar een bron links gekeerd.</s:String>
 	<s:String x:Key="Label.TrianglePart.Type">Type</s:String>
@@ -605,6 +612,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.PartKind.Lens">Lens of spiegel</s:String>
 	<s:String x:Key="Enum.PartKind.Polygon">Polygoon</s:String>
 	<s:String x:Key="Enum.PartKind.Rectangle">Rechthoek</s:String>
+	<s:String x:Key="Enum.PartKind.Ellipse">Ellips</s:String>
 	<s:String x:Key="Enum.PartKind.Triangle">Driehoek</s:String>
 	<s:String x:Key="Enum.PartKind.Outline">Omtrek</s:String>
 	<s:String x:Key="Enum.PartKind.Fiber">Vezel</s:String>

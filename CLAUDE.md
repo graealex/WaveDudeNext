@@ -175,7 +175,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   brightness, outline or boxes; a sink that `WantsHalves` gets the plane from the job unrendered. Harness
   hooks: `WAVEDUDE_EXPORT_PATH`, `WAVEDUDE_DISCARD_EDITS=1`.
 - **Optical parts** (2026-10-18, stages 1 and 2 of `OpticalParts.md`): `OpticalPart` subclasses `LensPart` (mirror flag),
-  the shapes under `ShapePart` (`PolygonPart` regular, `RectanglePart`, `TrianglePart` by base and base angles with presets, `OutlinePart` by points), `FiberPart`, `BraggReflectorPart`, `GrinLensPart` in `Project.Parts`, one XML element
+  the shapes under `ShapePart` (`PolygonPart` regular, `RectanglePart`, `EllipsePart` as a polygon of a vertex per 3 px of
+  circumference, 2026-10-20; both carry a `Linked` flag, the chain toggle between width and length of the image editors,
+  which keeps them equal through the boxes, the grip and the file, `TrianglePart` by base and base angles with presets, `OutlinePart` by points), `FiberPart`, `BraggReflectorPart`, `GrinLensPart` in `Project.Parts`, one XML element
   per kind; painted into the scene's red channel (4 × 4 supersampled, a mirror by the pixel-centre test as red 0, a
   coating band of √n, later parts over earlier ones; a part's centre is the corner of pixel (X, Y), so even sizes cover
   whole pixels). A part edit is a simulation edit. Tree folder "Parts", "+ Part" opens a menu of kinds (Space, arrows,

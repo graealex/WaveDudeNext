@@ -113,6 +113,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuAddLens">_Lentille ou miroir</s:String>
 	<s:String x:Key="MenuAddPolygon">_Polygone</s:String>
 	<s:String x:Key="MenuAddRectangle">_Rectangle</s:String>
+	<s:String x:Key="MenuAddEllipse">_Ellipse</s:String>
 	<s:String x:Key="MenuAddTriangle">_Triangle</s:String>
 	<s:String x:Key="MenuAddOutline">C_ontour</s:String>
 	<s:String x:Key="MenuAddFiber">_Fibre</s:String>
@@ -267,8 +268,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ButtonAddPoint">Ajouter un point</s:String>
 	<s:String x:Key="TipAddPoint">Ajouter un point après le dernier</s:String>
 	<s:String x:Key="TipRemovePoint">Supprimer ce point</s:String>
-	<s:String x:Key="ButtonSquare">Carré</s:String>
-	<s:String x:Key="TipSquare">Rendre la largeur égale à la longueur</s:String>
 	<s:String x:Key="LabelApexAngle">Angle au sommet</s:String>
 	<s:String x:Key="TipApexAngle">L'angle au sommet : 180° moins les deux angles à la base</s:String>
 	<s:String x:Key="LabelEdgeThickness">Épaisseur au bord</s:String>
@@ -558,6 +557,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.RectanglePart.Length">Étendue le long de l'axe en pixels.</s:String>
 	<s:String x:Key="Label.RectanglePart.Width">Largeur</s:String>
 	<s:String x:Key="Hint.RectanglePart.Width">Étendue perpendiculaire à l'axe en pixels.</s:String>
+	<s:String x:Key="Label.RectanglePart.Linked">Liées</s:String>
+	<s:String x:Key="Hint.RectanglePart.Linked">Garder la largeur égale à la longueur : un carré.</s:String>
+	<s:String x:Key="Label.EllipsePart.Length">Longueur</s:String>
+	<s:String x:Key="Hint.EllipsePart.Length">Diamètre le long de l'axe en pixels.</s:String>
+	<s:String x:Key="Label.EllipsePart.Width">Largeur</s:String>
+	<s:String x:Key="Hint.EllipsePart.Width">Diamètre perpendiculaire à l'axe en pixels.</s:String>
+	<s:String x:Key="Label.EllipsePart.Linked">Liées</s:String>
+	<s:String x:Key="Hint.EllipsePart.Linked">Garder la largeur égale à la longueur : un cercle.</s:String>
 	<s:String x:Key="Label.TrianglePart.Base">Base</s:String>
 	<s:String x:Key="Hint.TrianglePart.Base">Longueur de la base en pixels ; elle est perpendiculaire à l'axe, tournée vers une source à gauche.</s:String>
 	<s:String x:Key="Label.TrianglePart.Type">Type</s:String>
@@ -605,6 +612,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.PartKind.Lens">Lentille ou miroir</s:String>
 	<s:String x:Key="Enum.PartKind.Polygon">Polygone</s:String>
 	<s:String x:Key="Enum.PartKind.Rectangle">Rectangle</s:String>
+	<s:String x:Key="Enum.PartKind.Ellipse">Ellipse</s:String>
 	<s:String x:Key="Enum.PartKind.Triangle">Triangle</s:String>
 	<s:String x:Key="Enum.PartKind.Outline">Contour</s:String>
 	<s:String x:Key="Enum.PartKind.Fiber">Fibre</s:String>

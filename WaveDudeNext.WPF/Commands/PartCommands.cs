@@ -19,12 +19,9 @@ using System.Windows.Input;
 
 namespace WaveDudeNext.WPF.Commands;
 
-/// <summary>Commands of the part editors, bound on the views themselves: the point list of an outline or fibre (<c>Views/PartPointsView</c>), the rectangle's Square button.</summary>
+/// <summary>Commands of the part editors, bound on the views themselves: the point list of an outline or fibre (<c>Views/PartPointsView</c>), nothing else since the chain toggle replaced the Square and Circle buttons (2026-10-20).</summary>
 public static class PartCommands
 {
-	/// <summary>Makes a rectangle square: its width becomes its length.</summary>
-	public static readonly RoutedUICommand MakeSquare = new("Square", nameof(MakeSquare), typeof(PartCommands));
-
 	/// <summary>Appends a point after the last one.</summary>
 	public static readonly RoutedUICommand AddPoint = new("Add point", nameof(AddPoint), typeof(PartCommands));
 

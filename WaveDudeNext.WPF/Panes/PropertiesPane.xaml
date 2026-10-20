@@ -52,6 +52,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<DataTemplate DataType="{x:Type model:RectanglePart}">
 			<views:RectanglePartView />
 		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:EllipsePart}">
+			<views:EllipsePartView />
+		</DataTemplate>
 		<DataTemplate DataType="{x:Type model:TrianglePart}">
 			<views:TrianglePartView />
 		</DataTemplate>

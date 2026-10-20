@@ -147,7 +147,7 @@ public sealed class Project : ObservableObject
 	}
 
 	/// <summary>
-	/// Optical parts (lenses, mirrors, polygons, rectangles, triangles, outlines, fibres, Bragg reflectors, GRIN lenses), in the order they appear in
+	/// Optical parts (lenses, mirrors, polygons, rectangles, ellipses, triangles, outlines, fibres, Bragg reflectors, GRIN lenses), in the order they appear in
 	/// the project tree, which is the order they are painted in: a later part paints over an earlier one. One element
 	/// name per kind in the file (2026-10-18, the user's choice, so a schema can say what each element needs).
 	/// Observable; always present, empty in a new project.
@@ -155,6 +155,7 @@ public sealed class Project : ObservableObject
 	[XmlElement("Lens", typeof(LensPart))]
 	[XmlElement("Polygon", typeof(PolygonPart))]
 	[XmlElement("Rectangle", typeof(RectanglePart))]
+	[XmlElement("Ellipse", typeof(EllipsePart))]
 	[XmlElement("Triangle", typeof(TrianglePart))]
 	[XmlElement("Outline", typeof(OutlinePart))]
 	[XmlElement("Fiber", typeof(FiberPart))]
@@ -334,7 +335,7 @@ public sealed class Project : ObservableObject
 	}
 
 	/// <summary>
-	/// Appends a new part of <paramref name="kind"/>, named "Lens n", "Polygon n", "Rectangle n", "Triangle n", "Outline n",
+	/// Appends a new part of <paramref name="kind"/>, named "Lens n", "Polygon n", "Rectangle n", "Ellipse n", "Triangle n", "Outline n",
 	/// "Fiber n", "Bragg reflector n" or "GRIN lens n" with the first free n, centred on the canvas (the scene's size; an image scene's own size is not
 	/// known here), and returns it.
 	/// </summary>
@@ -345,6 +346,7 @@ public sealed class Project : ObservableObject
 			PartKind.Lens => new LensPart(),
 			PartKind.Polygon => new PolygonPart(),
 			PartKind.Rectangle => new RectanglePart(),
+			PartKind.Ellipse => new EllipsePart(),
 			PartKind.Triangle => new TrianglePart(),
 			PartKind.Outline => new OutlinePart(),
 			PartKind.Fiber => new FiberPart { Points = FiberPart.DefaultPath() },
@@ -365,6 +367,7 @@ public sealed class Project : ObservableObject
 		PartKind.Lens => "Lens",
 		PartKind.Polygon => "Polygon",
 		PartKind.Rectangle => "Rectangle",
+		PartKind.Ellipse => "Ellipse",
 		PartKind.Triangle => "Triangle",
 		PartKind.Outline => "Outline",
 		PartKind.Fiber => "Fiber",

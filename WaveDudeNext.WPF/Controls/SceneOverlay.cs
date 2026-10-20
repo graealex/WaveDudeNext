@@ -531,12 +531,13 @@ public sealed class SceneOverlay : Panel
 	};
 
 	/// <summary>
-	/// Where a part's size grip sits in the part frame: the corner of a rectangle, lens (thickness, diameter), GRIN lens
+	/// Where a part's size grip sits in the part frame: the corner of a rectangle or an ellipse's box, lens (thickness, diameter), GRIN lens
 	/// or Bragg stack, the first vertex of a polygon, the second end of a triangle's base; null for a kind without one.
 	/// </summary>
 	private static (double X, double Y)? GripOf(OpticalPart part) => part switch
 	{
 		RectanglePart rectangle => (rectangle.Length / 2.0, rectangle.Width / 2.0),
+		EllipsePart ellipse => (ellipse.Length / 2.0, ellipse.Width / 2.0),
 		LensPart lens => (lens.Thickness / 2.0, lens.Diameter / 2.0),
 		PolygonPart polygon => polygon.Vertices()[0],
 		TrianglePart triangle => triangle.Vertices()[1],
@@ -554,8 +555,14 @@ public sealed class SceneOverlay : Panel
 		switch (part)
 		{
 			case RectanglePart rectangle:
-				rectangle.Length = Math.Max(1, along);
-				rectangle.Width = Math.Max(1, across);
+				// linked (a square): the farther of the two coordinates sets both
+				rectangle.Length = Math.Max(1, rectangle.Linked ? Math.Max(along, across) : along);
+				rectangle.Width = Math.Max(1, rectangle.Linked ? Math.Max(along, across) : across);
+				break;
+			case EllipsePart ellipse:
+				// the grip sits on the corner of the bounding box, as the rectangle's does
+				ellipse.Length = Math.Max(1, ellipse.Linked ? Math.Max(along, across) : along);
+				ellipse.Width = Math.Max(1, ellipse.Linked ? Math.Max(along, across) : across);
 				break;
 			case LensPart lens:
 				lens.Thickness = Math.Max(1, along);

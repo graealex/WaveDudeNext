@@ -115,6 +115,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuAddLens">_Lens or mirror</s:String>
 	<s:String x:Key="MenuAddPolygon">_Polygon</s:String>
 	<s:String x:Key="MenuAddRectangle">_Rectangle</s:String>
+	<s:String x:Key="MenuAddEllipse">_Ellipse</s:String>
 	<s:String x:Key="MenuAddTriangle">_Triangle</s:String>
 	<s:String x:Key="MenuAddOutline">_Outline</s:String>
 	<s:String x:Key="MenuAddFiber">_Fibre</s:String>
@@ -269,8 +270,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ButtonAddPoint">Add point</s:String>
 	<s:String x:Key="TipAddPoint">Append a point after the last one</s:String>
 	<s:String x:Key="TipRemovePoint">Remove this point</s:String>
-	<s:String x:Key="ButtonSquare">Square</s:String>
-	<s:String x:Key="TipSquare">Make the width equal to the length</s:String>
 	<s:String x:Key="LabelApexAngle">Apex angle</s:String>
 	<s:String x:Key="TipApexAngle">The angle at the apex: 180° minus the two base angles</s:String>
 	<s:String x:Key="LabelEdgeThickness">Edge thickness</s:String>
@@ -560,6 +559,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.RectanglePart.Length">Extent along the axis in pixels.</s:String>
 	<s:String x:Key="Label.RectanglePart.Width">Width</s:String>
 	<s:String x:Key="Hint.RectanglePart.Width">Extent across the axis in pixels.</s:String>
+	<s:String x:Key="Label.RectanglePart.Linked">Linked</s:String>
+	<s:String x:Key="Hint.RectanglePart.Linked">Keep the width equal to the length: a square.</s:String>
+	<s:String x:Key="Label.EllipsePart.Length">Length</s:String>
+	<s:String x:Key="Hint.EllipsePart.Length">Diameter along the axis in pixels.</s:String>
+	<s:String x:Key="Label.EllipsePart.Width">Width</s:String>
+	<s:String x:Key="Hint.EllipsePart.Width">Diameter across the axis in pixels.</s:String>
+	<s:String x:Key="Label.EllipsePart.Linked">Linked</s:String>
+	<s:String x:Key="Hint.EllipsePart.Linked">Keep the width equal to the length: a circle.</s:String>
 	<s:String x:Key="Label.TrianglePart.Base">Base</s:String>
 	<s:String x:Key="Hint.TrianglePart.Base">Length of the base in pixels; the base lies across the axis, toward a source on the left.</s:String>
 	<s:String x:Key="Label.TrianglePart.Type">Type</s:String>
@@ -607,6 +614,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.PartKind.Lens">Lens or mirror</s:String>
 	<s:String x:Key="Enum.PartKind.Polygon">Polygon</s:String>
 	<s:String x:Key="Enum.PartKind.Rectangle">Rectangle</s:String>
+	<s:String x:Key="Enum.PartKind.Ellipse">Ellipse</s:String>
 	<s:String x:Key="Enum.PartKind.Triangle">Triangle</s:String>
 	<s:String x:Key="Enum.PartKind.Outline">Outline</s:String>
 	<s:String x:Key="Enum.PartKind.Fiber">Fibre</s:String>

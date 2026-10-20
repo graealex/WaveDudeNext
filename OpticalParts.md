@@ -12,7 +12,7 @@ corner of pixel (X, Y), not its middle, so even sizes (every default) cover whol
 values guarded instead of normalising the model from inside the painter. After the user's review (a side length alone made every
 rectangle a square; a shape mode inside one class would be the kind combo we rejected): the polygon became four classes
 under `ShapePart` (mirror, index, coating), each its own kind, element and form: `PolygonPart` (regular, side count and
-side length, a face centred on -x'), `RectanglePart` (length, width, a Square button), `TrianglePart` (base across the
+side length, a face centred on -x'), `RectanglePart` (length, width, a chain toggle that keeps them equal: a square), `EllipsePart` (length, width, the same chain: a circle; outlined as a polygon of a vertex per 3 px of circumference), `TrianglePart` (base across the
 axis toward -x', two base angles, a type preset: equilateral, right isosceles, 30-60-90, isosceles, custom; the apex angle
 shown), `OutlinePart` (points). The "+ Part" menu lists the optics, a separator, the shapes. The handle glyph is the
 source's circular crosshair with an inner ring (a lens-shaped glyph read as squashed). A lens's diameter and centre

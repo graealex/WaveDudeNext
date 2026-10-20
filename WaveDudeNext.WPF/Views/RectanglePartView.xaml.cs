@@ -16,27 +16,14 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.Windows.Controls;
-using System.Windows.Input;
-using WaveDudeNext.Model;
 
 namespace WaveDudeNext.WPF.Views;
 
-/// <summary>Editor for a <see cref="RectanglePart"/>: length, width and a Square button that copies the length into the width.</summary>
+/// <summary>Editor for a <see cref="Model.RectanglePart"/>: length and width, with the chain that keeps them equal.</summary>
 public partial class RectanglePartView : UserControl
 {
 	public RectanglePartView()
 	{
 		InitializeComponent();
-	}
-
-	private void CanMakeSquare(object sender, CanExecuteRoutedEventArgs e) =>
-		e.CanExecute = DataContext is RectanglePart rectangle && rectangle.Width != rectangle.Length;
-
-	private void OnMakeSquare(object sender, ExecutedRoutedEventArgs e)
-	{
-		if (DataContext is RectanglePart rectangle)
-		{
-			rectangle.Width = rectangle.Length;
-		}
 	}
 }
