@@ -50,7 +50,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<controls:NumberBox Text="{Binding Coating}" Minimum="0" Maximum="50" ToolTip="{meta:Hint model:FiberPart.Coating}" AutomationProperties.AutomationId="PartCoating" />
 			</controls:FormPanel>
 
-			<views:PartPointsView HintText="{DynamicResource HintFiberPoints}" />
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionShape}" />
+			<controls:FormPanel>
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.Ends}" />
+				<ComboBox Style="{StaticResource EnumComboBox}" ItemsSource="{meta:EnumValues model:FiberEnds}"
+				          SelectedItem="{Binding Ends}" ToolTip="{meta:Hint model:FiberPart.Ends}" AutomationProperties.AutomationId="PartEnds" />
+			</controls:FormPanel>
+
+			<views:FiberPathView />
 		</StackPanel>
 	</ScrollViewer>
 </UserControl>

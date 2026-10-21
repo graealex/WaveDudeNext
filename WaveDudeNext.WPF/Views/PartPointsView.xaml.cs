@@ -24,9 +24,9 @@ using WaveDudeNext.Model;
 namespace WaveDudeNext.WPF.Views;
 
 /// <summary>
-/// Editor of the point list of an <see cref="OutlinePart"/> or a <see cref="FiberPart"/> (its path): one row
-/// per point, add and remove. The data context is the part; the list is its <c>Points</c>. Every control is in the Tab
-/// cycle (the keyboard-first rule).
+/// Editor of the point list of an <see cref="OutlinePart"/>: one row per point, add and remove (a fibre's path has
+/// its own editor, <see cref="FiberPathView"/>). The data context is the part; the list is its <c>Points</c>. Every
+/// control is in the Tab cycle (the keyboard-first rule).
 /// </summary>
 public partial class PartPointsView : UserControl
 {
@@ -49,13 +49,8 @@ public partial class PartPointsView : UserControl
 		set => SetValue(HintTextProperty, value);
 	}
 
-	/// <summary>The edited list: the outline's or fibre's points, or null for another data context.</summary>
-	private ObservableCollection<PartPoint>? Points => DataContext switch
-	{
-		OutlinePart outline => outline.Points,
-		FiberPart fiber => fiber.Points,
-		_ => null,
-	};
+	/// <summary>The edited list: the outline's points, or null for another data context.</summary>
+	private ObservableCollection<PartPoint>? Points => (DataContext as OutlinePart)?.Points;
 
 	private void CanAddPoint(object sender, CanExecuteRoutedEventArgs e) => e.CanExecute = Points != null;
 

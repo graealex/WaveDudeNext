@@ -20,8 +20,8 @@ thickness are its bulk: radii too curved for them are raised to the smallest tha
 always fills its diameter; the form shows the edge thickness (a diameter of 2000 with radii of 300 had given a tiny lens).
 A "Concave (diverging)" box shows the lens's state from the lensmaker's sign and, ticked, flips both radii.
 While a part is selected the overlay draws its outline (`OpticalPart.Outline()`, the painted shape) in the accent colour,
-a size grip on a corner or vertex sets the extents by drag or arrow keys, and an outline's or fibre's points each have a
-handle (2026-10-19). Not built: stage 3 (`PartCheck.ps1`, the three
+a size grip on a corner or vertex sets the extents by drag or arrow keys, an outline's points each have a handle
+(2026-10-19), and a fibre's nodes a handle plus their two Bézier handles on dotted lines (2026-10-22). Not built: stage 3 (`PartCheck.ps1`, the three
 examples). The open points at the end still stand.
 
 ## What is asked
@@ -111,8 +111,16 @@ before rotation; empty by default). A non-empty list replaces the regular polygo
 R = Side / (2 sin(π / Sides)), the first vertex on +x'. A flat mirror is a thin rectangle from four points.
 
 **`FiberPart`** — CoreIndex (1.50), CoreDiameter (20, ≥ 2), CladdingIndex (1.45), CladdingThickness (10, ≥ 0),
-Coating (0), `Points` path (default two points (−100, 0) and (100, 0)). Core: distance to the polyline ≤ D/2;
-cladding: ≤ D/2 + thickness (round ends follow from the distance; acceptable). Angle rotates the whole path.
+Coating (0), Ends (Flat | Round, Flat), `Nodes` path (2026-10-22, the user's request, replacing the polyline whose joints
+were sharp bends): cubic Bézier segments through `FiberNode { X, Y, InX, InY, OutX, OutY, Smooth }`, the handles offsets
+from the node, `<Node …/>` children; default two nodes (−100, 0) and (100, 0) with handles a third of the way along.
+The curve is flattened into chords within 0.05 px (a straight segment one chord) and bucketed on a 32 px cell grid; core:
+distance to the chords ≤ D/2; cladding: ≤ D/2 + thickness; a flat end cuts every chord near the endpoint by the plane
+across the handle's direction there (the coating band follows the face), a round end is the distance test. The core edge
+is supersampled (`HasInnerEdges`). Angle rotates the whole path. Smooth (the user's choice, 2026-10-22): switching it on
+lines the handles up at once (`FiberPart.AlignNode`; a node without handles is seeded from its neighbours), and afterwards
+a handle dragged (`FiberNode.SetHandle`) or typed (the part listens to its nodes) turns the other opposite, keeping its
+length; a node added or loaded is taken as it is, so a file never changes on loading.
 
 **`BraggReflectorPart`** — Pairs (int, 10, 1..200), Thickness1, Thickness2 (int px, 10, ≥ 1), Index1 (1.50),
 Index2 (2.00), Width (int, 200, ≥ 2). Layers stacked along +x', the stack centred on the part centre, Width across.
@@ -191,5 +199,4 @@ IReadOnlyList<OpticalPart> parts)`:
 
 - The "+ Part" menu as the way to choose a kind (versus five toolbar buttons).
 - Bragg thicknesses in pixels as typed (no automatic quarter-wave from a source's wavelength).
-- Round fiber ends from the distance test.
 - Where the example projects live (Jeroen's own sit in `Wave_Dude_Examples/`).

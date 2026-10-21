@@ -528,6 +528,37 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		</Style.Triggers>
 	</Style>
 
+	<StreamGeometry x:Key="MinusGeometry">M0,4 L8,4</StreamGeometry>
+	<!-- the remove button of a point or node row (Views/PartPointsView, Views/FiberPathView); in the Tab cycle, since no key removes a row otherwise -->
+	<Style x:Key="RemovePointButton" TargetType="{x:Type Button}">
+		<Setter Property="Width" Value="18" />
+		<Setter Property="Height" Value="18" />
+		<Setter Property="Margin" Value="4,0,0,0" />
+		<Setter Property="Foreground" Value="{DynamicResource WindowForeground}" />
+		<Setter Property="FocusVisualStyle" Value="{x:Null}" />
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="{x:Type Button}">
+					<Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" SnapsToDevicePixels="True">
+						<Path Data="{StaticResource MinusGeometry}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.2"
+						      HorizontalAlignment="Center" VerticalAlignment="Center" />
+					</Border>
+					<ControlTemplate.Triggers>
+						<Trigger Property="IsMouseOver" Value="True">
+							<Setter TargetName="Bd" Property="Background" Value="{DynamicResource ButtonHover}" />
+						</Trigger>
+						<Trigger Property="IsKeyboardFocused" Value="True">
+							<Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}" />
+						</Trigger>
+						<Trigger Property="IsEnabled" Value="False">
+							<Setter Property="Opacity" Value="0.4" />
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
 	<Style x:Key="FormSection" TargetType="{x:Type Label}">
 		<Setter Property="FontWeight" Value="SemiBold" />
 		<Setter Property="Foreground" Value="{DynamicResource WindowForeground}" />

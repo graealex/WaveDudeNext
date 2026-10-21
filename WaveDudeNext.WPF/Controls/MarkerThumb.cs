@@ -33,8 +33,12 @@ public enum MarkerRole
 	PartAngle,
 	/// <summary>The size grip of an optical part: a corner or vertex of its outline that sets its extents (2026-10-19).</summary>
 	PartGrip,
-	/// <summary>One point of an outline's or fibre's point list (<see cref="MarkerThumb.Index"/> says which).</summary>
+	/// <summary>One point of an outline's list, or one node of a fibre's path (<see cref="MarkerThumb.Index"/> says which).</summary>
 	PartPoint,
+	/// <summary>The in-handle of a node of a fibre's path: the Bézier handle of the segment arriving there (<see cref="MarkerThumb.Index"/> says which node; 2026-10-22).</summary>
+	FiberIn,
+	/// <summary>The out-handle of a node of a fibre's path: the Bézier handle of the segment leaving there.</summary>
+	FiberOut,
 	/// <summary>Point A of a probe (the point of a point probe, the start of a line probe).</summary>
 	ProbeA,
 	/// <summary>Point B of a line probe.</summary>
@@ -72,7 +76,7 @@ public sealed class MarkerThumb : Thumb
 
 	/// <param name="item">The source, part or probe.</param>
 	/// <param name="role">Which point of it.</param>
-	/// <param name="index">For <see cref="MarkerRole.PartPoint"/>, the index in the part's point list.</param>
+	/// <param name="index">For a point, node or Bézier handle, the index in the part's point or node list.</param>
 	public MarkerThumb(object item, MarkerRole role, int index = -1)
 	{
 		Item = item;
@@ -81,7 +85,7 @@ public sealed class MarkerThumb : Thumb
 		Focusable = true;
 	}
 
-	/// <summary>For a point handle, the index in the part's point list; -1 otherwise.</summary>
+	/// <summary>For a point, node or Bézier handle, the index in the part's point or node list; -1 otherwise.</summary>
 	public int Index { get; }
 
 	/// <summary>The source, part or probe this handle moves.</summary>
@@ -124,4 +128,7 @@ public sealed class MarkerThumb : Thumb
 
 	/// <summary>For a grip or point handle: the vertical part of the grab offset (canvas pixels).</summary>
 	internal double GrabOffsetY { get; set; }
+
+	/// <summary>For the Bézier handle of a smooth node: the other handle's length when the drag or key press began, which it keeps while it turns (canvas pixels); null otherwise.</summary>
+	internal double? MirrorLength { get; set; }
 }

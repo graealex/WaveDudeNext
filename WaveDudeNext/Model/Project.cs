@@ -349,7 +349,7 @@ public sealed class Project : ObservableObject
 			PartKind.Ellipse => new EllipsePart(),
 			PartKind.Triangle => new TrianglePart(),
 			PartKind.Outline => new OutlinePart(),
-			PartKind.Fiber => new FiberPart { Points = FiberPart.DefaultPath() },
+			PartKind.Fiber => new FiberPart { Nodes = FiberPart.DefaultPath() },
 			PartKind.BraggReflector => new BraggReflectorPart(),
 			PartKind.GrinLens => new GrinLensPart(),
 			_ => throw new ArgumentOutOfRangeException(nameof(kind)),

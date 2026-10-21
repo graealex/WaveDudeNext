@@ -35,8 +35,10 @@ namespace WaveDudeNext.WPF.Controls;
 /// ends with the line between them, plus the emitters of a composite source as dots, its rotation handle on
 /// the row axis (shown while the source is selected; drag turns the array; Shift snaps to 15°; the arrow keys
 /// turn it by a degree, 2026-10-14), the same handle on a part's axis (2026-10-18), and, while a part is selected, its
-/// outline in the accent colour with a size grip on a corner or vertex (drag sets the extents) and a handle on each
-/// point of an outline's or fibre's list (2026-10-19, the user's request), plus the item names as labels. Dragging a handle, or moving it with the arrow keys while it has keyboard focus, writes the
+/// outline in the accent colour with a size grip on a corner or vertex (drag sets the extents), a handle on each
+/// point of an outline's list (2026-10-19, the user's request) and on each node of a fibre's path, with the node's two
+/// Bézier handles on dotted lines (2026-10-22, the user's request; a smooth node turns the other handle with the one
+/// moved, keeping its length), plus the item names as labels. Dragging a handle, or moving it with the arrow keys while it has keyboard focus, writes the
 /// new canvas coordinates to the model; grabbing or focusing a handle makes its item the
 /// <see cref="SelectedItem"/>. Several items can be selected at once (<see cref="SelectedItems"/>, 2026-10-19, the
 /// user's request): a drag on empty picture space draws a marquee that selects the items whose handles it covers
@@ -89,6 +91,10 @@ public sealed class SceneOverlay : Panel
 	/// <summary>Identifies the <see cref="PointStyle"/> property.</summary>
 	public static readonly DependencyProperty PointStyleProperty = DependencyProperty.Register(
 		nameof(PointStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
+
+	/// <summary>Identifies the <see cref="HandleStyle"/> property.</summary>
+	public static readonly DependencyProperty HandleStyleProperty = DependencyProperty.Register(
+		nameof(HandleStyle), typeof(Style), typeof(SceneOverlay), new PropertyMetadata(null, (d, _) => ((SceneOverlay)d).Rebuild()));
 
 	/// <summary>Identifies the <see cref="AngleStyle"/> property.</summary>
 	public static readonly DependencyProperty AngleStyleProperty = DependencyProperty.Register(
@@ -250,6 +256,13 @@ public sealed class SceneOverlay : Panel
 		set => SetValue(PointStyleProperty, value);
 	}
 
+	/// <summary>Style of the Bézier handle thumbs of a fibre's nodes (2026-10-22).</summary>
+	public Style? HandleStyle
+	{
+		get => (Style?)GetValue(HandleStyleProperty);
+		set => SetValue(HandleStyleProperty, value);
+	}
+
 	/// <summary>Style of the rotation handles of composite sources and parts (a <see cref="MarkerThumb"/> style).</summary>
 	public Style? AngleStyle
 	{
@@ -362,6 +375,28 @@ public sealed class SceneOverlay : Panel
 					AddThumb(part, MarkerRole.PartPoint, PointStyle, part.Name, $"PartPoint:{part.Name}:{i}", "TipPointFormat", i);
 				}
 			}
+			else if (part is FiberPart fiber)
+			{
+				// the path's nodes, each with its Bézier handles added first so the node wins where they overlap; the
+				// first node's in-handle and the last node's out-handle shape nothing and get no thumb
+				if (_pointLists.Add(fiber.Nodes))
+				{
+					fiber.Nodes.CollectionChanged += OnCollectionChanged;
+				}
+				for (int i = 0; i < fiber.Nodes.Count; i++)
+				{
+					Subscribe(fiber.Nodes[i]);
+					if (i > 0)
+					{
+						AddThumb(part, MarkerRole.FiberIn, HandleStyle, part.Name, $"FiberIn:{part.Name}:{i}", "TipInHandleFormat", i);
+					}
+					if (i < fiber.Nodes.Count - 1)
+					{
+						AddThumb(part, MarkerRole.FiberOut, HandleStyle, part.Name, $"FiberOut:{part.Name}:{i}", "TipOutHandleFormat", i);
+					}
+					AddThumb(part, MarkerRole.PartPoint, PointStyle, part.Name, $"PartPoint:{part.Name}:{i}", "TipNodeFormat", i);
+				}
+			}
 		}
 		foreach (Probe probe in project.Probes)
 		{
@@ -416,7 +451,8 @@ public sealed class SceneOverlay : Panel
 		{
 			case Probe when e.PropertyName is nameof(Probe.Kind) or nameof(Probe.Layer):
 			case Source when e.PropertyName == nameof(Source.Array):
-			case OutlinePart or FiberPart when e.PropertyName == "Points":
+			case OutlinePart when e.PropertyName == nameof(OutlinePart.Points):
+			case FiberPart when e.PropertyName == nameof(FiberPart.Nodes):
 				Rebuild();
 				return;
 			case Source source:
@@ -460,9 +496,9 @@ public sealed class SceneOverlay : Panel
 		foreach (MarkerThumb thumb in Children)
 		{
 			thumb.IsSelectedMarker = IsSelected(thumb.Item);
-			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle or MarkerRole.PartGrip or MarkerRole.PartPoint)
+			if (IsDetail(thumb.Role))
 			{
-				// the rotation handle, grip and point handles only while their source or part is the current item (the user's rule, 2026-10-14); collapsed, they are out of the Tab cycle too
+				// the rotation handle, grip, point, node and Bézier handles only while their source or part is the current item (the user's rule, 2026-10-14); collapsed, they are out of the Tab cycle too
 				thumb.Visibility = ReferenceEquals(thumb.Item, selected) ? Visibility.Visible : Visibility.Collapsed;
 			}
 		}
@@ -522,13 +558,33 @@ public sealed class SceneOverlay : Panel
 
 	// ---------------------------------------------------------------- a part's grip and points
 
-	/// <summary>The point list a part's handles edit: an outline's or a fibre's; null for the other kinds.</summary>
+	/// <summary>The point list a part's point handles edit: an outline's; null for the other kinds (a fibre has nodes, see <see cref="NodeOf"/>).</summary>
 	private static ObservableCollection<PartPoint>? PointsOf(OpticalPart part) => part switch
 	{
 		OutlinePart outline => outline.Points,
-		FiberPart fiber => fiber.Points,
 		_ => null,
 	};
+
+	/// <summary>The fibre node a node or Bézier handle stands on, or null for another handle or an index past the list.</summary>
+	private static FiberNode? NodeOf(MarkerThumb thumb) =>
+		thumb.Item is FiberPart fiber && thumb.Index >= 0 && thumb.Index < fiber.Nodes.Count ? fiber.Nodes[thumb.Index] : null;
+
+	/// <summary>The length of the other Bézier handle of the node a handle thumb stands on, which a smooth node keeps while that handle turns; null for another thumb.</summary>
+	private static double? MirrorLengthOf(MarkerThumb thumb)
+	{
+		if (thumb.Role is not (MarkerRole.FiberIn or MarkerRole.FiberOut) || NodeOf(thumb) is not { } node)
+		{
+			return null;
+		}
+		(int dx, int dy) = thumb.Role == MarkerRole.FiberOut ? (node.InX, node.InY) : (node.OutX, node.OutY);
+		return Math.Sqrt((double)dx * dx + (double)dy * dy);
+	}
+
+	/// <summary>Whether a handle is shown for the current item alone: a rotation handle, a grip, a point, node or Bézier handle.</summary>
+	private static bool IsDetail(MarkerRole role) => role is MarkerRole.SourceAngle or MarkerRole.PartAngle || HasCanvasPosition(role);
+
+	/// <summary>Whether a handle sits on a continuous canvas position of its own (<see cref="CanvasOf"/>): a grip, a point, node or Bézier handle.</summary>
+	private static bool HasCanvasPosition(MarkerRole role) => role is MarkerRole.PartGrip or MarkerRole.PartPoint or MarkerRole.FiberIn or MarkerRole.FiberOut;
 
 	/// <summary>
 	/// Where a part's size grip sits in the part frame: the corner of a rectangle or an ellipse's box, lens (thickness, diameter), GRIN lens
@@ -585,11 +641,14 @@ public sealed class SceneOverlay : Panel
 		}
 	}
 
-	/// <summary>The canvas position of a grip or point handle (continuous coordinates), or null when the handle has nothing to stand on.</summary>
+	/// <summary>The canvas position of a grip, point, node or Bézier handle (continuous coordinates), or null when the handle has nothing to stand on.</summary>
 	private static (double X, double Y)? CanvasOf(MarkerThumb thumb) => (thumb.Item, thumb.Role) switch
 	{
 		(OpticalPart part, MarkerRole.PartGrip) when GripOf(part) is { } grip => part.ToCanvas(grip.X, grip.Y),
 		(OpticalPart part, MarkerRole.PartPoint) when PointsOf(part) is { } points && thumb.Index >= 0 && thumb.Index < points.Count => part.ToCanvas(points[thumb.Index].X, points[thumb.Index].Y),
+		(FiberPart fiber, MarkerRole.PartPoint) when NodeOf(thumb) is { } node => fiber.ToCanvas(node.X, node.Y),
+		(FiberPart fiber, MarkerRole.FiberIn) when NodeOf(thumb) is { } node => fiber.ToCanvas(node.In.X, node.In.Y),
+		(FiberPart fiber, MarkerRole.FiberOut) when NodeOf(thumb) is { } node => fiber.ToCanvas(node.Out.X, node.Out.Y),
 		_ => null,
 	};
 
@@ -657,7 +716,7 @@ public sealed class SceneOverlay : Panel
 	private static (int X, int Y) PointOf(MarkerThumb thumb) => (thumb.Item, thumb.Role) switch
 	{
 		(Source source, _) => (source.X, source.Y),
-		(OpticalPart, MarkerRole.PartGrip or MarkerRole.PartPoint) when CanvasOf(thumb) is { } canvas => ((int)Math.Round(canvas.X), (int)Math.Round(canvas.Y)),
+		(OpticalPart, _) when HasCanvasPosition(thumb.Role) && CanvasOf(thumb) is { } canvas => ((int)Math.Round(canvas.X), (int)Math.Round(canvas.Y)),
 		(OpticalPart part, _) => (part.X, part.Y),
 		(Probe probe, MarkerRole.ProbeB) => (probe.BX, probe.BY),
 		(Probe probe, _) => (probe.AX, probe.AY),
@@ -676,6 +735,22 @@ public sealed class SceneOverlay : Panel
 				break;
 			case (OpticalPart part, MarkerRole.PartGrip):
 				SetGrip(part, x, y);
+				break;
+			case (FiberPart fiber, MarkerRole.PartPoint):
+				// a node moves with its handles, which are offsets from it
+				if (NodeOf(thumb) is { } moved)
+				{
+					(double fx, double fy) = fiber.ToFrame(x, y);
+					moved.X = (int)Math.Round(fx);
+					moved.Y = (int)Math.Round(fy);
+				}
+				break;
+			case (FiberPart fiber, MarkerRole.FiberIn or MarkerRole.FiberOut):
+				if (NodeOf(thumb) is { } node)
+				{
+					(double fx, double fy) = fiber.ToFrame(x, y);
+					node.SetHandle(thumb.Role == MarkerRole.FiberOut, (int)Math.Round(fx) - node.X, (int)Math.Round(fy) - node.Y, thumb.MirrorLength);
+				}
 				break;
 			case (OpticalPart part, MarkerRole.PartPoint):
 				if (PointsOf(part) is { } points && thumb.Index >= 0 && thumb.Index < points.Count)
@@ -732,13 +807,13 @@ public sealed class SceneOverlay : Panel
 			Point centre = thumb.Role switch
 			{
 				MarkerRole.SourceAngle or MarkerRole.PartAngle => AnglePoint(thumb.Item, finalSize),
-				MarkerRole.PartGrip or MarkerRole.PartPoint when CanvasOf(thumb) is { } canvas => ToViewExact(canvas.X, canvas.Y, finalSize),
+				_ when HasCanvasPosition(thumb.Role) && CanvasOf(thumb) is { } canvas => ToViewExact(canvas.X, canvas.Y, finalSize),
 				_ => ToView(x, y, finalSize),
 			};
 			Size size = thumb.DesiredSize;
 			var rect = new Rect(centre.X - size.Width / 2, centre.Y - size.Height / 2, size.Width, size.Height);
 			thumb.Arrange(rect);
-			if (thumb.Role is MarkerRole.SourceAngle or MarkerRole.PartAngle or MarkerRole.PartGrip or MarkerRole.PartPoint)
+			if (IsDetail(thumb.Role))
 			{
 				// the rotation handle stays on the row axis, however far out; what falls outside the picture is clipped
 				// (2026-10-16, the user's rule: the lever bending to keep the handle inside made no sense). The other
@@ -829,6 +904,32 @@ public sealed class SceneOverlay : Panel
 				Point axisEnd = AnglePoint(part, RenderSize);
 				dc.DrawLine(new Pen(HaloBrush, 3.0), ToView(part.X, part.Y), axisEnd);
 				dc.DrawLine(new Pen(AccentBrush, 1.0) { DashStyle = DashStyles.Dot }, ToView(part.X, part.Y), axisEnd);
+				if (part is FiberPart fiber)
+				{
+					// each node's Bézier handles on dotted lines from the node (the handle thumbs sit at their ends)
+					var handleHalo = new Pen(HaloBrush, 3.0);
+					var handleLine = new Pen(AccentBrush, 1.0) { DashStyle = DashStyles.Dot };
+					for (int i = 0; i < fiber.Nodes.Count; i++)
+					{
+						FiberNode node = fiber.Nodes[i];
+						(double nx, double ny) = fiber.ToCanvas(node.X, node.Y);
+						Point at = ToViewExact(nx, ny, RenderSize);
+						if (i > 0)
+						{
+							(double hx, double hy) = fiber.ToCanvas(node.In.X, node.In.Y);
+							Point handle = ToViewExact(hx, hy, RenderSize);
+							dc.DrawLine(handleHalo, at, handle);
+							dc.DrawLine(handleLine, at, handle);
+						}
+						if (i < fiber.Nodes.Count - 1)
+						{
+							(double hx, double hy) = fiber.ToCanvas(node.Out.X, node.Out.Y);
+							Point handle = ToViewExact(hx, hy, RenderSize);
+							dc.DrawLine(handleHalo, at, handle);
+							dc.DrawLine(handleLine, at, handle);
+						}
+					}
+				}
 			}
 		}
 		if (_marquee is { } marquee)
@@ -842,7 +943,7 @@ public sealed class SceneOverlay : Panel
 		dc.Pop();
 		foreach (MarkerThumb thumb in Children.OfType<MarkerThumb>().OrderBy(thumb => thumb.IsSelectedMarker))
 		{
-			if (thumb.Role is MarkerRole.ProbeB or MarkerRole.SourceAngle or MarkerRole.PartAngle or MarkerRole.PartGrip or MarkerRole.PartPoint)
+			if (thumb.Role is MarkerRole.ProbeB || IsDetail(thumb.Role))
 			{
 				continue;
 			}
@@ -994,11 +1095,12 @@ public sealed class SceneOverlay : Panel
 		_groupApplied = (0, 0);
 		_suppressDrag = false;
 		_dragStartAngle = AngleOf(thumb.Item);
-		if (thumb.Role is MarkerRole.PartGrip or MarkerRole.PartPoint && CanvasOf(thumb) is { } handle)
+		if (HasCanvasPosition(thumb.Role) && CanvasOf(thumb) is { } handle)
 		{
 			(double mouseX, double mouseY) = ToCanvasExact(Mouse.GetPosition(this));
 			thumb.GrabOffsetX = mouseX - handle.X;
 			thumb.GrabOffsetY = mouseY - handle.Y;
+			thumb.MirrorLength = MirrorLengthOf(thumb);
 		}
 		if (MovesWhole(thumb.Role) && SelectedItems is { } set)
 		{
@@ -1074,7 +1176,7 @@ public sealed class SceneOverlay : Panel
 			SetAngle(thumb.Item, Mouse.GetPosition(this), (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
 			return;
 		}
-		if (thumb.Role is MarkerRole.PartGrip or MarkerRole.PartPoint)
+		if (HasCanvasPosition(thumb.Role))
 		{
 			// absolute, from the mouse: a grip does not land under the mouse (a polygon's vertex stays on its ray, a
 			// rectangle's corner on the positive quadrant), so thumb-relative deltas fed the miss back into the size
@@ -1154,6 +1256,7 @@ public sealed class SceneOverlay : Panel
 			e.Handled = true;
 			return;
 		}
+		thumb.MirrorLength = MirrorLengthOf(thumb);
 		(int x, int y) = PointOf(thumb);
 		SetPoint(thumb, x + dx, y + dy);
 		e.Handled = true;

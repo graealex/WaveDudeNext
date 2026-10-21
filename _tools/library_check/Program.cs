@@ -202,6 +202,12 @@ internal static class Program
 			lens.Diameter = 400;
 			var polygon = (PolygonPart)project.AddPart(PartKind.Polygon);
 			polygon.Side = 150;
+			// a fibre in an S-bend across the whole canvas: its bounding box is the canvas (2026-10-22)
+			var fiber = (FiberPart)project.AddPart(PartKind.Fiber);
+			fiber.Nodes[0].X = -900;
+			fiber.Nodes[0].SetHandle(true, 400, -500);
+			fiber.Nodes[1].X = 900;
+			fiber.Nodes[1].SetHandle(false, -400, 500);
 			foreach (OpticalPart part in project.Parts)
 			{
 				var single = new List<OpticalPart> { part };
@@ -2147,12 +2153,80 @@ internal static class Program
 			"a Bragg stack of 3 pairs 10 + 6 px, indices 1.5 / 2.0, 20 wide, centred: " + layers);
 		project.Parts.Clear();
 		var fiber = (FiberPart)project.AddPart(PartKind.Fiber);
-		fiber.X = 100;
+		fiber.X = 80;
 		fiber.Y = 60;
 		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
-		Check(fiber.Points.Count == 2 && fiber.Points[0].X == -100 && fiber.Points[1].X == 100, "a new fibre runs from (-100, 0) to (100, 0)");
-		Check(RedAt(painted, 100, 60) == 150 && RedAt(painted, 100, 60 + 9) == 150 && RedAt(painted, 100, 60 + 12) == 145 && RedAt(painted, 100, 60 + 19) == 145 && RedAt(painted, 100, 60 + 21) == 100 && RedAt(painted, 0, 60) == 150,
+		Check(fiber.Nodes.Count == 2 && fiber.Nodes[0] is { X: -100, Y: 0, OutX: 67, OutY: 0, InX: 0, Smooth: true } && fiber.Nodes[1] is { X: 100, Y: 0, InX: -67, InY: 0, OutX: 0 } && fiber.Ends == FiberEnds.Flat,
+			"a new fibre runs straight from (-100, 0) to (100, 0), the handles a third of the way along it, the ends flat");
+		Check(FiberPart.Flatten(fiber.Nodes).Length == 2, "the straight path flattens to one chord");
+		Check(RedAt(painted, 80, 60) == 150 && RedAt(painted, 80, 60 + 9) == 150 && RedAt(painted, 80, 60 + 12) == 145 && RedAt(painted, 80, 60 + 19) == 145 && RedAt(painted, 80, 60 + 21) == 100 && RedAt(painted, 0, 60) == 150,
 			"the fibre: core 1.5 within 10 px of the path, cladding 1.45 to 20 px, the canvas edge reached");
+		Check(RedAt(painted, 179, 60) == 150 && RedAt(painted, 180, 60) == 100 && RedAt(painted, 179, 60 + 18) == 145 && RedAt(painted, 180, 60 + 18) == 100 && RedAt(painted, 185, 60) == 100,
+			"a flat end: the last pixel before the endpoint is core, the first beyond it background, across the whole width");
+		fiber.Coating = 3;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 177, 60) == 122 && RedAt(painted, 176, 60) == 150 && RedAt(painted, 80, 60 + 18) == 120 && RedAt(painted, 80, 60 + 16) == 145,
+			"the AR coating lies along the sides (√1.45 = 1.20) and on the flat end face (√1.5 = 1.22)");
+		fiber.Coating = 0;
+		fiber.Ends = FiberEnds.Round;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 185, 60) == 150 && RedAt(painted, 189, 60) == 150 && RedAt(painted, 190, 60) == 145 && RedAt(painted, 199, 60) == 145 && RedAt(painted, 195, 75) == 100,
+			"a round end: the core goes on past the endpoint by its radius, the cladding by the outer one, the corner beyond it stays empty");
+		fiber.Ends = FiberEnds.Flat;
+		fiber.Nodes[0].X = -60;
+		fiber.Nodes[0].Y = 40;
+		fiber.Nodes[0].SetHandle(true, 0, -80);
+		fiber.Nodes[1].X = 60;
+		fiber.Nodes[1].Y = 40;
+		fiber.Nodes[1].SetHandle(false, 0, -80);
+		(double X, double Y)[] bent = FiberPart.Flatten(fiber.Nodes);
+		Check(bent.Length > 20 && bent.All(p => Math.Abs(p.X) <= 60 && p.Y >= -20.0001 && p.Y <= 40) && bent.Min(p => Math.Abs(p.Y + 20)) < 0.5 && bent[0] == (-60, 40) && bent[^1] == (60, 40),
+			$"a bent path (nodes at (±60, 40), 80 px handles straight up) flattens to {bent.Length} chords within the handles' hull, from node to node through the apex (0, -20)");
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 80, 35) == 150 && RedAt(painted, 80, 25) == 145 && RedAt(painted, 80, 15) == 100 && RedAt(painted, 80, 100) == 100,
+			"the bent fibre is painted along the curve: core and cladding at the apex, nothing on the straight line between the nodes");
+		Check(RedAt(painted, 20, 99) == 150 && RedAt(painted, 20, 100) == 100 && RedAt(painted, 140, 99) == 150 && RedAt(painted, 140, 100) == 100,
+			$"its flat ends are cut across the handles' direction: the row above a node is core, the node's own row background ({RedAt(painted, 20, 99)}, {RedAt(painted, 20, 100)}, {RedAt(painted, 140, 99)}, {RedAt(painted, 140, 100)})");
+		var node = new FiberNode { OutX = 30, OutY = 0, InX = -10, InY = 0 };
+		node.SetHandle(true, 0, 40);
+		Check(node is { OutX: 0, OutY: 40, InX: 0, InY: -10 }, "a smooth node: setting the out-handle turns the in-handle opposite, its length kept");
+		node.SetHandle(false, 6, 8, 20.0);
+		Check(node is { InX: 6, InY: 8, OutX: -12, OutY: -16 }, "and the in-handle turns the out-handle, to the length given");
+		node.Smooth = false;
+		node.SetHandle(true, 5, 5);
+		Check(node is { OutX: 5, OutY: 5, InX: 6, InY: 8 }, "a corner node leaves the other handle alone");
+		var aligned = new FiberPart { Nodes = [new FiberNode { X = -100 }, new FiberNode { X = 0, Y = 50, InX = -10, OutY = 40, Smooth = false }, new FiberNode { X = 100 }] };
+		aligned.Nodes[1].Smooth = true;
+		Check(aligned.Nodes[1] is { InX: 0, InY: -10, OutX: 0, OutY: 40 }, "switching a node to smooth lines its in-handle up opposite the out-handle, both lengths kept");
+		aligned.Nodes[1].InX = 60;
+		Check(aligned.Nodes[1] is { InX: 60, InY: -10, OutX: -39, OutY: 7 }, "a typed in-handle of a smooth node turns the out-handle opposite, its length kept");
+		var bare = new FiberNode { X = 0, Y = 50, Smooth = false };
+		aligned.Nodes[1] = bare;
+		bare.Smooth = true;
+		Check(bare is { InX: -37, InY: 0, OutX: 37, OutY: 0 }, "a node without handles switched to smooth gets them from its neighbours: along the line between them, a third of the way to each");
+		var twin = (FiberPart)aligned.Clone();
+		twin.Nodes[1].OutY = 37;
+		twin.Nodes[1].OutX = 0;
+		Check(twin.Nodes[1] is { OutX: 0, OutY: 37, InX: 0, InY: -37 } && bare is { InX: -37, OutX: 37, OutY: 0 }, "a clone keeps its own nodes smooth, the original's untouched");
+		var keeper = new Project();
+		var kept = (FiberPart)keeper.AddPart(PartKind.Fiber);
+		kept.Nodes.Add(new FiberNode { X = 150, Y = 30, InX = -60, OutX = 60, OutY = 1 });
+		string keptXml;
+		using (var stream = new MemoryStream())
+		{
+			keeper.Save(stream);
+			keptXml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+		}
+		Project keptBack;
+		using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(keptXml)))
+		{
+			keptBack = Project.Load(stream);
+		}
+		Check(kept.Nodes[2] is { InX: -60, InY: 0, OutX: 60, OutY: 1 } && keptBack.Parts[0] is FiberPart { Nodes.Count: 3 } reloaded && reloaded.Nodes[2] is { InX: -60, InY: 0, OutX: 60, OutY: 1, Smooth: true },
+			"a node added or loaded is kept as it is, a pixel off the line included: the smooth rule acts on edits only");
+		var oddEnds = new FiberPart { Ends = (FiberEnds)7 };
+		oddEnds.Normalize();
+		Check(oddEnds.Ends == FiberEnds.Flat, "an undefined Ends value normalises to Flat");
 		project.Parts.Clear();
 
 		// the cavity: a mirror square with its inside painted back to index 1 keeps a wave in, nothing gets out
@@ -2256,7 +2330,8 @@ internal static class Program
 			back = Project.Load(stream);
 		}
 		Check(back.Parts.Count == 9 && back.Parts.Select(p => p.Kind).SequenceEqual([PartKind.BraggReflector, PartKind.Lens, PartKind.Outline, PartKind.Polygon, PartKind.Rectangle, PartKind.Ellipse, PartKind.Triangle, PartKind.Fiber, PartKind.GrinLens]), "the nine kinds load back in order");
-		Check(back.Parts[7] is FiberPart { Points.Count: 2 } loaded && loaded.Points[0].X == -100 && loaded.Points[1].X == 100, "a loaded fibre has its two points, not the default path on top of them");
+		Check(xml.Contains("<Node X=\"-100\" Y=\"0\" OutX=\"67\" />") && xml.Contains("<Node X=\"100\" Y=\"0\" InX=\"-67\" />"), "a fibre's nodes are sparse Node children: handles only where set, Smooth only when off");
+		Check(back.Parts[7] is FiberPart { Nodes.Count: 2, Ends: FiberEnds.Flat } loaded && loaded.Nodes[0] is { X: -100, OutX: 67, Smooth: true } && loaded.Nodes[1] is { X: 100, InX: -67 }, "a loaded fibre has its two nodes with their handles, not the default path on top of them");
 		Check(back.Parts[2] is OutlinePart { Mirror: true, Points.Count: 1 } && back.Parts[0] is BraggReflectorPart { Angle: 45, Index2: 2.2, Pairs: 10 } && back.Parts[4] is RectanglePart { Width: 7, Length: 60 } && back.Parts[5] is EllipsePart { Width: 9, Length: 9, Linked: true } && back.Parts[6] is TrianglePart { Type: TriangleType.RightIsosceles, AngleB: 45 },
 			"a loaded outline keeps its point and mirror flag, the reflector its angle and index, the rectangle its width, the triangle its type");
 		var watched = new ProjectWatcher(back);

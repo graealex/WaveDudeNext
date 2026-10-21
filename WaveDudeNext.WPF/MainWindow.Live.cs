@@ -235,9 +235,9 @@ public partial class MainWindow
 		ScheduleRerun();
 	}
 
-	/// <summary>Whether the change is to an optical part, one of its points, a point list or the parts list.</summary>
+	/// <summary>Whether the change is to an optical part, one of its points or fibre nodes, a point or node list, or the parts list.</summary>
 	private static bool IsPartChange(ProjectChange change) =>
-		change.Item is OpticalPart or PartPoint or ObservableCollection<OpticalPart> or ObservableCollection<PartPoint>
+		change.Item is OpticalPart or PartPoint or FiberNode or ObservableCollection<OpticalPart> or ObservableCollection<PartPoint> or ObservableCollection<FiberNode>
 			|| change.Item is Project && change.Property == nameof(Project.Parts);
 
 	/// <summary>

@@ -55,7 +55,7 @@ public abstract class PartShape
 		{
 			LensPart lens => new LensShape(lens),
 			ShapePart shape => shape.Vertices().Length < 3 ? null : new VertexShape(shape),
-			FiberPart fiber => fiber.Points.Count < 2 ? null : new FiberShape(fiber),
+			FiberPart fiber => FiberPart.Flatten(fiber.Nodes) is { Length: >= 2 } path ? new FiberShape(fiber, path) : null,
 			BraggReflectorPart bragg => new BraggShape(bragg),
 			GrinLensPart grin => new GrinShape(grin),
 			_ => null,
@@ -293,41 +293,201 @@ public abstract class PartShape
 		protected override double BodyIndex(double x, double y) => _index;
 	}
 
+	/// <summary>
+	/// A fibre: the tube of the outer radius around the path's chords (<see cref="FiberPart.Flatten"/>), the core the
+	/// inner tube, the ends flat or round. Flat (2026-10-22, the user's request): the path is cut by the plane across
+	/// the curve's own direction at each endpoint (the handle's, which a bend tilts the first chord away from by a
+	/// degree or two), so a point before the start or beyond the end lies outside however close to the line, and the
+	/// depth inside counts the end face too, which the coating band then follows. The depth is the largest over the
+	/// chords: exact inside, and outside a point's nearest chord gives the distance (a corner of a flat end makes it
+	/// an under-estimate, which keeps the painter's single-sample shortcut safe). The chords are bucketed on a grid
+	/// of <see cref="CellSize"/> cells over the part frame, each cell listing the chords whose tube can reach it, so
+	/// a sample visits a handful of chords instead of all (2026-10-22: an S-bend across a Full HD canvas, 156 chords,
+	/// took 1.3 s a paint without this); a point in a cell no chord reaches is at least <see cref="Margin"/> outside.
+	/// </summary>
 	private sealed class FiberShape : PartShape
 	{
+		/// <summary>Side of a grid cell in pixels of the part frame.</summary>
+		private const int CellSize = 32;
+		/// <summary>How far beyond the tube a chord is still listed for a cell, in pixels: more than the painter's sample reach, so an empty cell may report this depth outside.</summary>
+		private const double Margin = 2.0;
+
 		private readonly (double X, double Y)[] _path;
+		private readonly bool _flat;
+		private readonly (double X, double Y) _startTangent;
+		private readonly (double X, double Y) _endTangent;
 		private readonly double _coreRadius;
 		private readonly double _outerRadius;
 		private readonly double _coreIndex;
 		private readonly double _claddingIndex;
 		private readonly double _extent;
+		private readonly double _gridX;
+		private readonly double _gridY;
+		private readonly int _columns;
+		private readonly int _rows;
+		private readonly int[] _cellStart;
+		private readonly int[] _cellChords;
+		private readonly int _startZone;
+		private readonly int _endZone;
 
-		public FiberShape(FiberPart fiber) : base(fiber)
+		public FiberShape(FiberPart fiber, (double X, double Y)[] path) : base(fiber)
 		{
-			_path = fiber.Points.Select(p => ((double)p.X, (double)p.Y)).ToArray();
+			_path = path;
+			_flat = fiber.Ends == FiberEnds.Flat;
+			FiberNode first = fiber.Nodes[0];
+			FiberNode last = fiber.Nodes[^1];
+			_startTangent = Unit(first.OutX, first.OutY) ?? Unit(path[1].X - path[0].X, path[1].Y - path[0].Y) ?? (1.0, 0.0);
+			_endTangent = Unit(-last.InX, -last.InY) ?? Unit(path[^1].X - path[^2].X, path[^1].Y - path[^2].Y) ?? (1.0, 0.0);
 			_coreRadius = Math.Max(1, fiber.CoreDiameter) / 2.0;
 			_outerRadius = _coreRadius + Math.Max(0, fiber.CladdingThickness);
 			_coreIndex = GuardIndex(fiber.CoreIndex);
 			_claddingIndex = fiber.CladdingThickness > 0 ? GuardIndex(fiber.CladdingIndex) : _coreIndex;
+			HasInnerEdges = fiber.CladdingThickness > 0;
 			Coating = GuardCoating(fiber.Coating);
 			_extent = _path.Max(v => Math.Sqrt(v.X * v.X + v.Y * v.Y)) + _outerRadius;
+			// the chords a flat face cuts: every chord is a capsule, and one starting within the outer radius of an
+			// end (twice that, for a bend) reaches past the face with its round cap
+			_startZone = 1;
+			_endZone = _path.Length - 1;
+			double arc = 0.0;
+			for (int i = 1; i < _path.Length && arc <= 2.0 * _outerRadius; i++)
+			{
+				_startZone = i;
+				arc += Math.Sqrt(Square(_path[i].X - _path[i - 1].X) + Square(_path[i].Y - _path[i - 1].Y));
+			}
+			arc = 0.0;
+			for (int i = _path.Length - 1; i >= 1 && arc <= 2.0 * _outerRadius; i--)
+			{
+				_endZone = i;
+				arc += Math.Sqrt(Square(_path[i].X - _path[i - 1].X) + Square(_path[i].Y - _path[i - 1].Y));
+			}
+
+			// the grid over the path's box widened by the tube and the margin; a chord is listed in every cell its
+			// widened box touches: the counts first, then the lists laid end to end behind the starts
+			double reach = _outerRadius + Margin;
+			_gridX = _path.Min(v => v.X) - reach;
+			_gridY = _path.Min(v => v.Y) - reach;
+			_columns = Math.Max(1, (int)Math.Ceiling((_path.Max(v => v.X) + reach - _gridX) / CellSize));
+			_rows = Math.Max(1, (int)Math.Ceiling((_path.Max(v => v.Y) + reach - _gridY) / CellSize));
+			var counts = new int[_columns * _rows];
+			VisitCells((cell, _) => counts[cell]++);
+			_cellStart = new int[counts.Length + 1];
+			for (int c = 0; c < counts.Length; c++)
+			{
+				_cellStart[c + 1] = _cellStart[c] + counts[c];
+			}
+			_cellChords = new int[_cellStart[^1]];
+			var fill = (int[])_cellStart.Clone();
+			VisitCells((cell, chord) => _cellChords[fill[cell]++] = chord);
+
+			void VisitCells(Action<int, int> visit)
+			{
+				for (int i = 1; i < _path.Length; i++)
+				{
+					(int c0, int r0) = CellOf(Math.Min(_path[i - 1].X, _path[i].X) - reach, Math.Min(_path[i - 1].Y, _path[i].Y) - reach);
+					(int c1, int r1) = CellOf(Math.Max(_path[i - 1].X, _path[i].X) + reach, Math.Max(_path[i - 1].Y, _path[i].Y) + reach);
+					for (int r = r0; r <= r1; r++)
+					{
+						for (int c = c0; c <= c1; c++)
+						{
+							visit(r * _columns + c, i);
+						}
+					}
+				}
+			}
 		}
 
 		public override bool IsMirror => false;
 		protected override int Coating { get; }
+		/// <summary>The core's edge steps inside the outline, so the painter samples every pixel of the tube (without this the core edge came out unsmoothed, 2026-10-22).</summary>
+		public override bool HasInnerEdges { get; }
 		protected override double Extent => _extent;
-		protected override double Depth(double x, double y) => _outerRadius - PathDistance(x, y);
 		protected override double BodyIndex(double x, double y) => PathDistance(x, y) <= _coreRadius ? _coreIndex : _claddingIndex;
 
-		/// <summary>Distance to the nearest segment of the path (round ends and joints follow).</summary>
+		protected override double Depth(double x, double y)
+		{
+			(int from, int to) = ChordsNear(x, y);
+			if (from == to)
+			{
+				return -Margin;
+			}
+			int last = _path.Length - 1;
+			// depth from the end faces: how far past the start, and how far short of the end, along the tangents there
+			double startDepth = _flat ? (x - _path[0].X) * _startTangent.X + (y - _path[0].Y) * _startTangent.Y : double.PositiveInfinity;
+			double endDepth = _flat ? (_path[last].X - x) * _endTangent.X + (_path[last].Y - y) * _endTangent.Y : double.PositiveInfinity;
+			double best = double.NegativeInfinity;
+			for (int k = from; k < to; k++)
+			{
+				int i = _cellChords[k];
+				(double ax, double ay) = _path[i - 1];
+				(double bx, double by) = _path[i];
+				double dx = bx - ax;
+				double dy = by - ay;
+				double length = Math.Sqrt(dx * dx + dy * dy);
+				double along = ((x - ax) * dx + (y - ay) * dy) / length;   // from a, in pixels
+				double depth;
+				if (along >= 0.0 && along <= length || i == 1 && startDepth < 0.0 || i == last && endDepth < 0.0)
+				{
+					// across the chord's span, or before a flat start or beyond a flat end: the distance to the line
+					double perpendicular = Math.Abs((x - ax) * dy - (y - ay) * dx) / length;
+					depth = _outerRadius - perpendicular;
+				}
+				else
+				{
+					// beyond a chord's end inside the path: the round joint to the next chord, or a round end
+					depth = _outerRadius - SegmentDistance(ax, ay, bx, by, x, y);
+				}
+				if (i <= _startZone)
+				{
+					depth = Math.Min(depth, startDepth);
+				}
+				if (i >= _endZone)
+				{
+					depth = Math.Min(depth, endDepth);
+				}
+				best = Math.Max(best, depth);
+			}
+			// a chord the cell does not list is more than the margin outside, so it never sets the maximum
+			return Math.Max(best, -Margin);
+		}
+
+		/// <summary>Distance to the nearest chord of the path among those listed for the point's cell (exact within the tube, where the nearest chord is always listed).</summary>
 		private double PathDistance(double x, double y)
 		{
+			(int from, int to) = ChordsNear(x, y);
 			double nearest = double.PositiveInfinity;
-			for (int i = 1; i < _path.Length; i++)
+			for (int k = from; k < to; k++)
 			{
+				int i = _cellChords[k];
 				nearest = Math.Min(nearest, SegmentDistance(_path[i - 1].X, _path[i - 1].Y, _path[i].X, _path[i].Y, x, y));
 			}
 			return nearest;
+		}
+
+		/// <summary>The range in the chord lists for the cell of (x', y'): empty outside the grid.</summary>
+		private (int From, int To) ChordsNear(double x, double y)
+		{
+			int column = (int)Math.Floor((x - _gridX) / CellSize);
+			int row = (int)Math.Floor((y - _gridY) / CellSize);
+			if (column < 0 || column >= _columns || row < 0 || row >= _rows)
+			{
+				return (0, 0);
+			}
+			int cell = row * _columns + column;
+			return (_cellStart[cell], _cellStart[cell + 1]);
+		}
+
+		/// <summary>The cell holding (x', y'), clamped onto the grid.</summary>
+		private (int Column, int Row) CellOf(double x, double y) =>
+			(Math.Clamp((int)Math.Floor((x - _gridX) / CellSize), 0, _columns - 1), Math.Clamp((int)Math.Floor((y - _gridY) / CellSize), 0, _rows - 1));
+
+		private static double Square(double v) => v * v;
+
+		/// <summary>The direction (x, y) as a unit vector, or null for a zero vector.</summary>
+		private static (double X, double Y)? Unit(double x, double y)
+		{
+			double length = Math.Sqrt(x * x + y * y);
+			return length > 0.0 ? (x / length, y / length) : null;
 		}
 	}
 

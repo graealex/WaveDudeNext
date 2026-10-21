@@ -35,7 +35,7 @@ public sealed record ProjectChange(object Item, string? Property)
 	public bool AffectsSimulation => Item switch
 	{
 		Scene when Property == nameof(Scene.ImagePath) => false,
-		Scene or Simulation or Source or SourceArray or OpticalPart or PartPoint => true,
+		Scene or Simulation or Source or SourceArray or OpticalPart or PartPoint or FiberNode => true,
 		Project => Property is nameof(Project.Seed) or nameof(Project.Scene) or nameof(Project.Simulation) or nameof(Project.Sources) or nameof(Project.Parts),
 		ObservableCollection<ColorScheme> or ObservableCollection<Probe> => false,
 		INotifyCollectionChanged => true,
@@ -99,7 +99,7 @@ public sealed class ProjectWatcher : IDisposable
 	private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
 	{
 		if (sender is Source && e.PropertyName == nameof(Source.Array) || sender is Display && e.PropertyName is nameof(Display.Field) or nameof(Display.Intensity) or nameof(Display.Video)
-			|| sender is OutlinePart or FiberPart && e.PropertyName == "Points")
+			|| sender is OutlinePart && e.PropertyName == nameof(OutlinePart.Points) || sender is FiberPart && e.PropertyName == nameof(FiberPart.Nodes))
 		{
 			Resubscribe();
 		}
@@ -139,14 +139,22 @@ public sealed class ProjectWatcher : IDisposable
 		foreach (OpticalPart part in _project.Parts)
 		{
 			Subscribe(part);
-			ObservableCollection<PartPoint>? points = part switch { OutlinePart outline => outline.Points, FiberPart fiber => fiber.Points, _ => null };
-			if (points != null)
+			switch (part)
 			{
-				SubscribeCollection(points);
-				foreach (PartPoint point in points)
-				{
-					Subscribe(point);
-				}
+				case OutlinePart outline:
+					SubscribeCollection(outline.Points);
+					foreach (PartPoint point in outline.Points)
+					{
+						Subscribe(point);
+					}
+					break;
+				case FiberPart fiber:
+					SubscribeCollection(fiber.Nodes);
+					foreach (FiberNode node in fiber.Nodes)
+					{
+						Subscribe(node);
+					}
+					break;
 			}
 		}
 		foreach (Probe probe in _project.Probes)

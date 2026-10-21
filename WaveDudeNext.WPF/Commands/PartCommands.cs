@@ -19,7 +19,7 @@ using System.Windows.Input;
 
 namespace WaveDudeNext.WPF.Commands;
 
-/// <summary>Commands of the part editors, bound on the views themselves: the point list of an outline or fibre (<c>Views/PartPointsView</c>), nothing else since the chain toggle replaced the Square and Circle buttons (2026-10-20).</summary>
+/// <summary>Commands of the part editors, bound on the views themselves: the point list of an outline (<c>Views/PartPointsView</c>) and the node list of a fibre's path (<c>Views/FiberPathView</c>, 2026-10-22), nothing else since the chain toggle replaced the Square and Circle buttons (2026-10-20).</summary>
 public static class PartCommands
 {
 	/// <summary>Appends a point after the last one.</summary>

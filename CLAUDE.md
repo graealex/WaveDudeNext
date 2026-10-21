@@ -46,7 +46,9 @@ harnesses run.
   preferred (docking, encoders, colour picker are in-house). Microsoft packages are fine.
 - **WPF idioms**: commands not `_Click`, bindings not hand-pushed state, `DynamicResource` for every theme brush and
   string, `XmlSerializer` with sparse XML (attributes, repeated children, `[DefaultValue]`), Segoe UI 9 pt, the
-  dnSpy look (its sources are GPL: look, do not copy).
+  dnSpy look (its sources are GPL: look, do not copy). Inside a `DataTemplate` reference the string keys directly
+  (`{DynamicResource Hint.Type.Member}`): the `meta:Label`/`meta:Hint` extensions wrap a resource reference a template
+  rejects for a string property and shows as text for an object one (2026-10-22, found on the fibre's node rows).
 - **Model conventions**: a new property gets its XML attribute with a default, `[Category]`/`[DisplayName]`/
   `[Description]`, a `///` summary, a clamp in `Normalize()` with the matching `[Range]` beside the default (2026-10-21:
   the bounds are readable from outside, `library_check` proves each against `Normalize()`; a bound that depends on another
@@ -193,7 +195,15 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   whole pixels). A part edit is a simulation edit. Tree folder "Parts", "+ Part" opens a menu of kinds (Space, arrows,
   Enter), a handle plus a rotation lever on the pictures; while selected, the outline as painted in the accent colour,
   a size grip on a corner or vertex (rectangle, lens, polygon, triangle, GRIN, Bragg) and a handle per point of an outline
-  or fibre (2026-10-19); the shape shows through the glowing outline otherwise.
+  (2026-10-19); the shape shows through the glowing outline otherwise. **A fibre's path** (2026-10-22, the user's request,
+  replacing the polyline with its sharp bends) is a chain of cubic Bézier segments through `FiberNode`s, each with an in and an
+  out handle as offsets (ints, `<Node X Y InX InY OutX OutY Smooth>`): on the pictures a node handle plus its two handles on
+  dotted lines, a smooth node (default) lined up when switched on (`FiberPart.AlignNode`, zero handles seeded from the
+  neighbours) and turning the other handle with the one moved or typed, keeping its length (captured at the drag's start, so
+  rounding does not creep in; a node added or loaded is taken as it is), a corner node free; the pane lists each node with both handles; "Add node"
+  continues the path. The ends are `Ends` Flat (default: cut across the curve's tangent at the endpoint, the coating
+  following the face) or Round. The painter flattens the curve into chords (0.05 px) bucketed on a 32 px cell grid, and the
+  core edge is supersampled (`HasInnerEdges`).
 - File types `.wdproj` / `.wdscheme` are registered per user at start-up; unsaved edits ask on close.
 
 ## Numbers (workstation: 10-core Xeon without AVX2, RTX 2080, 64 GB)
@@ -202,7 +212,7 @@ GPU step at 1080p 0.25–0.5 ms, CPU 6–14 ms; OpenCL build 0.3 s; a full-HD ru
 the GPU readback. Renderer per 2880×1080 layer on ten cores: 8-bit 1.0 ms, 16-bit 2.0; vector rows gain 2× per
 core over scalar. Presenter about 7 ms a frame quiet, 20 during a run. JPEG 1080p at 4:4:4: WIC 26 ms a frame
 single-threaded (9 ms a frame in a sequence job on half the cores), in-house 9.8 ms on ten cores (15 in a job);
-MP4 job 16 ms a frame. Part painter on a Full HD canvas (ten cores): a 400 × 330 outline 30 ms, a 400 px lens 5, a hexagon 8;
+MP4 job 16 ms a frame. Part painter on a Full HD canvas (ten cores): a 400 × 330 outline 30 ms, a 400 px lens 5, a hexagon 8, an S-bent fibre across the canvas 51 (156 chords on the cell grid; 1.3 s without it);
 the glowing edges 22 ms; the preview's scene pictures about 100 ms more, so the scene rebuild is coalesced at background priority. Laptop (2 cores, HD 520, HDD): iGPU 4.3 ms a step against CPU 14.7; the ball
 lens run 105 s full quality (disk-bound), 61 s at half resolution with every second frame, in RAM. Settled by these
 numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Direct3D display path.
@@ -232,4 +242,4 @@ upscale in exports; HEVC; the start-up stall (log milestones first); the GPU rea
 automatic quality lowering when a run would spill (undecided); dropping the 9-point Laplacian (undecided);
 **optical parts**: stages 1 and 2 of `OpticalParts.md` built 2026-10-18 (uncommitted); stage 3 (a `PartCheck.ps1`
 harness, three example projects for Jeroen) and its open points (the "+ Part" menu versus five buttons, Bragg thicknesses
-in pixels, round fibre ends, where examples live) wait for the user.
+in pixels, where examples live) wait for the user.

@@ -19,7 +19,7 @@ using System.Windows.Controls;
 
 namespace WaveDudeNext.WPF.Views;
 
-/// <summary>Editor for a <see cref="WaveDudeNext.Model.FiberPart"/>: core, cladding and the path.</summary>
+/// <summary>Editor for a <see cref="WaveDudeNext.Model.FiberPart"/>: core, cladding, the ends and the path (<see cref="FiberPathView"/>).</summary>
 public partial class FiberPartView : UserControl
 {
 	public FiberPartView()
