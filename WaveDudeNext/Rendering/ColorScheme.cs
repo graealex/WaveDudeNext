@@ -18,6 +18,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Xml.Serialization;
 using WaveDudeNext.Model;
@@ -61,6 +62,7 @@ public sealed class ColorStop : ObservableObject
 	[XmlAttribute("At")]
 	[Category("Stop")]
 	[Description("Position along the gradient, 0 at the lowest value to 1 at the highest.")]
+	[Range(0.0, 1.0)]
 	public double Position
 	{
 		get => _position;

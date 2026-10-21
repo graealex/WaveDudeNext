@@ -48,8 +48,10 @@ harnesses run.
   string, `XmlSerializer` with sparse XML (attributes, repeated children, `[DefaultValue]`), Segoe UI 9 pt, the
   dnSpy look (its sources are GPL: look, do not copy).
 - **Model conventions**: a new property gets its XML attribute with a default, `[Category]`/`[DisplayName]`/
-  `[Description]`, a `///` summary, a clamp in `Normalize()`, and `Label.`/`Hint.`/`Enum.<Type>.<Member>` keys in
-  all four string tables. Randomness from `Project.Seed` through `Pcg32`; generated data is never persisted.
+  `[Description]`, a `///` summary, a clamp in `Normalize()` with the matching `[Range]` beside the default (2026-10-21:
+  the bounds are readable from outside, `library_check` proves each against `Normalize()`; a bound that depends on another
+  value stays in code alone), and `Label.`/`Hint.`/`Enum.<Type>.<Member>` keys in all four string tables. Randomness from
+  `Project.Seed` through `Pcg32`; generated data is never persisted.
 - **C# style**: modern and concise, expression-bodied accessors, no `this.`, no `IDisposable` on interfaces,
   `out` not `ref`, tabs, Allman; `///` docs state threading, units and coordinate systems. `grep -E`, not `-P`.
 - **Log decisions at Debug** (scratch requests, stale marks, postponed re-runs, export steps). Info and up reach
@@ -205,7 +207,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges).
+`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, ranges).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 38, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness

@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Xml.Serialization;
 
 namespace WaveDudeNext.Model;
@@ -72,6 +73,7 @@ public sealed class Display : ObservableObject
 	/// <summary>First simulation step of the exported range (and of loop playback); 0 is the start of the run.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, int.MaxValue)]
 	[Category("Export")]
 	[DisplayName("From step")]
 	[Description("First simulation step of the exported range; 0 is the start of the run.")]
@@ -84,6 +86,7 @@ public sealed class Display : ObservableObject
 	/// <summary>Last simulation step of the exported range (and of loop playback); 0 means the end of the run.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, int.MaxValue)]
 	[Category("Export")]
 	[DisplayName("To step")]
 	[Description("Last simulation step of the exported range; 0 means the end of the run.")]
@@ -181,6 +184,7 @@ public sealed class DisplayLayer : ObservableObject
 	/// <summary>Gain applied to the values before the colour lookup.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultBrightness)]
+	[Range(1e-4, 1e5)]
 	[Category("Rendering")]
 	[Description("Gain applied to the values before the colour lookup.")]
 	public double Brightness
@@ -192,6 +196,7 @@ public sealed class DisplayLayer : ObservableObject
 	/// <summary>Offset applied before the colour lookup; values at or below it map to the first colour.</summary>
 	[XmlAttribute]
 	[DefaultValue(0.0)]
+	[Range(-10.0, 1.0)]
 	[Category("Rendering")]
 	[DisplayName("Black level")]
 	[Description("Offset applied before the colour lookup; values at or below it map to the first colour.")]
@@ -231,6 +236,7 @@ public sealed class DisplayLayer : ObservableObject
 	/// <summary>Multiplier of the outline's brightness, 0 to <see cref="MaxOverlayGain"/>; 1 shows the edge picture as computed, 0 hides it.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultOverlayGain)]
+	[Range(0.0, MaxOverlayGain)]
 	[Category("Scene outline")]
 	[DisplayName("Outline brightness")]
 	[Description("Multiplier of the outline: 1 as computed, higher lifts faint edges, 0 hides it.")]
@@ -285,6 +291,7 @@ public sealed class Video : ObservableObject
 	/// <summary>Frames per second of the exported video.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultFps)]
+	[Range(1, MaxFps)]
 	[Category("Video")]
 	[DisplayName("Frame rate")]
 	[Description("Frames per second of the exported video.")]
@@ -297,6 +304,7 @@ public sealed class Video : ObservableObject
 	/// <summary>Encoder quality, 1 to 100.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultQuality)]
+	[Range(1, 100)]
 	[Category("Video")]
 	[Description("Encoder quality, 1 to 100.")]
 	public int Quality

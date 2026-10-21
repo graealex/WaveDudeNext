@@ -17,6 +17,7 @@
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Xml.Serialization;
 
 namespace WaveDudeNext.Model;
@@ -100,6 +101,7 @@ public abstract class OpticalPart : ObservableObject, IMovable
 	[XmlAttribute]
 	[Category("Position")]
 	[Description("X of the part's centre in canvas pixels.")]
+	[Range(0, int.MaxValue)]
 	public int X
 	{
 		get => _x;
@@ -110,6 +112,7 @@ public abstract class OpticalPart : ObservableObject, IMovable
 	[XmlAttribute]
 	[Category("Position")]
 	[Description("Y of the part's centre in canvas pixels.")]
+	[Range(0, int.MaxValue)]
 	public int Y
 	{
 		get => _y;
@@ -119,6 +122,7 @@ public abstract class OpticalPart : ObservableObject, IMovable
 	/// <summary>Rotation about the centre in degrees, counter-clockwise on the screen; 0 points the part's axis along +x.</summary>
 	[XmlAttribute]
 	[DefaultValue(0.0)]
+	[Range(-180.0, 180.0, MinimumIsExclusive = true)]
 	[Category("Position")]
 	[DisplayName("Angle")]
 	[Description("Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.")]
@@ -299,6 +303,7 @@ public sealed class LensPart : OpticalPart
 	/// <summary>Refractive index of the glass, 1.00 to 2.55 in steps of 0.01; not used by a mirror.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultIndex)]
+	[Range(MinIndex, MaxIndex)]
 	[Category("Material")]
 	[DisplayName("Refractive index")]
 	[Description("Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.")]
@@ -311,6 +316,7 @@ public sealed class LensPart : OpticalPart
 	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) thick.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, MaxCoating)]
 	[Category("Material")]
 	[DisplayName("AR coating")]
 	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.")]
@@ -326,6 +332,7 @@ public sealed class LensPart : OpticalPart
 	/// </summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, MaxAbsorption)]
 	[Category("Material")]
 	[Description("How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.")]
 	public int Absorption
@@ -337,6 +344,7 @@ public sealed class LensPart : OpticalPart
 	/// <summary>Depth in pixels over which the absorption rises from 0 at the outline to <see cref="Absorption"/>; at most half the part's thickness takes effect.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultAbsorptionRamp)]
+	[Range(1, MaxAbsorptionRamp)]
 	[Category("Material")]
 	[DisplayName("Absorption ramp")]
 	[Description("Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.")]
@@ -349,6 +357,7 @@ public sealed class LensPart : OpticalPart
 	/// <summary>Extent across the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultDiameter)]
+	[Range(2, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Extent across the axis in pixels.")]
 	public int Diameter
@@ -418,6 +427,7 @@ public sealed class LensPart : OpticalPart
 	/// <summary>Distance between the two surfaces on the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultThickness)]
+	[Range(1, int.MaxValue)]
 	[Category("Shape")]
 	[DisplayName("Centre thickness")]
 	[Description("Distance between the two surfaces on the axis in pixels.")]
@@ -582,6 +592,7 @@ public abstract class ShapePart : OpticalPart
 	/// <summary>Refractive index of the glass, 1.00 to 2.55 in steps of 0.01; not used by a mirror.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultIndex)]
+	[Range(MinIndex, MaxIndex)]
 	[Category("Material")]
 	[DisplayName("Refractive index")]
 	[Description("Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.")]
@@ -594,6 +605,7 @@ public abstract class ShapePart : OpticalPart
 	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, MaxCoating)]
 	[Category("Material")]
 	[DisplayName("AR coating")]
 	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.")]
@@ -609,6 +621,7 @@ public abstract class ShapePart : OpticalPart
 	/// </summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, MaxAbsorption)]
 	[Category("Material")]
 	[Description("How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.")]
 	public int Absorption
@@ -620,6 +633,7 @@ public abstract class ShapePart : OpticalPart
 	/// <summary>Depth in pixels over which the absorption rises from 0 at the outline to <see cref="Absorption"/>; at most half the part's thickness takes effect.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultAbsorptionRamp)]
+	[Range(1, MaxAbsorptionRamp)]
 	[Category("Material")]
 	[DisplayName("Absorption ramp")]
 	[Description("Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.")]
@@ -673,6 +687,7 @@ public sealed class PolygonPart : ShapePart
 	/// <summary>Number of sides, 3 to 64.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultSides)]
+	[Range(MinSides, MaxSides)]
 	[Category("Shape")]
 	[DisplayName("Number of sides")]
 	[Description("Number of sides, 3 to 64.")]
@@ -685,6 +700,7 @@ public sealed class PolygonPart : ShapePart
 	/// <summary>Length of each side in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultSide)]
+	[Range(2, int.MaxValue)]
 	[Category("Shape")]
 	[DisplayName("Side length")]
 	[Description("Length of each side in pixels.")]
@@ -741,6 +757,7 @@ public sealed class RectanglePart : ShapePart
 	/// <summary>Extent along the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultSize)]
+	[Range(1, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Extent along the axis in pixels.")]
 	public int Length
@@ -758,6 +775,7 @@ public sealed class RectanglePart : ShapePart
 	/// <summary>Extent across the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultSize)]
+	[Range(1, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Extent across the axis in pixels.")]
 	public int Width
@@ -836,6 +854,7 @@ public sealed class EllipsePart : ShapePart
 	/// <summary>Diameter along the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultSize)]
+	[Range(1, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Diameter along the axis in pixels.")]
 	public int Length
@@ -853,6 +872,7 @@ public sealed class EllipsePart : ShapePart
 	/// <summary>Diameter across the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultSize)]
+	[Range(1, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Diameter across the axis in pixels.")]
 	public int Width
@@ -963,6 +983,7 @@ public sealed class TrianglePart : ShapePart
 	/// <summary>Length of the base in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultBase)]
+	[Range(2, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Length of the base in pixels; the base lies across the axis, toward a source on the left.")]
 	public int Base
@@ -991,6 +1012,7 @@ public sealed class TrianglePart : ShapePart
 	/// <summary>Base angle at the first end of the base (-y'), in degrees; typed for the isosceles and custom types.</summary>
 	[XmlAttribute]
 	[DefaultValue(60.0)]
+	[Range(1.0, MaxAngle)]
 	[Category("Shape")]
 	[DisplayName("Angle A")]
 	[Description("Base angle at the first end of the base, in degrees. Typed for the isosceles and custom types; the presets fix it.")]
@@ -1009,6 +1031,7 @@ public sealed class TrianglePart : ShapePart
 	/// <summary>Base angle at the second end of the base (+y'), in degrees; typed for the custom type only.</summary>
 	[XmlAttribute]
 	[DefaultValue(60.0)]
+	[Range(1.0, MaxAngle)]
 	[Category("Shape")]
 	[DisplayName("Angle B")]
 	[Description("Base angle at the second end of the base, in degrees. Typed for the custom type; the others fix it.")]
@@ -1153,6 +1176,7 @@ public sealed class FiberPart : OpticalPart
 	/// <summary>Refractive index of the core, 1.00 to 2.55.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultCoreIndex)]
+	[Range(MinIndex, MaxIndex)]
 	[Category("Core")]
 	[DisplayName("Core index")]
 	[Description("Refractive index of the core, 1.00 to 2.55 in steps of 0.01.")]
@@ -1165,6 +1189,7 @@ public sealed class FiberPart : OpticalPart
 	/// <summary>Diameter of the core in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultCoreDiameter)]
+	[Range(2, int.MaxValue)]
 	[Category("Core")]
 	[DisplayName("Core diameter")]
 	[Description("Diameter of the core in pixels.")]
@@ -1177,6 +1202,7 @@ public sealed class FiberPart : OpticalPart
 	/// <summary>Refractive index of the cladding, 1.00 to 2.55; below the core's for guiding.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultCladdingIndex)]
+	[Range(MinIndex, MaxIndex)]
 	[Category("Cladding")]
 	[DisplayName("Cladding index")]
 	[Description("Refractive index of the cladding, 1.00 to 2.55 in steps of 0.01. Below the core's index, the fibre guides.")]
@@ -1189,6 +1215,7 @@ public sealed class FiberPart : OpticalPart
 	/// <summary>Thickness of the cladding around the core in pixels; 0 for a bare core.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultCladdingThickness)]
+	[Range(0, int.MaxValue)]
 	[Category("Cladding")]
 	[DisplayName("Cladding thickness")]
 	[Description("Thickness of the cladding around the core in pixels; 0 for a bare core.")]
@@ -1201,6 +1228,7 @@ public sealed class FiberPart : OpticalPart
 	/// <summary>Thickness in pixels of the anti-reflection band just inside the outer boundary, with the index √n of the cladding (or the core when bare); 0 for none.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, MaxCoating)]
 	[Category("Cladding")]
 	[DisplayName("AR coating")]
 	[Description("Thickness in pixels of the anti-reflection band just inside the outer boundary, with the index √n; 0 for none.")]
@@ -1298,6 +1326,7 @@ public sealed class BraggReflectorPart : OpticalPart
 	/// <summary>Number of layer pairs, 1 to 200.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultPairs)]
+	[Range(1, MaxPairs)]
 	[Category("Layers")]
 	[DisplayName("Layer pairs")]
 	[Description("Number of layer pairs, 1 to 200.")]
@@ -1310,6 +1339,7 @@ public sealed class BraggReflectorPart : OpticalPart
 	/// <summary>Thickness of the first layer of each pair in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultThickness)]
+	[Range(1, int.MaxValue)]
 	[Category("Layers")]
 	[DisplayName("Thickness 1")]
 	[Description("Thickness of the first layer of each pair in pixels. A quarter-wave layer is λ / (4 n) pixels thick.")]
@@ -1322,6 +1352,7 @@ public sealed class BraggReflectorPart : OpticalPart
 	/// <summary>Thickness of the second layer of each pair in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultThickness)]
+	[Range(1, int.MaxValue)]
 	[Category("Layers")]
 	[DisplayName("Thickness 2")]
 	[Description("Thickness of the second layer of each pair in pixels. A quarter-wave layer is λ / (4 n) pixels thick.")]
@@ -1334,6 +1365,7 @@ public sealed class BraggReflectorPart : OpticalPart
 	/// <summary>Refractive index of the first layer of each pair, 1.00 to 2.55.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultIndex1)]
+	[Range(MinIndex, MaxIndex)]
 	[Category("Layers")]
 	[DisplayName("Index 1")]
 	[Description("Refractive index of the first layer of each pair, 1.00 to 2.55 in steps of 0.01.")]
@@ -1346,6 +1378,7 @@ public sealed class BraggReflectorPart : OpticalPart
 	/// <summary>Refractive index of the second layer of each pair, 1.00 to 2.55.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultIndex2)]
+	[Range(MinIndex, MaxIndex)]
 	[Category("Layers")]
 	[DisplayName("Index 2")]
 	[Description("Refractive index of the second layer of each pair, 1.00 to 2.55 in steps of 0.01.")]
@@ -1358,6 +1391,7 @@ public sealed class BraggReflectorPart : OpticalPart
 	/// <summary>Extent of the stack across the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultWidth)]
+	[Range(2, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Extent of the stack across the axis in pixels.")]
 	public int Width
@@ -1426,6 +1460,7 @@ public sealed class GrinLensPart : OpticalPart
 	/// <summary>Extent along the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultLength)]
+	[Range(1, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Extent along the axis in pixels.")]
 	public int Length
@@ -1437,6 +1472,7 @@ public sealed class GrinLensPart : OpticalPart
 	/// <summary>Extent across the axis in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultDiameter)]
+	[Range(2, int.MaxValue)]
 	[Category("Shape")]
 	[Description("Extent across the axis in pixels.")]
 	public int Diameter
@@ -1448,6 +1484,7 @@ public sealed class GrinLensPart : OpticalPart
 	/// <summary>Refractive index on the axis, 1.00 to 2.55.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultCentreIndex)]
+	[Range(MinIndex, MaxIndex)]
 	[Category("Material")]
 	[DisplayName("Centre index")]
 	[Description("Refractive index on the axis, 1.00 to 2.55 in steps of 0.01.")]
@@ -1460,6 +1497,7 @@ public sealed class GrinLensPart : OpticalPart
 	/// <summary>Refractive index at the edge, 1.00 to 2.55; the profile between is parabolic.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultEdgeIndex)]
+	[Range(MinIndex, MaxIndex)]
 	[Category("Material")]
 	[DisplayName("Edge index")]
 	[Description("Refractive index at the edge, 1.00 to 2.55 in steps of 0.01. The profile between the axis and the edge is parabolic.")]
@@ -1472,6 +1510,7 @@ public sealed class GrinLensPart : OpticalPart
 	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n of the local index; 0 for none.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, MaxCoating)]
 	[Category("Material")]
 	[DisplayName("AR coating")]
 	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none.")]

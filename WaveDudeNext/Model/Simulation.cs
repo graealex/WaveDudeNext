@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Xml.Serialization;
 
 namespace WaveDudeNext.Model;
@@ -52,6 +53,7 @@ public sealed class Simulation : ObservableObject
 	/// <summary>Total number of simulation steps.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultSteps)]
+	[Range(1, MaxSteps)]
 	[Category("Run")]
 	[Description("Total number of simulation steps.")]
 	public int Steps
@@ -63,6 +65,7 @@ public sealed class Simulation : ObservableObject
 	/// <summary>Render a frame, export it and sample the probes every this many steps.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultVisualizeEvery)]
+	[Range(1, MaxVisualizeEvery)]
 	[Category("Run")]
 	[DisplayName("Visualize every")]
 	[Description("Render a frame, export it and sample the probes every this many steps.")]
@@ -87,6 +90,7 @@ public sealed class Simulation : ObservableObject
 	/// <summary>Nominal wave speed in pixels per step; only used to estimate wavelengths in the editor.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultWaveSpeed)]
+	[Range(1e-6, 1e6)]
 	[Category("Solver")]
 	[DisplayName("Wave speed")]
 	[Description("Nominal wave speed in pixels per step; only used to estimate wavelengths in the editor.")]
@@ -99,6 +103,7 @@ public sealed class Simulation : ObservableObject
 	/// <summary>Averaging window factor of the intensity: the engine averages over this × 100 / lowest source level steps.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultTimeDecay)]
+	[Range(1.0, 100.0)]
 	[Category("Solver")]
 	[DisplayName("Intensity time decay")]
 	[Description("Averaging window factor of the intensity: the engine averages over this × 100 / lowest source level steps.")]
@@ -111,6 +116,7 @@ public sealed class Simulation : ObservableObject
 	/// <summary>Multiplier of the level-to-frequency mapping: ω = level / 255 × 0.5 × scale, in radians per step.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultSourceFrequencyScale)]
+	[Range(0.0, 1000.0)]
 	[Category("Solver")]
 	[DisplayName("Source frequency scale")]
 	[Description("Multiplier of the level-to-frequency mapping: ω = level / 255 × 0.5 × scale, in radians per step.")]
@@ -123,6 +129,7 @@ public sealed class Simulation : ObservableObject
 	/// <summary>Multiplier applied to the intensity values the engine produces.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultIntensityScale)]
+	[Range(1e-7, 1e6)]
 	[Category("Solver")]
 	[DisplayName("Intensity scale")]
 	[Description("Multiplier applied to the intensity values the engine produces.")]

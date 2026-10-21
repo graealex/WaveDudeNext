@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Xml.Serialization;
 
 namespace WaveDudeNext.Model;
@@ -118,6 +119,7 @@ public sealed class Source : ObservableObject, IMovable
 	/// <summary>Frequency as a level up to 255, decimals allowed, the same scale as the green channel of image sources (ω = level / 255 × 0.5 × <see cref="Simulation.SourceFrequencyScale"/>).</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultLevel)]
+	[Range(MinLevel, MaxLevel)]
 	[Category("Wave")]
 	[Description("Frequency as a level up to 255, decimals allowed, the same scale as the green channel of image sources. Above 255 the grid cannot sample the wave.")]
 	public double Frequency
@@ -129,6 +131,7 @@ public sealed class Source : ObservableObject, IMovable
 	/// <summary>Amplitude in percent, 0 to 100, decimals allowed: the engines scale the source by a real factor, and whole percents were only a spin-box setting in Wave Dude 2D.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultAmplitude)]
+	[Range(0.0, 100.0)]
 	[Category("Wave")]
 	[Description("Amplitude in percent, 0 to 100, decimals allowed.")]
 	public double Amplitude
@@ -140,6 +143,7 @@ public sealed class Source : ObservableObject, IMovable
 	/// <summary>Phase offset in degrees, -180 to 180, decimals allowed.</summary>
 	[XmlAttribute]
 	[DefaultValue(0.0)]
+	[Range(-180.0, 180.0)]
 	[Category("Wave")]
 	[Description("Phase offset in degrees, -180 to 180.")]
 	public double Phase
@@ -174,6 +178,7 @@ public sealed class Source : ObservableObject, IMovable
 	/// <summary>Length of each burst in cycles of the source frequency; pulsed mode only.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultWidth)]
+	[Range(1, int.MaxValue)]
 	[Category("Pulsing")]
 	[DisplayName("Pulse width")]
 	[Description("Length of each burst in cycles of the source frequency; pulsed mode only.")]
@@ -186,6 +191,7 @@ public sealed class Source : ObservableObject, IMovable
 	/// <summary>Length of the gap between bursts in cycles; pulsed mode only.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultWidth)]
+	[Range(1, int.MaxValue)]
 	[Category("Pulsing")]
 	[DisplayName("Off width")]
 	[Description("Length of the gap between bursts in cycles; pulsed mode only.")]
@@ -198,6 +204,7 @@ public sealed class Source : ObservableObject, IMovable
 	/// <summary>Simulation step at which the source fades out; <see cref="NeverDetach"/> keeps it on for the whole run.</summary>
 	[XmlAttribute]
 	[DefaultValue(NeverDetach)]
+	[Range(NeverDetach, int.MaxValue)]
 	[Category("General")]
 	[DisplayName("Detach after step")]
 	[Description("Simulation step at which the source fades out; -1 keeps it on for the whole run.")]
@@ -370,6 +377,7 @@ public sealed class SourceArray : ObservableObject
 	/// <summary>Number of emitters across; odd counts keep the centre emitter on the source position.</summary>
 	[XmlAttribute]
 	[DefaultValue(1)]
+	[Range(1, int.MaxValue)]
 	[Category("Grid")]
 	[DisplayName("Columns")]
 	[Description("Number of emitters across. Odd counts keep the centre emitter on the source position.")]
@@ -382,6 +390,7 @@ public sealed class SourceArray : ObservableObject
 	/// <summary>Number of emitters down.</summary>
 	[XmlAttribute]
 	[DefaultValue(1)]
+	[Range(1, int.MaxValue)]
 	[Category("Grid")]
 	[DisplayName("Rows")]
 	[Description("Number of emitters down.")]
@@ -418,6 +427,7 @@ public sealed class SourceArray : ObservableObject
 	/// <summary>Rotation of the grid about the source position in degrees, counter-clockwise as seen on the screen; 0 keeps the rows horizontal (2026-10-14, the user's request).</summary>
 	[XmlAttribute]
 	[DefaultValue(0.0)]
+	[Range(-180.0, 180.0, MinimumIsExclusive = true)]
 	[Category("Grid")]
 	[DisplayName("Rotation")]
 	[Description("Rotation of the grid about the source position in degrees, counter-clockwise on the screen. 0 keeps the rows horizontal.")]
@@ -430,6 +440,7 @@ public sealed class SourceArray : ObservableObject
 	/// <summary>Half-range of the per-emitter frequency offset in levels; 0 turns it off.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, int.MaxValue)]
 	[Category("Randomisation")]
 	[DisplayName("Frequency")]
 	[Description("Each emitter's level is offset by up to ± this amount. 0 turns it off.")]
@@ -442,6 +453,7 @@ public sealed class SourceArray : ObservableObject
 	/// <summary>Half-range of the per-emitter phase offset in degrees; 0 turns it off.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, int.MaxValue)]
 	[Category("Randomisation")]
 	[DisplayName("Phase")]
 	[Description("Each emitter's phase is offset by up to ± this many degrees. 0 turns it off.")]
@@ -454,6 +466,7 @@ public sealed class SourceArray : ObservableObject
 	/// <summary>Half-range of the gap offset in cycles, re-drawn by the engine every period; 0 turns it off.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, int.MaxValue)]
 	[Category("Randomisation")]
 	[DisplayName("Off width")]
 	[Description("Each gap between bursts is offset by up to ± this many cycles, re-drawn every period. 0 turns it off.")]
@@ -466,6 +479,7 @@ public sealed class SourceArray : ObservableObject
 	/// <summary>Half-range of the per-emitter position jitter in canvas pixels, independent for X and Y; 0 turns it off.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, int.MaxValue)]
 	[Category("Randomisation")]
 	[DisplayName("Position")]
 	[Description("Each emitter is moved by up to ± this many pixels in X and in Y. 0 turns it off.")]

@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Xml.Serialization;
 
 namespace WaveDudeNext.Model;
@@ -316,6 +317,7 @@ public sealed class Probe : ObservableObject, IMovable
 	/// <summary>Width of the graph box in canvas pixels; used when <see cref="BoxSize"/> is <see cref="ProbeBoxSize.Custom"/>, omitted from the file otherwise.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultBoxWidth)]
+	[Range(MinBoxWidth, MaxBoxSide)]
 	[Category("Graph")]
 	[DisplayName("Box width")]
 	[Description("Width of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.")]
@@ -328,6 +330,7 @@ public sealed class Probe : ObservableObject, IMovable
 	/// <summary>Height of the graph box in canvas pixels; used when <see cref="BoxSize"/> is <see cref="ProbeBoxSize.Custom"/>, omitted from the file otherwise.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultBoxHeight)]
+	[Range(MinBoxHeight, MaxBoxSide)]
 	[Category("Graph")]
 	[DisplayName("Box height")]
 	[Description("Height of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.")]
@@ -426,6 +429,7 @@ public sealed class Probe : ObservableObject, IMovable
 	/// </summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultDecades)]
+	[Range(MinDecades, MaxDecades)]
 	[Category("Axes")]
 	[DisplayName("Decades")]
 	[Description("Decades a logarithmic value axis spans below its top; smaller values, zero included, sit on the bottom line.")]
@@ -443,6 +447,7 @@ public sealed class Probe : ObservableObject, IMovable
 	/// <summary>Width of the sliding step window for <see cref="ProbeScaleMode.Running"/>, in steps.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultWindow)]
+	[Range(MinWindow, MaxWindow)]
 	[Category("Axes")]
 	[DisplayName("Window")]
 	[Description("Width of the sliding step window, in steps.")]
@@ -455,6 +460,7 @@ public sealed class Probe : ObservableObject, IMovable
 	/// <summary>Step at which recording starts; 0 records from the first step.</summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
+	[Range(0, int.MaxValue)]
 	[Category("General")]
 	[DisplayName("Start after step")]
 	[Description("Step at which recording starts; 0 records from the first step.")]

@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Xml.Serialization;
 
 namespace WaveDudeNext.Model;
@@ -180,6 +181,7 @@ public sealed class Scene : ObservableObject
 	/// <summary>Width of a blank canvas in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultWidth)]
+	[Range(MinSize, MaxSize)]
 	[Category("Canvas")]
 	[Description("Width of a blank canvas in pixels.")]
 	public int Width
@@ -191,6 +193,7 @@ public sealed class Scene : ObservableObject
 	/// <summary>Height of a blank canvas in pixels.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultHeight)]
+	[Range(MinSize, MaxSize)]
 	[Category("Canvas")]
 	[Description("Height of a blank canvas in pixels.")]
 	public int Height
@@ -206,6 +209,7 @@ public sealed class Scene : ObservableObject
 	/// </summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultDampingEdge)]
+	[Range(-MaxDampingEdge, MaxDampingEdge)]
 	[Category("Canvas")]
 	[DisplayName("Damping edge")]
 	[Description("Thickness in pixels of the absorbing frame: positive inside the canvas, where it is visible, negative outside it, where it is not. 0 turns it off.")]
@@ -230,6 +234,7 @@ public sealed class Scene : ObservableObject
 	/// <summary>Refractive index of a blank canvas, 1.0 to 2.55; the wave speed is 1/n cells per step.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultRefractiveIndex)]
+	[Range(MinRefractiveIndex, MaxRefractiveIndex)]
 	[Category("Canvas")]
 	[DisplayName("Refractive index")]
 	[Description("Refractive index of a blank canvas, 1.0 to 2.55. The wave speed is 1/n cells per step.")]
@@ -254,6 +259,7 @@ public sealed class Scene : ObservableObject
 	/// <summary>Peak amplitude of the image sources.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultImageSourceScale)]
+	[Range(0.0, MaxImageSourceScale)]
 	[Category("Sources")]
 	[DisplayName("Image source amplitude")]
 	[Description("Peak amplitude of the image sources.")]

@@ -15,9 +15,11 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Diagnostics;
 using System.Numerics.Tensors;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using NLog;
 using WaveDudeNext.Engine;
@@ -257,6 +259,7 @@ internal static class Program
 		CheckMirror(W, H);
 		CheckDecimalLevels(W, H);
 		CheckMovable();
+		CheckRanges();
 		CheckOpenEdges(W, H);
 		CheckFrameStore(scene);
 		CheckPreviewQuality(scene, W, H);
@@ -272,6 +275,109 @@ internal static class Program
 
 		Console.WriteLine(_failures == 0 ? "LIBRARY OK" : _failures + " check(s) failed");
 		return _failures == 0 ? 0 : 1;
+	}
+
+	/// <summary>
+	/// Every <see cref="RangeAttribute"/> on the model agrees with its owner's Normalize(): a value below or above the
+	/// range lands inside it, and a value at an inclusive bound stays as it is. Each leg runs on a fresh instance, so
+	/// dependent clamps (a triangle's second base angle) see the state the case prepares.
+	/// </summary>
+	private static void CheckRanges()
+	{
+		Console.WriteLine("--- [Range] attributes against Normalize()");
+		static (Action Normalize, object[] Targets) Part(OpticalPart part) => (part.Normalize, [part]);
+		(string Name, Func<(Action Normalize, object[] Targets)> Make)[] cases =
+		[
+			("Scene", () => { var s = new Scene(); return (s.Normalize, [s]); }),
+			("Simulation", () => { var s = new Simulation(); return (s.Normalize, [s]); }),
+			("Display", () => { var d = new Display(); return (d.Normalize, [d, d.Field, d.Intensity, d.Video]); }),
+			("Source", () => { var s = new Source { Array = new SourceArray() }; return (s.Normalize, [s, s.Array]); }),
+			("Probe", () => { var p = new Probe(); return (p.Normalize, [p]); }),
+			("ColorStop", () =>
+			{
+				var scheme = new ColorScheme();
+				var stop = new ColorStop(0.5, new Rgb(1, 2, 3));
+				scheme.Stops.Add(stop);
+				return (scheme.Normalize, [stop]);
+			}),
+			("LensPart", () => Part(new LensPart())),
+			("PolygonPart", () => Part(new PolygonPart())),
+			("RectanglePart", () => Part(new RectanglePart())),
+			("EllipsePart", () => Part(new EllipsePart())),
+			// a custom triangle with the first angle at its minimum leaves the second its full range
+			("TrianglePart", () => Part(new TrianglePart { Type = TriangleType.Custom, AngleA = 1.0 })),
+			("OutlinePart", () => Part(new OutlinePart())),
+			("FiberPart", () => Part(new FiberPart())),
+			("BraggReflectorPart", () => Part(new BraggReflectorPart())),
+			("GrinLensPart", () => Part(new GrinLensPart())),
+		];
+		int total = 0;
+		foreach ((string name, Func<(Action Normalize, object[] Targets)> make) in cases)
+		{
+			var failures = new List<string>();
+			int count = 0;
+			object[] shape = make().Targets;
+			for (int t = 0; t < shape.Length; t++)
+			{
+				foreach (PropertyInfo property in shape[t].GetType().GetProperties())
+				{
+					if (property.GetCustomAttribute<RangeAttribute>() is not { } range)
+					{
+						continue;
+					}
+					count++;
+					bool integer = property.PropertyType == typeof(int);
+					double min = Convert.ToDouble(range.Minimum, CultureInfo.InvariantCulture);
+					double max = Convert.ToDouble(range.Maximum, CultureInfo.InvariantCulture);
+					// the value to set and what Normalize() must leave: the bound itself, or NaN for "inside the range"
+					var legs = new List<(string Leg, double Set, double Expect)>();
+					if (min > (integer ? int.MinValue : double.MinValue))
+					{
+						legs.Add(("below", integer ? min - 1 : min - Math.Max(1.0, Math.Abs(min)), double.NaN));
+					}
+					if (max < (integer ? int.MaxValue : double.MaxValue))
+					{
+						legs.Add(("above", integer ? max + 1 : max + Math.Max(1.0, Math.Abs(max)), double.NaN));
+					}
+					if (!range.MinimumIsExclusive)
+					{
+						legs.Add(("at min", min, min));
+					}
+					if (!range.MaximumIsExclusive)
+					{
+						legs.Add(("at max", max, max));
+					}
+					foreach ((string leg, double set, double expect) in legs)
+					{
+						string where = $"{shape[t].GetType().Name}.{property.Name} {leg} ({range.Minimum}..{range.Maximum}): set {set}";
+						try
+						{
+							(Action normalize, object[] targets) = make();
+							object target = targets[t];
+							property.SetValue(target, integer ? (object)(int)set : set);
+							normalize();
+							double got = Convert.ToDouble(property.GetValue(target), CultureInfo.InvariantCulture);
+							bool inside = (range.MinimumIsExclusive ? got > min : got >= min) && (range.MaximumIsExclusive ? got < max : got <= max);
+							if (!(double.IsNaN(expect) ? inside : got == expect))
+							{
+								failures.Add($"{where}, got {got}");
+							}
+						}
+						catch (Exception e)
+						{
+							failures.Add($"{where}, threw {e.GetType().Name}: {e.Message}");
+						}
+					}
+				}
+			}
+			total += count;
+			Check(count > 0 && failures.Count == 0, $"{name}: {count} [Range] attribute(s) agree with Normalize()");
+			foreach (string failure in failures)
+			{
+				Console.WriteLine("         " + failure);
+			}
+		}
+		Console.WriteLine($"  {total} ranged properties");
 	}
 
 	/// <summary>"bench-render [w h]": what colouring a stored frame costs, per layer, at that size (the presenter's cost per picture).</summary>
