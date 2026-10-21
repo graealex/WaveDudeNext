@@ -336,6 +336,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.DisplayLayer.Preview">Show this output in the live preview.</s:String>
 	<s:String x:Key="Label.DisplayLayer.Overlay">Outline in the preview</s:String>
 	<s:String x:Key="Hint.DisplayLayer.Overlay">Lay the scene image's glowing-edges outline over this output in the preview.</s:String>
+	<s:String x:Key="Label.Display.SourceMarkersInExport">Source markers in the export</s:String>
+	<s:String x:Key="Hint.Display.SourceMarkersInExport">Draw the enabled sources (the marker, a composite source's emitter dots, the name) over exported frames and videos.</s:String>
 	<s:String x:Key="Label.DisplayLayer.OverlayGain">Outline brightness</s:String>
 	<s:String x:Key="Hint.DisplayLayer.OverlayGain">Multiplier of the outline: 1 as computed, higher lifts faint edges, 0 hides it.</s:String>
 	<s:String x:Key="Label.DisplayLayer.OverlayInExport">Outline in the export</s:String>

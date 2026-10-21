@@ -334,6 +334,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.DisplayLayer.Preview">Deze uitvoer in het live-voorbeeld tonen.</s:String>
 	<s:String x:Key="Label.DisplayLayer.Overlay">Omtrek in het voorbeeld</s:String>
 	<s:String x:Key="Hint.DisplayLayer.Overlay">De gloeiende-randen-omtrek van de scèneafbeelding in het voorbeeld over deze uitvoer leggen.</s:String>
+	<s:String x:Key="Label.Display.SourceMarkersInExport">Bronmarkeringen in de export</s:String>
+	<s:String x:Key="Hint.Display.SourceMarkersInExport">De ingeschakelde bronnen (de markering, de emitterpunten van een samengestelde bron, de naam) over geëxporteerde beelden en video's tekenen.</s:String>
 	<s:String x:Key="Label.DisplayLayer.OverlayGain">Omtrekhelderheid</s:String>
 	<s:String x:Key="Hint.DisplayLayer.OverlayGain">Factor van de omtrek: 1 zoals berekend, hoger versterkt zwakke randen, 0 verbergt hem.</s:String>
 	<s:String x:Key="Label.DisplayLayer.OverlayInExport">Omtrek in de export</s:String>

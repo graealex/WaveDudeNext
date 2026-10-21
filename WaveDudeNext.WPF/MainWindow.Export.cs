@@ -314,11 +314,23 @@ public partial class MainWindow
 				Logger.Debug("Export outline: {State}", edges != null ? "computed from the scene image" : "none (no image scene)");
 			}
 			ProbeGraphPainter? painter = display.ProbeGraphsInExport || display.ProbeMarkersInExport ? new ProbeGraphPainter(Project, run, display.ProbeGraphsInExport, display.ProbeMarkersInExport) : null;
+			// the sources on both pictures, under the probes' markers and boxes (as in the preview, where the boxes lie over every handle)
+			SourceMarkerPainter? sources = display.SourceMarkersInExport ? new SourceMarkerPainter(Project, run.Spec.Width, run.Spec.Height) : null;
+			if (sources is { IsEmpty: true })
+			{
+				Logger.Debug("Export source markers: none (no enabled source)");
+				sources = null;
+			}
 			foreach ((FrameLayer layer, string path) in outputs)
 			{
 				DisplayLayer settings = layer == FrameLayer.Field ? display.Field : display.Intensity;
 				int[]? lut = ColorSchemeCatalog.Instance.LutFor(Project, settings.ColorScheme, settings.BlackLevel);
-				Action<int, Memory<int>>? decorate = painter?.For(layer == FrameLayer.Field ? ProbeLayer.Field : ProbeLayer.Intensity);
+				Action<int, Memory<int>>? probes = painter?.For(layer == FrameLayer.Field ? ProbeLayer.Field : ProbeLayer.Intensity);
+				Action<int, Memory<int>>? decorate = sources == null ? probes : (frame, pixels) =>
+				{
+					sources.Paint(pixels);
+					probes?.Invoke(frame, pixels);
+				};
 				var exportLayer = new ExportLayer(layer, lut, (float)settings.Brightness, settings.OverlayInExport ? edges : null, settings.OverlayGain, decorate);
 				// the sink is opened by the job on its thread (a Media Foundation writer must stay on one thread)
 				int width = run.Spec.Width;
@@ -336,8 +348,8 @@ public partial class MainWindow
 				}
 				else
 				{
-					Logger.Debug("Export target {Layer}: scheme '{Scheme}' (black level {Black}), brightness {Brightness}, outline {Outline}, probe boxes {Boxes}, markers {Markers}, to {Output}",
-						layer, settings.ColorScheme, settings.BlackLevel, settings.Brightness, settings.OverlayInExport && edges != null ? "gain " + settings.OverlayGain : "off", display.ProbeGraphsInExport ? "on" : "off", display.ProbeMarkersInExport ? "on" : "off", output);
+					Logger.Debug("Export target {Layer}: scheme '{Scheme}' (black level {Black}), brightness {Brightness}, outline {Outline}, probe boxes {Boxes}, markers {Markers}, sources {Sources}, to {Output}",
+						layer, settings.ColorScheme, settings.BlackLevel, settings.Brightness, settings.OverlayInExport && edges != null ? "gain " + settings.OverlayGain : "off", display.ProbeGraphsInExport ? "on" : "off", display.ProbeMarkersInExport ? "on" : "off", sources != null ? "on" : "off", output);
 				}
 			}
 			if (!still && format == ExportFormat.Mpeg1)

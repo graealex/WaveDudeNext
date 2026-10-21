@@ -334,6 +334,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.DisplayLayer.Preview">Diese Ausgabe in der Live-Vorschau zeigen.</s:String>
 	<s:String x:Key="Label.DisplayLayer.Overlay">Umriss in der Vorschau</s:String>
 	<s:String x:Key="Hint.DisplayLayer.Overlay">Den Leuchtkanten-Umriss des Szenenbilds in der Vorschau über diese Ausgabe legen.</s:String>
+	<s:String x:Key="Label.Display.SourceMarkersInExport">Quellenmarkierungen im Export</s:String>
+	<s:String x:Key="Hint.Display.SourceMarkersInExport">Die aktiven Quellen (die Markierung, die Emitterpunkte einer zusammengesetzten Quelle, den Namen) in exportierte Bilder und Videos zeichnen.</s:String>
 	<s:String x:Key="Label.DisplayLayer.OverlayGain">Umrisshelligkeit</s:String>
 	<s:String x:Key="Hint.DisplayLayer.OverlayGain">Faktor des Umrisses: 1 wie berechnet, höher hebt schwache Kanten an, 0 blendet ihn aus.</s:String>
 	<s:String x:Key="Label.DisplayLayer.OverlayInExport">Umriss im Export</s:String>

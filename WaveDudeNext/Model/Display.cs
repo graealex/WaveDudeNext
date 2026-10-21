@@ -39,6 +39,7 @@ public sealed class Display : ObservableObject
 	private int _exportTo;
 	private bool _probeGraphsInExport = true;
 	private bool _probeMarkersInExport = true;
+	private bool _sourceMarkersInExport;
 
 	/// <summary>Rendering of the wave field.</summary>
 	[XmlElement]
@@ -126,6 +127,23 @@ public sealed class Display : ObservableObject
 	{
 		get => _probeMarkersInExport;
 		set => SetProperty(ref _probeMarkersInExport, value);
+	}
+
+	/// <summary>
+	/// Whether an export draws the enabled sources over the frames of both layers (2026-10-21, the user's request; off
+	/// by default, so existing projects export as before): the preview's source marker (a ring with a crosshair over a
+	/// dark halo), a composite source's emitter dots, and the source's name, scaled to the canvas like the probe
+	/// labels, under the probe markers and graph boxes. Jeroen's program drew sources only on its Sources tab.
+	/// </summary>
+	[XmlAttribute]
+	[DefaultValue(false)]
+	[Category("Export")]
+	[DisplayName("Source markers in the export")]
+	[Description("Draw the enabled sources (the marker, a composite source's emitter dots, the name) over exported frames and videos.")]
+	public bool SourceMarkersInExport
+	{
+		get => _sourceMarkersInExport;
+		set => SetProperty(ref _sourceMarkersInExport, value);
 	}
 
 	/// <summary>Tells <see cref="XmlSerializer"/> to leave all-default video settings out of the file.</summary>

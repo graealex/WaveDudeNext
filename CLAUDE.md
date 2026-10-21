@@ -179,8 +179,10 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   at quality 100; 4:4:4 at 90 beat it in every channel at half the size), and
   **OpenEXR sequences or stills** (2026-10-18, the user's choice for data export to NumPy, MATLAB, Octave add-ons
   and viewers such as DJV): the stored halves themselves, one uncompressed "Y" channel per file, no colours,
-  brightness, outline or boxes; a sink that `WantsHalves` gets the plane from the job unrendered. Harness
-  hooks: `WAVEDUDE_EXPORT_PATH`, `WAVEDUDE_DISCARD_EDITS=1`.
+  brightness, outline or boxes; a sink that `WantsHalves` gets the plane from the job unrendered. **Source markers**
+  (2026-10-21, Display, off by default, the user's choices): the preview's marker, a composite source's dots and the
+  name, enabled sources only, scaled like the probe labels, under the probe markers and boxes. Harness hooks:
+  `WAVEDUDE_EXPORT_PATH`, `WAVEDUDE_DISCARD_EDITS=1`.
 - **Optical parts** (2026-10-18, stages 1 and 2 of `OpticalParts.md`): `OpticalPart` subclasses `LensPart` (mirror flag),
   the shapes under `ShapePart` (`PolygonPart` regular, `RectanglePart`, `EllipsePart` as a polygon of a vertex per 3 px of
   circumference, 2026-10-20; both carry a `Linked` flag, the chain toggle between width and length of the image editors,

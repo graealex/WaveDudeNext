@@ -45,6 +45,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				          IsChecked="{Binding ProbeGraphsInExport}" ToolTip="{meta:Hint model:Display.ProbeGraphsInExport}" />
 				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Display.ProbeMarkersInExport}"
 				          IsChecked="{Binding ProbeMarkersInExport}" ToolTip="{meta:Hint model:Display.ProbeMarkersInExport}" />
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Display.SourceMarkersInExport}"
+				          IsChecked="{Binding SourceMarkersInExport}" ToolTip="{meta:Hint model:Display.SourceMarkersInExport}" />
 			</controls:FormPanel>
 
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionVideo}" />

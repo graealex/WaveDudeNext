@@ -334,6 +334,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.DisplayLayer.Preview">Afficher cette sortie dans l'aperçu en direct.</s:String>
 	<s:String x:Key="Label.DisplayLayer.Overlay">Contour dans l'aperçu</s:String>
 	<s:String x:Key="Hint.DisplayLayer.Overlay">Superposer le contour « bords lumineux » de l'image de scène à cette sortie dans l'aperçu.</s:String>
+	<s:String x:Key="Label.Display.SourceMarkersInExport">Marqueurs des sources dans l'export</s:String>
+	<s:String x:Key="Hint.Display.SourceMarkersInExport">Dessiner les sources actives (le marqueur, les points émetteurs d'une source composée, le nom) sur les images et vidéos exportées.</s:String>
 	<s:String x:Key="Label.DisplayLayer.OverlayGain">Luminosité du contour</s:String>
 	<s:String x:Key="Hint.DisplayLayer.OverlayGain">Multiplicateur du contour : 1 tel que calculé, plus haut relève les bords faibles, 0 le masque.</s:String>
 	<s:String x:Key="Label.DisplayLayer.OverlayInExport">Contour dans l'export</s:String>
