@@ -115,6 +115,10 @@ public static class PartPainter
 		{
 			PaintAbsorption(bgra, stride, shape, x0, y0, x1, y1);
 		}
+		if (!shape.PaintsIndex)
+		{
+			return;
+		}
 		if (shape.IsMirror)
 		{
 			Parallel.For(y0, y1 + 1, y =>
@@ -185,7 +189,8 @@ public static class PartPainter
 
 	/// <summary>
 	/// Paints a part's absorption into the blue channel: at a pixel whose centre lies at depth δ inside the outline,
-	/// round(<see cref="PartShape.Absorption"/> × <see cref="PartShape.AbsorptionProfile"/>(δ / ramp)), the ramp being
+	/// round(<see cref="PartShape.Absorption"/> × <see cref="PartShape.AbsorptionProfile"/>(δ / ramp)) (or the shape's own
+	/// <see cref="PartShape.AbsorptionShareAt"/>), the ramp being
 	/// the part's, shortened to the deepest pixel centre when the part is thinner than twice it (so a thin part still
 	/// reaches its full absorption in its middle). The larger of that and the blue already there is kept, so a part
 	/// never lowers the damping of the image or of an earlier part. The profile is continuous and 0 at the outline, so
@@ -226,7 +231,7 @@ public static class PartPainter
 				if (depth >= 0f)
 				{
 					int offset = y * stride + x * 4;
-					int blue = (int)Math.Round(full * PartShape.AbsorptionProfile(ramp > 0.0 ? depth / ramp : 1.0));
+					int blue = (int)Math.Round(full * shape.AbsorptionShareAt(x + 0.5, y + 0.5, depth, ramp));
 					bgra[offset] = (byte)Math.Max(bgra[offset], blue);
 				}
 			}

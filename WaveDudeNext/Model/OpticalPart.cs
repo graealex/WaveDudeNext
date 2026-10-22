@@ -20,6 +20,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Xml.Serialization;
+using WaveDudeNext.Parts;
 
 namespace WaveDudeNext.Model;
 
@@ -44,6 +45,14 @@ public enum PartKind
 	BraggReflector,
 	/// <summary>A gradient-index lens (<see cref="GrinLensPart"/>).</summary>
 	GrinLens,
+	/// <summary>An optical XOR gate: two waveguides and a directional coupler designed for one wavelength (<see cref="XorGatePart"/>).</summary>
+	XorGate,
+	/// <summary>An optical AND gate, the same coupler with the in-phase sum on the upper output (<see cref="AndGatePart"/>).</summary>
+	AndGate,
+	/// <summary>An optical OR gate, the same coupler with the waves meeting at 120° on the upper output (<see cref="OrGatePart"/>).</summary>
+	OrGate,
+	/// <summary>A Fresnel zone plate, a diffractive lens of absorbing zones (<see cref="ZonePlatePart"/>).</summary>
+	ZonePlate,
 }
 
 /// <summary>
@@ -1991,4 +2000,687 @@ public sealed class GrinLensPart : OpticalPart
 
 	/// <inheritdoc/>
 	public override OpticalPart Clone() => ShallowClone<GrinLensPart>();
+}
+
+/// <summary>What one output of a <see cref="LogicGatePart"/> gives, in powers relative to one input's for the inputs 00, 10, 01, 11.</summary>
+public enum GateOutput
+{
+	/// <summary>0, ½, ½, 0: exclusive or, the waves cancel when both are on.</summary>
+	Xor,
+	/// <summary>0, ½, ½, 2: the sum in phase; read as AND with a threshold between ½ and 2 (4 : 1, the most a passive linear gate gives).</summary>
+	And,
+	/// <summary>0, ½, ½, ½: or, the waves meet at 120° and two give what one gives.</summary>
+	Or,
+	/// <summary>0, ½, ½, 1½: what the OR gate's coupler sends the other way, the waves meeting at 60°.</summary>
+	Remainder,
+}
+
+/// <summary>
+/// An optical logic gate, the interferometric logic of a Mach-Zehnder's combining half (the user's choice, 2026-10-21: a
+/// 2 × 2 directional coupler): two single-mode waveguides, input A above the axis and input B below, a phase section that
+/// puts wave B <see cref="PhaseShift"/> ahead of wave A, and a 3 dB coupler whose upper output carries (a + i·b) / √2 and
+/// lower output (i·a + b) / √2 of two coherent inputs (equal waves of the same frequency and phase). The phase shift alone
+/// makes the gate (the user's request, 2026-10-22, for AND and OR in the same dimensions as the XOR): +90° gives the upper
+/// output a − b (<see cref="XorGatePart"/>), −90° a + b (<see cref="AndGatePart"/>), +30° a + e^{i120°}·b
+/// (<see cref="OrGatePart"/>); the phase section sits in a stretch of the same length in all three, so they share their
+/// dimensions and ports and tile together. The whole layout follows from <see cref="DesignFrequency"/> (through
+/// <see cref="Wavelength"/>) and the indices (<see cref="LogicGateDesign"/>): the core width, the cladding, the gap, the
+/// coupler and phase-section lengths are computed with the engines' own discrete wave equation (the 4th-order stencil;
+/// the 9-point stencil's waves are slower and miss the design). Both ends are open and carry an anti-reflection band
+/// (<see cref="Coating"/>) unless switched off per end (<see cref="InputCoated"/>, <see cref="OutputCoated"/>), so light
+/// comes in from a fibre or a gate before and leaves into the next, and each output can
+/// be switched off by an absorber in its arm (<see cref="UpperOutputActive"/>, <see cref="LowerOutputActive"/>). The gate
+/// is passive; its inputs can be ordinary sources placed on <see cref="Ports"/>.
+/// </summary>
+public abstract class LogicGatePart : OpticalPart, IFrequencyDesigned
+{
+	/// <summary>Default <see cref="DesignFrequency"/>: level 50, a wavelength of 32 px at the default solver settings, the user's wavelength (2026-10-21); twelve pixels a period in the core, so the grid resolves the guide well.</summary>
+	public const double DefaultFrequency = 50.0;
+	/// <summary>Lowest <see cref="DesignFrequency"/>.</summary>
+	public const double MinFrequency = 1.0;
+	/// <summary>Shortest <see cref="Wavelength"/> the design accepts, in pixels.</summary>
+	public const double MinWavelength = 6.0;
+	/// <summary>Longest <see cref="Wavelength"/> the design accepts, in pixels.</summary>
+	public const double MaxWavelength = 200.0;
+	/// <summary>
+	/// Default <see cref="Coating"/> in pixels, the least reflecting band on the default gate, measured from the standing wave
+	/// in an output arm (2026-10-22): 0, 3, 5, 6, 7, 8 and 9 px reflected 24, 16, 5.5, 3.4, 3.9, 7.5 and 11 % of the power.
+	/// A little above the quarter wave λ / (4 √n) = 5.0 px of the core, as the mode runs partly in the cladding.
+	/// </summary>
+	public const int DefaultCoating = 6;
+	/// <summary>
+	/// Default <see cref="CoreIndex"/>, the largest: the strongest contrast to the cladding holds the mode tightest, so the
+	/// bends and the coupler are shortest. Measured at λ 32 (2026-10-21): cores of 2.0, 2.3 and 2.55 made gates of 726, 588
+	/// and 539 px whose XOR output kept 1.4, 1.9 and 1.1 % with both inputs on; a core of 1.6 at λ 16 made 1100 px.
+	/// </summary>
+	public const double DefaultCoreIndex = 2.55;
+	/// <summary>Default <see cref="CladdingIndex"/>.</summary>
+	public const double DefaultCladdingIndex = 1.45;
+	/// <summary>Default <see cref="PortSpacing"/> in pixels: as close as the design allows (it raises any smaller value); 60 px at the defaults, a unit 120 px wide.</summary>
+	public const int DefaultPortSpacing = 2;
+	/// <summary>Largest <see cref="PortSpacing"/> in pixels.</summary>
+	public const int MaxPortSpacing = 2000;
+
+	private double _designFrequency = DefaultFrequency;
+	private double _frequencyScale = Simulation.DefaultSourceFrequencyScale;
+	private double _coreIndex = DefaultCoreIndex;
+	private double _claddingIndex = DefaultCladdingIndex;
+	private int _portSpacing = DefaultPortSpacing;
+	private int _coating = DefaultCoating;
+	private bool _inputCoated = true;
+	private bool _outputCoated = true;
+	private bool _upperOutputActive = true;
+	private bool _lowerOutputActive = true;
+
+	/// <summary>How far wave B leads wave A into the coupler, in degrees; fixed per kind.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public abstract double PhaseShift { get; }
+
+	/// <summary>What the upper output gives; fixed per kind.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public abstract GateOutput UpperOutput { get; }
+
+	/// <summary>What the lower output gives; fixed per kind.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public abstract GateOutput LowerOutput { get; }
+
+	/// <summary>
+	/// The source frequency the gate is designed for, as a source level (the scale of <see cref="Source.Frequency"/>): the
+	/// frequency of the sources that drive it (the user's point, 2026-10-22: every source input is a frequency, so the
+	/// gate takes one too and shows the wavelength). The layout follows from the <see cref="Wavelength"/> it gives.
+	/// </summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultFrequency)]
+	[Range(MinFrequency, Source.MaxLevel)]
+	[Category("Design")]
+	[DisplayName("Design frequency")]
+	[Description("The source frequency the gate is designed for, on the same scale as a source's frequency: the frequency of the sources that drive it. The wavelength, and from it the core width, the coupler and the phase section, follow from it, so the gate works at this frequency only.")]
+	public double DesignFrequency
+	{
+		get => _designFrequency;
+		set
+		{
+			if (SetProperty(ref _designFrequency, value))
+			{
+				OnDesignChanged();
+			}
+		}
+	}
+
+	/// <summary>
+	/// The simulation's <see cref="Simulation.SourceFrequencyScale"/>, which turns <see cref="DesignFrequency"/> into an
+	/// angular frequency; kept current by the window's <see cref="Parts.GatePortFollower"/>, the default scale until then.
+	/// Not stored: the project's simulation settings hold it. UI thread.
+	/// </summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double FrequencyScale
+	{
+		get => _frequencyScale;
+		set
+		{
+			if (SetProperty(ref _frequencyScale, value))
+			{
+				OnDesignChanged();
+			}
+		}
+	}
+
+	/// <summary>
+	/// The wavelength in pixels in a medium of index 1 that <see cref="DesignFrequency"/> gives: λ = 2π / ω with
+	/// ω = level / 255 × 0.5 × <see cref="FrequencyScale"/> radians per step and the engines' speed of 1 pixel per step at
+	/// index 1 (<see cref="Simulation.Wavelength"/> with that speed); NaN for a frequency that gives none.
+	/// </summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double Wavelength => Simulation.Wavelength(DesignFrequency, 1.0, FrequencyScale);
+
+	/// <summary>Thickness in pixels of the anti-reflection band at the ends <see cref="InputCoated"/> and <see cref="OutputCoated"/> select, with the index √n of the core and of the cladding; 0 for none. A quarter-wave band is λ / (4 √n) thick.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCoating)]
+	[Range(0, MaxCoating)]
+	[Category("Material")]
+	[DisplayName("AR coating")]
+	[Description("Thickness in pixels of the anti-reflection band at the ends ticked below, with the index √n of the core and of the cladding; 0 for none. A quarter-wave band, the least reflecting, is λ / (4 √n) pixels thick; the form shows it for the core.")]
+	public int Coating
+	{
+		get => _coating;
+		set => SetProperty(ref _coating, value);
+	}
+
+	/// <summary>
+	/// Whether the input end carries the anti-reflection band (<see cref="Coating"/>). Off where the gate takes its light
+	/// from a gate before it (the user's request, 2026-10-22: a band in the junction keeps the wave from passing from one
+	/// unit into the next).
+	/// </summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Material")]
+	[DisplayName("AR on input side")]
+	[Description("Put the anti-reflection band on the input end. Switch it off where the gate takes its light from a gate before it, so the wave passes through the junction.")]
+	public bool InputCoated
+	{
+		get => _inputCoated;
+		set => SetProperty(ref _inputCoated, value);
+	}
+
+	/// <summary>Whether the output end carries the anti-reflection band (<see cref="Coating"/>); off where the gate hands its light to a gate after it (see <see cref="InputCoated"/>).</summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Material")]
+	[DisplayName("AR on output side")]
+	[Description("Put the anti-reflection band on the output end. Switch it off where the gate hands its light to a gate after it, so the wave passes through the junction.")]
+	public bool OutputCoated
+	{
+		get => _outputCoated;
+		set => SetProperty(ref _outputCoated, value);
+	}
+
+	/// <summary>Whether the upper output (<see cref="UpperOutput"/>) lets its light out; switched off, an absorber in the blue channel takes it in the arm's last stretch.</summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Outputs")]
+	[DisplayName("Upper output")]
+	[Description("Let the upper output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.")]
+	public bool UpperOutputActive
+	{
+		get => _upperOutputActive;
+		set => SetProperty(ref _upperOutputActive, value);
+	}
+
+	/// <summary>Whether the lower output (<see cref="LowerOutput"/>) lets its light out; switched off, an absorber in the blue channel takes it in the arm's last stretch.</summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Outputs")]
+	[DisplayName("Lower output")]
+	[Description("Let the lower output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.")]
+	public bool LowerOutputActive
+	{
+		get => _lowerOutputActive;
+		set => SetProperty(ref _lowerOutputActive, value);
+	}
+
+	/// <summary>Tells the form that the values derived from the design follow an edit of a design input.</summary>
+	private void OnDesignChanged()
+	{
+		OnPropertyChanged(nameof(Wavelength));
+		OnPropertyChanged(nameof(PortSpacingUsed));
+	}
+
+	/// <summary>Refractive index of the waveguide cores, 1.00 to 2.55; above the cladding's for guiding.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCoreIndex)]
+	[Range(MinIndex, MaxIndex)]
+	[Category("Material")]
+	[DisplayName("Core index")]
+	[Description("Refractive index of the waveguide cores, 1.00 to 2.55 in steps of 0.01. It must be above the cladding's; the larger the difference, the narrower the cores and the tighter the bends.")]
+	public double CoreIndex
+	{
+		get => _coreIndex;
+		set
+		{
+			if (SetProperty(ref _coreIndex, value))
+			{
+				OnPropertyChanged(nameof(PortSpacingUsed));
+			}
+		}
+	}
+
+	/// <summary>Refractive index of the cladding around the cores, 1.00 to 2.55.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCladdingIndex)]
+	[Range(MinIndex, MaxIndex)]
+	[Category("Material")]
+	[DisplayName("Cladding index")]
+	[Description("Refractive index of the cladding around the cores, 1.00 to 2.55 in steps of 0.01.")]
+	public double CladdingIndex
+	{
+		get => _claddingIndex;
+		set
+		{
+			if (SetProperty(ref _claddingIndex, value))
+			{
+				OnPropertyChanged(nameof(PortSpacingUsed));
+			}
+		}
+	}
+
+	/// <summary>Distance between the two inputs (and the two outputs) in pixels, centre to centre, as typed; the design raises a value below what it needs to keep the arms apart (<see cref="PortSpacingUsed"/>).</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultPortSpacing)]
+	[Range(2, MaxPortSpacing)]
+	[Category("Shape")]
+	[DisplayName("Port spacing")]
+	[Description("Distance between the two inputs, and between the two outputs, in pixels. A value below what the design needs to keep the arms apart is raised to it.")]
+	public int PortSpacing
+	{
+		get => _portSpacing;
+		set
+		{
+			if (SetProperty(ref _portSpacing, value))
+			{
+				OnPropertyChanged(nameof(PortSpacingUsed));
+			}
+		}
+	}
+
+	/// <summary>
+	/// The port spacing the design uses, what the form shows and edits: <see cref="PortSpacing"/> raised to the design's
+	/// minimum (60 px at the defaults), so every step of the box moves the ports (the user's report, 2026-10-21: the box
+	/// stood at 2 and its steps up to the minimum changed nothing). Setting it sets <see cref="PortSpacing"/>. Not stored.
+	/// </summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public int PortSpacingUsed
+	{
+		get => Design?.PortSpacing ?? PortSpacing;
+		set => PortSpacing = value;
+	}
+
+	/// <summary>The layout for the current values (guarded as the painter guards them), or null when the cores guide nothing. Any thread; cached.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public LogicGateDesign? Design => double.IsFinite(Wavelength) && Wavelength > 0.0
+		? LogicGateDesign.For(Math.Round(Math.Clamp(Wavelength, MinWavelength, MaxWavelength), 3), NormalizeIndex(CoreIndex), NormalizeIndex(CladdingIndex), Math.Clamp(PortSpacing, 2, MaxPortSpacing), PhaseShift)
+		: null;
+
+	/// <inheritdoc/>
+	public override double AxisReach => (Design?.Length ?? 0) / 2.0;
+
+	/// <summary>The outer edge of the claddings: along the upper arm's top, back along the lower arm's bottom; a closed outline of the gate's extent.</summary>
+	public override (double X, double Y)[] Outline()
+	{
+		if (Design is not { } design)
+		{
+			return [];
+		}
+		const int steps = 64;
+		double outer = design.CoreWidth / 2.0 + design.CladdingThickness + design.AbsorberWidth;
+		var points = new (double X, double Y)[2 * (steps + 1)];
+		for (int i = 0; i <= steps; i++)
+		{
+			double x = design.Left + (double)design.Length * i / steps;
+			double offset = design.ArmOffset(x) + outer;
+			points[i] = (x, -offset);
+			points[2 * steps + 1 - i] = (x, offset);
+		}
+		return points;
+	}
+
+	/// <summary>The ports in canvas pixels (rounded to the pixel a source would sit on): input A, input B, the upper output and the lower output; null without a design.</summary>
+	public (int X, int Y)[]? Ports()
+	{
+		if (Design is not { } design)
+		{
+			return null;
+		}
+		double half = design.PortSpacing / 2.0;
+		(int, int) At(double x, double y)
+		{
+			(double cx, double cy) = ToCanvas(x, y);
+			return ((int)Math.Floor(cx), (int)Math.Floor(cy));
+		}
+		return [At(design.InputX, -half), At(design.InputX, half), At(design.OutputX, -half), At(design.OutputX, half)];
+	}
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		DesignFrequency = double.IsFinite(DesignFrequency) ? Math.Round(Math.Clamp(DesignFrequency, MinFrequency, Source.MaxLevel), 2) : DefaultFrequency;
+		CoreIndex = NormalizeIndex(CoreIndex);
+		CladdingIndex = NormalizeIndex(CladdingIndex);
+		PortSpacing = Math.Clamp(PortSpacing, 2, MaxPortSpacing);
+		Coating = Math.Clamp(Coating, 0, MaxCoating);
+	}
+}
+
+/// <summary>
+/// An XOR gate: wave B leads by 90°, so the upper output carries (a − b) / √2, dark when both inputs are on, and the lower
+/// the in-phase sum (the 2026-10-21 design, measured: with both inputs on the upper output keeps about 1 % of one input's
+/// power, the lower 1.9×).
+/// </summary>
+public sealed class XorGatePart : LogicGatePart
+{
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.XorGate;
+
+	/// <inheritdoc/>
+	public override double PhaseShift => 90.0;
+
+	/// <inheritdoc/>
+	public override GateOutput UpperOutput => GateOutput.Xor;
+
+	/// <inheritdoc/>
+	public override GateOutput LowerOutput => GateOutput.And;
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<XorGatePart>();
+}
+
+/// <summary>
+/// An AND gate in the only sense a passive linear gate has one: wave A leads by 90°, so the upper output carries the in-phase
+/// sum (a + b) / √2, half an input's power for one input and twice it for two, 4 : 1, to be read with a threshold between;
+/// the lower output carries the XOR. The XOR gate with its outputs exchanged.
+/// </summary>
+public sealed class AndGatePart : LogicGatePart
+{
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.AndGate;
+
+	/// <inheritdoc/>
+	public override double PhaseShift => -90.0;
+
+	/// <inheritdoc/>
+	public override GateOutput UpperOutput => GateOutput.And;
+
+	/// <inheritdoc/>
+	public override GateOutput LowerOutput => GateOutput.Xor;
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<AndGatePart>();
+}
+
+/// <summary>
+/// An OR gate: wave B leads by 30°, so the waves meet at 120° in the upper output, a + e^{i120°}·b over √2, and one input or
+/// two give the same half an input's power (1 + 1 + 2 cos 120° = 1); the lower output, where they meet at 60°, gives ½, ½ and 1½.
+/// </summary>
+public sealed class OrGatePart : LogicGatePart
+{
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.OrGate;
+
+	/// <inheritdoc/>
+	public override double PhaseShift => 30.0;
+
+	/// <inheritdoc/>
+	public override GateOutput UpperOutput => GateOutput.Or;
+
+	/// <inheritdoc/>
+	public override GateOutput LowerOutput => GateOutput.Remainder;
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<OrGatePart>();
+}
+
+/// <summary>
+/// A Fresnel zone plate (the user's request, 2026-10-22), a diffractive lens: a plate of <see cref="Thickness"/> along the
+/// axis and <see cref="Diameter"/> across it, cut into zones at the radii rₙ = √(n·λ·f + (n·λ/2)²) from the axis, λ the
+/// <see cref="Wavelength"/> of <see cref="DesignFrequency"/> and f the <see cref="FocalLength"/>; every second zone is a
+/// block that absorbs (the user's choice of material), the central zone open, or a block when <see cref="Inverse"/>. The
+/// waves through the open zones arrive at the focus a whole number of periods apart and add there. The blocks are painted
+/// into the blue channel only, the refractive index left as it is: full at their middle, rising quadratically over
+/// <see cref="Coating"/> from the faces the wave meets and leaves, so they reflect little; their sides toward the
+/// neighbouring zones stay sharp, as the outer zones are narrow (about λ·f / <see cref="Diameter"/>). Light passes freely
+/// outside the diameter unless the absorbing <see cref="Mount"/> is on. Positions and lengths are canvas pixels.
+/// </summary>
+public sealed class ZonePlatePart : OpticalPart, IFrequencyDesigned
+{
+	/// <summary>Default <see cref="Diameter"/> in pixels.</summary>
+	public const int DefaultDiameter = 800;
+	/// <summary>Default <see cref="Thickness"/> in pixels: two wavelengths at the default frequency, room for the rise on both faces (see <see cref="BlockAbsorption"/>).</summary>
+	public const int DefaultThickness = 64;
+	/// <summary>Default <see cref="Coating"/> in pixels: a wavelength at the default frequency (see <see cref="BlockAbsorption"/>).</summary>
+	public const int DefaultCoating = 32;
+	/// <summary>Default <see cref="DesignFrequency"/>: level 50, a wavelength of 32 px at the default solver settings, as the logic gates.</summary>
+	public const double DefaultFrequency = 50.0;
+	/// <summary>Default <see cref="FocalLength"/> in pixels.</summary>
+	public const int DefaultFocalLength = 600;
+	/// <summary>
+	/// The absorption (blue) in the middle of a block. Measured on a block of the whole diameter with a plane wave at λ 32
+	/// (2026-10-22, transmitted / reflected power): 255 over a 16 px rise in 48 px 0.4 / 10.7 %, over 24 px 0.3 / 4.9 %;
+	/// 128 over 24 px 0.3 / 2.2 %; 64 over 24 px 2.7 / 0.9 %; in 64 px over 32 px, 64 1.0 / 0.7 %, 96 0.4 / 1.0 %, 128
+	/// 0.3 / 1.2 %. A block that stops all and reflects nothing does not exist: a strong absorber is a wall of its own.
+	/// </summary>
+	public const int BlockAbsorption = 96;
+
+	private int _diameter = DefaultDiameter;
+	private int _thickness = DefaultThickness;
+	private int _coating = DefaultCoating;
+	private double _designFrequency = DefaultFrequency;
+	private double _frequencyScale = Simulation.DefaultSourceFrequencyScale;
+	private int _focalLength = DefaultFocalLength;
+	private bool _inverse;
+	private bool _mount;
+	private int _mountWidth = DefaultMountWidth;
+
+	/// <summary>Default <see cref="MountWidth"/> in pixels.</summary>
+	public const int DefaultMountWidth = 200;
+
+	/// <inheritdoc/>
+	public override PartKind Kind => PartKind.ZonePlate;
+
+	/// <summary>
+	/// Whether an absorbing mount surrounds the plate (the user's request, 2026-10-22): a band of <see cref="MountWidth"/>
+	/// on either side beyond the diameter, the plate's thickness and absorption, so no light passes outside the zones (which
+	/// otherwise meets the focused light on the axis and pushes the focus on).
+	/// </summary>
+	[XmlAttribute]
+	[DefaultValue(false)]
+	[Category("Shape")]
+	[Description("Surround the plate with an absorbing mount, so no light passes outside its diameter. Without it, that light meets the focused light on the axis and moves the focus further out, the more so the fewer zones the plate has.")]
+	public bool Mount
+	{
+		get => _mount;
+		set => SetProperty(ref _mount, value);
+	}
+
+	/// <summary>Width in pixels of the mount on either side, beyond the diameter.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultMountWidth)]
+	[Range(1, int.MaxValue)]
+	[Category("Shape")]
+	[DisplayName("Mount width")]
+	[Description("Width in pixels of the absorbing mount on either side, beyond the diameter.")]
+	public int MountWidth
+	{
+		get => _mountWidth;
+		set => SetProperty(ref _mountWidth, value);
+	}
+
+	/// <summary>Half the plate's outer extent across the axis in pixels: half the diameter, plus the mount when it is on.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double OuterHalfWidth => Math.Max(2, Diameter) / 2.0 + (Mount ? Math.Max(1, MountWidth) : 0);
+
+	/// <summary>Extent across the axis in pixels.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultDiameter)]
+	[Range(2, int.MaxValue)]
+	[Category("Shape")]
+	[Description("Extent across the axis in pixels; the zones fill it.")]
+	public int Diameter
+	{
+		get => _diameter;
+		set
+		{
+			if (SetProperty(ref _diameter, value))
+			{
+				OnPropertyChanged(nameof(ZoneCount));
+			}
+		}
+	}
+
+	/// <summary>Extent along the axis in pixels, the blocks' depth.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultThickness)]
+	[Range(1, int.MaxValue)]
+	[Category("Shape")]
+	[Description("Extent along the axis in pixels: the depth of the blocks. It should leave room for the anti-reflection rise on both faces.")]
+	public int Thickness
+	{
+		get => _thickness;
+		set => SetProperty(ref _thickness, value);
+	}
+
+	/// <summary>Depth in pixels over which a block's absorption rises from nothing at the faces the wave meets and leaves to its full strength; at most half the thickness takes effect.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCoating)]
+	[Range(0, MaxAbsorptionRamp)]
+	[Category("Shape")]
+	[DisplayName("Anti-reflection")]
+	[Description("Depth in pixels over which a block's absorption rises from nothing at its faces to its full strength, so the blocks reflect little; at most half the thickness takes effect.")]
+	public int Coating
+	{
+		get => _coating;
+		set => SetProperty(ref _coating, value);
+	}
+
+	/// <summary>The source frequency the plate is designed for, as a source level (the scale of <see cref="Source.Frequency"/>).</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultFrequency)]
+	[Range(LogicGatePart.MinFrequency, Source.MaxLevel)]
+	[Category("Design")]
+	[DisplayName("Target frequency")]
+	[Description("The source frequency the plate is designed for, on the same scale as a source's frequency. The zones follow from the wavelength it gives, so the plate focuses this frequency at the focal length; other frequencies focus elsewhere.")]
+	public double DesignFrequency
+	{
+		get => _designFrequency;
+		set
+		{
+			if (SetProperty(ref _designFrequency, value))
+			{
+				OnDesignChanged();
+			}
+		}
+	}
+
+	/// <inheritdoc/>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double FrequencyScale
+	{
+		get => _frequencyScale;
+		set
+		{
+			if (SetProperty(ref _frequencyScale, value))
+			{
+				OnDesignChanged();
+			}
+		}
+	}
+
+	/// <summary>Distance in pixels from the plate's centre to the focus along the axis (+x'), for a plane wave arriving along it.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultFocalLength)]
+	[Range(1, int.MaxValue)]
+	[Category("Design")]
+	[DisplayName("Focal length")]
+	[Description("Distance in pixels from the plate to its focus, for a plane wave arriving along the axis.")]
+	public int FocalLength
+	{
+		get => _focalLength;
+		set
+		{
+			if (SetProperty(ref _focalLength, value))
+			{
+				OnPropertyChanged(nameof(ZoneCount));
+			}
+		}
+	}
+
+	/// <summary>Whether the zones are exchanged: the central zone a block and the first ring open, and so on.</summary>
+	[XmlAttribute]
+	[DefaultValue(false)]
+	[Category("Design")]
+	[Description("Exchange the zones: the central zone becomes a block, the first ring open, and so on. The focus stays where it is.")]
+	public bool Inverse
+	{
+		get => _inverse;
+		set => SetProperty(ref _inverse, value);
+	}
+
+	/// <summary>The wavelength in pixels in a medium of index 1 that <see cref="DesignFrequency"/> gives with <see cref="FrequencyScale"/> (the engines' speed of 1 pixel per step); NaN for none.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double Wavelength => Simulation.Wavelength(DesignFrequency, 1.0, FrequencyScale);
+
+	/// <summary>How many zones, open and blocked, fit within half the diameter (the last one cut by the rim); 0 without a wavelength.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public int ZoneCount
+	{
+		get
+		{
+			double half = Math.Max(2, Diameter) / 2.0;
+			return ZoneAt(half) is { } zone ? zone + 1 : 0;
+		}
+	}
+
+	/// <summary>
+	/// The zone, counted from 0 at the axis, that the distance <paramref name="r"/> from the axis falls in: the n with
+	/// rₙ ≤ r &lt; rₙ₊₁, from rₙ² = n·λ·f + (n·λ/2)², a quadratic in n; null without a wavelength or a focal length.
+	/// </summary>
+	public int? ZoneAt(double r)
+	{
+		double lambda = Wavelength;
+		double f = Math.Max(1, FocalLength);
+		if (!double.IsFinite(lambda) || lambda <= 0.0)
+		{
+			return null;
+		}
+		// (λ²/4)·n² + λf·n − r² = 0
+		double a = lambda * lambda / 4.0;
+		double b = lambda * f;
+		double n = (-b + Math.Sqrt(b * b + 4.0 * a * r * r)) / (2.0 * a);
+		return (int)Math.Floor(n);
+	}
+
+	/// <summary>Whether the distance <paramref name="r"/> from the axis falls in a block: the odd zones, or the even ones when inverse.</summary>
+	public bool IsBlockAt(double r) => ZoneAt(Math.Abs(r)) is { } zone && (zone % 2 == 1) != Inverse;
+
+	/// <summary>The width in pixels of the outermost whole zone within the diameter, rₙ − rₙ₋₁; what the grid must resolve.</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public double OuterZoneWidth
+	{
+		get
+		{
+			double lambda = Wavelength;
+			int count = ZoneCount;
+			if (count < 2)
+			{
+				return Math.Max(2, Diameter) / 2.0;
+			}
+			double f = Math.Max(1, FocalLength);
+			double Radius(int n) => Math.Sqrt(n * lambda * f + n * lambda / 2.0 * (n * lambda / 2.0));
+			return Radius(count - 1) - Radius(count - 2);
+		}
+	}
+
+	/// <summary>Tells the form that the values derived from the wavelength follow an edit.</summary>
+	private void OnDesignChanged()
+	{
+		OnPropertyChanged(nameof(Wavelength));
+		OnPropertyChanged(nameof(ZoneCount));
+	}
+
+	/// <inheritdoc/>
+	public override double AxisReach => Math.Max(1, Thickness) / 2.0;
+
+	/// <summary>The plate's rectangle, the mount included when it is on.</summary>
+	public override (double X, double Y)[] Outline()
+	{
+		double t = Math.Max(1, Thickness) / 2.0;
+		double d = OuterHalfWidth;
+		return [(-t, -d), (t, -d), (t, d), (-t, d)];
+	}
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		MountWidth = Math.Max(1, MountWidth);
+		Diameter = Math.Max(2, Diameter);
+		Thickness = Math.Max(1, Thickness);
+		Coating = Math.Clamp(Coating, 0, MaxAbsorptionRamp);
+		DesignFrequency = double.IsFinite(DesignFrequency) ? Math.Round(Math.Clamp(DesignFrequency, LogicGatePart.MinFrequency, Source.MaxLevel), 2) : DefaultFrequency;
+		FocalLength = Math.Max(1, FocalLength);
+	}
+
+	/// <inheritdoc/>
+	public override OpticalPart Clone() => ShallowClone<ZonePlatePart>();
 }

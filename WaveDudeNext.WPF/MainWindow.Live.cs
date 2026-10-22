@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 //
 // This file is part of WaveDude Next, a 2D wave simulator.
@@ -71,6 +71,8 @@ public partial class MainWindow
 		nameof(IsPreviewPlaying), typeof(bool), typeof(MainWindow), new PropertyMetadata(false, (d, _) => ((MainWindow)d).OnPreviewPlayingChanged()));
 
 	private ProjectWatcher? _watcher;
+	/// <summary>Keeps the sources on a logic gate's inputs there when the gate is edited.</summary>
+	private GatePortFollower? _follower;
 	private ScratchRunner? _scratch;
 	private SimulationRun? _pausedForScratch;
 	private DispatcherTimer? _scratchTimer;
@@ -140,6 +142,8 @@ public partial class MainWindow
 		SelectedItems.Clear();
 		_watcher?.Dispose();
 		_watcher = null;
+		_follower?.Dispose();
+		_follower = null;
 		_imageCache = null;
 		_embeddedCache = null;
 		_composedCache = null;
@@ -157,6 +161,7 @@ public partial class MainWindow
 		{
 			_watcher = new ProjectWatcher(project);
 			_watcher.Changed += OnProjectChanged;
+			_follower = new GatePortFollower(project);
 			// warm up: the first scratch frame builds the engine (an OpenCL compile), better now than on the first click
 			ScheduleScratch();
 		}
@@ -548,5 +553,7 @@ public partial class MainWindow
 		_scratch = null;
 		_watcher?.Dispose();
 		_watcher = null;
+		_follower?.Dispose();
+		_follower = null;
 	}
 }

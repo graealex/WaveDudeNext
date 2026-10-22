@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Version="2" Seed="1083267589">
+	<Simulation Steps="7000" />
+	<Display>
+		<Field ColorScheme="Default field" BlackLevel="-0.05" Preview="false" />
+		<Intensity ColorScheme="Default intensity" Brightness="3" />
+	</Display>
+	<Source Name="Source 1" X="367" Y="663" Frequency="50" Mode="Pulsed" PulseShape="SmoothedSquare" />
+	<Source Name="Source 2" X="367" Y="723" Frequency="50" Mode="Pulsed" PulseShape="SmoothedSquare" PulseWidth="20" OffWidth="20" />
+	<Source Name="Source 3" X="367" Y="542" Frequency="50" PulseShape="SmoothedSquare" />
+	<Source Name="Source 4" X="366" Y="603" Frequency="50" Mode="Pulsed" PulseShape="SmoothedSquare" OffWidth="20" />
+	<XorGate Name="XOR gate 1" X="629" Y="574" Coating="0" OutputCoated="false" UpperOutputActive="false" />
+	<Rectangle Name="Rectangle 1" X="322" Y="643" Absorption="255" Length="74" Width="274" />
+	<Rectangle Name="Rectangle 1 copy" X="1440" Y="645" Absorption="255" Length="74" Width="274" />
+	<AndGate Name="AND gate 2" X="626" Y="694" OutputCoated="false" LowerOutputActive="false" />
+	<XorGate Name="XOR gate 2" X="1161" Y="634" Coating="0" InputCoated="false" />
+	<Probe Name="Probe 1" Layer="Intensity" Measurement="Value" AX="1363" AY="663" BoxSize="ExtraLarge" BoxX="1092" BoxY="25" AutoScaleY="false" YMin="0" YMax="0.2" Window="1500" />
+	<Probe Name="Probe 1 copy" Layer="Intensity" Measurement="Value" AX="823" AY="722" BoxSize="ExtraLarge" BoxX="247" BoxY="24" AutoScaleY="false" YMin="0" YMax="0.05" Window="1500" />
+</Project>

@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 SPDX-License-Identifier: GPL-3.0-or-later
 Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 
@@ -123,6 +123,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuAddFiber">_Faser</s:String>
 	<s:String x:Key="MenuAddBraggReflector">_Bragg-Reflektor</s:String>
 	<s:String x:Key="MenuAddGrinLens">_GRIN-Linse</s:String>
+	<s:String x:Key="MenuAddZonePlate">_Zonenplatte</s:String>
+	<s:String x:Key="MenuAddOpticalLogic">_Optische Logik</s:String>
+	<s:String x:Key="MenuAddXorGate">_XOR (Mach-Zehnder)</s:String>
+	<s:String x:Key="MenuAddAndGate">_AND</s:String>
+	<s:String x:Key="MenuAddOrGate">_OR</s:String>
 	<s:String x:Key="MenuProjectToggleEnabled">_Aktiv</s:String>
 	<s:String x:Key="MenuProjectDuplicate">_Duplizieren</s:String>
 	<s:String x:Key="MenuProjectRemove">_Entfernen</s:String>
@@ -269,6 +274,25 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="SectionCore">Kern</s:String>
 	<s:String x:Key="SectionCladding">Mantel</s:String>
 	<s:String x:Key="SectionLayers">Schichten</s:String>
+	<s:String x:Key="SectionDesign">Entwurf</s:String>
+	<s:String x:Key="SectionLayout">Aufbau</s:String>
+	<s:String x:Key="SectionPorts">Anschlüsse</s:String>
+	<s:String x:Key="SectionOutputs">Aktive Ausgänge</s:String>
+	<s:String x:Key="TipGateWavelength">Die Wellenlänge, die die Entwurfsfrequenz in einem Medium mit Index 1 ergibt, bei der Quellfrequenzskala der Simulation</s:String>
+	<s:String x:Key="LabelQuarterWave">Viertelwellen-Schicht</s:String>
+	<s:String x:Key="TipQuarterWave">Die Dicke der am wenigsten reflektierenden Schicht auf dem Kern, λ / (4 √n)</s:String>
+	<s:String x:Key="LabelCoreWidth">Kernbreite</s:String>
+	<s:String x:Key="LabelCouplerGap">Koppelspalt</s:String>
+	<s:String x:Key="LabelCouplerLength">Koppellänge</s:String>
+	<s:String x:Key="LabelGateLength">Gesamtlänge</s:String>
+	<s:String x:Key="TipGateLayout">Aus der Entwurfswellenlänge und den Indizes mit der eigenen Wellengleichung des Simulators berechnet (dem Laplace-Operator 4. Ordnung)</s:String>
+	<s:String x:Key="LabelInputA">Eingang A</s:String>
+	<s:String x:Key="LabelInputB">Eingang B</s:String>
+	<s:String x:Key="TipGatePorts">Canvas-Pixel. Die Eingänge mit gleichen Wellen speisen (gleiche Frequenz, Amplitude und Phase); eine fehlende Welle ist eine logische 0. Die Ausgänge liegen auf den Eingängen von Gattern, die einen Anschlussabstand höher und tiefer eine Länge weiter stehen</s:String>
+	<s:String x:Key="SectionZones">Zonen</s:String>
+	<s:String x:Key="LabelZoneCount">Anzahl der Zonen</s:String>
+	<s:String x:Key="LabelOuterZone">Äußerste Zone</s:String>
+	<s:String x:Key="TipZones">Die Zonen, die die Platte innerhalb ihres Durchmessers bekommt, und die Breite der äußersten ganzen Zone, die das Gitter auflösen muss (mindestens einige Pixel)</s:String>
 	<s:String x:Key="SectionPoints">Punkte</s:String>
 	<s:String x:Key="SectionNodes">Knoten</s:String>
 	<s:String x:Key="HintPolygonPoints">Eckpunkte des Umrisses relativ zum Mittelpunkt, vor der Drehung. Leer: das regelmäßige Polygon oben wird verwendet.</s:String>
@@ -655,6 +679,44 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.GrinLensPart.EdgeIndex">Brechungsindex am Rand, 1,00 bis 2,55 in Schritten von 0,01. Das Profil zwischen Achse und Rand ist parabolisch.</s:String>
 	<s:String x:Key="Label.GrinLensPart.Coating">Entspiegelung</s:String>
 	<s:String x:Key="Hint.GrinLensPart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb des Umrisses mit dem Index √n; 0 für keines.</s:String>
+	<s:String x:Key="Label.LogicGatePart.DesignFrequency">Entwurfsfrequenz</s:String>
+	<s:String x:Key="Hint.LogicGatePart.DesignFrequency">Die Quellfrequenz, für die das Gatter entworfen ist, auf derselben Skala wie die Frequenz einer Quelle: die Frequenz der speisenden Quellen. Die Wellenlänge und daraus Kernbreite, Koppler und Phasenabschnitt folgen daraus, das Gatter arbeitet also nur bei dieser Frequenz.</s:String>
+	<s:String x:Key="Label.LogicGatePart.Coating">Entspiegelung</s:String>
+	<s:String x:Key="Hint.LogicGatePart.Coating">Dicke in Pixeln des entspiegelnden Bands an den unten angekreuzten Enden mit dem Index √n von Kern und Mantel; 0 für keines. Ein Viertelwellenband, das am wenigsten reflektiert, ist λ / (4 √n) Pixel dick; das Formular zeigt es für den Kern.</s:String>
+	<s:String x:Key="Label.LogicGatePart.InputCoated">Entspiegelung am Eingang</s:String>
+	<s:String x:Key="Hint.LogicGatePart.InputCoated">Das entspiegelnde Band an das Eingangsende legen. Dort ausschalten, wo das Gatter sein Licht von einem Gatter davor erhält, damit die Welle durch die Verbindung geht.</s:String>
+	<s:String x:Key="Label.LogicGatePart.OutputCoated">Entspiegelung am Ausgang</s:String>
+	<s:String x:Key="Hint.LogicGatePart.OutputCoated">Das entspiegelnde Band an das Ausgangsende legen. Dort ausschalten, wo das Gatter sein Licht an ein Gatter danach weitergibt, damit die Welle durch die Verbindung geht.</s:String>
+	<s:String x:Key="Label.LogicGatePart.UpperOutputActive">Oberer Ausgang</s:String>
+	<s:String x:Key="Hint.LogicGatePart.UpperOutputActive">Das Licht des oberen Ausgangs aus dem Gatter lassen. Ausgeschaltet nimmt ein sanft ansteigender Absorber es im letzten Stück des Arms auf.</s:String>
+	<s:String x:Key="Label.LogicGatePart.LowerOutputActive">Unterer Ausgang</s:String>
+	<s:String x:Key="Hint.LogicGatePart.LowerOutputActive">Das Licht des unteren Ausgangs aus dem Gatter lassen. Ausgeschaltet nimmt ein sanft ansteigender Absorber es im letzten Stück des Arms auf.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.DesignFrequency">Zielfrequenz</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.DesignFrequency">Die Quellfrequenz, für die die Platte entworfen ist, auf derselben Skala wie die Frequenz einer Quelle. Die Zonen folgen aus der Wellenlänge, die sie ergibt, also fokussiert die Platte diese Frequenz in der Brennweite; andere Frequenzen anderswo.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.FocalLength">Brennweite</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.FocalLength">Abstand in Pixeln von der Platte bis zum Brennpunkt, für eine ebene Welle entlang der Achse.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Inverse">Invertiert</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Inverse">Die Zonen tauschen: Die mittlere Zone wird ein Block, der erste Ring offen und so weiter. Der Brennpunkt bleibt, wo er ist.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Diameter">Durchmesser</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Diameter">Ausdehnung quer zur Achse in Pixeln; die Zonen füllen sie.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Thickness">Dicke</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Thickness">Ausdehnung entlang der Achse in Pixeln: die Tiefe der Blöcke. Sie sollte Raum für den entspiegelnden Anstieg an beiden Seiten lassen.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Coating">Entspiegelung</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Coating">Tiefe in Pixeln, über die die Absorption eines Blocks von null an den Seitenflächen bis zur vollen Stärke ansteigt, damit die Blöcke wenig reflektieren; höchstens die halbe Dicke zählt.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Mount">Fassung</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Mount">Die Platte mit einer absorbierenden Fassung umgeben, damit kein Licht außerhalb ihres Durchmessers vorbeigeht. Ohne sie trifft dieses Licht auf der Achse das fokussierte Licht und schiebt den Brennpunkt weiter hinaus, umso mehr, je weniger Zonen die Platte hat.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.MountWidth">Breite der Fassung</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.MountWidth">Breite in Pixeln der absorbierenden Fassung auf jeder Seite, außerhalb des Durchmessers.</s:String>
+	<s:String x:Key="Enum.GateOutput.Xor">XOR: dunkel mit beiden an</s:String>
+	<s:String x:Key="Enum.GateOutput.And">AND: 4-mal so hell mit beiden an</s:String>
+	<s:String x:Key="Enum.GateOutput.Or">OR: für einen so hell wie für zwei</s:String>
+	<s:String x:Key="Enum.GateOutput.Remainder">Rest: 3-mal mit beiden an</s:String>
+	<s:String x:Key="Label.LogicGatePart.CoreIndex">Kernindex</s:String>
+	<s:String x:Key="Hint.LogicGatePart.CoreIndex">Brechungsindex der Wellenleiterkerne, 1,00 bis 2,55 in Schritten von 0,01. Er muss über dem des Mantels liegen; je größer der Unterschied, desto schmaler die Kerne und desto enger die Biegungen.</s:String>
+	<s:String x:Key="Label.LogicGatePart.CladdingIndex">Mantelindex</s:String>
+	<s:String x:Key="Hint.LogicGatePart.CladdingIndex">Brechungsindex des Mantels um die Kerne, 1,00 bis 2,55 in Schritten von 0,01.</s:String>
+	<s:String x:Key="Label.LogicGatePart.PortSpacing">Anschlussabstand</s:String>
+	<s:String x:Key="Hint.LogicGatePart.PortSpacing">Abstand zwischen den beiden Eingängen und zwischen den beiden Ausgängen in Pixeln. Ein Wert unter dem, was der Entwurf braucht, um die Arme getrennt zu halten, wird darauf angehoben, und das Feld zeigt den verwendeten Abstand.</s:String>
 	<s:String x:Key="Enum.PartKind.Lens">Linse oder Spiegel</s:String>
 	<s:String x:Key="Enum.PartKind.Polygon">Polygon</s:String>
 	<s:String x:Key="Enum.PartKind.Rectangle">Rechteck</s:String>
@@ -666,6 +728,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.PartKind.GrinLens">GRIN-Linse</s:String>
 	<s:String x:Key="Enum.FiberEnds.Flat">Flach</s:String>
 	<s:String x:Key="Enum.FiberEnds.Round">Rund</s:String>
+	<s:String x:Key="Enum.PartKind.XorGate">XOR-Gatter</s:String>
+	<s:String x:Key="Enum.PartKind.AndGate">AND-Gatter</s:String>
+	<s:String x:Key="Enum.PartKind.OrGate">OR-Gatter</s:String>
+	<s:String x:Key="Enum.PartKind.ZonePlate">Zonenplatte</s:String>
 	<s:String x:Key="Enum.TriangleType.Equilateral">Gleichseitig</s:String>
 	<s:String x:Key="Enum.TriangleType.RightIsosceles">Rechtwinklig-gleichschenklig (45°)</s:String>
 	<s:String x:Key="Enum.TriangleType.ThirtySixtyNinety">30-60-90</s:String>

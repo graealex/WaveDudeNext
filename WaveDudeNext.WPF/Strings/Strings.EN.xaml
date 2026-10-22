@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 SPDX-License-Identifier: GPL-3.0-or-later
 Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 
@@ -125,6 +125,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuAddFiber">_Fibre</s:String>
 	<s:String x:Key="MenuAddBraggReflector">_Bragg reflector</s:String>
 	<s:String x:Key="MenuAddGrinLens">_GRIN lens</s:String>
+	<s:String x:Key="MenuAddZonePlate">_Zone plate</s:String>
+	<s:String x:Key="MenuAddOpticalLogic">Opt_ical logic</s:String>
+	<s:String x:Key="MenuAddXorGate">_XOR (Mach-Zehnder)</s:String>
+	<s:String x:Key="MenuAddAndGate">_AND</s:String>
+	<s:String x:Key="MenuAddOrGate">_OR</s:String>
 	<s:String x:Key="MenuProjectToggleEnabled">_Enabled</s:String>
 	<s:String x:Key="MenuProjectDuplicate">_Duplicate</s:String>
 	<s:String x:Key="MenuProjectRemove">_Remove</s:String>
@@ -271,6 +276,25 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="SectionCore">Core</s:String>
 	<s:String x:Key="SectionCladding">Cladding</s:String>
 	<s:String x:Key="SectionLayers">Layers</s:String>
+	<s:String x:Key="SectionDesign">Design</s:String>
+	<s:String x:Key="SectionLayout">Layout</s:String>
+	<s:String x:Key="SectionPorts">Ports</s:String>
+	<s:String x:Key="SectionOutputs">Outputs active</s:String>
+	<s:String x:Key="TipGateWavelength">The wavelength the design frequency gives in a medium of index 1, with the simulation's source frequency scale</s:String>
+	<s:String x:Key="LabelQuarterWave">Quarter-wave coating</s:String>
+	<s:String x:Key="TipQuarterWave">The thickness of the least reflecting coating on the core, λ / (4 √n)</s:String>
+	<s:String x:Key="LabelCoreWidth">Core width</s:String>
+	<s:String x:Key="LabelCouplerGap">Coupler gap</s:String>
+	<s:String x:Key="LabelCouplerLength">Coupler length</s:String>
+	<s:String x:Key="LabelGateLength">Total length</s:String>
+	<s:String x:Key="TipGateLayout">Computed from the design wavelength and the indices with the simulator's own wave equation (the 4th-order Laplacian)</s:String>
+	<s:String x:Key="LabelInputA">Input A</s:String>
+	<s:String x:Key="LabelInputB">Input B</s:String>
+	<s:String x:Key="TipGatePorts">Canvas pixels. Feed the inputs with equal waves (the same frequency, amplitude and phase); a missing wave is a logical 0. The outputs line up with the inputs of gates set a port spacing above and below, one length on</s:String>
+	<s:String x:Key="SectionZones">Zones</s:String>
+	<s:String x:Key="LabelZoneCount">Number of zones</s:String>
+	<s:String x:Key="LabelOuterZone">Outermost zone</s:String>
+	<s:String x:Key="TipZones">The zones the plate gets within its diameter, and the width of the outermost whole one, which the grid must resolve (a few pixels at least)</s:String>
 	<s:String x:Key="SectionPoints">Points</s:String>
 	<s:String x:Key="SectionNodes">Nodes</s:String>
 	<s:String x:Key="HintPolygonPoints">Vertices of the outline relative to the centre, before rotation. Empty: the regular polygon above is used.</s:String>
@@ -657,6 +681,44 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.GrinLensPart.EdgeIndex">Refractive index at the edge, 1.00 to 2.55 in steps of 0.01. The profile between the axis and the edge is parabolic.</s:String>
 	<s:String x:Key="Label.GrinLensPart.Coating">AR coating</s:String>
 	<s:String x:Key="Hint.GrinLensPart.Coating">Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none.</s:String>
+	<s:String x:Key="Label.LogicGatePart.DesignFrequency">Design frequency</s:String>
+	<s:String x:Key="Hint.LogicGatePart.DesignFrequency">The source frequency the gate is designed for, on the same scale as a source's frequency: the frequency of the sources that drive it. The wavelength, and from it the core width, the coupler and the phase section, follow from it, so the gate works at this frequency only.</s:String>
+	<s:String x:Key="Label.LogicGatePart.Coating">AR coating</s:String>
+	<s:String x:Key="Hint.LogicGatePart.Coating">Thickness in pixels of the anti-reflection band at the ends ticked below, with the index √n of the core and of the cladding; 0 for none. A quarter-wave band, the least reflecting, is λ / (4 √n) pixels thick; the form shows it for the core.</s:String>
+	<s:String x:Key="Label.LogicGatePart.InputCoated">AR on input side</s:String>
+	<s:String x:Key="Hint.LogicGatePart.InputCoated">Put the anti-reflection band on the input end. Switch it off where the gate takes its light from a gate before it, so the wave passes through the junction.</s:String>
+	<s:String x:Key="Label.LogicGatePart.OutputCoated">AR on output side</s:String>
+	<s:String x:Key="Hint.LogicGatePart.OutputCoated">Put the anti-reflection band on the output end. Switch it off where the gate hands its light to a gate after it, so the wave passes through the junction.</s:String>
+	<s:String x:Key="Label.LogicGatePart.UpperOutputActive">Upper output</s:String>
+	<s:String x:Key="Hint.LogicGatePart.UpperOutputActive">Let the upper output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.</s:String>
+	<s:String x:Key="Label.LogicGatePart.LowerOutputActive">Lower output</s:String>
+	<s:String x:Key="Hint.LogicGatePart.LowerOutputActive">Let the lower output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.DesignFrequency">Target frequency</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.DesignFrequency">The source frequency the plate is designed for, on the same scale as a source&apos;s frequency. The zones follow from the wavelength it gives, so the plate focuses this frequency at the focal length; other frequencies focus elsewhere.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.FocalLength">Focal length</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.FocalLength">Distance in pixels from the plate to its focus, for a plane wave arriving along the axis.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Inverse">Inverse</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Inverse">Exchange the zones: the central zone becomes a block, the first ring open, and so on. The focus stays where it is.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Diameter">Diameter</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Diameter">Extent across the axis in pixels; the zones fill it.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Thickness">Thickness</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Thickness">Extent along the axis in pixels: the depth of the blocks. It should leave room for the anti-reflection rise on both faces.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Coating">Anti-reflection</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Coating">Depth in pixels over which a block&apos;s absorption rises from nothing at its faces to its full strength, so the blocks reflect little; at most half the thickness takes effect.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Mount">Mount</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Mount">Surround the plate with an absorbing mount, so no light passes outside its diameter. Without it, that light meets the focused light on the axis and moves the focus further out, the more so the fewer zones the plate has.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.MountWidth">Mount width</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.MountWidth">Width in pixels of the absorbing mount on either side, beyond the diameter.</s:String>
+	<s:String x:Key="Enum.GateOutput.Xor">XOR: dark with both on</s:String>
+	<s:String x:Key="Enum.GateOutput.And">AND: 4 × as bright with both on</s:String>
+	<s:String x:Key="Enum.GateOutput.Or">OR: as bright for one as for two</s:String>
+	<s:String x:Key="Enum.GateOutput.Remainder">Remainder: 3 × with both on</s:String>
+	<s:String x:Key="Label.LogicGatePart.CoreIndex">Core index</s:String>
+	<s:String x:Key="Hint.LogicGatePart.CoreIndex">Refractive index of the waveguide cores, 1.00 to 2.55 in steps of 0.01. It must be above the cladding's; the larger the difference, the narrower the cores and the tighter the bends.</s:String>
+	<s:String x:Key="Label.LogicGatePart.CladdingIndex">Cladding index</s:String>
+	<s:String x:Key="Hint.LogicGatePart.CladdingIndex">Refractive index of the cladding around the cores, 1.00 to 2.55 in steps of 0.01.</s:String>
+	<s:String x:Key="Label.LogicGatePart.PortSpacing">Port spacing</s:String>
+	<s:String x:Key="Hint.LogicGatePart.PortSpacing">Distance between the two inputs, and between the two outputs, in pixels. A value below what the design needs to keep the arms apart is raised to it, and the box shows the spacing used.</s:String>
 	<s:String x:Key="Enum.PartKind.Lens">Lens or mirror</s:String>
 	<s:String x:Key="Enum.PartKind.Polygon">Polygon</s:String>
 	<s:String x:Key="Enum.PartKind.Rectangle">Rectangle</s:String>
@@ -668,6 +730,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.PartKind.GrinLens">GRIN lens</s:String>
 	<s:String x:Key="Enum.FiberEnds.Flat">Flat</s:String>
 	<s:String x:Key="Enum.FiberEnds.Round">Round</s:String>
+	<s:String x:Key="Enum.PartKind.XorGate">XOR gate</s:String>
+	<s:String x:Key="Enum.PartKind.AndGate">AND gate</s:String>
+	<s:String x:Key="Enum.PartKind.OrGate">OR gate</s:String>
+	<s:String x:Key="Enum.PartKind.ZonePlate">Zone plate</s:String>
 	<s:String x:Key="Enum.TriangleType.Equilateral">Equilateral</s:String>
 	<s:String x:Key="Enum.TriangleType.RightIsosceles">Right isosceles (45°)</s:String>
 	<s:String x:Key="Enum.TriangleType.ThirtySixtyNinety">30-60-90</s:String>

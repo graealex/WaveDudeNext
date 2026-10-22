@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 SPDX-License-Identifier: GPL-3.0-or-later
 Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 
@@ -123,6 +123,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuAddFiber">_Vezel</s:String>
 	<s:String x:Key="MenuAddBraggReflector">_Bragg-reflector</s:String>
 	<s:String x:Key="MenuAddGrinLens">_GRIN-lens</s:String>
+	<s:String x:Key="MenuAddZonePlate">_Zoneplaat</s:String>
+	<s:String x:Key="MenuAddOpticalLogic">Optische log_ica</s:String>
+	<s:String x:Key="MenuAddXorGate">_XOR (Mach-Zehnder)</s:String>
+	<s:String x:Key="MenuAddAndGate">_AND</s:String>
+	<s:String x:Key="MenuAddOrGate">_OR</s:String>
 	<s:String x:Key="MenuProjectToggleEnabled">_Ingeschakeld</s:String>
 	<s:String x:Key="MenuProjectDuplicate">_Dupliceren</s:String>
 	<s:String x:Key="MenuProjectRemove">_Verwijderen</s:String>
@@ -269,6 +274,25 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="SectionCore">Kern</s:String>
 	<s:String x:Key="SectionCladding">Mantel</s:String>
 	<s:String x:Key="SectionLayers">Lagen</s:String>
+	<s:String x:Key="SectionDesign">Ontwerp</s:String>
+	<s:String x:Key="SectionLayout">Indeling</s:String>
+	<s:String x:Key="SectionPorts">Poorten</s:String>
+	<s:String x:Key="SectionOutputs">Actieve uitgangen</s:String>
+	<s:String x:Key="TipGateWavelength">De golflengte die de ontwerpfrequentie geeft in een medium met index 1, bij de bronfrequentieschaal van de simulatie</s:String>
+	<s:String x:Key="LabelQuarterWave">Kwartgolf-coating</s:String>
+	<s:String x:Key="TipQuarterWave">De dikte van de minst reflecterende coating op de kern, λ / (4 √n)</s:String>
+	<s:String x:Key="LabelCoreWidth">Kernbreedte</s:String>
+	<s:String x:Key="LabelCouplerGap">Spleet van de koppelaar</s:String>
+	<s:String x:Key="LabelCouplerLength">Lengte van de koppelaar</s:String>
+	<s:String x:Key="LabelGateLength">Totale lengte</s:String>
+	<s:String x:Key="TipGateLayout">Berekend uit de ontwerpgolflengte en de indices met de eigen golfvergelijking van de simulator (de 4e-orde-Laplaciaan)</s:String>
+	<s:String x:Key="LabelInputA">Ingang A</s:String>
+	<s:String x:Key="LabelInputB">Ingang B</s:String>
+	<s:String x:Key="TipGatePorts">Canvaspixels. Voed de ingangen met gelijke golven (dezelfde frequentie, amplitude en fase); een ontbrekende golf is een logische 0. De uitgangen liggen in lijn met de ingangen van poorten die een poortafstand hoger en lager staan, één lengte verder</s:String>
+	<s:String x:Key="SectionZones">Zones</s:String>
+	<s:String x:Key="LabelZoneCount">Aantal zones</s:String>
+	<s:String x:Key="LabelOuterZone">Buitenste zone</s:String>
+	<s:String x:Key="TipZones">De zones die de plaat binnen zijn diameter krijgt, en de breedte van de buitenste hele zone, die het rooster moet kunnen oplossen (minstens een paar pixels)</s:String>
 	<s:String x:Key="SectionPoints">Punten</s:String>
 	<s:String x:Key="SectionNodes">Knooppunten</s:String>
 	<s:String x:Key="HintPolygonPoints">Hoekpunten van de omtrek ten opzichte van het middelpunt, vóór rotatie. Leeg: de regelmatige veelhoek hierboven wordt gebruikt.</s:String>
@@ -655,6 +679,44 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.GrinLensPart.EdgeIndex">Brekingsindex aan de rand, 1,00 tot 2,55 in stappen van 0,01. Het profiel tussen de as en de rand is parabolisch.</s:String>
 	<s:String x:Key="Label.GrinLensPart.Coating">AR-coating</s:String>
 	<s:String x:Key="Hint.GrinLensPart.Coating">Dikte in pixels van de antireflectieband net binnen de omtrek, met index √n; 0 voor geen.</s:String>
+	<s:String x:Key="Label.LogicGatePart.DesignFrequency">Ontwerpfrequentie</s:String>
+	<s:String x:Key="Hint.LogicGatePart.DesignFrequency">De bronfrequentie waarvoor de poort is ontworpen, op dezelfde schaal als de frequentie van een bron: de frequentie van de bronnen die hem voeden. De golflengte, en daaruit de kernbreedte, de koppelaar en de fasesectie, volgen eruit, dus de poort werkt alleen bij deze frequentie.</s:String>
+	<s:String x:Key="Label.LogicGatePart.Coating">AR-coating</s:String>
+	<s:String x:Key="Hint.LogicGatePart.Coating">Dikte in pixels van de antireflectieband aan de hieronder aangevinkte uiteinden, met index √n van de kern en van de mantel; 0 voor geen. Een kwartgolfband, de minst reflecterende, is λ / (4 √n) pixels dik; het formulier toont die voor de kern.</s:String>
+	<s:String x:Key="Label.LogicGatePart.InputCoated">AR aan ingangszijde</s:String>
+	<s:String x:Key="Hint.LogicGatePart.InputCoated">Breng de antireflectieband aan op het ingangsuiteinde. Schakel hem uit waar de poort haar licht van een voorgaande poort krijgt, zodat de golf door de overgang gaat.</s:String>
+	<s:String x:Key="Label.LogicGatePart.OutputCoated">AR aan uitgangszijde</s:String>
+	<s:String x:Key="Hint.LogicGatePart.OutputCoated">Breng de antireflectieband aan op het uitgangsuiteinde. Schakel hem uit waar de poort haar licht aan een volgende poort doorgeeft, zodat de golf door de overgang gaat.</s:String>
+	<s:String x:Key="Label.LogicGatePart.UpperOutputActive">Bovenste uitgang</s:String>
+	<s:String x:Key="Hint.LogicGatePart.UpperOutputActive">Laat het licht van de bovenste uitgang de poort verlaten. Uitgeschakeld neemt een geleidelijk oplopende absorber het op in het laatste stuk van de arm.</s:String>
+	<s:String x:Key="Label.LogicGatePart.LowerOutputActive">Onderste uitgang</s:String>
+	<s:String x:Key="Hint.LogicGatePart.LowerOutputActive">Laat het licht van de onderste uitgang de poort verlaten. Uitgeschakeld neemt een geleidelijk oplopende absorber het op in het laatste stuk van de arm.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.DesignFrequency">Doelfrequentie</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.DesignFrequency">De bronfrequentie waarvoor de plaat is ontworpen, op dezelfde schaal als de frequentie van een bron. De zones volgen uit de golflengte die ze geeft, dus de plaat focust deze frequentie op de brandpuntsafstand; andere frequenties elders.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.FocalLength">Brandpuntsafstand</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.FocalLength">Afstand in pixels van de plaat tot het brandpunt, voor een vlakke golf die langs de as binnenkomt.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Inverse">Omgekeerd</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Inverse">Wissel de zones om: de middelste zone wordt een blok, de eerste ring open, enzovoort. Het brandpunt blijft op zijn plaats.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Diameter">Diameter</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Diameter">Afmeting dwars op de as in pixels; de zones vullen die.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Thickness">Dikte</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Thickness">Afmeting langs de as in pixels: de diepte van de blokken. Laat ruimte voor de antireflectie-oploop aan beide zijden.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Coating">Antireflectie</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Coating">Diepte in pixels waarover de absorptie van een blok oploopt van niets aan de zijvlakken tot de volle sterkte, zodat de blokken weinig reflecteren; hoogstens de halve dikte telt.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Mount">Houder</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Mount">Omgeef de plaat met een absorberende houder, zodat er geen licht buiten de diameter langs gaat. Zonder houder ontmoet dat licht het gefocuste licht op de as en schuift het brandpunt verder weg, sterker naarmate de plaat minder zones heeft.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.MountWidth">Breedte van de houder</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.MountWidth">Breedte in pixels van de absorberende houder aan elke kant, buiten de diameter.</s:String>
+	<s:String x:Key="Enum.GateOutput.Xor">XOR: donker met beide aan</s:String>
+	<s:String x:Key="Enum.GateOutput.And">AND: 4 × zo helder met beide aan</s:String>
+	<s:String x:Key="Enum.GateOutput.Or">OR: even helder voor één als twee</s:String>
+	<s:String x:Key="Enum.GateOutput.Remainder">Rest: 3 × met beide aan</s:String>
+	<s:String x:Key="Label.LogicGatePart.CoreIndex">Kernindex</s:String>
+	<s:String x:Key="Hint.LogicGatePart.CoreIndex">Brekingsindex van de golfgeleiderkernen, 1,00 tot 2,55 in stappen van 0,01. Moet boven die van de mantel liggen; hoe groter het verschil, hoe smaller de kernen en hoe krapper de bochten.</s:String>
+	<s:String x:Key="Label.LogicGatePart.CladdingIndex">Mantelindex</s:String>
+	<s:String x:Key="Hint.LogicGatePart.CladdingIndex">Brekingsindex van de mantel rond de kernen, 1,00 tot 2,55 in stappen van 0,01.</s:String>
+	<s:String x:Key="Label.LogicGatePart.PortSpacing">Poortafstand</s:String>
+	<s:String x:Key="Hint.LogicGatePart.PortSpacing">Afstand tussen de twee ingangen, en tussen de twee uitgangen, in pixels. Een waarde onder wat het ontwerp nodig heeft om de armen gescheiden te houden, wordt daartoe verhoogd, en het vak toont de gebruikte afstand.</s:String>
 	<s:String x:Key="Enum.PartKind.Lens">Lens of spiegel</s:String>
 	<s:String x:Key="Enum.PartKind.Polygon">Polygoon</s:String>
 	<s:String x:Key="Enum.PartKind.Rectangle">Rechthoek</s:String>
@@ -666,6 +728,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.PartKind.GrinLens">GRIN-lens</s:String>
 	<s:String x:Key="Enum.FiberEnds.Flat">Vlak</s:String>
 	<s:String x:Key="Enum.FiberEnds.Round">Rond</s:String>
+	<s:String x:Key="Enum.PartKind.XorGate">XOR-poort</s:String>
+	<s:String x:Key="Enum.PartKind.AndGate">AND-poort</s:String>
+	<s:String x:Key="Enum.PartKind.OrGate">OR-poort</s:String>
+	<s:String x:Key="Enum.PartKind.ZonePlate">Zoneplaat</s:String>
 	<s:String x:Key="Enum.TriangleType.Equilateral">Gelijkzijdig</s:String>
 	<s:String x:Key="Enum.TriangleType.RightIsosceles">Rechthoekig-gelijkbenig (45°)</s:String>
 	<s:String x:Key="Enum.TriangleType.ThirtySixtyNinety">30-60-90</s:String>

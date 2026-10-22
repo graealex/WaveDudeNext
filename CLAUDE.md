@@ -211,6 +211,39 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   continues the path. The ends are `Ends` Flat (default: cut across the curve's tangent at the endpoint, the coating
   following the face) or Round. The painter flattens the curve into chords (0.05 px) bucketed on a 32 px cell grid, and the
   core edge is supersampled (`HasInnerEdges`).
+- **Optical logic** (2026-10-21/22, "+ Part" > Optical logic): `LogicGatePart` with `XorGatePart`, `AndGatePart`,
+  `OrGatePart` (elements `XorGate`, `AndGate`, `OrGate`), one 2 × 2 directional coupler whose phase shift of B over A
+  alone makes the kind: +90° upper a − b (XOR), −90° upper a + b (AND, 4 : 1 at best, a passive linear gate has no truer
+  AND), +30° upper at 120° (OR: ½, ½, ½); the phase section sits in a quarter-period stretch in all three, so they share
+  dimensions and ports (measured 120 × 544 px: XOR 0.01, AND 1.88 against 0.50, OR 0.49 against 0.55). Laid out by
+  `LogicGateDesign` from the design frequency with `WaveguideModes`, a mode solver on the
+  engine's own discrete equations (4th-order stencil, its β matches a simulated guide to 1e-5); smooth S-bends whose radius
+  follows the mode's confinement, a measured coupling excess of 0.07 rad taken off, the cladding's rim and the input ends
+  absorb (`PartShape.AbsorptionShareAt`). The user's choices of 2026-10-22: the design is entered as a source frequency
+  (`DesignFrequency`, default 50; the wavelength is shown, from `Simulation.SourceFrequencyScale`, which the follower hands
+  each gate as `FrequencyScale`); both ends carry an AR band like a lens's (`Coating`, √n of core and cladding, default 6 px,
+  the measured least reflection, 3.4 % against 24 % bare), which replaced an output taper, switchable per end
+  (`InputCoated`, `OutputCoated`, default on; 2026-10-22, the user found a band in a junction keeps the wave from passing
+  from one unit into the next); each output can be switched off
+  (`UpperOutputActive`, `LowerOutputActive`), an absorber rising over 2 λ in its arm's last stretch (0.03 % reflected, nothing
+  out). The unit is twice the port spacing wide, ports at ¼ and ¾ (the user's request, 2026-10-22, for staggered tiling):
+  the side absorber fills out to there, at least λ/2 (none let 7.6 % through to the XOR output). Defaults core 2.55 in
+  1.45, the phase section then lowered on arm A: spacing 60, 120 × 544 px, both inputs leave about 1 % at the XOR output,
+  sum 1.9× (the user found 1600 px unacceptable). Both ends are open (2026-10-22, the user's choice: the input termination
+  is gone, sources are to be coupled in from outside by a fibre later), so staggered gates cascade; a source placed in the
+  unit sits half a wavelength in, and its backward wave leaves through the coated input end. The port spacing is raised to the design's minimum; the form's box edits
+  `PortSpacingUsed`, so it shows the spacing used and every step moves the ports. Inputs are ordinary sources on the ports
+  the form lists; `GatePortFollower` (the window keeps one per project) moves a source within 1 px of an input onto the
+  input's new position after any gate edit, and `Movable.MoveAll` moves parts last so a group move does not move it twice.
+- **Zone plate** (2026-10-22, a main part beside the lens, element `ZonePlate`): `ZonePlatePart`, Fresnel zones at
+  rₙ = √(nλf + (nλ/2)²) from a target frequency (`IFrequencyDesigned`, the follower hands it the frequency scale) and focal
+  length, every second zone an absorbing block (the user's choice over mirror or phase blocks; blue only, `PaintsIndex`
+  false), `Inverse` exchanging them; blocks 96 rising over the AR depth from the faces, sharp at the sides (measured: 0.4 %
+  through, 1.0 % back at 64 px thick with a 32 px rise). In 2D a zone plate is cylindrical: the central zone dominates
+  (Cornu spiral), so the inverse plate focuses weakly (about 1 × the free wave); the default plate (800, f 600, 8 zones)
+  4.6 ×. Light passing outside the diameter pushes the focus on (5 zones +30 %, 8 zones +3 %); the optional absorbing
+  `Mount` (`MountWidth` either side, default off and 200 px, the user's request) stops it (5 zones: +12 % in the check's
+  small canvas, +6 % in a wide one).
 - File types `.wdproj` / `.wdscheme` are registered per user at start-up; unsaved edits ask on close.
 
 ## Numbers (workstation: 10-core Xeon without AVX2, RTX 2080, 64 GB)
@@ -226,7 +259,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, ranges).
+`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, ranges, XOR gate).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 38, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness
