@@ -57,7 +57,7 @@ public sealed class LogicGateDesign
 	/// </summary>
 	public const double MinAbsorber = 0.5;
 
-	/// <summary>The absorption (blue) at the rim of the cladding's absorbing band; a strength that reflected little in the measurements of OpticalParts.md 6a.</summary>
+	/// <summary>The absorption (blue) at the rim of the cladding's absorbing band; a strength that reflected little in the measurements under "Absorption" in OpticalParts.md.</summary>
 	public const int Absorption = 64;
 
 	/// <summary>
@@ -131,7 +131,7 @@ public sealed class LogicGateDesign
 	/// <see cref="OutputRampLength"/> where a switched-off output's absorber rises, up to the coated end.
 	/// </summary>
 	public int OutputLength { get; private init; }
-	/// <summary>Length in pixels over which a switched-off output's absorber rises to its full strength at the right end, two wavelengths (a soft rise reflects little, OpticalParts.md 6a; measured on the default gate, 2026-10-22: 0.03 % of the power came back, nothing left past the end).</summary>
+	/// <summary>Length in pixels over which a switched-off output's absorber rises to its full strength at the right end, two wavelengths (a soft rise reflects little, "Absorption" in OpticalParts.md; measured on the default gate, 2026-10-22: 0.03 % of the power came back, nothing left past the end).</summary>
 	public int OutputRampLength { get; private init; }
 	/// <summary>
 	/// Whether the phase section sits on arm A rather than arm B: on the arm to be put ahead, raised by

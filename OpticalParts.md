@@ -1,202 +1,176 @@
-# Optical parts — design and work plan
+# Optical parts
 
-Written 2026-10-18 for a session that starts with an empty context. Read `CLAUDE.md` first: its working rules
-(no git on your own, options before design changes, verification matched to the change, keyboard-only harnesses,
-model conventions, four string tables) apply to every step here.
+The reference for the optical parts: how they reach the simulation, what each kind is, and why it was built so, with
+the measurements behind the choices. The code's `///` docs carry the details of each member; `CLAUDE.md` holds a summary
+and the working rules, which apply here too. The plan this file began as (2026-10-18, stages 1 and 2) is in git history.
 
-**Status (2026-10-18, later the same day, uncommitted):** stages 1 and 2 are built as written below: the model for all five
-kinds (`Model/OpticalPart.cs`), the painter for every kind (`Parts/PartPainter.cs`, `Parts/PartShape.cs`), the plumbing
-(`RunSpec`, `MainWindow.Live.cs`), the tree with its "+ Part" menu, the forms, the handles with the rotation lever, the
-strings in four tables and 32 library checks (`CheckParts`). Two choices made on the way: a part's centre is the top-left
-corner of pixel (X, Y), not its middle, so even sizes (every default) cover whole pixels; and the shapes read out-of-range
-values guarded instead of normalising the model from inside the painter. After the user's review (a side length alone made every
-rectangle a square; a shape mode inside one class would be the kind combo we rejected): the polygon became four classes
-under `ShapePart` (mirror, index, coating), each its own kind, element and form: `PolygonPart` (regular, side count and
-side length, a face centred on -x'), `RectanglePart` (length, width, a chain toggle that keeps them equal: a square), `EllipsePart` (length, width, the same chain: a circle; outlined as a polygon of a vertex per 3 px of circumference), `TrianglePart` (base across the
-axis toward -x', two base angles, a type preset: equilateral, right isosceles, 30-60-90, isosceles, custom; the apex angle
-shown), `OutlinePart` (points). The "+ Part" menu lists the optics, a separator, the shapes. The handle glyph is the
-source's circular crosshair with an inner ring (a lens-shaped glyph read as squashed). A lens's diameter and centre
-thickness are its bulk: radii too curved for them are raised to the smallest that fits (`LensPart.FitRadii`), so the lens
-always fills its diameter; the form shows the edge thickness (a diameter of 2000 with radii of 300 had given a tiny lens).
-A "Concave (diverging)" box shows the lens's state from the lensmaker's sign and, ticked, flips both radii.
-While a part is selected the overlay draws its outline (`OpticalPart.Outline()`, the painted shape) in the accent colour,
-a size grip on a corner or vertex sets the extents by drag or arrow keys, an outline's points each have a handle
-(2026-10-19), and a fibre's nodes a handle plus their two Bézier handles on dotted lines (2026-10-22). Not built: stage 3 (`PartCheck.ps1`, the three
-examples). The open points at the end still stand.
+Jeroen Vleggaar proposed parts as project objects, added like sources, to demonstrate optics without an external image
+editor ("a cavity of mirrors keeps a wave for ever"); the user decided their form. The gates and the zone plate came
+from Jeroen's sessions (2026-10-21/22), merged from `jv/optical-logic`.
 
-## What is asked
+## Adding a part kind
 
-Jeroen Vleggaar (author of Wave Dude 2D) proposed, and Alexander Graef (the user) decided, that WaveDude Next gets
-**optical parts as project objects**, added like sources: a lens or mirror, a polygon, a fiber, a Bragg reflector,
-a gradient-index lens. Each has a position and an angle plus kind-specific properties. The aim, in Jeroen's words:
-demonstrating optics without an external image editor; a cavity of mirrors keeps a wave "for ever". His two
-sketches of the property form (not in the repository; they showed a Type combo, an
-"AR thickn. (px)" field, Position X/Y/Angle, then groups: Lens/mirror with refractive index, diameter, R1, R2,
-centre thickness; Polygon with refractive index, number of surfaces, surface size; Fiber with core index and
-diameter, cladding index and thickness; a "Shape coordinates (list)" box). Mirrors have no refractive index.
+The class is the kind (2026-10-22: the `PartKind` enum was removed).
 
-## Decisions taken (with the user)
+1. A concrete subclass of `OpticalPart` (or `ShapePart`, `LogicGatePart`) in `Model/OpticalPart.cs` with `NameStem`
+   (the English stem of new names, "Zone plate"), `PrepareNew()` if a new part needs something a loaded one must not
+   get (a fibre's default path: `XmlSerializer` appends a file's items to the list it finds), and its properties under
+   `CLAUDE.md`'s model conventions (`[Range]` beside every clamp in `Normalize()`).
+2. Its shape in `Parts/PartShape.cs` (`PartShape.For`) and, if it has one, its size grip in `SceneOverlay.GripOf`.
+3. An `[XmlElement("Name", typeof(…))]` line on `Project.Parts`: one element name per kind.
+4. Its entry in `PartMenuEntries` (`Panes/ProjectTree.xaml`), where the app decides which kinds it offers and in which
+   order; both menus take their entries from there.
+5. A form in `Views/` with its `DataTemplate` in `PropertiesPane.xaml`, and its strings (`MenuAdd…`, `Label.`, `Hint.`,
+   `Enum.` for its enums) in all four tables.
 
-1. **Parts are painted into the scene pixels.** The scene reaches the engines only as BGRA pixels today
-   (`RunSpec.Image`, a `ScenePixels`; `SceneData.FromBgra` maps red to the refractive index). A new library step
-   rasterises the enabled parts into a copy of the scene image, or into a blank canvas for an image-less scene,
-   before the pixels go anywhere. Both engines, the glowing outline over the pictures (`GlowingEdges.Compute` in
-   `PreviewPane.OnScenePixelsChanged`), the export outline (`MainWindow.Export.cs`) and the scratch frames then
-   work unchanged. The price is Jeroen's own range: index 1.00 to 2.55 in steps of 0.01 (red = index × 100).
-2. **Red, and blue for absorbers.** The painter writes the red channel and never touches green: green shades are
-   source frequencies (WaveSimulator2D's warning: never anti-alias green). Blue is damping (each step a cell's
-   velocity times 1 − blue / 255); a lens or shape with an Absorption above 0 (Jeroen's point 11, 2026-10-20) paints
-   it there, keeping the larger of its value and the blue already there (the image's or an earlier part's).
-3. **A red value of 0 is a mirror** (index 1000, commit `5dbefa6`, Jeroen's V0.30 rule). Red 1..99 is index 1.
-4. **One subclass per kind, one XML element name per kind** (the user's choice: a schema can then say which
-   attributes each element requires). `OpticalPart` is abstract; `LensPart`, `PolygonPart`, `FiberPart`,
-   `BraggReflectorPart`, `GrinLensPart` derive from it. `Project.Parts` is one `ObservableCollection<OpticalPart>`
-   with five `[XmlElement("Lens", typeof(LensPart))]`-style attributes, so the file holds `<Lens …/>`,
-   `<Polygon …/>`, `<Fiber …/>`, `<BraggReflector …/>`, `<GrinLens …/>` in tree order, like `<Source>` today.
-   A part's kind is chosen when it is added; there is no kind combo on an existing part.
-5. **Angle** in degrees, positive counter-clockwise on screen, 0 = the part's axis along +x, the convention of
-   the composite source's rotation handle (`Source.Array`, `MarkerRole.SourceAngle`).
-6. **AR coating** ("AR thickn." in the sketch): a band of the given thickness in pixels just inside the part's
-   outer boundary gets the index √n (rounded to 0.01), the quarter-wave idea without a wavelength tie. The hint
-   may say that a quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.
-   Mirrors and Bragg reflectors ignore it.
-6a. **Absorption** (lens and shapes): Absorption (int, 0..255 as blue, 0) rising over AbsorptionRamp (int px,
-   1..400, 40) from 0 at the outline as blue = round(Absorption × (δ / ramp)²), δ the depth of the pixel centre
-   (no supersampling: the profile is continuous and 0 at the outline); the ramp is cut to the deepest pixel centre
-   of a part thinner than twice it. A jump in damping reflects like a jump in index, so the profile and strength
-   were measured (2026-10-20): a pulse from an open grid onto a deep absorbing slab, the reflected peak against a
-   mirror slab's, for waves of level 120 and 60. At absorption 255 every profile reflects a lot (a 40 px ramp:
-   linear 9 / 25 %, quadratic 2 / 11 %, cubic 1.7 / 9 %, a smooth step 4.7 / 20 %, an error-function step
-   4.2 / 18 %, Jeroen's √ band 4.5 / 16 %); at 64 a quadratic 80 px ramp reflects 0.5 / 1.5 % and lets nothing
-   through 160 px; at 16 the reflection is lower still but up to 6 % passes through 160 px. Quadratic was chosen.
-   Mirrors ignore it.
-7. **Rasterisation**: 4 × 4 supersampling per pixel for refractive parts; each sample is classified (outside,
-   coating, body, or a GRIN/fibre zone), the sample indices are averaged (an existing red of 0 counts as index 1 in
-   that average) and rounded to red. A mirror part uses the pixel-centre test alone and writes red 0 (a half-covered
-   mirror pixel would otherwise clamp to index 1 and be transparent). Later parts paint over earlier ones.
-8. **Stages**: (1) model for all five kinds, painter with lens/mirror and polygon, plumbing, tree, forms, handles,
-   strings, library checks; (2) painter for fiber, Bragg reflector, GRIN lens; (3) a UI harness and three example
-   projects for Jeroen (a lens, a cavity, a bent fiber). No time estimates (the user's rule).
+`library_check` finds every part class by reflection: it fails one without its file element, one that `AddPart`
+cannot add as "<stem> 1", and a clamped number without its `[Range]`. The menu entry and the form are not checked.
 
-## The model (`WaveDudeNext/Model/OpticalPart.cs`, one file per class or one file; follow `Source.cs`)
+## How parts reach the simulation
 
-Every property follows `CLAUDE.md`'s model conventions: `[XmlAttribute]` with a `[DefaultValue]`, `[Category]`,
-`[DisplayName]`, `[Description]`, a `///` summary with units, a clamp in `Normalize()`, and `Label.<Type>.<Member>` /
-`Hint.<Type>.<Member>` keys in all four string tables (`WaveDudeNext.WPF/Strings/Strings.{EN,DE,FR,NL}.xaml`).
-The label markup (`Markup/ModelMemberExtension.cs`) builds the key from the type named in XAML, so base members are
-written `model:OpticalPart.X` and kind members `model:LensPart.R1`. Positions and lengths are canvas pixels.
+- **Painted into the scene pixels.** The scene reaches the engines only as BGRA pixels (`SceneData.FromBgra`: red is
+  the index, green the image sources, blue the damping). `PartPainter.Paint` paints the enabled parts, in tree order,
+  later over earlier, into a copy of the scene image or a blank canvas; the engines, the glowing outline, the export
+  outline and the scratch frames see them as part of the scene. `MainWindow.Live`'s `LoadSceneImage` caches the result
+  by (image, parts version, size, background), so an unchanged scene stays the same reference and the scratch runner
+  keeps its engine. A part edit is a simulation edit.
+- **Red is the index**, 1.00 to 2.55 in steps of 0.01 (red = index × 100, Jeroen's range); **red 0 is a mirror**
+  (index 1000, Jeroen's V0.30 rule); red 1..99 is index 1. **Blue is damping** (each step a cell's velocity times
+  1 − blue / 255), painted by absorbing parts keeping the larger of their value and the blue already there. **Green is
+  never touched**: its shades are source frequencies (WaveSimulator2D's warning: never anti-alias green).
+- **Rasterisation**: 4 × 4 supersampling per pixel for refractive parts, each sample classified (outside, coating,
+  body, a fibre's or GRIN lens's zone) and the indices averaged (an existing red 0 counting as index 1), rounded to red.
+  A mirror uses the pixel-centre test alone and writes red 0: a half-covered mirror pixel would otherwise round to an
+  index and be transparent. A part's centre is the corner of pixel (X, Y), so even sizes, every default, cover whole
+  pixels. A part whose index is not painted (`PaintsIndex` false, the zone plate) writes blue alone.
+- **The angle** is in degrees, counter-clockwise on the screen, 0 pointing the part's axis x' along +x (the composite
+  source's convention); y' is across. Shapes face a source on the left (-x').
+- **The AR coating** is a band of `Coating` pixels just inside the outline with the index √n (rounded to 0.01), the
+  quarter-wave idea without a tie to a wavelength; a quarter-wave band is λ / (4 √n) pixels thick, λ the wavelength the
+  source form shows. Mirrors and Bragg reflectors ignore it.
 
-**`OpticalPart` (abstract, `ObservableObject`)**
+## Absorption
 
-| Member | Type | Default | Range | Notes |
-|---|---|---|---|---|
-| `Name` | string | "Lens 1" etc. | | `Project.NumberedName` per kind |
-| `Enabled` | bool | true | | a disabled part is not painted |
-| `X`, `Y` | int | canvas centre | ≥ 0 | the part's centre |
-| `Angle` | double | 0 | −180..180 | degrees, see decision 5 |
-| `Kind` | enum, `[XmlIgnore]` | | | read-only, for the tree row and the overlay |
-| `Normalize()` | abstract | | | |
+A lens or shape absorbs with `Absorption` (0..255 as blue) rising over `AbsorptionRamp` pixels from 0 at the outline as
+blue = round(Absorption × (δ / ramp)²), δ the depth of the pixel centre (no supersampling: the profile is continuous
+and 0 at the outline); a part thinner than twice the ramp reaches its full value in its middle (Jeroen's point 11,
+2026-10-20).
 
-**`LensPart`** — Mirror (bool, false), RefractiveIndex (1.00..2.55, 1.50; hidden/disabled while Mirror),
-Coating (int px, 0..50, 0), Absorption (int, 0..255, 0), AbsorptionRamp (int px, 1..400, 40), Diameter (int, 200, ≥ 2), R1 (double, 300), R2 (double, −300), Thickness (int, 40, ≥ 1).
-R is signed: R1 > 0 and R2 < 0 bulge outward (biconvex); 0 means flat; |R| < Diameter / 2 is clamped to Diameter / 2.
-Shape in the part frame (x' along the axis, y' across): the strip |y'| ≤ D/2 between the surfaces
-x'₁(y') = −t/2 + s₁(y') and x'₂(y') = t/2 + s₂(y'), with the sag s(y') = R − sign(R)·√(R² − y'²) for R ≠ 0 and
-0 for flat; a point is inside when x'₁ ≤ x' ≤ x'₂ (empty where convex surfaces cross, which caps a thin lens).
-A curved mirror is the same shape with Mirror on, e.g. R1 = −400, R2 = 0, Thickness 20.
+A jump in damping reflects like a jump in index, so the profile and strength were measured (2026-10-20): a pulse from
+an open grid onto a deep absorbing slab, its reflected peak against a mirror slab's, for waves of level 120 and 60. At
+absorption 255 every profile reflects a lot; over a 40 px ramp: linear 9 / 25 %, quadratic 2 / 11 %, cubic
+1.7 / 9 %, a smooth step 4.7 / 20 %, an error-function step 4.2 / 18 %, Jeroen's √ band 4.5 / 16 %. At 64 a quadratic
+80 px ramp reflects 0.5 / 1.5 % and lets nothing through 160 px; at 16 the reflection is lower still, but up to 6 %
+passes through 160 px. Quadratic was chosen (`PartShape.AbsorptionProfile`); 64 is the strength of the gates' absorbing
+cladding rim (`LogicGateDesign.Absorption`).
 
-**`PolygonPart`** — Mirror, RefractiveIndex, Coating, Absorption, AbsorptionRamp as the lens; Sides (int, 6, 3..64), Side (int px, 60, ≥ 2);
-`Points` (a list, `[XmlElement("Point")]` of a small `PartPoint { X, Y }` record class, relative to the centre,
-before rotation; empty by default). A non-empty list replaces the regular polygon. Regular: circumradius
-R = Side / (2 sin(π / Sides)), the first vertex on +x'. A flat mirror is a thin rectangle from four points.
+## The kinds
 
-**`FiberPart`** — CoreIndex (1.50), CoreDiameter (20, ≥ 2), CladdingIndex (1.45), CladdingThickness (10, ≥ 0),
-Coating (0), Ends (Flat | Round, Flat), `Nodes` path (2026-10-22, the user's request, replacing the polyline whose joints
-were sharp bends): cubic Bézier segments through `FiberNode { X, Y, InX, InY, OutX, OutY, Smooth }`, the handles offsets
-from the node, `<Node …/>` children; default two nodes (−100, 0) and (100, 0) with handles a third of the way along.
-The curve is flattened into chords within 0.05 px (a straight segment one chord) and bucketed on a 32 px cell grid; core:
-distance to the chords ≤ D/2; cladding: ≤ D/2 + thickness; a flat end cuts every chord near the endpoint by the plane
-across the handle's direction there (the coating band follows the face), a round end is the distance test. The core edge
-is supersampled (`HasInnerEdges`). Angle rotates the whole path. Smooth (the user's choice, 2026-10-22): switching it on
-lines the handles up at once (`FiberPart.AlignNode`; a node without handles is seeded from its neighbours), and afterwards
-a handle dragged (`FiberNode.SetHandle`) or typed (the part listens to its nodes) turns the other opposite, keeping its
-length; a node added or loaded is taken as it is, so a file never changes on loading.
+Every part has `Name`, `Enabled` (a disabled part is not painted), `X`, `Y` (its centre, ≥ 0) and `Angle` (−180..180).
+Defaults and ranges are in the attributes beside each property; the figures below are the defaults.
 
-**`BraggReflectorPart`** — Pairs (int, 10, 1..200), Thickness1, Thickness2 (int px, 10, ≥ 1), Index1 (1.50),
-Index2 (2.00), Width (int, 200, ≥ 2). Layers stacked along +x', the stack centred on the part centre, Width across.
+**Lens** (`LensPart`, `<Lens>`): `Diameter` 200 across the axis, `Thickness` 40 on the axis, signed radii `R1` 300 (the
+left surface) and `R2` −300 (R1 > 0 and R2 < 0 bulge outward, 0 is flat), `RefractiveIndex` 1.50, `Coating`,
+`Absorption`, `AbsorptionRamp` 40, `Mirror`. The strip |y'| ≤ D/2 between the surfaces x'₁ = −t/2 + s₁(y') and
+x'₂ = t/2 + s₂(y'), the sag s(y') = R − sign(R)·√(R² − y'²). The diameter and the centre thickness are the bulk: a radius
+too curved for them is raised to the smallest that fits (`FitRadii`), so the lens fills its diameter and the edge is
+never negative (a diameter of 2000 with radii of 300 had given a tiny lens). The form shows the edge thickness, and a
+"Concave" box flips both radii. A curved mirror is the same shape with `Mirror` on.
 
-**`GrinLensPart`** — Length (100), Diameter (100), CentreIndex (1.80), EdgeIndex (1.50), Coating (0).
-Rectangle Length × Diameter; n(y') = n_c − (n_c − n_e)·(2y'/D)².
+**Shapes** (`ShapePart`: `Mirror`, `RefractiveIndex` 1.50, `Coating`, `Absorption`, `AbsorptionRamp` 40, over an
+outline each kind generates). One class per shape, not a shape mode inside one class (the user's point, 2026-10-18: a
+side length alone made every rectangle a square):
+- `PolygonPart` (`<Polygon>`): regular, `Sides` 6 (3..64) of `Side` 60 px, a face centred on -x'; for an odd count the
+  first vertex lies on +x'.
+- `RectanglePart` (`<Rectangle>`): `Length` 60 along, `Width` 60 across. A flat mirror is a long, narrow one.
+- `EllipsePart` (`<Ellipse>`, 2026-10-20): `Length` and `Width` 60; outlined as a polygon of a vertex per 3 px of
+  circumference, 24 to 180. Rectangle and ellipse carry `Linked`, the image editors' chain between width and length,
+  which keeps them equal through the boxes, the grip and the file (a square, a circle).
+- `TrianglePart` (`<Triangle>`): a `Base` of 60 across the axis toward -x', the apex along +x', base angles `AngleA` (at
+  -y') and `AngleB`; `Type` presets (equilateral, right isosceles, 30-60-90, isosceles with one typed angle, custom); the
+  form shows the apex angle.
+- `OutlinePart` (`<Outline>`): free `Points` relative to the centre before rotation; fewer than three paint nothing.
 
-`Project`: `Parts` collection (serialised between `Sources` and `Probes`), `AddPart(Type)` and `AddPart<T>()` (the class is the kind; 2026-10-22, the `PartKind` enum removed) using
-`NumberedName`, `Duplicate(OpticalPart)`, `Normalize()` over the parts. `ProjectWatcher`: subscribe the parts and
-their `Points` lists (`Resubscribe`, the property-change filter list); `ProjectChange.AffectsSimulation` true for a
-part, a `PartPoint`, the parts list and `Project.Parts`. `LegacyProject` (Jeroen's `configuration.json`) has no
-counterpart: nothing to import.
+**Fibre** (`FiberPart`, `<Fiber>`): `CoreIndex` 1.50, `CoreDiameter` 20, `CladdingIndex` 1.45, `CladdingThickness` 10
+(0 for a bare core), `Coating`, `Ends` Flat or Round. The path (2026-10-22, the user's request, replacing a polyline whose
+joints were sharp bends) is cubic Bézier segments through `Nodes` (`<Node X Y InX InY OutX OutY Smooth>`, the handles
+offsets from the node, sparse); a new fibre gets two nodes at (−100, 0) and (100, 0) with handles a third of the way
+along. A smooth node (the default) lines its handles up when switched on (`AlignNode`; a node without handles is seeded
+from its neighbours) and then turns the other handle opposite the one dragged or typed, keeping its length as captured
+at the drag's start, so rounding does not creep in; a node added or loaded is taken as it is, so a file never changes on
+loading. A flat end is cut across the curve's tangent at the endpoint, the coating following the face; a round end is
+the distance test. The painter flattens the curve into chords within 0.05 px, bucketed on a 32 px cell grid (an S-bent
+fibre across a Full HD canvas: 51 ms against 1.3 s without the grid), and supersamples the core edge (`HasInnerEdges`).
 
-## The painter (`WaveDudeNext/Parts/PartPainter.cs`, library)
+**Bragg reflector** (`BraggReflectorPart`, `<BraggReflector>`): `Pairs` 10 of layers `Thickness1` and `Thickness2`
+10 px with `Index1` 1.50 and `Index2` 2.00, stacked along +x' and centred, `Width` 200 across. Thicknesses are pixels as
+typed; a quarter-wave layer is λ / (4 n).
 
-`ScenePixels PartPainter.Paint(ScenePixels? image, int width, int height, double backgroundIndex,
-IReadOnlyList<OpticalPart> parts)`:
-- no enabled part → returns `image` itself (the same reference; see plumbing) or null;
-- otherwise a new `ScenePixels` of the canvas size: a copy of the image, or a blank canvas with red =
-  round(backgroundIndex × 100), green 0, blue 0, alpha 255; then each enabled part in list order per decision 7.
-- Pure geometry, no WPF; parallel over rows is fine (`Parallel.For`), the arrays are its own.
-- Keep the per-kind inside/zone tests in small static classes or methods so `library_check` can test them.
+**GRIN lens** (`GrinLensPart`, `<GrinLens>`): a rectangle of `Length` 100 and `Diameter` 100 whose index falls from
+`CentreIndex` 1.80 to `EdgeIndex` 1.50 as n(y') = n_c − (n_c − n_e)·(2y'/D)²; `Coating`.
 
-## Plumbing (WPF)
+**Logic gates** (`LogicGatePart`: `XorGatePart`, `AndGatePart`, `OrGatePart`; `<XorGate>`, `<AndGate>`, `<OrGate>`;
+under "+ Part" > Optical logic). One 2 × 2 directional coupler, the combining half of a Mach-Zehnder (the user's
+choice, 2026-10-21): input A above the axis, B below, a phase section putting B `PhaseShift` ahead of A, and a 3 dB
+coupler whose upper output carries (a + i·b) / √2 and lower (i·a + b) / √2 of two coherent inputs. The phase shift
+alone makes the kind: +90° gives the upper output a − b (XOR), −90° a + b (AND, 4 : 1 at best; a passive linear gate
+has no truer AND), +30° the waves at 120° (OR: ½, ½, ½). The phase section sits in a quarter-period stretch in all
+three, so they share dimensions and ports and tile together (measured at 120 × 544 px: XOR 0.01; AND 1.88 against
+0.50; OR 0.49 against 0.55).
+- **Design**: entered as a source frequency (`DesignFrequency` 50); the wavelength follows from
+  `Simulation.SourceFrequencyScale`, which `GatePortFollower` hands each gate (`FrequencyScale`), and the form shows it.
+  `LogicGateDesign` lays the gate out with `WaveguideModes`, a mode solver on the engine's own discrete equations
+  (4th-order stencil; its β matches a simulated guide to 1e-5): smooth S-bends whose radius follows the mode's
+  confinement, a measured coupling excess of 0.07 rad taken off. Defaults `CoreIndex` 2.55 in `CladdingIndex` 1.45,
+  the phase section then lowered on arm A: port spacing 60, 120 × 544 px; both inputs leave about 1 % at the XOR output,
+  the sum 1.9× (the user found 1600 px unacceptable).
+- **Ends**: an AR band like a lens's (`Coating` 6 px, √n of core and cladding, the measured least reflection: 3.4 %
+  against 24 % bare), which replaced an output taper; switchable per end (`InputCoated`, `OutputCoated`): a band in a
+  junction keeps the wave from passing from one unit into the next. Both ends are open (the user's choice, 2026-10-22:
+  sources are to be coupled in from outside by a fibre later), so staggered gates cascade; a source placed in the unit
+  sits half a wavelength in, its backward wave leaving through the coated input end.
+- **Outputs**: each can be switched off (`UpperOutputActive`, `LowerOutputActive`): an absorber rising over 2 λ in its
+  arm's last stretch (0.03 % reflected, nothing out). The cladding's rim absorbs (`PartShape.AbsorptionShareAt`).
+- **Tiling**: the unit is twice the port spacing wide, the ports at ¼ and ¾ (the user's request, for staggered tiling);
+  the side absorber fills out to there, at least λ/2 (without it 7.6 % reached the XOR output). `PortSpacing` is raised
+  to the design's minimum; the form's box edits `PortSpacingUsed`, so it shows the spacing used and every step moves the
+  ports.
+- **Inputs** are ordinary sources on the ports the form lists. `GatePortFollower` (one per project in the window) moves
+  a source within 1 px of an input onto the input's new position after any gate edit; `Movable.MoveAll` moves parts
+  last, so a group move does not move such a source twice.
 
-- `MainWindow.Live.cs`: `LoadSceneImage()` becomes the composed scene: the decoded image (as now) through
-  `PartPainter.Paint`, cached by (image reference, a parts version) so unchanged parts return the **same**
-  `ScenePixels` reference. `RunSpec.SameSceneAs` compares `Image` by reference and the scratch runner keeps its
-  engine on that; a new reference per scratch request would rebuild the engine (an OpenCL compile) every time.
-  Bump the version on any part change (the watcher reports it).
-- `RunSpec`: `Image` is now set for an image-less scene with parts too. `ImageSources` must stay false then
-  (it is `image != null && Scene.ImageSources`; the green-sources warning in `Create` would otherwise fire). Pass
-  `Scene.Mode == SceneMode.Image` through, or compose only the red of a blank canvas and keep a flag.
-- `OnProjectChanged`: a part change calls `UpdateScenePixels()` like a `Scene` change, so the outline follows live;
-  the rest (stale run, scratch, re-run) comes from `AffectsSimulation`.
-- Export: `MainWindow.Export.cs` takes the composed pixels for the outline (it calls `LoadSceneImage` already).
+**Zone plate** (`ZonePlatePart`, `<ZonePlate>`, 2026-10-22, among the main parts beside the lens): Fresnel zones at
+rₙ = √(nλf + (nλ/2)²) from `DesignFrequency` 50 (λ through the frequency scale, as for the gates; `IFrequencyDesigned`)
+and `FocalLength` 600, across `Diameter` 800, `Thickness` 64 deep. Every second zone is an absorbing block (the user's
+choice over mirror or phase blocks), the central zone open, or a block when `Inverse`; blue only. A block absorbs 96 in
+its middle, rising quadratically over `Coating` 32 from the faces the wave meets and leaves, sharp at its sides, as the
+outer zones are narrow (measured: 0.4 % through, 1.0 % back at 64 px thick with a 32 px rise). In 2D a zone plate is
+cylindrical: the central zone dominates (the Cornu spiral), so the inverse plate focuses weakly (about 1 × the free
+wave), the default plate with its 8 zones 4.6 ×. Light passing outside the diameter pushes the focus on (5 zones +30 %,
+8 zones +3 %); the optional absorbing `Mount` (`MountWidth` 200 either side, off by default) stops it (5 zones: +12 % in
+the check's small canvas, +6 % in a wide one).
 
-## UI
+## In the app
 
-- **Tree** (`Panes/ProjectTree.xaml`): a "Parts" folder between Sources and Probes (`NamedCollections` converter
-  parameter and bindings; `TreeParts` string), a row template for `OpticalPart` like the `Source` one (enabled
-  check box, name, move up/down, remove; `AutomationId` "Enabled:<name>" and `TreeId`). The folder's plus and a
-  "+ Part" toolbar button (`ToolAddPart`) open a menu of the five kinds (a `ContextMenu` opened by the button,
-  keyboard: Space opens, arrows, Enter); `ProjectCommands.AddPart` takes the kind. `MainWindow.Project.cs`:
-  `ListOf`, `OnAdd`, `CanEditItem`, `CanToggleEnabled`, `OnToggleEnabled`, `OnDuplicate` learn `OpticalPart`.
-- **Forms** (`Views/`): one `UserControl` per kind (`LensPartView` …) with `FormPanel` sections as in
-  `SourceView.xaml`; the common part (name, enabled, X, Y, angle) in a shared `PartCommonView` placed first;
-  `PropertiesPane.xaml` gets a `DataTemplate` per kind. Points lists: a small editable list (one row per point with
-  two `NumberBox`es, add/remove) rather than free text, every control reachable by Tab. Lens: the index box
-  disabled while Mirror is on (a `DataTrigger`, see `PulsedOnlyText`).
-- **Handles** (`Controls/SceneOverlay.cs`, `MarkerThumb.cs`): `MarkerRole.Part` at the centre and
-  `MarkerRole.PartAngle` on a lever like `SourceAngle` (visible while selected), styles in `PreviewPane.xaml`
-  (`SourceMarker`/`AngleMarker` as models), arrows nudge, selection syncs with the tree, `AutomationId`
-  "Part:<name>" and "PartAngle:<name>". The shape itself shows through the glowing outline; drawing the selected
-  part's outline in the accent colour is a welcome extra if cheap (the painter can expose a polyline per part).
-- **Strings**: `TreeParts`, `ToolAddPart`, `TipToolAddPart`, `MenuAddLens` … (five), `Label.`/`Hint.` for every
-  member above, in all four tables. British spelling in the UI.
-- **Live editing** rules of `CLAUDE.md` hold: a part edit is a simulation edit.
+- **Tree**: a "Parts" folder between Sources and Probes; rows like a source's (enabled box, name, move, remove).
+- **Menus**: the "+ Part" button and the Parts folder's plus open the menu of kinds (Space opens it on the menu itself,
+  the arrows walk it, Enter picks); a tree row's context menu has the same entries under "Add part". The entries are
+  written once (`PartMenuEntries`, an unshared `x:Array`) and added to each menu's items by `ProjectTree.MenuEntries`,
+  as real children: as an `ItemsSource` they made a submenu opened by keyboard start on its last entry the first time
+  (2026-10-22). Each entry passes its class to `ProjectCommands.AddPart`; `Project.AddPart(Type)` adds it centred on
+  the canvas, named "<stem> n".
+- **Pictures**: a handle at the centre and a rotation lever; while selected, the outline as painted in the accent
+  colour, a size grip (a rectangle's or ellipse's corner, the lens's thickness and diameter, a GRIN lens, Bragg stack or
+  zone plate corner, a polygon's first vertex, the second end of a triangle's base), a handle per outline point
+  (2026-10-19) and per fibre node with its two Bézier handles on dotted lines (2026-10-22); otherwise the shape shows
+  through the glowing outline. Arrows nudge, Escape during a drag puts things back.
+- **Examples**: `Wave_Dude_Examples/logical_elements_example.wdproj` (Jeroen's, 2026-10-22: XOR and AND gates cascaded
+  with pulsed sources and probes).
 
-## Verification
+## Open points
 
-- `dotnet build WaveDudeNext.sln` with 0 warnings (headers and `///` docs are enforced).
-- `_tools/library_check` (`dotnet run --project _tools/library_check -c Release`, once per change set): the
-  painter returns the same reference without parts; green and blue untouched under a part; a lens's extent and
-  centre thickness in pixels; a regular hexagon's area within 1 % of the formula; a mirror polygon ring around a
-  source keeps the field inside after 300 steps and leaves the outside below 1e-4 of it (the cavity); the coating
-  band's red is round(100 √n); CPU = GPU on a scene with parts (both engines take the same pixels, so this is the
-  existing comparison on a painted scene); a project with every kind round-trips through `XmlSerializer` sparsely.
-- UI: `_tools/ui_check/KeyboardCheck.ps1` asserts the toolbar Tab order "ToolAddProbe,tree" after `ToolAddSource`;
-  with `ToolAddPart` between them it changes. Stage 3 adds `PartCheck.ps1` on `Common.ps1` (add a lens by keys,
-  edit a value, the run goes stale and re-runs, the handle moves with arrows). Update the check counts in
-  `CLAUDE.md`.
-- Screenshots of a lens, a cavity and a fiber for the user, not run through harness loops.
-
-## Open points for the user
-
-- The "+ Part" menu as the way to choose a kind (versus five toolbar buttons).
-- Bragg thicknesses in pixels as typed (no automatic quarter-wave from a source's wavelength).
-- Where the example projects live (Jeroen's own sit in `Wave_Dude_Examples/`).
+- A `PartCheck.ps1` harness (add a part by keys, edit a value, the run goes stale and re-runs, the handle moves with
+  the arrows) and example projects for Jeroen (a lens, a cavity, a bent fibre); the planned stage 3.
+- The "+ Part" menu as the way to choose a kind, against a button per kind (decided in practice, never confirmed).
+- Bragg thicknesses in pixels as typed, without an automatic quarter-wave from a source's wavelength.
+- Where example projects live: Jeroen's originals and his first new one sit in `Wave_Dude_Examples/`.

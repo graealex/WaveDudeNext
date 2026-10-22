@@ -84,7 +84,7 @@ public abstract class PartShape
 	/// outline, 1 from the ramp's end on, t² between. Chosen by measuring what a ramp reflects (2026-10-20, a pulse on a
 	/// deep absorbing slab against a mirror slab): a jump in damping reflects like a jump in index, and of linear,
 	/// quadratic, cubic, smooth-step, error-function and √ ramps the quadratic did best over the strengths that absorb,
-	/// cubic close behind; see OpticalParts.md.
+	/// cubic close behind; the figures are under "Absorption" in OpticalParts.md.
 	/// </summary>
 	/// <param name="t">Depth over ramp; clamped to 0..1.</param>
 	public static double AbsorptionProfile(double t)

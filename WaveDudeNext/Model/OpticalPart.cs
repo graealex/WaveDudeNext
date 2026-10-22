@@ -25,14 +25,14 @@ using WaveDudeNext.Parts;
 namespace WaveDudeNext.Model;
 
 /// <summary>
-/// An optical part placed on the canvas: a lens or mirror, a shape (polygon, rectangle, triangle, outline), a fibre, a
-/// Bragg reflector or a GRIN lens (Jeroen
-/// Vleggaar's proposal, decided 2026-10-18). Parts are painted into the red channel of the scene pixels before a run
-/// (<see cref="Parts.PartPainter"/>), so the engines, the outline and the export see them as part of the scene;
-/// green and blue are never touched. Positions and lengths are canvas pixels; the angle is in degrees,
-/// counter-clockwise on the screen, 0 pointing the part's axis along +x (the composite source's convention).
-/// Refractive indices run from 1.00 to 2.55 in steps of 0.01 (red = index × 100). One subclass per kind; the kind is
-/// chosen when the part is added and never changes.
+/// An optical part placed on the canvas: a lens or mirror, a shape (polygon, rectangle, ellipse, triangle, outline), a
+/// fibre, a Bragg reflector, a GRIN lens, a logic gate or a zone plate (Jeroen Vleggaar's proposal, decided 2026-10-18;
+/// OpticalParts.md is the reference). Parts are painted into the scene pixels before a run
+/// (<see cref="Parts.PartPainter"/>), so the engines, the outline and the export see them as part of the scene: the
+/// index into red, an absorber's damping into blue; green is never touched. Positions and lengths are canvas pixels; the
+/// angle is in degrees, counter-clockwise on the screen, 0 pointing the part's axis along +x (the composite source's
+/// convention). Refractive indices run from 1.00 to 2.55 in steps of 0.01 (red = index × 100). The class is the kind,
+/// chosen when the part is added (<see cref="Project.AddPart(Type)"/>) and never changed.
 /// </summary>
 public abstract class OpticalPart : ObservableObject, IMovable
 {
@@ -550,9 +550,10 @@ public sealed class LensPart : OpticalPart
 
 /// <summary>
 /// A part that is a plain shape of glass or mirror: the shared material (<see cref="Mirror"/>, <see cref="RefractiveIndex"/>,
-/// <see cref="Coating"/>) over an outline each subclass generates (<see cref="Vertices"/>): a regular
-/// <see cref="PolygonPart"/>, a <see cref="RectanglePart"/>, a <see cref="TrianglePart"/>, a free <see cref="OutlinePart"/>
-/// (one class each, chosen when the part is added: the user's point, 2026-10-18, against a shape mode inside one class).
+/// <see cref="Coating"/>, <see cref="Absorption"/> over <see cref="AbsorptionRamp"/>) over an outline each subclass
+/// generates (<see cref="Vertices"/>): a regular <see cref="PolygonPart"/>, a <see cref="RectanglePart"/>, an
+/// <see cref="EllipsePart"/>, a <see cref="TrianglePart"/>, a free <see cref="OutlinePart"/> (one class each, chosen when
+/// the part is added: the user's point, 2026-10-18, against a shape mode inside one class).
 /// </summary>
 public abstract class ShapePart : OpticalPart
 {
