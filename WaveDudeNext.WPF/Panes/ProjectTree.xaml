@@ -33,6 +33,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<converters:ColorSchemeBrushConverter x:Key="ColorSchemeBrush" />
 		<converters:TreeIdConverter x:Key="TreeId" />
 		<converters:IsTypeConverter x:Key="IsType" />
+		<converters:PartIconConverter x:Key="PartIcon" />
 
 		<StreamGeometry x:Key="PlusGeometry">M4,0 L4,8 M0,4 L8,4</StreamGeometry>
 		<StreamGeometry x:Key="MinusGeometry">M0,4 L8,4</StreamGeometry>
@@ -220,17 +221,29 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 							<Binding Path="ColorSchemes" />
 						</MultiBinding>
 					</HierarchicalDataTemplate.ItemsSource>
-					<TextBlock Text="{DynamicResource TreeProject}" />
+					<StackPanel Orientation="Horizontal">
+						<controls:IconView Drawing="Project" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<TextBlock Text="{DynamicResource TreeProject}" VerticalAlignment="Center" />
+					</StackPanel>
 				</HierarchicalDataTemplate>
 
 				<DataTemplate DataType="{x:Type model:Scene}">
-					<TextBlock Text="{DynamicResource TreeScene}" />
+					<StackPanel Orientation="Horizontal">
+						<controls:IconView Glyph="&#xEB9F;" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<TextBlock Text="{DynamicResource TreeScene}" VerticalAlignment="Center" />
+					</StackPanel>
 				</DataTemplate>
 				<DataTemplate DataType="{x:Type model:Simulation}">
-					<TextBlock Text="{DynamicResource TreeSimulation}" />
+					<StackPanel Orientation="Horizontal">
+						<controls:IconView Glyph="&#xE916;" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<TextBlock Text="{DynamicResource TreeSimulation}" VerticalAlignment="Center" />
+					</StackPanel>
 				</DataTemplate>
 				<DataTemplate DataType="{x:Type model:Display}">
-					<TextBlock Text="{DynamicResource TreeDisplay}" />
+					<StackPanel Orientation="Horizontal">
+						<controls:IconView Glyph="&#xE7F4;" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<TextBlock Text="{DynamicResource TreeDisplay}" VerticalAlignment="Center" />
+					</StackPanel>
 				</DataTemplate>
 
 				<!-- folder row: name and an add button; the Parts folder's button carries the menu of kinds, which Add opens -->
@@ -248,6 +261,27 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 								</Style>
 							</Button.Style>
 						</Button>
+						<!-- the folder shows the icon of what it holds: the handle glyphs, the palette for schemes -->
+						<controls:IconView DockPanel.Dock="Left" Margin="0,0,4,0" VerticalAlignment="Center">
+							<controls:IconView.Style>
+								<Style TargetType="{x:Type controls:IconView}">
+									<Style.Triggers>
+										<DataTrigger Binding="{Binding Key}" Value="TreeSources">
+											<Setter Property="Drawing" Value="Source" />
+										</DataTrigger>
+										<DataTrigger Binding="{Binding Key}" Value="TreeParts">
+											<Setter Property="Drawing" Value="Part" />
+										</DataTrigger>
+										<DataTrigger Binding="{Binding Key}" Value="TreeProbes">
+											<Setter Property="Drawing" Value="Probe" />
+										</DataTrigger>
+										<DataTrigger Binding="{Binding Key}" Value="TreeColorSchemes">
+											<Setter Property="Glyph" Value="&#xE790;" />
+										</DataTrigger>
+									</Style.Triggers>
+								</Style>
+							</controls:IconView.Style>
+						</controls:IconView>
 						<TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
 					</DockPanel>
 				</HierarchicalDataTemplate>
@@ -265,6 +299,17 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"
 						          IsChecked="{Binding Enabled}" ToolTip="{DynamicResource TipSourceEnabled}"
 						          AutomationProperties.Name="{DynamicResource TipSourceEnabled}" AutomationProperties.AutomationId="{Binding Name, StringFormat='Enabled:{0}'}" />
+						<controls:IconView DockPanel.Dock="Left" Drawing="Source" Margin="0,0,4,0" VerticalAlignment="Center">
+							<controls:IconView.Style>
+								<Style TargetType="{x:Type controls:IconView}">
+									<Style.Triggers>
+										<DataTrigger Binding="{Binding Enabled}" Value="False">
+											<Setter Property="Foreground" Value="{DynamicResource GrayText}" />
+										</DataTrigger>
+									</Style.Triggers>
+								</Style>
+							</controls:IconView.Style>
+						</controls:IconView>
 						<TextBlock Text="{Binding Name}" VerticalAlignment="Center">
 							<TextBlock.Style>
 								<Style TargetType="{x:Type TextBlock}">
@@ -290,6 +335,17 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"
 						          IsChecked="{Binding Enabled}" ToolTip="{DynamicResource TipPartEnabled}"
 						          AutomationProperties.Name="{DynamicResource TipPartEnabled}" AutomationProperties.AutomationId="{Binding Name, StringFormat='Enabled:{0}'}" />
+						<controls:IconView DockPanel.Dock="Left" Drawing="{Binding Converter={StaticResource PartIcon}}" Margin="0,0,4,0" VerticalAlignment="Center">
+							<controls:IconView.Style>
+								<Style TargetType="{x:Type controls:IconView}">
+									<Style.Triggers>
+										<DataTrigger Binding="{Binding Enabled}" Value="False">
+											<Setter Property="Foreground" Value="{DynamicResource GrayText}" />
+										</DataTrigger>
+									</Style.Triggers>
+								</Style>
+							</controls:IconView.Style>
+						</controls:IconView>
 						<TextBlock Text="{Binding Name}" VerticalAlignment="Center">
 							<TextBlock.Style>
 								<Style TargetType="{x:Type TextBlock}">
@@ -329,6 +385,17 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"
 						          IsChecked="{Binding Active}" ToolTip="{DynamicResource TipProbeActive}"
 						          AutomationProperties.Name="{DynamicResource TipProbeActive}" AutomationProperties.AutomationId="{Binding Name, StringFormat='Enabled:{0}'}" />
+						<controls:IconView DockPanel.Dock="Left" Drawing="Probe" Margin="0,0,4,0" VerticalAlignment="Center">
+							<controls:IconView.Style>
+								<Style TargetType="{x:Type controls:IconView}">
+									<Style.Triggers>
+										<DataTrigger Binding="{Binding Active}" Value="False">
+											<Setter Property="Foreground" Value="{DynamicResource GrayText}" />
+										</DataTrigger>
+									</Style.Triggers>
+								</Style>
+							</controls:IconView.Style>
+						</controls:IconView>
 						<TextBlock Text="{Binding Name}" VerticalAlignment="Center">
 							<TextBlock.Style>
 								<Style TargetType="{x:Type TextBlock}">

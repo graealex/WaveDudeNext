@@ -213,6 +213,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="FontSize" Value="16" />
 		<Setter Property="LineHeight" Value="16" />
 		<Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+		<!-- greyscale: ClearType's colour fringes are for letters, on an icon they show as red and blue edges -->
+		<Setter Property="TextOptions.TextRenderingMode" Value="Grayscale" />
 		<Setter Property="RenderTransform">
 			<Setter.Value>
 				<TranslateTransform Y="3" />
@@ -221,6 +223,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="HorizontalAlignment" Value="Center" />
 		<Setter Property="VerticalAlignment" Value="Center" />
 	</Style>
+
+	<!-- the handles of the sources, parts and probes on the pictures (moved here 2026-10-23, shared with the project tree):
+	     a ring for a source, a ring with an inner ring for a part (a lens-shaped glyph read as squashed, 2026-10-18), a square
+	     for a probe point, each with four crosshair ticks outside it and a gap around the exact pixel. Glyphs are 20 x 20 with
+	     the point at (10, 10) -->
+	<StreamGeometry x:Key="SourceGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
+	<StreamGeometry x:Key="ProbeGlyph">M4.5,4.5 L15.5,4.5 L15.5,15.5 L4.5,15.5 Z M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
+	<StreamGeometry x:Key="PartGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M7.5,10 A2.5,2.5 0 1 1 12.5,10 A2.5,2.5 0 1 1 7.5,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
+	<!-- the same glyphs as 16 px icons for the tree's rows and folders (IconView Drawing="Source", "Probe", "Part") -->
+	<GeometryGroup x:Key="IconSource" Transform="0.8,0,0,0.8,0,0"><StaticResource ResourceKey="SourceGlyph" /></GeometryGroup>
+	<GeometryGroup x:Key="IconProbe" Transform="0.8,0,0,0.8,0,0"><StaticResource ResourceKey="ProbeGlyph" /></GeometryGroup>
+	<GeometryGroup x:Key="IconPart" Transform="0.8,0,0,0.8,0,0"><StaticResource ResourceKey="PartGlyph" /></GeometryGroup>
+	<!-- the project root: a wave on its canvas -->
+	<StreamGeometry x:Key="IconProject">M1.5,2.5 H14.5 V13.5 H1.5 Z M3,8 C4.5,4.5 6.5,4.5 8,8 C9.5,11.5 11.5,11.5 13,8</StreamGeometry>
 
 	<!-- the app's own menu icons (controls:MenuIcon.Drawing, 2026-10-23) for entries the icon font has no glyph for: 16 px
 	     line drawings, stroked at 1 px on half pixels so the lines are crisp at 100 %, a Fill geometry for the solid parts -->

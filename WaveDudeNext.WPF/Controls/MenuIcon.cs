@@ -17,9 +17,6 @@
 
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Shapes;
 
 namespace WaveDudeNext.WPF.Controls;
 
@@ -28,7 +25,7 @@ namespace WaveDudeNext.WPF.Controls;
 /// the app's own drawings (<see cref="DrawingProperty"/>). The glyph is attached as
 /// <c>controls:MenuIcon.Glyph="&amp;#xE74E;"</c>, it gives the <see cref="MenuItem"/> a <see cref="TextBlock"/> of that
 /// character in the theme's <c>MenuIconText</c> style (Segoe Fluent Icons on Windows 11, Segoe MDL2 Assets on Windows 10,
-/// in the entry's text colour). UI thread.
+/// in the entry's text colour); both are made by <see cref="IconView.Create"/>, as the tree's icons are. UI thread.
 /// </summary>
 public static class MenuIcon
 {
@@ -58,41 +55,17 @@ public static class MenuIcon
 
 	private static void OnDrawingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 	{
-		if (d is not MenuItem item)
+		if (d is MenuItem item)
 		{
-			return;
+			item.Icon = IconView.Create(null, e.NewValue as string);
 		}
-		if (e.NewValue is not string { Length: > 0 } name)
-		{
-			item.Icon = null;
-			return;
-		}
-		// the entry's text colour, which greys out when it is disabled, like a font glyph's: the inherited text foreground
-		// each path holds itself (an ancestor lookup ran before the icon was in its menu and never found one)
-		var colour = new Binding { Path = new PropertyPath(TextElement.ForegroundProperty), RelativeSource = RelativeSource.Self };
-		var stroke = new Path { StrokeThickness = 1.0 };
-		stroke.SetResourceReference(Path.DataProperty, "Icon" + name);
-		stroke.SetBinding(Shape.StrokeProperty, colour);
-		var fill = new Path();
-		fill.SetResourceReference(Path.DataProperty, "Icon" + name + "Fill");
-		fill.SetBinding(Shape.FillProperty, colour);
-		item.Icon = new Grid { Width = 16, Height = 16, Children = { stroke, fill } };
 	}
 
 	private static void OnGlyphChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 	{
-		if (d is not MenuItem item)
+		if (d is MenuItem item)
 		{
-			return;
+			item.Icon = IconView.Create(e.NewValue as string, null);
 		}
-		if (e.NewValue is not string { Length: > 0 } glyph)
-		{
-			item.Icon = null;
-			return;
-		}
-		var text = new TextBlock { Text = glyph };
-		// resolved once the entry is in its menu, so a context menu built in code finds the theme's style too
-		text.SetResourceReference(FrameworkElement.StyleProperty, "MenuIconText");
-		item.Icon = text;
 	}
 }
