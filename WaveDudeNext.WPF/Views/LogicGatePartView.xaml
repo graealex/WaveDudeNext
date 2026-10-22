@@ -1,0 +1,196 @@
+﻿<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  0x23 (Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+
+<UserControl x:Class="WaveDudeNext.WPF.Views.LogicGatePartView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WaveDudeNext.WPF.Controls"
+             xmlns:converters="clr-namespace:WaveDudeNext.WPF.Converters"
+             xmlns:meta="clr-namespace:WaveDudeNext.WPF.Markup"
+             xmlns:localization="clr-namespace:WaveDudeNext.WPF.Localization"
+             xmlns:views="clr-namespace:WaveDudeNext.WPF.Views"
+             xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext">
+
+	<UserControl.Resources>
+		<converters:LogicGateLayoutConverter x:Key="Layout" />
+		<converters:EnumNameConverter x:Key="EnumName" />
+		<!-- a read-only value beside its label; the layout values bind the gate plus every input they depend on, so the text follows them -->
+		<Style x:Key="LayoutText" TargetType="{x:Type TextBlock}">
+			<Setter Property="VerticalAlignment" Value="Center" />
+		</Style>
+	</UserControl.Resources>
+
+	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+		<StackPanel Margin="8">
+			<views:PartCommonView />
+
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionDesign}" />
+			<controls:FormPanel>
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.DesignFrequency}" />
+				<controls:NumberBox Text="{Binding DesignFrequency}" Minimum="1" Maximum="255" DragStep="0.1" Decimals="2" ToolTip="{meta:Hint model:LogicGatePart.DesignFrequency}" AutomationProperties.AutomationId="PartDesignFrequency" />
+
+				<!-- read-only: the wavelength the frequency gives with the project's frequency scale -->
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelWavelength}" />
+				<TextBlock Style="{StaticResource LayoutText}" ToolTip="{DynamicResource TipGateWavelength}" AutomationProperties.AutomationId="PartWavelength">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="Wavelength">
+							<Binding /><Binding Path="Wavelength" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+			</controls:FormPanel>
+
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionMaterial}" />
+			<controls:FormPanel>
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.CoreIndex}" />
+				<controls:NumberBox Text="{Binding CoreIndex}" Minimum="1" Maximum="2.55" Increment="0.01" ToolTip="{meta:Hint model:LogicGatePart.CoreIndex}" AutomationProperties.AutomationId="PartCoreIndex" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.CladdingIndex}" />
+				<controls:NumberBox Text="{Binding CladdingIndex}" Minimum="1" Maximum="2.55" Increment="0.01" ToolTip="{meta:Hint model:LogicGatePart.CladdingIndex}" AutomationProperties.AutomationId="PartCladdingIndex" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.Coating}" />
+				<controls:NumberBox Text="{Binding Coating}" Minimum="0" Maximum="50" ToolTip="{meta:Hint model:LogicGatePart.Coating}" AutomationProperties.AutomationId="PartCoating" />
+
+				<!-- per end, so a junction between staggered gates can go without a band -->
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:LogicGatePart.InputCoated}"
+				          IsChecked="{Binding InputCoated}" ToolTip="{meta:Hint model:LogicGatePart.InputCoated}" AutomationProperties.AutomationId="PartInputCoated" />
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:LogicGatePart.OutputCoated}"
+				          IsChecked="{Binding OutputCoated}" ToolTip="{meta:Hint model:LogicGatePart.OutputCoated}" AutomationProperties.AutomationId="PartOutputCoated" />
+
+				<!-- read-only: the quarter-wave thickness for the core, the least reflecting band -->
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelQuarterWave}" />
+				<TextBlock Style="{StaticResource LayoutText}" ToolTip="{DynamicResource TipQuarterWave}" AutomationProperties.AutomationId="PartQuarterWave">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="QuarterWave">
+							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+			</controls:FormPanel>
+
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionShape}" />
+			<controls:FormPanel>
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.PortSpacing}" />
+				<!-- the spacing the design uses, so each step moves the ports; a value below the minimum springs back to it -->
+				<controls:NumberBox Text="{Binding PortSpacingUsed}" Minimum="2" Maximum="2000" Increment="2" ToolTip="{meta:Hint model:LogicGatePart.PortSpacing}" AutomationProperties.AutomationId="PartPortSpacing" />
+			</controls:FormPanel>
+
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionOutputs}" />
+			<controls:FormPanel>
+				<!-- each output by its place, ticked to let its light out; the box names what the output gives for this kind of gate -->
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.UpperOutputActive}" />
+				<CheckBox IsChecked="{Binding UpperOutputActive}" ToolTip="{meta:Hint model:LogicGatePart.UpperOutputActive}" AutomationProperties.AutomationId="PartUpperOutputActive">
+					<CheckBox.Content>
+						<MultiBinding Converter="{StaticResource EnumName}">
+							<Binding Path="UpperOutput" />
+							<Binding Path="Current" Source="{x:Static localization:LanguageController.Instance}" />
+						</MultiBinding>
+					</CheckBox.Content>
+				</CheckBox>
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.LowerOutputActive}" />
+				<CheckBox IsChecked="{Binding LowerOutputActive}" ToolTip="{meta:Hint model:LogicGatePart.LowerOutputActive}" AutomationProperties.AutomationId="PartLowerOutputActive">
+					<CheckBox.Content>
+						<MultiBinding Converter="{StaticResource EnumName}">
+							<Binding Path="LowerOutput" />
+							<Binding Path="Current" Source="{x:Static localization:LanguageController.Instance}" />
+						</MultiBinding>
+					</CheckBox.Content>
+				</CheckBox>
+			</controls:FormPanel>
+
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionLayout}" />
+			<controls:FormPanel ToolTip="{DynamicResource TipGateLayout}">
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelCoreWidth}" />
+				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartCoreWidth">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="CoreWidth">
+							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelCouplerGap}" />
+				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartCouplerGap">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="Gap">
+							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelCouplerLength}" />
+				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartCouplerLength">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="CouplerLength">
+							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelGateLength}" />
+				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartGateLength">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="Length">
+							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+			</controls:FormPanel>
+
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionPorts}" />
+			<controls:FormPanel ToolTip="{DynamicResource TipGatePorts}">
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelInputA}" />
+				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartInputA">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="InputA">
+							<Binding /><Binding Path="X" /><Binding Path="Y" /><Binding Path="Angle" /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelInputB}" />
+				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartInputB">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="InputB">
+							<Binding /><Binding Path="X" /><Binding Path="Y" /><Binding Path="Angle" /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.UpperOutputActive}" />
+				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartOutputUpper">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="OutputUpper">
+							<Binding /><Binding Path="X" /><Binding Path="Y" /><Binding Path="Angle" /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.LowerOutputActive}" />
+				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartOutputLower">
+					<TextBlock.Text>
+						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="OutputLower">
+							<Binding /><Binding Path="X" /><Binding Path="Y" /><Binding Path="Angle" /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
+			</controls:FormPanel>
+		</StackPanel>
+	</ScrollViewer>
+</UserControl>

@@ -147,7 +147,7 @@ public sealed class Project : ObservableObject
 	}
 
 	/// <summary>
-	/// Optical parts (lenses, mirrors, polygons, rectangles, ellipses, triangles, outlines, fibres, Bragg reflectors, GRIN lenses), in the order they appear in
+	/// Optical parts (lenses, mirrors, polygons, rectangles, ellipses, triangles, outlines, fibres, Bragg reflectors, GRIN lenses, XOR, AND and OR gates, zone plates), in the order they appear in
 	/// the project tree, which is the order they are painted in: a later part paints over an earlier one. One element
 	/// name per kind in the file (2026-10-18, the user's choice, so a schema can say what each element needs).
 	/// Observable; always present, empty in a new project.
@@ -161,6 +161,10 @@ public sealed class Project : ObservableObject
 	[XmlElement("Fiber", typeof(FiberPart))]
 	[XmlElement("BraggReflector", typeof(BraggReflectorPart))]
 	[XmlElement("GrinLens", typeof(GrinLensPart))]
+	[XmlElement("XorGate", typeof(XorGatePart))]
+	[XmlElement("AndGate", typeof(AndGatePart))]
+	[XmlElement("OrGate", typeof(OrGatePart))]
+	[XmlElement("ZonePlate", typeof(ZonePlatePart))]
 	[Browsable(false)]
 	public ObservableCollection<OpticalPart> Parts
 	{
@@ -336,7 +340,7 @@ public sealed class Project : ObservableObject
 
 	/// <summary>
 	/// Appends a new part of <paramref name="kind"/>, named "Lens n", "Polygon n", "Rectangle n", "Ellipse n", "Triangle n", "Outline n",
-	/// "Fiber n", "Bragg reflector n" or "GRIN lens n" with the first free n, centred on the canvas (the scene's size; an image scene's own size is not
+	/// "Fiber n", "Bragg reflector n", "GRIN lens n", "XOR gate n", "AND gate n", "OR gate n" or "Zone plate n" with the first free n, centred on the canvas (the scene's size; an image scene's own size is not
 	/// known here), and returns it.
 	/// </summary>
 	public OpticalPart AddPart(PartKind kind)
@@ -352,6 +356,10 @@ public sealed class Project : ObservableObject
 			PartKind.Fiber => new FiberPart { Points = FiberPart.DefaultPath() },
 			PartKind.BraggReflector => new BraggReflectorPart(),
 			PartKind.GrinLens => new GrinLensPart(),
+			PartKind.XorGate => new XorGatePart(),
+			PartKind.AndGate => new AndGatePart(),
+			PartKind.OrGate => new OrGatePart(),
+			PartKind.ZonePlate => new ZonePlatePart(),
 			_ => throw new ArgumentOutOfRangeException(nameof(kind)),
 		};
 		part.Name = NumberedName(PartStem(kind), Parts.Select(p => p.Name));
@@ -373,6 +381,10 @@ public sealed class Project : ObservableObject
 		PartKind.Fiber => "Fiber",
 		PartKind.BraggReflector => "Bragg reflector",
 		PartKind.GrinLens => "GRIN lens",
+		PartKind.XorGate => "XOR gate",
+		PartKind.AndGate => "AND gate",
+		PartKind.OrGate => "OR gate",
+		PartKind.ZonePlate => "Zone plate",
 		_ => "Part",
 	};
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 //
 // This file is part of WaveDude Next, a 2D wave simulator.
@@ -266,6 +266,8 @@ internal static class Program
 		CheckImport();
 		CheckParts();
 		CheckAbsorbingParts();
+		CheckXorGate();
+		CheckZonePlate();
 		CheckBrightnessFit();
 		CheckRun();
 		ExportChecks.Run(Check);
@@ -2131,6 +2133,7 @@ internal static class Program
 		OpticalPart copy = project.Duplicate(reflector);
 		Check(copy is BraggReflectorPart { Name: "Bragg reflector 1 copy", Angle: 45, Index2: 2.2 } && project.Parts.IndexOf(copy) == 8 && project.Parts.Count == 10, "Duplicate: a deep copy right after the original, named '… copy'");
 		Check(project.Remove(copy) && project.Move(reflector, 0) && project.Parts[0] == reflector && project.Parts.Count == 9, "Remove and Move work on the parts list");
+		((XorGatePart)project.AddPart(PartKind.XorGate)).DesignFrequency = 80;
 		string xml;
 		using (var stream = new MemoryStream())
 		{
@@ -2143,13 +2146,15 @@ internal static class Program
 			"an outline's points are Point children");
 		Check(xml.Contains("<Polygon Name=\"Polygon 1\" X=\"100\" Y=\"60\" />") && xml.Contains("<Rectangle Name=\"Rectangle 1\" X=\"100\" Y=\"60\" Width=\"7\" />") && xml.Contains("<Ellipse Name=\"Ellipse 1\" X=\"100\" Y=\"60\" Length=\"9\" Width=\"9\" Linked=\"true\" />") && xml.Contains("<Triangle Name=\"Triangle 1\" X=\"100\" Y=\"60\" Type=\"RightIsosceles\" AngleA=\"45\" AngleB=\"45\" />"),
 			"the polygon, rectangle, ellipse and triangle elements, sparse");
+		Check(xml.Contains("<XorGate Name=\"XOR gate 1\" X=\"100\" Y=\"60\" DesignFrequency=\"80\" />"), "the XOR gate element, sparse");
 		Check(xml.IndexOf("<Source", StringComparison.Ordinal) < 0 && xml.IndexOf("<Lens", StringComparison.Ordinal) < xml.IndexOf("<Probe", StringComparison.Ordinal) || !xml.Contains("<Probe"), "the parts sit between the sources and the probes");
 		Project back;
 		using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(xml)))
 		{
 			back = Project.Load(stream);
 		}
-		Check(back.Parts.Count == 9 && back.Parts.Select(p => p.Kind).SequenceEqual([PartKind.BraggReflector, PartKind.Lens, PartKind.Outline, PartKind.Polygon, PartKind.Rectangle, PartKind.Ellipse, PartKind.Triangle, PartKind.Fiber, PartKind.GrinLens]), "the nine kinds load back in order");
+		Check(back.Parts.Count == 10 && back.Parts.Select(p => p.Kind).SequenceEqual([PartKind.BraggReflector, PartKind.Lens, PartKind.Outline, PartKind.Polygon, PartKind.Rectangle, PartKind.Ellipse, PartKind.Triangle, PartKind.Fiber, PartKind.GrinLens, PartKind.XorGate])
+			&& back.Parts[9] is XorGatePart { DesignFrequency: 80 }, "the ten kinds load back in order");
 		Check(back.Parts[7] is FiberPart { Points.Count: 2 } loaded && loaded.Points[0].X == -100 && loaded.Points[1].X == 100, "a loaded fibre has its two points, not the default path on top of them");
 		Check(back.Parts[2] is OutlinePart { Mirror: true, Points.Count: 1 } && back.Parts[0] is BraggReflectorPart { Angle: 45, Index2: 2.2, Pairs: 10 } && back.Parts[4] is RectanglePart { Width: 7, Length: 60 } && back.Parts[5] is EllipsePart { Width: 9, Length: 9, Linked: true } && back.Parts[6] is TrianglePart { Type: TriangleType.RightIsosceles, AngleB: 45 },
 			"a loaded outline keeps its point and mirror flag, the reflector its angle and index, the rectangle its width, the triangle its type");
@@ -2164,6 +2169,334 @@ internal static class Program
 	}
 
 	private static int BlueAt(ScenePixels pixels, int x, int y) => pixels.Bgra[y * pixels.StrideBytes + x * 4];
+
+	/// <summary>
+	/// The XOR gate (2026-10-21): the mode solver against a measured straight guide, the design scaling with the wavelength,
+	/// the painted layout, and the gate itself driven by sources on its inputs (on the GPU when there is one, the CPU is
+	/// slow at this size): one input splits about evenly, both cancel at the XOR output and double at the sum output.
+	/// </summary>
+	private static void CheckXorGate()
+	{
+		Console.WriteLine("--- XOR gate");
+		// β of a straight guide (core 1.6, 8 px, cladding 1.45 with an absorbing rim, as the gate paints it), solver and engine
+		const double lambda = 16.0;
+		{
+			int w = 600, h = 120, cy = 60;
+			var clad = new RectanglePart { Name = "k", X = w / 2, Y = cy, Length = w + 40, Width = 8 + 2 * 49, RefractiveIndex = 1.45 };
+			var core = new RectanglePart { Name = "c", X = w / 2, Y = cy, Length = w + 40, Width = 8, RefractiveIndex = 1.6 };
+			ScenePixels px = PartPainter.Paint(null, w, h, 1.0, [clad, core])!;
+			for (int y = 0; y < h; y++)
+			{
+				double depth = Math.Abs(y + 0.5 - cy) - 21.0;
+				for (int x = 0; x < w && depth > 0 && depth < 32; x++)
+				{
+					px.Bgra[y * px.StrideBytes + x * 4] = (byte)Math.Round(64 * (depth / 32) * (depth / 32));
+				}
+			}
+			var source = Make(20, cy, 0, 1.0) with { Level = 255.0 * 4.0 * Math.PI / (lambda * 2.0) };
+			var sim = new WaveSimulator(SceneData.FromBgra(px.Bgra, w, h, px.StrideBytes, false, 0, true), new EngineOptions(2.0, 1.0, false, true, 10.0, 1.0), [source]);
+			double omega = 2.0 * Math.PI / lambda;
+			var lockIn = new System.Numerics.Complex[2];
+			int steps = 1100, window = 320;
+			for (int s = 0; s < steps; s++)
+			{
+				sim.AdvanceOneStep();
+				if (s >= steps - window)
+				{
+					sim.PrepareFrame(true, false);
+					var phase = System.Numerics.Complex.FromPolarCoordinates(1.0, omega * s);
+					lockIn[0] += sim.FieldData[(cy + 1) * (w + 2) + 150 + 1] * phase;
+					lockIn[1] += sim.FieldData[(cy + 1) * (w + 2) + 450 + 1] * phase;
+				}
+			}
+			// the phase grows by β per pixel along the guide; 300 px of it, known up to whole turns, the β near 0.6
+			double turn = 2.0 * Math.PI / 300.0;
+			double measured = (lockIn[1].Phase - lockIn[0].Phase) / 300.0;
+			measured += turn * Math.Round((0.6 - measured) / turn);
+			double[] rows = WaveguideModes.Rows(-57, 114, y => Math.Abs(y) <= 4 ? 1.6 : Math.Abs(y) <= 53 ? 1.45 : 1.0);
+			double? solved = WaveguideModes.Beta(rows, WaveguideModes.Omega(lambda), false);
+			Check(solved is { } beta && Math.Abs(beta - measured) < 2e-3, $"the mode solver's β {solved:0.00000} matches the engine's guide, {measured:0.00000} rad/px");
+		}
+
+		// the design follows the wavelength
+		LogicGateDesign? short_ = LogicGateDesign.For(12, 1.6, 1.45, 64, 90), standard = LogicGateDesign.For(16, 1.6, 1.45, 64, 90), long_ = LogicGateDesign.For(32, 1.6, 1.45, 64, 90);
+		Check(short_ != null && standard != null && long_ != null && short_.CoreWidth < standard.CoreWidth && standard.CoreWidth < long_.CoreWidth
+			&& new[] { short_, standard, long_ }.All(d => d.PortSpacing % 2 == 0 && d.CoupledSpacing % 2 == 0 && d.CouplerLength > 0)
+			&& long_.Length > standard.Length && long_.PortSpacing > 64,
+			$"the core widens with the wavelength ({short_?.CoreWidth}, {standard?.CoreWidth}, {long_?.CoreWidth} px at 12, 16, 32), even spacings, the ports pushed apart when the design needs it");
+		Check(new XorGatePart().Design is { Length: < 650 } && new XorGatePart { DesignFrequency = 100, CoreIndex = 2.0 }.Design is { Length: < 500 },
+			$"the gate is short: {new XorGatePart().Design?.Length} px by default (frequency 50, λ 32, core 2.55), {new XorGatePart { DesignFrequency = 100, CoreIndex = 2.0 }.Design?.Length} px at frequency 100 (λ 16) with a core of 2.0");
+		Check(Math.Abs(new XorGatePart().Wavelength - Simulation.Wavelength(50, 1.0, 2.0)) < 1e-12 && Math.Abs(new XorGatePart { FrequencyScale = 4.0 }.Wavelength - new XorGatePart().Wavelength / 2.0) < 1e-9,
+			$"the wavelength follows from the design frequency and the frequency scale: {new XorGatePart().Wavelength:0.00} px at 50, half at twice the scale");
+		Check(LogicGateDesign.For(16, 1.45, 1.45, 64, 90) == null && new XorGatePart { CoreIndex = 1.4 }.Ports() == null, "no design when the core does not guide (core index not above the cladding's)");
+		Check(LogicGateDesign.For(32, 2.55, 1.45, 2, 90) is { PhaseOnArmA: true, PhaseIndex: 2.45, PhaseLength: > 0 and < 200 } && LogicGateDesign.For(32, 2.0, 1.45, 2, 90) is { PhaseOnArmA: false, PhaseIndex: 2.1 },
+			"a core at the largest index puts its phase section on arm A, lowered; below it the section raises arm B");
+		Check(new[] { new XorGatePart(), new XorGatePart { PortSpacing = 120 }, new XorGatePart { DesignFrequency = 100, CoreIndex = 2.0 } }
+				.All(g => g.Design is { } d && d.HalfWidth == d.PortSpacing && Math.Abs(g.Outline().Max(p => Math.Abs(p.Y)) - d.PortSpacing) < 1e-9 && d.AbsorberWidth >= LogicGateDesign.MinAbsorber * d.Wavelength - 1e-9),
+			$"the unit is twice the port spacing wide, its ports at a quarter and three quarters ({new XorGatePart().Design!.PortSpacing} px spacing, {2 * new XorGatePart().Design!.PortSpacing} px wide by default)");
+		{
+			// staggered tiling: two gates a port spacing above and below, one length on, take one output each, and touch
+			var first = new XorGatePart { X = 400, Y = 300 };
+			int s = first.Design!.PortSpacing, length = first.Design.Length;
+			var upper = new XorGatePart { X = 400 + length, Y = 300 - s };
+			var lower = new XorGatePart { X = 400 + length, Y = 300 + s };
+			Check(first.Ports()![2].Y == upper.Ports()![1].Y && first.Ports()![3].Y == lower.Ports()![0].Y
+				&& upper.Outline().Max(p => upper.ToCanvas(p.X, p.Y).Y) == lower.Outline().Min(p => lower.ToCanvas(p.X, p.Y).Y),
+				"gates set a port spacing above and below the next column: the XOR output meets the upper gate's input B, the sum output the lower gate's input A, and the two touch");
+		}
+		Check(new XorGatePart { PortSpacing = 20 }.Design!.PortSpacing == new XorGatePart().Design!.PortSpacing && new XorGatePart { PortSpacing = 120 }.Design!.PortSpacing == 120,
+			$"a port spacing below the design's minimum ({new XorGatePart().Design!.PortSpacing} px) is raised to it, a larger one is used as typed");
+		Check(LogicGateDesign.BendShare(0) == 0 && Math.Abs(LogicGateDesign.BendShare(1) - 1) < 1e-12 && Math.Abs(LogicGateDesign.BendShare(0.5) - 0.5) < 1e-12,
+			"the S-bend runs from the ports' offset to the coupler's, symmetric about its middle");
+
+		// the painted layout of the default gate (core 2.55, cladding 1.45, λ 32; the phase section lowered on arm A)
+		var gate = new XorGatePart { Name = "g" };
+		LogicGateDesign design = gate.Design!;
+		// room on both sides: the open input ends let a source's backward wave out, and the canvas edge must not send it back
+		int width = design.Length + 400, height = (int)(2 * design.HalfWidth) + 200;
+		gate.X = width / 2;
+		gate.Y = height / 2;
+		ScenePixels painted = PartPainter.Paint(null, width, height, 1.0, [gate])!;
+		(int X, int Y)[] ports = gate.Ports()!;
+		int phaseX = gate.X + (int)((design.PhaseSection.Start + design.PhaseSection.End) / 2);
+		int end = gate.X + design.Length / 2 - 1;
+		Check(RedAt(painted, ports[0].X + 2, ports[0].Y) == 255 && RedAt(painted, ports[0].X + 2, ports[0].Y - design.CoreWidth / 2 - 3) == 145
+			&& RedAt(painted, phaseX, ports[0].Y) == 245 && RedAt(painted, phaseX, ports[1].Y) == 255 && RedAt(painted, ports[2].X, ports[2].Y) == 255 && RedAt(painted, gate.X, 2) == 100,
+			"cores of 2.55 in a cladding of 1.45, the phase section of 2.45 on arm A only, the scene untouched beyond");
+		int start = gate.X - design.Length / 2 + 1;
+		Check(RedAt(painted, end, ports[2].Y) == 160 && RedAt(painted, end, ports[2].Y - design.CoreWidth / 2 - 3) == 120 && RedAt(painted, start, ports[0].Y) == 160
+			&& RedAt(painted, end - gate.Coating - 1, ports[2].Y) == 255,
+			"both ends carry the AR band: √2.55 on the cores, √1.45 on the cladding, the coating's thickness deep");
+		gate.UpperOutputActive = false;
+		ScenePixels switched = PartPainter.Paint(null, width, height, 1.0, [gate])!;
+		gate.UpperOutputActive = true;
+		Check(BlueAt(switched, end, ports[2].Y) > 50 && BlueAt(switched, end, ports[3].Y) == 0 && BlueAt(switched, ports[2].X, ports[2].Y) == 0
+			&& BlueAt(switched, end - design.OutputRampLength / 2, ports[2].Y) is > 5 and < 30,
+			$"a switched-off XOR output absorbs in its arm's last stretch, rising softly ({BlueAt(switched, end - design.OutputRampLength / 2, ports[2].Y)} halfway, {BlueAt(switched, end, ports[2].Y)} at the end); the sum arm and the port stay clear");
+		Check(BlueAt(painted, ports[0].X + 2, ports[0].Y) == 0 && BlueAt(painted, gate.X, gate.Y) == 0 && BlueAt(painted, ports[2].X, ports[2].Y) == 0
+			&& BlueAt(painted, gate.X - design.Length / 2 + 1, ports[0].Y) == 0 && BlueAt(painted, ports[2].X, ports[2].Y - (int)(design.HalfWidth - design.PortSpacing / 2.0) + 1) > 50,
+			"no absorption along the cores, the coupler, the outputs or the open input ends; the cladding's rim absorbs");
+
+		// driven by sources on its inputs
+		SceneData scene = SceneData.FromBgra(painted.Bgra, width, height, painted.StrideBytes, false, 0, true);
+		double level = gate.DesignFrequency;
+		(double Xor, double Sum, double Past) Outputs(List<Emitter> emitters, SceneData? other = null)
+		{
+			SceneData run = other ?? scene;
+			var options = new EngineOptions(2.0, 1.0, false, true, 10.0, 1.0);
+			IWaveEngine engine = GpuWaveSimulator.TryCreate(run, options, emitters, out _) is { } gpu ? gpu : new WaveSimulator(run, options, emitters);
+			// the wave crosses the gate in about 1.6 steps a pixel; the rest lets it settle into a steady state; ten periods averaged
+			int lambda = (int)Math.Round(design.Wavelength);
+			int steps = 2 * design.Length + 60 * lambda, window = 10 * lambda, half = design.CoreWidth / 2 + 2;
+			int beyond = end + lambda;
+			double xor = 0, sum = 0, past = 0;
+			for (int s = 0; s < steps; s++)
+			{
+				engine.AdvanceOneStep();
+				if (s >= steps - window)
+				{
+					engine.PrepareFrame(true, false);
+					float[] u = engine.FieldData;
+					// over the core and half a wavelength along it
+					for (int dx = -lambda / 2; dx < lambda / 2; dx++)
+					{
+						for (int dy = -half; dy <= half; dy++)
+						{
+							float a = u[(ports[2].Y + dy + 1) * (width + 2) + ports[2].X + dx + 1];
+							float b = u[(ports[3].Y + dy + 1) * (width + 2) + ports[3].X + dx + 1];
+							xor += a * a;
+							sum += b * b;
+						}
+					}
+					// what leaves the outputs: a column a wavelength past the right end, a quarter of the unit's width about each
+					// output (the open input ends let a source's backward wave into the scene, which passes the gate outside)
+					foreach (int py in new[] { ports[2].Y, ports[3].Y })
+					{
+						for (int y = py - design.PortSpacing / 2; y < py + design.PortSpacing / 2; y++)
+						{
+							float c = u[(y + 1) * (width + 2) + beyond + 1];
+							past += c * c;
+						}
+					}
+				}
+			}
+			(engine as IDisposable)?.Dispose();
+			return (xor, sum, past);
+		}
+		var sw = System.Diagnostics.Stopwatch.StartNew();
+		(double xorA, double sumA, double pastA) = Outputs([Make(ports[0].X, ports[0].Y, 0, 1.0) with { Level = level }]);
+		(double xorAB, double sumAB, _) = Outputs([Make(ports[0].X, ports[0].Y, 0, 1.0) with { Level = level }, Make(ports[1].X, ports[1].Y, 0, 1.0) with { Level = level }]);
+		double single = xorA + sumA;
+		Check(Math.Abs(xorA / single - 0.5) < 0.1, $"one input splits about evenly: {xorA / single:0.000} to the XOR output");
+		CheckGatePortFollower();
+		Check(xorAB / single < 0.03 && sumAB / single > 1.8, $"both inputs: the XOR output keeps {xorAB / single:0.000} of one input's power, the sum output {sumAB / single:0.00}× ({sw.ElapsedMilliseconds} ms)");
+		gate.UpperOutputActive = false;
+		gate.LowerOutputActive = false;
+		ScenePixels closed = PartPainter.Paint(null, width, height, 1.0, [gate])!;
+		gate.UpperOutputActive = true;
+		gate.LowerOutputActive = true;
+		(_, _, double pastClosed) = Outputs([Make(ports[0].X, ports[0].Y, 0, 1.0) with { Level = level }], SceneData.FromBgra(closed.Bgra, width, height, closed.StrideBytes, false, 0, true));
+		Check(pastClosed < 0.01 * pastA, $"both outputs switched off: {pastClosed / pastA:0.0000} of the light that left the open gate gets out");
+
+		// AND and OR (2026-10-22): the same unit with another phase shift, the same dimensions and ports
+		foreach (LogicGatePart other in new LogicGatePart[] { new AndGatePart { X = gate.X, Y = gate.Y }, new OrGatePart { X = gate.X, Y = gate.Y } })
+		{
+			Check(other.Design!.Length == design.Length && other.Design.PortSpacing == design.PortSpacing && other.Ports()!.SequenceEqual(ports),
+				$"the {other.Kind} has the XOR gate's dimensions and ports ({2 * other.Design.PortSpacing} × {other.Design.Length} px; phase section {other.Design.PhaseLength} of {other.Design.PhaseRegionLength} px on arm {(other.Design.PhaseOnArmA ? "A" : "B")})");
+			ScenePixels otherPixels = PartPainter.Paint(null, width, height, 1.0, [other])!;
+			SceneData otherScene = SceneData.FromBgra(otherPixels.Bgra, width, height, otherPixels.StrideBytes, false, 0, true);
+			(double upperA, double lowerA, _) = Outputs([Make(ports[0].X, ports[0].Y, 0, 1.0) with { Level = level }], otherScene);
+			(double upperAB, double lowerAB, _) = Outputs([Make(ports[0].X, ports[0].Y, 0, 1.0) with { Level = level }, Make(ports[1].X, ports[1].Y, 0, 1.0) with { Level = level }], otherScene);
+			double one = upperA + lowerA;
+			string table = $"one input {upperA / one:0.00} up / {lowerA / one:0.00} down, both {upperAB / one:0.00} up / {lowerAB / one:0.00} down";
+			if (other is AndGatePart)
+			{
+				Check(upperAB > 3.0 * upperA && lowerAB < 0.03 * one, "AND: the upper output 3 to 4 × as bright with both inputs as with one, the lower (XOR) dark: " + table);
+			}
+			else
+			{
+				Check(upperAB > 0.8 * upperA && upperAB < 1.2 * upperA && lowerAB > 2.4 * lowerA, "OR: the upper output as bright with both inputs as with one, the lower about 3 ×: " + table);
+			}
+		}
+	}
+
+	/// <summary>
+	/// The zone plate (2026-10-22): the zone radii, the painted blocks (blue only, rising from the faces, sharp at the sides),
+	/// the inverse, the frequency scale handed over, the file element, and a plane wave focused near the focal length (on the
+	/// GPU when there is one).
+	/// </summary>
+	private static void CheckZonePlate()
+	{
+		Console.WriteLine("--- zone plate");
+		var plate = new ZonePlatePart { Name = "z", Diameter = 480, FocalLength = 360 };
+		double lambda = plate.Wavelength, f = plate.FocalLength;
+		double Radius(int n) => Math.Sqrt(n * lambda * f + n * lambda / 2.0 * (n * lambda / 2.0));
+		Check(plate.ZoneAt(Radius(1) - 0.5) == 0 && plate.ZoneAt(Radius(1) + 0.5) == 1 && plate.ZoneAt(Radius(3) + 0.5) == 3
+			&& !plate.IsBlockAt(0) && plate.IsBlockAt(Radius(1) + 1) && !plate.IsBlockAt(Radius(2) + 1) && plate.ZoneCount == plate.ZoneAt(240) + 1,
+			$"the zones change at rₙ = √(nλf + (nλ/2)²) ({Radius(1):0.0}, {Radius(2):0.0}, {Radius(3):0.0} px), the central one open, {plate.ZoneCount} within the diameter");
+		plate.Inverse = true;
+		Check(plate.IsBlockAt(0) && !plate.IsBlockAt(Radius(1) + 1), "inverse: the central zone a block, the first ring open");
+		plate.Inverse = false;
+
+		const int width = 960, height = 640, cx = 240, cy = 320;
+		plate.X = cx;
+		plate.Y = cy;
+		ScenePixels painted = PartPainter.Paint(null, width, height, 1.0, [plate])!;
+		int blockY = cy + (int)Math.Round((Radius(1) + Radius(2)) / 2.0);
+		Check(BlueAt(painted, cx, blockY) >= ZonePlatePart.BlockAbsorption - 4 && BlueAt(painted, cx, cy) == 0 && BlueAt(painted, cx - plate.Thickness / 2, blockY) < 10
+			&& BlueAt(painted, cx - plate.Thickness / 4, blockY) is > 10 and < 60 && RedAt(painted, cx, blockY) == 100 && BlueAt(painted, cx, cy + (int)Radius(1) - 2) == 0 && BlueAt(painted, cx, cy + (int)Radius(1) + 2) > 50,
+			$"a block absorbs {ZonePlatePart.BlockAbsorption} in its middle, rising from its faces ({BlueAt(painted, cx - plate.Thickness / 4, blockY)} halfway in), sharp at its sides, the index untouched; the central zone clear");
+
+		var project = new Project();
+		project.Parts.Add(plate);
+		using (new GatePortFollower(project))
+		{
+			project.Simulation.SourceFrequencyScale = 4.0;
+			Check(plate.FrequencyScale == 4.0 && Math.Abs(plate.Wavelength - lambda / 2.0) < 1e-9, "the simulation's frequency scale reaches the zone plate, halving its wavelength at twice the scale");
+			project.Simulation.SourceFrequencyScale = 2.0;
+		}
+		string xml;
+		using (var stream = new MemoryStream())
+		{
+			project.Save(stream);
+			xml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+		}
+		Check(xml.Contains("<ZonePlate Name=\"z\" X=\"240\" Y=\"320\" Diameter=\"480\" FocalLength=\"360\" />"), "the zone plate element, sparse");
+
+		// a plane wave from a line of emitters, focused behind the plate
+		var emitters = new List<Emitter>();
+		for (int y = 10; y < height - 10; y++)
+		{
+			emitters.Add(Make(60, y, 0, 0.05) with { Level = plate.DesignFrequency });
+		}
+		double[] Axis(ScenePixels? pixels)
+		{
+			SceneData scene = pixels != null ? SceneData.FromBgra(pixels.Bgra, width, height, pixels.StrideBytes, false, 0, true) : SceneData.Empty(width, height, 0, 1.0, true);
+			var options = new EngineOptions(2.0, 1.0, false, true, 10.0, 1.0);
+			IWaveEngine engine = GpuWaveSimulator.TryCreate(scene, options, emitters, out _) is { } gpu ? gpu : new WaveSimulator(scene, options, emitters);
+			int steps = 1600, window = (int)Math.Round(10 * lambda);
+			var lockIn = new System.Numerics.Complex[width];
+			for (int s = 0; s < steps; s++)
+			{
+				engine.AdvanceOneStep();
+				if (s >= steps - window)
+				{
+					engine.PrepareFrame(true, false);
+					var phase = System.Numerics.Complex.FromPolarCoordinates(1.0, 2.0 * Math.PI / lambda * s);
+					for (int x = 0; x < width; x++)
+					{
+						lockIn[x] += engine.FieldData[(cy + 1) * (width + 2) + x + 1] * phase;
+					}
+				}
+			}
+			(engine as IDisposable)?.Dispose();
+			return [.. lockIn.Select(c => c.Magnitude * c.Magnitude)];
+		}
+		var sw = System.Diagnostics.Stopwatch.StartNew();
+		double[] focused = Axis(painted), free = Axis(null);
+		int peak = Enumerable.Range(cx + 100, width - cx - 140).MaxBy(x => focused[x]);
+		// the light that passes outside the diameter meets the focused light on the axis and pushes the peak on: measured
+		// 2026-10-22, 5 zones 30 % beyond the focal length, 8 zones 3 %; an absorbing surround brought the 5 back to 6 %
+		Check(peak - cx > 0.95 * f && peak - cx < 1.35 * f && focused[peak] > 2.0 * free[peak],
+			$"a plane wave comes to a focus {peak - cx} px behind the plate (focal length {f}; the light passing outside pushes it on), {focused[peak] / free[peak]:0.0} × as bright as without it ({sw.ElapsedMilliseconds} ms)");
+
+		// the mount: absorbing beyond the diameter, so the focus comes back toward the focal length
+		Check(BlueAt(painted, cx, cy + 240 + 30) == 0 && plate.Outline().Max(p => p.Y) == 240, "without a mount nothing absorbs beyond the diameter");
+		plate.Mount = true;
+		plate.MountWidth = 120;
+		ScenePixels mounted = PartPainter.Paint(null, width, height, 1.0, [plate])!;
+		Check(BlueAt(mounted, cx, cy + 240 + 30) >= ZonePlatePart.BlockAbsorption - 4 && BlueAt(mounted, cx, cy - 240 - 30) >= ZonePlatePart.BlockAbsorption - 4
+			&& BlueAt(mounted, cx, cy) == 0 && plate.Outline().Max(p => p.Y) == 360,
+			"the mount absorbs on both sides beyond the diameter, the outline grown by its width");
+		double[] withMount = Axis(mounted);
+		int mountedPeak = Enumerable.Range(cx + 100, width - cx - 140).MaxBy(x => withMount[x]);
+		Check(Math.Abs(mountedPeak - cx - f) < Math.Abs(peak - cx - f) && mountedPeak - cx < 1.15 * f && withMount[mountedPeak] > 2.0 * free[mountedPeak],
+			$"with the mount the focus lies {mountedPeak - cx} px behind the plate (focal length {f}), {withMount[mountedPeak] / free[mountedPeak]:0.0} × as bright as without a plate");
+		using (var stream = new MemoryStream())
+		{
+			project.Save(stream);
+			xml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+		}
+		Check(xml.Contains("<ZonePlate Name=\"z\" X=\"240\" Y=\"320\"") && xml.Contains(" Mount=\"true\"") && xml.Contains(" MountWidth=\"120\""), "the mount in the file");
+	}
+
+	/// <summary>Sources on a gate's inputs follow the gate (2026-10-21): spacing, position, angle, a group move, a gate added later; others stay.</summary>
+	private static void CheckGatePortFollower()
+	{
+		var project = new Project();
+		var gate = (XorGatePart)project.AddPart(PartKind.XorGate);
+		(int X, int Y)[] ports = gate.Ports()!;
+		var a = new Source { Name = "A", X = ports[0].X, Y = ports[0].Y };
+		var b = new Source { Name = "B", X = ports[1].X + 1, Y = ports[1].Y - 1 };
+		var away = new Source { Name = "away", X = 100, Y = 100 };
+		project.Sources.Add(a);
+		project.Sources.Add(b);
+		project.Sources.Add(away);
+		bool OnInputs() => gate.Ports() is { } p && (a.X, a.Y) == p[0] && (b.X, b.Y) == p[1];
+		using (new GatePortFollower(project))
+		{
+			gate.PortSpacing = 100;
+			Check(OnInputs() && gate.Ports()![1].Y - gate.Ports()![0].Y == 100 && (away.X, away.Y) == (100, 100),
+				"a wider port spacing takes the sources on the inputs along (one a pixel off its port), not the one elsewhere");
+			gate.X += 40;
+			gate.Angle = 90;
+			gate.DesignFrequency = 70;
+			Check(OnInputs(), $"they follow a move, a turn and a new design frequency: A ({a.X}, {a.Y}), B ({b.X}, {b.Y})");
+			project.Simulation.SourceFrequencyScale = 2.5;
+			Check(gate.FrequencyScale == 2.5 && OnInputs(), "the simulation's frequency scale reaches the gate, and the sources follow the ports it moves");
+			(int X, int Y) bBefore = (b.X, b.Y);
+			Movable.MoveAll([gate, a], 7, -3);
+			Check(OnInputs() && (b.X, b.Y) == (bBefore.X + 7, bBefore.Y - 3), "a group move of the gate with A moves A once, and B follows the gate");
+			var second = (XorGatePart)project.AddPart(PartKind.XorGate);
+			second.Y = 200;
+			var c = new Source { Name = "C", X = second.Ports()![0].X, Y = second.Ports()![0].Y };
+			project.Sources.Add(c);
+			second.PortSpacing = 80;
+			Check((c.X, c.Y) == second.Ports()![0], "a gate added later is followed too");
+		}
+		gate.PortSpacing = 140;
+		Check(!OnInputs(), "after Dispose nothing follows");
+	}
 
 	private static void CheckAbsorbingParts()
 	{

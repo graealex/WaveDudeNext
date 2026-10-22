@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 SPDX-License-Identifier: GPL-3.0-or-later
 Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 
@@ -123,6 +123,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuAddFiber">_Fibre</s:String>
 	<s:String x:Key="MenuAddBraggReflector">Réflecteur de _Bragg</s:String>
 	<s:String x:Key="MenuAddGrinLens">Lentille _GRIN</s:String>
+	<s:String x:Key="MenuAddZonePlate">Lame à _zones</s:String>
+	<s:String x:Key="MenuAddOpticalLogic">Log_ique optique</s:String>
+	<s:String x:Key="MenuAddXorGate">_XOR (Mach-Zehnder)</s:String>
+	<s:String x:Key="MenuAddAndGate">_AND (ET)</s:String>
+	<s:String x:Key="MenuAddOrGate">_OR (OU)</s:String>
 	<s:String x:Key="MenuProjectToggleEnabled">_Activé</s:String>
 	<s:String x:Key="MenuProjectDuplicate">_Dupliquer</s:String>
 	<s:String x:Key="MenuProjectRemove">_Supprimer</s:String>
@@ -266,6 +271,25 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="SectionCore">Cœur</s:String>
 	<s:String x:Key="SectionCladding">Gaine</s:String>
 	<s:String x:Key="SectionLayers">Couches</s:String>
+	<s:String x:Key="SectionDesign">Conception</s:String>
+	<s:String x:Key="SectionLayout">Disposition</s:String>
+	<s:String x:Key="SectionPorts">Ports</s:String>
+	<s:String x:Key="SectionOutputs">Sorties actives</s:String>
+	<s:String x:Key="TipGateWavelength">La longueur d'onde que donne la fréquence de conception dans un milieu d'indice 1, avec l'échelle de fréquence des sources de la simulation</s:String>
+	<s:String x:Key="LabelQuarterWave">Traitement quart d'onde</s:String>
+	<s:String x:Key="TipQuarterWave">L'épaisseur du traitement le moins réfléchissant sur le cœur, λ / (4 √n)</s:String>
+	<s:String x:Key="LabelCoreWidth">Largeur du cœur</s:String>
+	<s:String x:Key="LabelCouplerGap">Écart du coupleur</s:String>
+	<s:String x:Key="LabelCouplerLength">Longueur du coupleur</s:String>
+	<s:String x:Key="LabelGateLength">Longueur totale</s:String>
+	<s:String x:Key="TipGateLayout">Calculé à partir de la longueur d'onde de conception et des indices avec l'équation d'onde du simulateur lui-même (le laplacien du 4e ordre)</s:String>
+	<s:String x:Key="LabelInputA">Entrée A</s:String>
+	<s:String x:Key="LabelInputB">Entrée B</s:String>
+	<s:String x:Key="TipGatePorts">Pixels du canevas. Alimentez les entrées avec des ondes identiques (même fréquence, amplitude et phase) ; une onde absente est un 0 logique. Les sorties tombent sur les entrées des portes placées un écart de ports plus haut et plus bas, une longueur plus loin</s:String>
+	<s:String x:Key="SectionZones">Zones</s:String>
+	<s:String x:Key="LabelZoneCount">Nombre de zones</s:String>
+	<s:String x:Key="LabelOuterZone">Zone la plus externe</s:String>
+	<s:String x:Key="TipZones">Les zones que la lame reçoit dans son diamètre, et la largeur de la dernière zone entière, que la grille doit résoudre (au moins quelques pixels)</s:String>
 	<s:String x:Key="SectionPoints">Points</s:String>
 	<s:String x:Key="HintPolygonPoints">Sommets du contour par rapport au centre, avant rotation. Vide : le polygone régulier ci-dessus est utilisé.</s:String>
 	<s:String x:Key="HintFiberPoints">Sommets du trajet par rapport au centre, avant rotation.</s:String>
@@ -627,6 +651,44 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.GrinLensPart.EdgeIndex">Indice de réfraction au bord, de 1,00 à 2,55 par pas de 0,01. Le profil entre l'axe et le bord est parabolique.</s:String>
 	<s:String x:Key="Label.GrinLensPart.Coating">Traitement antireflet</s:String>
 	<s:String x:Key="Hint.GrinLensPart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur du contour, d'indice √n ; 0 pour aucune.</s:String>
+	<s:String x:Key="Label.LogicGatePart.DesignFrequency">Fréquence de conception</s:String>
+	<s:String x:Key="Hint.LogicGatePart.DesignFrequency">La fréquence de source pour laquelle la porte est conçue, sur la même échelle que la fréquence d'une source : celle des sources qui l'alimentent. La longueur d'onde, et d'elle la largeur des cœurs, le coupleur et la section de phase, en découlent ; la porte ne fonctionne donc qu'à cette fréquence.</s:String>
+	<s:String x:Key="Label.LogicGatePart.Coating">Traitement antireflet</s:String>
+	<s:String x:Key="Hint.LogicGatePart.Coating">Épaisseur en pixels de la bande antireflet aux extrémités cochées ci-dessous, d'indice √n du cœur et de la gaine ; 0 pour aucune. Une bande quart d'onde, la moins réfléchissante, a une épaisseur de λ / (4 √n) pixels ; le formulaire l'affiche pour le cœur.</s:String>
+	<s:String x:Key="Label.LogicGatePart.InputCoated">Antireflet côté entrée</s:String>
+	<s:String x:Key="Hint.LogicGatePart.InputCoated">Mettre la bande antireflet à l'extrémité d'entrée. La désactiver là où la porte reçoit sa lumière d'une porte précédente, pour que l'onde traverse la jonction.</s:String>
+	<s:String x:Key="Label.LogicGatePart.OutputCoated">Antireflet côté sortie</s:String>
+	<s:String x:Key="Hint.LogicGatePart.OutputCoated">Mettre la bande antireflet à l'extrémité de sortie. La désactiver là où la porte transmet sa lumière à une porte suivante, pour que l'onde traverse la jonction.</s:String>
+	<s:String x:Key="Label.LogicGatePart.UpperOutputActive">Sortie haute</s:String>
+	<s:String x:Key="Hint.LogicGatePart.UpperOutputActive">Laisser la lumière de la sortie haute quitter la porte. Désactivée, un absorbeur à montée douce la prend dans le dernier tronçon du bras.</s:String>
+	<s:String x:Key="Label.LogicGatePart.LowerOutputActive">Sortie basse</s:String>
+	<s:String x:Key="Hint.LogicGatePart.LowerOutputActive">Laisser la lumière de la sortie basse quitter la porte. Désactivée, un absorbeur à montée douce la prend dans le dernier tronçon du bras.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.DesignFrequency">Fréquence cible</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.DesignFrequency">La fréquence de source pour laquelle la lame est conçue, sur la même échelle que la fréquence d&apos;une source. Les zones découlent de la longueur d&apos;onde qu&apos;elle donne ; la lame focalise donc cette fréquence à la distance focale, les autres ailleurs.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.FocalLength">Distance focale</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.FocalLength">Distance en pixels de la lame à son foyer, pour une onde plane arrivant le long de l&apos;axe.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Inverse">Inversée</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Inverse">Échanger les zones : la zone centrale devient un bloc, le premier anneau ouvert, et ainsi de suite. Le foyer reste en place.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Diameter">Diamètre</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Diameter">Étendue perpendiculaire à l&apos;axe en pixels ; les zones la remplissent.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Thickness">Épaisseur</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Thickness">Étendue le long de l&apos;axe en pixels : la profondeur des blocs. Elle doit laisser la place à la montée antireflet sur les deux faces.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Coating">Antireflet</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Coating">Profondeur en pixels sur laquelle l&apos;absorption d&apos;un bloc monte de rien sur ses faces à sa pleine force, pour que les blocs réfléchissent peu ; au plus la moitié de l&apos;épaisseur compte.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.Mount">Monture</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.Mount">Entourer la lame d&apos;une monture absorbante, pour qu&apos;aucune lumière ne passe hors de son diamètre. Sans elle, cette lumière rencontre la lumière focalisée sur l&apos;axe et repousse le foyer, d&apos;autant plus que la lame a peu de zones.</s:String>
+	<s:String x:Key="Label.ZonePlatePart.MountWidth">Largeur de la monture</s:String>
+	<s:String x:Key="Hint.ZonePlatePart.MountWidth">Largeur en pixels de la monture absorbante de chaque côté, au-delà du diamètre.</s:String>
+	<s:String x:Key="Enum.GateOutput.Xor">XOR : sombre avec les deux</s:String>
+	<s:String x:Key="Enum.GateOutput.And">AND : 4 fois plus avec les deux</s:String>
+	<s:String x:Key="Enum.GateOutput.Or">OR : pareil pour une ou deux</s:String>
+	<s:String x:Key="Enum.GateOutput.Remainder">Reste : 3 fois avec les deux</s:String>
+	<s:String x:Key="Label.LogicGatePart.CoreIndex">Indice du cœur</s:String>
+	<s:String x:Key="Hint.LogicGatePart.CoreIndex">Indice de réfraction des cœurs des guides, de 1,00 à 2,55 par pas de 0,01. Il doit dépasser celui de la gaine ; plus l'écart est grand, plus les cœurs sont étroits et les courbes serrées.</s:String>
+	<s:String x:Key="Label.LogicGatePart.CladdingIndex">Indice de la gaine</s:String>
+	<s:String x:Key="Hint.LogicGatePart.CladdingIndex">Indice de réfraction de la gaine autour des cœurs, de 1,00 à 2,55 par pas de 0,01.</s:String>
+	<s:String x:Key="Label.LogicGatePart.PortSpacing">Écart des ports</s:String>
+	<s:String x:Key="Hint.LogicGatePart.PortSpacing">Distance entre les deux entrées, et entre les deux sorties, en pixels. Une valeur inférieure à ce que la conception exige pour garder les bras séparés y est relevée, et la case affiche l'écart utilisé.</s:String>
 	<s:String x:Key="Enum.PartKind.Lens">Lentille ou miroir</s:String>
 	<s:String x:Key="Enum.PartKind.Polygon">Polygone</s:String>
 	<s:String x:Key="Enum.PartKind.Rectangle">Rectangle</s:String>
@@ -636,6 +698,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Enum.PartKind.Fiber">Fibre</s:String>
 	<s:String x:Key="Enum.PartKind.BraggReflector">Réflecteur de Bragg</s:String>
 	<s:String x:Key="Enum.PartKind.GrinLens">Lentille GRIN</s:String>
+	<s:String x:Key="Enum.PartKind.XorGate">Porte XOR</s:String>
+	<s:String x:Key="Enum.PartKind.AndGate">Porte AND</s:String>
+	<s:String x:Key="Enum.PartKind.OrGate">Porte OR</s:String>
+	<s:String x:Key="Enum.PartKind.ZonePlate">Lame à zones</s:String>
 	<s:String x:Key="Enum.TriangleType.Equilateral">Équilatéral</s:String>
 	<s:String x:Key="Enum.TriangleType.RightIsosceles">Rectangle isocèle (45°)</s:String>
 	<s:String x:Key="Enum.TriangleType.ThirtySixtyNinety">30-60-90</s:String>

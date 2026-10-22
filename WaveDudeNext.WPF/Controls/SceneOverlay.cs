@@ -531,8 +531,8 @@ public sealed class SceneOverlay : Panel
 	};
 
 	/// <summary>
-	/// Where a part's size grip sits in the part frame: the corner of a rectangle or an ellipse's box, lens (thickness, diameter), GRIN lens
-	/// or Bragg stack, the first vertex of a polygon, the second end of a triangle's base; null for a kind without one.
+	/// Where a part's size grip sits in the part frame: the corner of a rectangle or an ellipse's box, lens (thickness, diameter), GRIN lens,
+	/// Bragg stack or zone plate, the first vertex of a polygon, the second end of a triangle's base; null for a kind without one.
 	/// </summary>
 	private static (double X, double Y)? GripOf(OpticalPart part) => part switch
 	{
@@ -543,6 +543,7 @@ public sealed class SceneOverlay : Panel
 		TrianglePart triangle => triangle.Vertices()[1],
 		GrinLensPart grin => (grin.Length / 2.0, grin.Diameter / 2.0),
 		BraggReflectorPart bragg => (bragg.Length / 2.0, bragg.Width / 2.0),
+		ZonePlatePart plate => (plate.Thickness / 2.0, plate.Diameter / 2.0),
 		_ => null,
 	};
 
@@ -581,6 +582,10 @@ public sealed class SceneOverlay : Panel
 				break;
 			case BraggReflectorPart bragg:
 				bragg.Width = Math.Max(2, across);
+				break;
+			case ZonePlatePart plate:
+				plate.Thickness = Math.Max(1, along);
+				plate.Diameter = Math.Max(2, across);
 				break;
 		}
 	}

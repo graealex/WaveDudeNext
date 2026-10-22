@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 //
 // This file is part of WaveDude Next, a 2D wave simulator.
@@ -65,14 +65,18 @@ public static class Movable
 		return (dx, dy);
 	}
 
-	/// <summary>Moves every item by the same delta; nothing happens for a zero delta.</summary>
+	/// <summary>
+	/// Moves every item by the same delta; nothing happens for a zero delta. The optical parts move last: a source on an
+	/// logic gate's input follows the gate by itself (<see cref="Parts.GatePortFollower"/>), so a source moved with the group
+	/// must have left the old port before the gate moves, or it would be moved twice.
+	/// </summary>
 	public static void MoveAll(IEnumerable<IMovable> items, int dx, int dy)
 	{
 		if (dx == 0 && dy == 0)
 		{
 			return;
 		}
-		foreach (IMovable item in items)
+		foreach (IMovable item in items.OrderBy(item => item is OpticalPart ? 1 : 0))
 		{
 			item.MoveBy(dx, dy);
 		}

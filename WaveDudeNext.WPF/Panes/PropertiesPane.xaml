@@ -70,6 +70,18 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<DataTemplate DataType="{x:Type model:GrinLensPart}">
 			<views:GrinLensPartView />
 		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:ZonePlatePart}">
+			<views:ZonePlatePartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:XorGatePart}">
+			<views:LogicGatePartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:AndGatePart}">
+			<views:LogicGatePartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:OrGatePart}">
+			<views:LogicGatePartView />
+		</DataTemplate>
 		<DataTemplate DataType="{x:Type model:Probe}">
 			<views:ProbeView />
 		</DataTemplate>

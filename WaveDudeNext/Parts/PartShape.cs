@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 //
 // This file is part of WaveDude Next, a 2D wave simulator.
@@ -58,6 +58,8 @@ public abstract class PartShape
 			FiberPart fiber => fiber.Points.Count < 2 ? null : new FiberShape(fiber),
 			BraggReflectorPart bragg => new BraggShape(bragg),
 			GrinLensPart grin => new GrinShape(grin),
+			LogicGatePart gate => gate.Design is { } design ? new LogicGateShape(gate, design) : null,
+			ZonePlatePart plate => double.IsFinite(plate.Wavelength) && plate.Wavelength > 0.0 ? new ZonePlateShape(plate) : null,
 			_ => null,
 		};
 	}
@@ -90,6 +92,18 @@ public abstract class PartShape
 		t = Math.Clamp(t, 0.0, 1.0);
 		return t * t;
 	}
+
+	/// <summary>
+	/// The share of <see cref="Absorption"/> the painter gives the canvas point (<paramref name="canvasX"/>,
+	/// <paramref name="canvasY"/>), which lies <paramref name="depth"/> pixels inside the outline: by default
+	/// <see cref="AbsorptionProfile"/> of the depth over <paramref name="ramp"/>, rising inward. A shape that absorbs at
+	/// its rim instead (a logic gate's cladding) overrides it.
+	/// </summary>
+	public virtual double AbsorptionShareAt(double canvasX, double canvasY, double depth, double ramp) =>
+		AbsorptionProfile(ramp > 0.0 ? depth / ramp : 1.0);
+
+	/// <summary>Whether the part paints a refractive index into the red channel; false for a part that only absorbs (a zone plate), whose red stays as it was.</summary>
+	public virtual bool PaintsIndex => true;
 
 	/// <summary>
 	/// Whether the index steps somewhere inside the outline (a Bragg stack's layers), so a pixel well inside still
@@ -390,6 +404,143 @@ public abstract class PartShape
 		{
 			double t = y / _halfDiameter;
 			return _centreIndex - (_centreIndex - _edgeIndex) * t * t;
+		}
+	}
+
+	/// <summary>
+	/// A zone plate (<see cref="ZonePlatePart"/>): the plate's rectangle, its blocks absorbing and nothing painted into the
+	/// red channel. A block's absorption rises from nothing at the faces across the axis (x' = ±thickness / 2) over the
+	/// anti-reflection depth, shortened to half the thickness; its sides toward the open zones are sharp. The mount, when on,
+	/// is a block beyond the diameter out to the outer half-width.
+	/// </summary>
+	private sealed class ZonePlateShape : PartShape
+	{
+		private readonly ZonePlatePart _plate;
+		private readonly double _halfThickness;
+		private readonly double _halfDiameter;
+		private readonly double _outerHalfWidth;
+		private readonly double _ramp;
+
+		public ZonePlateShape(ZonePlatePart plate) : base(plate)
+		{
+			// a copy, so the painter's threads read values that do not change under them
+			_plate = (ZonePlatePart)plate.Clone();
+			_halfThickness = Math.Max(1, plate.Thickness) / 2.0;
+			_halfDiameter = Math.Max(2, plate.Diameter) / 2.0;
+			_outerHalfWidth = plate.OuterHalfWidth;
+			_ramp = Math.Min(Math.Max(0, plate.Coating), _halfThickness);
+		}
+
+		public override bool IsMirror => false;
+		protected override int Coating => 0;
+		public override bool PaintsIndex => false;
+		public override int Absorption => ZonePlatePart.BlockAbsorption;
+		public override int AbsorptionRamp => Math.Max(1, (int)Math.Ceiling(_ramp));
+		protected override double Extent => Math.Sqrt(_halfThickness * _halfThickness + _outerHalfWidth * _outerHalfWidth);
+		protected override double Depth(double x, double y) => Math.Min(_halfThickness - Math.Abs(x), _outerHalfWidth - Math.Abs(y));
+		protected override double BodyIndex(double x, double y) => 1.0;
+
+		/// <summary>Nothing in an open zone; in a block or the mount, rising quadratically from the faces across the axis over the ramp.</summary>
+		public override double AbsorptionShareAt(double canvasX, double canvasY, double depth, double ramp)
+		{
+			(double x, double y) = ToFrame(canvasX, canvasY);
+			double across = Math.Abs(y);
+			if (across > _outerHalfWidth || across <= _halfDiameter && !_plate.IsBlockAt(y))
+			{
+				return 0.0;
+			}
+			double inside = _halfThickness - Math.Abs(x);
+			return _ramp > 0.0 ? AbsorptionProfile(inside / _ramp) : 1.0;
+		}
+	}
+
+	/// <summary>
+	/// A logic gate (<see cref="LogicGateDesign"/>): two arms mirrored about the axis, each a core in its cladding, cut square at
+	/// both ends; the distance from an arm is the offset across the axis times the cosine of the arm's slope, the first-order
+	/// distance to the curve (exact on the straight stretches, within a few percent of a pixel in the gentle bends). The
+	/// cladding's outer band absorbs, rising toward the rim (<see cref="LogicGateDesign.AbsorberWidth"/>), so light the
+	/// sources and the bends send into the cladding is not guided along it by the step to the scene outside. Each square
+	/// end the part selects carries its anti-reflection band (√n of the core and of the cladding, as a lens's coating), and
+	/// a switched-off output's arm absorbs over its last stretch.
+	/// </summary>
+	private sealed class LogicGateShape : PartShape
+	{
+		private readonly LogicGateDesign _design;
+		private readonly double _halfLength;
+		private readonly double _core;
+		private readonly double _outer;
+		private readonly double _coreIndex;
+		private readonly double _phaseIndex;
+		private readonly double _claddingIndex;
+		private readonly (double Start, double End) _phase;
+		private readonly int _endCoating;
+		private readonly bool _inputCoated;
+		private readonly bool _outputCoated;
+		private readonly bool _xorActive;
+		private readonly bool _sumActive;
+
+		public LogicGateShape(LogicGatePart gate, LogicGateDesign design) : base(gate)
+		{
+			_design = design;
+			_halfLength = design.Length / 2.0;
+			_core = design.CoreWidth / 2.0;
+			_outer = _core + design.CladdingThickness + design.AbsorberWidth;
+			_coreIndex = design.CoreIndex;
+			_phaseIndex = design.PhaseIndex;
+			_claddingIndex = design.CladdingIndex;
+			_phase = design.PhaseSection;
+			_endCoating = GuardCoating(gate.Coating);
+			_inputCoated = gate.InputCoated;
+			_outputCoated = gate.OutputCoated;
+			_xorActive = gate.UpperOutputActive;
+			_sumActive = gate.LowerOutputActive;
+		}
+
+		public override bool IsMirror => false;
+		protected override int Coating => 0;
+		public override int Absorption => LogicGateDesign.Absorption;
+		public override int AbsorptionRamp => Math.Max(1, (int)Math.Ceiling(_design.AbsorberWidth));
+		public override bool HasInnerEdges => true;
+		protected override double Extent => Math.Sqrt(_halfLength * _halfLength + _design.HalfWidth * _design.HalfWidth);
+
+		/// <summary>
+		/// Full at the cladding's side rim, falling quadratically to nothing <see cref="AbsorptionRamp"/> pixels in; and in the
+		/// arm of a switched-off output, rising quadratically from nothing over the output ramp to full at the right end. The
+		/// input ends and an active output do not absorb, so light comes in and goes out.
+		/// </summary>
+		public override double AbsorptionShareAt(double canvasX, double canvasY, double depth, double ramp)
+		{
+			(double x, double y) = ToFrame(canvasX, canvasY);
+			(double distance, bool armB) = Nearest(x, y);
+			double inside = _outer - distance;
+			if (inside < 0.0 || Math.Abs(x) > _halfLength)
+			{
+				return 0.0;
+			}
+			double side = AbsorptionProfile(1.0 - inside / _design.AbsorberWidth);
+			double output = (armB ? _sumActive : _xorActive) ? 0.0 : AbsorptionProfile((x - _design.OutputRampStart) / _design.OutputRampLength);
+			return Math.Max(side, output);
+		}
+
+		/// <summary>The distance from the nearer arm's centre line, and whether that arm is B (below the axis).</summary>
+		private (double Distance, bool ArmB) Nearest(double x, double y)
+		{
+			(double offset, double slope) = _design.ArmOffsetAndSlope(x);
+			double cos = 1.0 / Math.Sqrt(1.0 + slope * slope);
+			return (Math.Abs(Math.Abs(y) - offset) * cos, y > 0.0);
+		}
+
+		protected override double Depth(double x, double y) => Math.Min(_halfLength - Math.Abs(x), _outer - Nearest(x, y).Distance);
+
+		/// <summary>The core, the phase section on its arm, or the cladding; within the coating's thickness of a coated end (the input at −x, the output at +x), √n of it rounded to 0.01.</summary>
+		protected override double BodyIndex(double x, double y)
+		{
+			(double distance, bool armB) = Nearest(x, y);
+			double index = distance > _core ? _claddingIndex
+				: armB != _design.PhaseOnArmA && x >= _phase.Start && x < _phase.End ? _phaseIndex
+				: _coreIndex;
+			bool coated = x < 0.0 ? _inputCoated : _outputCoated;
+			return coated && _endCoating > 0 && _halfLength - Math.Abs(x) < _endCoating ? Math.Round(Math.Sqrt(index), 2) : index;
 		}
 	}
 }
