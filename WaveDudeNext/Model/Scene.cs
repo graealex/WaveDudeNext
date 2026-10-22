@@ -56,7 +56,7 @@ public sealed class Scene : ObservableObject
 	/// <summary>Largest accepted canvas width or height in pixels.</summary>
 	public const int MaxSize = 16384;
 	/// <summary>Damping frame thickness the editor proposes when the frame is switched on.</summary>
-	public const int DefaultDampingEdge = 0;
+	public const int DefaultDampingEdge = -32;
 	/// <summary>Largest accepted <see cref="DampingEdge"/> in pixels.</summary>
 	public const int MaxDampingEdge = 8192;
 	/// <summary>Default <see cref="ImageSourceScale"/>.</summary>
@@ -76,6 +76,7 @@ public sealed class Scene : ObservableObject
 	private int _width = DefaultWidth;
 	private int _height = DefaultHeight;
 	private int _dampingEdge = DefaultDampingEdge;
+	private bool _dampingEdgeRead;
 	private EdgeMode _edges = EdgeMode.Open;
 	private double _refractiveIndex = DefaultRefractiveIndex;
 	private bool _imageSources;
@@ -205,7 +206,8 @@ public sealed class Scene : ObservableObject
 	/// <summary>
 	/// Thickness of the absorbing frame in pixels: positive inside the canvas, where it shows as a dark margin (Jeroen's
 	/// band), negative outside the canvas, where the engine simulates that much more and shows none of it (2026-10-19,
-	/// the user's rule for the sign); 0 turns it off.
+	/// the user's rule for the sign); 0 turns it off. A new project has a rim of 32 outside (2026-10-22, the user's choice:
+	/// at wavelengths of a few cells the open ring alone reflects, see <see cref="Engine.SceneData.ApplyRim"/>).
 	/// </summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultDampingEdge)]
@@ -216,8 +218,21 @@ public sealed class Scene : ObservableObject
 	public int DampingEdge
 	{
 		get => _dampingEdge;
-		set => SetProperty(ref _dampingEdge, value);
+		set
+		{
+			_dampingEdgeRead = true;
+			SetProperty(ref _dampingEdge, value);
+		}
 	}
+
+	/// <summary>
+	/// Whether <see cref="DampingEdge"/> has been set since construction: right after a file is read, whether the file
+	/// carried the attribute. A version-2 file left it out for 0, its default then, which <see cref="Project.Load(System.IO.Stream)"/>
+	/// restores (2026-10-22, when the default became -32).
+	/// </summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	internal bool DampingEdgeRead => _dampingEdgeRead;
 
 	/// <summary>What the edge of the grid does with a wave: lets it leave, or reflects it.</summary>
 	[XmlAttribute]

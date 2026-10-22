@@ -844,19 +844,45 @@ internal static class Program
 		Check(rimmed.Width == 16 && rimmed.Height == 16 && rimmed.Rim == 4 && rimmed.CanvasWidth == 8 && rimmed.CanvasHeight == 8 && rimmed.OpenEdges,
 			"a damping edge of -4 grows an 8x8 scene to a 16x16 grid with a rim of 4, open");
 		Check(rimmed.SourceCount == 1 && rimmed.SourceX[0] == 6 && rimmed.SourceY[0] == 7, "the image source moved into grid coordinates");
-		Check(rimmed.D[0] == 0.9f && rimmed.D[4 * 16 + 4] == 1f && rimmed.C2[0] == rimmed.C2[4 * 16 + 4] && rimmed.C2[0] == 0.25f,
-			"the rim loses a tenth per step at its outer ring, the canvas nothing, and the rim repeats the canvas's corner cell");
+		Check(rimmed.D[0] == 0.5f && Math.Abs(rimmed.D[2 * 16 + 2] - (1f - 0.5f * 0.25f)) < 1e-6f && rimmed.D[4 * 16 + 4] == 1f && rimmed.C2[0] == rimmed.C2[4 * 16 + 4] && rimmed.C2[0] == 0.25f,
+			"the rim loses half per step at its outer ring, an eighth halfway in (the square of the depth), the canvas nothing, and the rim repeats the canvas's corner cell");
 		SceneData plain = SceneData.Empty(W, H, 8);
 		Check(plain.Rim == 0 && plain.Width == W && !plain.OpenEdges && plain.D[0] == 0f && plain.D[8 * W + 8] == 1f, "a positive damping edge stays inside the canvas, reflective by default");
+		// the default (2026-10-22, the user's choice): open with a 32 px rim outside, format version 3; older files keep what they meant
+		var fresh = new Project();
+		Check(fresh.Scene.DampingEdge == -32 && fresh.Scene.Edges == EdgeMode.Open && fresh.Version == 3 && fresh.Scene.IsDefault, "a new project is open with a 32 px rim outside, format version 3, its scene element left out of the file");
+		static Project LoadXml(string xml)
+		{
+			using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(xml));
+			return Project.Load(stream);
+		}
+		Check(LoadXml("<Project Version=\"2\"><Scene Width=\"64\" Height=\"48\" /></Project>").Scene is { DampingEdge: 0, Edges: EdgeMode.Open }, "a version-2 file without a damping edge meant none: it loads as 0, not as the new default");
+		Check(LoadXml("<Project Version=\"2\"><Scene DampingEdge=\"-32\" /></Project>").Scene.DampingEdge == -32 && LoadXml("<Project Version=\"3\"><Scene /></Project>").Scene.DampingEdge == -32,
+			"an explicit -32 in a version-2 file stays, and a version-3 file without the attribute is -32");
+		Check(LoadXml("<Project Version=\"1\"><Scene /></Project>").Scene is { DampingEdge: 0, Edges: EdgeMode.Reflective }, "a version-1 file is reflective without a rim");
+		Project saved = LoadXml("<Project Version=\"2\"><Scene /></Project>");
+		string savedXml;
+		using (var stream = new MemoryStream())
+		{
+			saved.Save(stream);
+			savedXml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+		}
+		Check(savedXml.Contains("Version=\"3\"") && savedXml.Contains("DampingEdge=\"0\""), "saved again it is version 3 and says DampingEdge=\"0\" explicitly");
 		// what comes back: a Gaussian pulse from the centre, its peak amplitude on the way out against the largest
 		// amplitude found in the canvas once it has had time to leave (steps 300 to 700)
-		(string Name, int Edge, bool Open)[] configs = [("reflective, no damping", 0, false), ("reflective, a 24 px band inside", 24, false), ("open, no damping", 0, true), ("open, a 32 px rim outside", -32, true)];
+		// both stencils: the 4th-order one runs at the true Laplacian's speed, and its outermost canvas cells, which fall
+		// back to the 9-point stencil, ran at 0.56 of it until 2026-10-22, a speed step that sent a fifth of a pulse back
+		(string Name, int Edge, bool Open, bool Fourth)[] configs =
+		[
+			("reflective, no damping", 0, false, false), ("reflective, a 24 px band inside", 24, false, false), ("open, no damping", 0, true, false), ("open, a 32 px rim outside", -32, true, false),
+			("open, no damping, 4th order", 0, true, true), ("open, a 32 px rim outside, 4th order", -32, true, true),
+		];
 		double[] back = new double[configs.Length];
 		for (int c = 0; c < configs.Length; c++)
 		{
 			SceneData scene = SceneData.Empty(W, H, configs[c].Edge, 1.0, configs[c].Open);
 			var pulse = new List<Emitter> { Make(W / 2, H / 2, 120, 1.0) with { Mode = SourceMode.Pulsed, PulseShape = PulseShape.Gaussian, OnWidthCycles = 3, OffWidthCycles = 100000, OffWidthBase = 100000 } };
-			var cpu = new WaveSimulator(scene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), pulse);
+			var cpu = new WaveSimulator(scene, new EngineOptions(1.0, 1.0, false, configs[c].Fourth, 10.0, 1.0), pulse);
 			double peak = 0, returned = 0;
 			for (int step = 1; step <= 700; step++)
 			{
@@ -880,6 +906,56 @@ internal static class Program
 		Check(back[2] < 0.002, "open edges alone: under 0.2 % of the amplitude comes back");
 		Check(back[3] < 0.005, "open edges with a 32 px rim outside: under half a percent comes back");
 		Check(back[0] > 0.5, "a reflective box without damping sends it all back");
+		Check(back[4] < 0.005, "open edges alone with the 4th-order stencil: under half a percent comes back");
+		Check(back[5] < 0.005, "open edges with a 32 px rim outside, 4th-order stencil: under half a percent comes back");
+		// a wave under three cells long (level 160 at scale 2, aliased, as Jeroen's Example 3 runs) with the 4th-order
+		// stencil: the open ring reflects it almost whole, the rim must absorb on its own (2026-10-22: the linear ramp to a
+		// tenth let 1 % of Example 3's beam back, the quadratic ramp to a half under 0.1 %). Measured against a reference
+		// canvas grown by a margin no reflection crosses within the steps run, from a point source 60 px from the left edge
+		const int shortW = 256, shortH = 160, margin = 220, shortSteps = 400;
+		var shortOptions = new EngineOptions(2.0, 1.0, false, true, 10.0, 1.0);
+		static List<Emitter> ShortPulse(int x, int y) => [Make(x, y, 160, 1.0) with { Mode = SourceMode.Pulsed, PulseShape = PulseShape.Gaussian, OnWidthCycles = 10, OffWidthCycles = 100000, OffWidthBase = 100000 }];
+		var referenceEngine = new WaveSimulator(SceneData.Empty(shortW + 2 * margin, shortH + 2 * margin, 0, 1.0, false), shortOptions, ShortPulse(60 + margin, 80 + margin));
+		var references = new List<float[]>();
+		double edgeAmplitude = 0;
+		for (int step = 1; step <= shortSteps; step++)
+		{
+			referenceEngine.AdvanceOneStep();
+			if (step % 20 == 0)
+			{
+				float[] canvas = CanvasRegion(referenceEngine, margin, shortW, shortH);
+				references.Add(canvas);
+				for (int y = 0; y < shortH; y++)
+				{
+					for (int x = 0; x < 40; x++)
+					{
+						edgeAmplitude = Math.Max(edgeAmplitude, Math.Abs(canvas[y * shortW + x]));
+					}
+				}
+			}
+		}
+		double[] shortBack = new double[2];
+		for (int t = 0; t < 2; t++)
+		{
+			var engine = new WaveSimulator(SceneData.Empty(shortW, shortH, t == 0 ? 0 : -64, 1.0, true), shortOptions, ShortPulse(60, 80));
+			for (int step = 1; step <= shortSteps; step++)
+			{
+				engine.AdvanceOneStep();
+				if (step % 20 == 0)
+				{
+					float[] canvas = CanvasRegion(engine, 0, shortW, shortH);
+					float[] expected = references[step / 20 - 1];
+					for (int i = 0; i < canvas.Length; i++)
+					{
+						shortBack[t] = Math.Max(shortBack[t], Math.Abs(canvas[i] - expected[i]));
+					}
+				}
+			}
+			shortBack[t] /= edgeAmplitude;
+		}
+		Console.WriteLine($"  a wave under three cells long, 4th order, against a wide reference: open ring alone {shortBack[0] * 100:0.00} %, with a 64 px rim {shortBack[1] * 100:0.000} % of the edge amplitude comes back");
+		Check(shortBack[0] > 0.1, "the open ring alone reflects a wave under three cells long: over a tenth comes back");
+		Check(shortBack[1] < 0.003, "a 64 px rim with the quadratic ramp lets under 0.3 % of it back");
 		// CPU = GPU with the rim and the open edge
 		SceneData openScene = SceneData.Empty(W, H, -32, 1.0, true);
 		var wave = new List<Emitter> { Make(W / 2, H / 2, 120, 1.0) };
@@ -897,6 +973,17 @@ internal static class Program
 			float diff = MaxDiff(cpuField, gpu.FieldData);
 			Check(gpu.Rim == 32 && gpu.Width == W && gpu.Stride == W + 66 && diff < 1e-3f * Math.Max(1f, MaxAbs(cpuField)), "GPU agrees with the CPU on the rim and the open edge (max diff " + diff + ")");
 		}
+	}
+
+	/// <summary>A <paramref name="w"/> × <paramref name="h"/> region of an engine's field at offset (<paramref name="m"/>, <paramref name="m"/>) of its canvas (the rim and padding skipped), row-major.</summary>
+	private static float[] CanvasRegion(IWaveEngine engine, int m, int w, int h)
+	{
+		var region = new float[w * h];
+		for (int y = 0; y < h; y++)
+		{
+			Array.Copy(engine.FieldData, (y + m + 1 + engine.Rim) * engine.Stride + m + 1 + engine.Rim, region, y * w, w);
+		}
+		return region;
 	}
 
 	/// <summary>Max |u| over the canvas cells of an engine's field (the rim and padding left out).</summary>

@@ -97,10 +97,17 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 
 - **Engine contract**: padded grid (`Stride = Width + 2 + 2 × Rim`: a negative damping edge is a rim of that many cells
   outside the canvas, simulated and never shown, the canvas starting at (Rim, Rim); `Scene.Edges` Open puts Mur's
-  first-order absorbing condition on the ring, Reflective is Jeroen's wall; a new project is Open with no damping edge
-  (2026-10-19, the user's choice: measured on a pulse, the open ring alone returns 0.05 to 0.09 % of the amplitude, a
-  rim at its best the same, a rim damped to a standstill 1 %, the reflective box 72 %); a version-1 file loads as
-  Reflective, an import as Reflective with his band; one driver thread at a time, no locking; captures
+  first-order absorbing condition on the ring, Reflective is Jeroen's wall; a new project is Open with a 32 px rim outside
+  (2026-10-22, the user's choice, after the rim measurements below; no damping edge from 2026-10-19 until then, when the
+  open ring was measured on a long-wave pulse: the open ring alone returns 0.05 to 0.09 % of the
+  amplitude, a rim at its best the same, a rim damped to a standstill 1 %, the reflective box 72 %). The rim's loss rises
+  with the square of the depth to a half per step at the outer ring (2026-10-22, the user's choice: at wavelengths of a few
+  cells, Jeroen's usual, the ring's Mur condition assumes a speed the stencil does not have and reflects almost
+  everything, so the rim absorbs alone; measured against a reference canvas too wide to reflect, Example 3's beam got
+  1 % back from the earlier linear ramp to a tenth at -64, 0.09 % from the quadratic one, 0.03 % at -128; the measuring
+  method is in `library_check`); a version-1 file loads as
+  Reflective, a version-2 file without a damping edge with none (its default then; files are version 3 since 2026-10-22), an
+  import as Reflective with his band; one driver thread at a time, no locking; captures
   deliver planes in the spec's `FrameShape` (halves or palette index bytes, the GPU converting on the card);
   `Reset`, `SetEmitters`, `SetProbes`. Numerics are Jeroen's (dx = dt = 1, leapfrog, 9-point or 4th-order
   Laplacian, soft sources, EMA intensity; a scene pixel with red 0 is a mirror, n = 1000, his V0.30 rule,

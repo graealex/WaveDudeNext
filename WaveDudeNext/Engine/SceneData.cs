@@ -210,11 +210,15 @@ public sealed class SceneData
 	}
 
 	/// <summary>
-	/// The damping of a rim outside the canvas: the loss of velocity per step rises linearly from nothing at the
-	/// canvas's edge to a tenth at the outer ring. Measured on a pulse (2026-10-19): a rim damped to a standstill, as
-	/// Jeroen's square-root band is, sent about 1 % of the pulse back, since cells whose velocity is wiped keep their
-	/// displacement and let it creep back; this mild ramp sends back 0.1 to 0.2 % at 32 cells and 0.06 % at 64, while
-	/// the open ring alone (<see cref="OpenEdges"/>) returns 0.05 to 0.09 %, so a rim is an option, not the default.
+	/// The damping of a rim outside the canvas: the loss of velocity per step rises with the square of the depth, from
+	/// nothing at the canvas's edge to a half at the outer ring (2026-10-22, the user's choice). Measured against a
+	/// reference canvas so wide that nothing returns from its edges: on Jeroen's Example 3 (an emitter array 185 px from
+	/// the edge, a wave under three cells long with the 4th-order stencil, where the stencil's speed is far from what the
+	/// open ring assumes and the ring reflects almost everything) a 64 px rim with this ramp lets 0.09 % of the edge
+	/// amplitude back, 0.03 % at 128 px; the linear ramp to a tenth it replaces let 1 % back, visible in the beam, and
+	/// Jeroen's square-root band inside the canvas 1.4 %. The ramp was chosen linear and mild on 2026-10-19 from a
+	/// long-wave pulse on a small canvas, where the open ring (<see cref="OpenEdges"/>) does the work and a rim damped to a
+	/// standstill sent 1 % back from its own jump; the quadratic ramp keeps that case within the same bounds.
 	/// </summary>
 	/// <param name="d">Damping array of the whole grid, row-major, modified in place.</param>
 	/// <param name="w">Grid width in cells.</param>
@@ -224,9 +228,9 @@ public sealed class SceneData
 	{
 		for (int i = 0; i < rim; i++)
 		{
-			// i cells from the outer ring: (rim - i) / rim of the way into the rim, a tenth of that lost per step
+			// i cells from the outer ring: (rim - i) / rim of the way into the rim, half of its square lost per step
 			double into = (double)(rim - i) / rim;
-			float factor = (float)(1.0 - 0.1 * into);
+			float factor = (float)(1.0 - 0.5 * into * into);
 			for (int x = i; x <= w - 1 - i; x++)
 			{
 				d[i * w + x] = factor;

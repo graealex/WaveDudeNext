@@ -35,7 +35,7 @@ namespace WaveDudeNext.Model;
 public sealed class Project : ObservableObject
 {
 	/// <summary>Format version written to new files; bump when the layout changes incompatibly.</summary>
-	public const int CurrentVersion = 2;
+	public const int CurrentVersion = 3;
 
 	private int _version = CurrentVersion;
 	private int _seed = NewSeed();
@@ -542,8 +542,14 @@ public sealed class Project : ObservableObject
 			// version 1 (until 2026-10-19) knew only reflective edges; the open edges that are the default since must not
 			// reach an old file, which keeps the walls it was made with
 			project.Scene.Edges = EdgeMode.Reflective;
-			project.Version = CurrentVersion;
 		}
+		if (project.Version < 3 && !project.Scene.DampingEdgeRead)
+		{
+			// until version 3 (2026-10-22) a file without a damping edge meant none; the rim of 32 that is the default since
+			// must not reach it either
+			project.Scene.DampingEdge = 0;
+		}
+		project.Version = CurrentVersion;
 		project.Normalize();
 		Logger.Debug("Loaded project: version {Version}, seed {Seed}, {Sources} sources, {Parts} parts, {Probes} probes", project.Version, project.Seed, project.Sources.Count, project.Parts.Count, project.Probes.Count);
 		return project;
