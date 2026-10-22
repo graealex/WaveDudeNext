@@ -21,6 +21,7 @@ using System.Diagnostics;
 using System.Numerics.Tensors;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Xml.Serialization;
 using NLog;
 using WaveDudeNext.Engine;
 using WaveDudeNext.Export;
@@ -288,7 +289,8 @@ internal static class Program
 	/// <summary>
 	/// Every <see cref="RangeAttribute"/> on the model agrees with its owner's Normalize(): a value below or above the
 	/// range lands inside it, and a value at an inclusive bound stays as it is. Each leg runs on a fresh instance, so
-	/// dependent clamps (a triangle's second base angle) see the state the case prepares.
+	/// dependent clamps (a triangle's second base angle) see the state the case prepares. Every part kind is found by
+	/// reflection, and a persisted number that Normalize() clamps without a [Range] fails its owner (<see cref="CheckUnranged"/>).
 	/// </summary>
 	private static void CheckRanges()
 	{
@@ -308,19 +310,18 @@ internal static class Program
 				scheme.Stops.Add(stop);
 				return (scheme.Normalize, [stop]);
 			}),
-			("LensPart", () => Part(new LensPart())),
-			("PolygonPart", () => Part(new PolygonPart())),
-			("RectanglePart", () => Part(new RectanglePart())),
-			("EllipsePart", () => Part(new EllipsePart())),
-			// a custom triangle with the first angle at its minimum leaves the second its full range
-			("TrianglePart", () => Part(new TrianglePart { Type = TriangleType.Custom, AngleA = 1.0 })),
-			("OutlinePart", () => Part(new OutlinePart())),
-			("FiberPart", () => Part(new FiberPart())),
-			("BraggReflectorPart", () => Part(new BraggReflectorPart())),
-			("GrinLensPart", () => Part(new GrinLensPart())),
-			("XorGatePart", () => Part(new XorGatePart())),
-			("ZonePlatePart", () => Part(new ZonePlatePart())),
+			// every part kind, found rather than listed, so a new one cannot be left out; a custom triangle with the first
+			// angle at its minimum leaves the second its full range
+			.. typeof(OpticalPart).Assembly.GetTypes()
+				.Where(type => type.IsSubclassOf(typeof(OpticalPart)) && !type.IsAbstract)
+				.OrderBy(type => type.Name, StringComparer.Ordinal)
+				.Select(type => (type.Name, (Func<(Action, object[])>)(() => Part(type == typeof(TrianglePart)
+					? new TrianglePart { Type = TriangleType.Custom, AngleA = 1.0 }
+					: (OpticalPart)Activator.CreateInstance(type)!)))),
 		];
+		// clamped by Normalize() against a bound that depends on another value, which stays in code alone (CLAUDE.md)
+		// (a probe's value axis falls back to -1..1 when its top is not above its bottom)
+		HashSet<string> dependentBounds = ["Probe.YMin", "Probe.YMax"];
 		int total = 0;
 		foreach ((string name, Func<(Action Normalize, object[] Targets)> make) in cases)
 		{
@@ -333,6 +334,7 @@ internal static class Program
 				{
 					if (property.GetCustomAttribute<RangeAttribute>() is not { } range)
 					{
+						CheckUnranged(make, t, property, dependentBounds, failures);
 						continue;
 					}
 					count++;
@@ -381,13 +383,47 @@ internal static class Program
 				}
 			}
 			total += count;
-			Check(count > 0 && failures.Count == 0, $"{name}: {count} [Range] attribute(s) agree with Normalize()");
+			Check(count > 0 && failures.Count == 0, $"{name}: {count} [Range] attribute(s) agree with Normalize(), and no persisted number is clamped without one");
 			foreach (string failure in failures)
 			{
 				Console.WriteLine("         " + failure);
 			}
 		}
 		Console.WriteLine($"  {total} ranged properties");
+	}
+
+	/// <summary>
+	/// A persisted number without a <see cref="RangeAttribute"/> must come out of Normalize() as it went in, far below and
+	/// far above any sensible value; one that is clamped lacks its attribute, unless its bound depends on another value
+	/// (<paramref name="dependentBounds"/>, "Type.Property"). Failures are added to <paramref name="failures"/>.
+	/// </summary>
+	private static void CheckUnranged(Func<(Action Normalize, object[] Targets)> make, int t, PropertyInfo property, HashSet<string> dependentBounds, List<string> failures)
+	{
+		bool integer = property.PropertyType == typeof(int);
+		if (!(integer || property.PropertyType == typeof(double)) || !property.CanWrite || property.GetCustomAttribute<XmlAttributeAttribute>() is null
+			|| dependentBounds.Contains($"{property.DeclaringType!.Name}.{property.Name}") || dependentBounds.Contains($"{property.ReflectedType!.Name}.{property.Name}"))
+		{
+			return;
+		}
+		foreach (double set in (double[])[-1_000_000, 1_000_000])
+		{
+			string where = $"{property.ReflectedType!.Name}.{property.Name} has no [Range]: set {set}";
+			try
+			{
+				(Action normalize, object[] targets) = make();
+				property.SetValue(targets[t], integer ? (object)(int)set : set);
+				normalize();
+				double got = Convert.ToDouble(property.GetValue(targets[t]), CultureInfo.InvariantCulture);
+				if (got != set)
+				{
+					failures.Add($"{where}, Normalize() clamped it to {got}");
+				}
+			}
+			catch (Exception e)
+			{
+				failures.Add($"{where}, threw {e.GetType().Name}: {e.Message}");
+			}
+		}
 	}
 
 	/// <summary>"bench-render [w h]": what colouring a stored frame costs, per layer, at that size (the presenter's cost per picture).</summary>

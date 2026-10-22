@@ -52,7 +52,8 @@ harnesses run.
 - **Model conventions**: a new property gets its XML attribute with a default, `[Category]`/`[DisplayName]`/
   `[Description]`, a `///` summary, a clamp in `Normalize()` with the matching `[Range]` beside the default (2026-10-21:
   the bounds are readable from outside, `library_check` proves each against `Normalize()`; a bound that depends on another
-  value stays in code alone), and `Label.`/`Hint.`/`Enum.<Type>.<Member>` keys in all four string tables. Randomness from
+  value stays in code alone and is named in its `dependentBounds`; since 2026-10-22 it finds every part kind itself and
+  fails a persisted number that `Normalize()` clamps without a `[Range]`), and `Label.`/`Hint.`/`Enum.<Type>.<Member>` keys in all four string tables. Randomness from
   `Project.Seed` through `Pcg32`; generated data is never persisted.
 - **C# style**: modern and concise, expression-bodied accessors, no `this.`, no `IDisposable` on interfaces,
   `out` not `ref`, tabs, Allman; `///` docs state threading, units and coordinate systems. `grep -E`, not `-P`.
