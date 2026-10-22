@@ -62,6 +62,31 @@ public partial class ProjectTree : UserControl
 	public static readonly DependencyProperty IsInSelectionProperty = DependencyProperty.RegisterAttached(
 		"IsInSelection", typeof(bool), typeof(ProjectTree), new PropertyMetadata(false));
 
+	/// <summary>
+	/// Attached to a menu or menu item: the entries (the shared part entries, a fresh set per menu) are added to its Items,
+	/// so they are its logical children as entries written inside it would be. As an ItemsSource they were not, and a
+	/// submenu opened by keyboard the first time put the focus on its last entry instead of its first.
+	/// </summary>
+	public static readonly DependencyProperty MenuEntriesProperty = DependencyProperty.RegisterAttached(
+		"MenuEntries", typeof(IEnumerable), typeof(ProjectTree), new PropertyMetadata(null, OnMenuEntriesChanged));
+
+	/// <summary>Gets the entries attached to <paramref name="menu"/>.</summary>
+	public static IEnumerable? GetMenuEntries(ItemsControl menu) => (IEnumerable?)menu.GetValue(MenuEntriesProperty);
+
+	/// <summary>Attaches <paramref name="entries"/> to <paramref name="menu"/>, which adds them to its items.</summary>
+	public static void SetMenuEntries(ItemsControl menu, IEnumerable? entries) => menu.SetValue(MenuEntriesProperty, entries);
+
+	private static void OnMenuEntriesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+	{
+		if (d is ItemsControl menu && e.NewValue is IEnumerable entries)
+		{
+			foreach (object entry in entries)
+			{
+				menu.Items.Add(entry);
+			}
+		}
+	}
+
 	private object? _dragCandidate;
 	private Point _dragStart;
 	private InsertionAdorner? _adorner;

@@ -339,54 +339,28 @@ public sealed class Project : ObservableObject
 	}
 
 	/// <summary>
-	/// Appends a new part of <paramref name="kind"/>, named "Lens n", "Polygon n", "Rectangle n", "Ellipse n", "Triangle n", "Outline n",
-	/// "Fiber n", "Bragg reflector n", "GRIN lens n", "XOR gate n", "AND gate n", "OR gate n" or "Zone plate n" with the first free n, centred on the canvas (the scene's size; an image scene's own size is not
-	/// known here), and returns it.
+	/// Appends a new part of the concrete <see cref="OpticalPart"/> subclass <paramref name="type"/> (the "+ Part" menu's
+	/// parameter), prepared as new (<see cref="OpticalPart.PrepareNew"/>), named by its <see cref="OpticalPart.NameStem"/>
+	/// with the first free n ("Lens 1", "Bragg reflector 2"), centred on the canvas (the scene's size; an image scene's own
+	/// size is not known here), and returns it.
 	/// </summary>
-	public OpticalPart AddPart(PartKind kind)
+	public OpticalPart AddPart(Type type)
 	{
-		OpticalPart part = kind switch
+		if (!type.IsSubclassOf(typeof(OpticalPart)) || type.IsAbstract)
 		{
-			PartKind.Lens => new LensPart(),
-			PartKind.Polygon => new PolygonPart(),
-			PartKind.Rectangle => new RectanglePart(),
-			PartKind.Ellipse => new EllipsePart(),
-			PartKind.Triangle => new TrianglePart(),
-			PartKind.Outline => new OutlinePart(),
-			PartKind.Fiber => new FiberPart { Nodes = FiberPart.DefaultPath() },
-			PartKind.BraggReflector => new BraggReflectorPart(),
-			PartKind.GrinLens => new GrinLensPart(),
-			PartKind.XorGate => new XorGatePart(),
-			PartKind.AndGate => new AndGatePart(),
-			PartKind.OrGate => new OrGatePart(),
-			PartKind.ZonePlate => new ZonePlatePart(),
-			_ => throw new ArgumentOutOfRangeException(nameof(kind)),
-		};
-		part.Name = NumberedName(PartStem(kind), Parts.Select(p => p.Name));
+			throw new ArgumentException($"{type.Name} is not a concrete optical part", nameof(type));
+		}
+		var part = (OpticalPart)Activator.CreateInstance(type)!;
+		part.PrepareNew();
+		part.Name = NumberedName(part.NameStem, Parts.Select(p => p.Name));
 		part.X = Scene.Width / 2;
 		part.Y = Scene.Height / 2;
 		Parts.Add(part);
 		return part;
 	}
 
-	/// <summary>The English name stem of new parts of <paramref name="kind"/> ("Lens", "Bragg reflector", …).</summary>
-	public static string PartStem(PartKind kind) => kind switch
-	{
-		PartKind.Lens => "Lens",
-		PartKind.Polygon => "Polygon",
-		PartKind.Rectangle => "Rectangle",
-		PartKind.Ellipse => "Ellipse",
-		PartKind.Triangle => "Triangle",
-		PartKind.Outline => "Outline",
-		PartKind.Fiber => "Fiber",
-		PartKind.BraggReflector => "Bragg reflector",
-		PartKind.GrinLens => "GRIN lens",
-		PartKind.XorGate => "XOR gate",
-		PartKind.AndGate => "AND gate",
-		PartKind.OrGate => "OR gate",
-		PartKind.ZonePlate => "Zone plate",
-		_ => "Part",
-	};
+	/// <summary>Appends a new part of type <typeparamref name="T"/> as <see cref="AddPart(Type)"/> does, and returns it.</summary>
+	public T AddPart<T>() where T : OpticalPart, new() => (T)AddPart(typeof(T));
 
 	/// <summary>Appends a new probe named "Probe n" with the first free n, and returns it.</summary>
 	public Probe AddProbe()

@@ -24,37 +24,6 @@ using WaveDudeNext.Parts;
 
 namespace WaveDudeNext.Model;
 
-/// <summary>The kinds of optical part; one subclass of <see cref="OpticalPart"/> and one project file element per kind.</summary>
-public enum PartKind
-{
-	/// <summary>A lens or a curved or flat mirror (<see cref="LensPart"/>).</summary>
-	Lens,
-	/// <summary>A regular polygon (<see cref="PolygonPart"/>).</summary>
-	Polygon,
-	/// <summary>A rectangle (<see cref="RectanglePart"/>).</summary>
-	Rectangle,
-	/// <summary>An ellipse or circle (<see cref="EllipsePart"/>).</summary>
-	Ellipse,
-	/// <summary>A triangle shaped by its base angles (<see cref="TrianglePart"/>).</summary>
-	Triangle,
-	/// <summary>A free outline from a point list (<see cref="OutlinePart"/>).</summary>
-	Outline,
-	/// <summary>A fibre with a core and a cladding along a path (<see cref="FiberPart"/>).</summary>
-	Fiber,
-	/// <summary>A stack of alternating layers (<see cref="BraggReflectorPart"/>).</summary>
-	BraggReflector,
-	/// <summary>A gradient-index lens (<see cref="GrinLensPart"/>).</summary>
-	GrinLens,
-	/// <summary>An optical XOR gate: two waveguides and a directional coupler designed for one wavelength (<see cref="XorGatePart"/>).</summary>
-	XorGate,
-	/// <summary>An optical AND gate, the same coupler with the in-phase sum on the upper output (<see cref="AndGatePart"/>).</summary>
-	AndGate,
-	/// <summary>An optical OR gate, the same coupler with the waves meeting at 120° on the upper output (<see cref="OrGatePart"/>).</summary>
-	OrGate,
-	/// <summary>A Fresnel zone plate, a diffractive lens of absorbing zones (<see cref="ZonePlatePart"/>).</summary>
-	ZonePlate,
-}
-
 /// <summary>
 /// An optical part placed on the canvas: a lens or mirror, a shape (polygon, rectangle, triangle, outline), a fibre, a
 /// Bragg reflector or a GRIN lens (Jeroen
@@ -142,10 +111,18 @@ public abstract class OpticalPart : ObservableObject, IMovable
 		set => SetProperty(ref _angle, value);
 	}
 
-	/// <summary>The kind of part, for the tree row and the overlay; fixed per subclass.</summary>
+	/// <summary>The English stem of a new part's name ("Lens", "Bragg reflector", …), numbered by <see cref="Project.AddPart(Type)"/>; fixed per subclass.</summary>
 	[XmlIgnore]
 	[Browsable(false)]
-	public abstract PartKind Kind { get; }
+	public abstract string NameStem { get; }
+
+	/// <summary>
+	/// Gives a part made by <see cref="Project.AddPart(Type)"/> what a new part starts with and a loaded one must not get
+	/// (a fibre's default path: <see cref="XmlSerializer"/> appends a file's items to the list it finds). Does nothing by default.
+	/// </summary>
+	public virtual void PrepareNew()
+	{
+	}
 
 	/// <summary>Half-extent of the part along its axis in canvas pixels, so the rotation handle can sit beyond it. UI thread.</summary>
 	[XmlIgnore]
@@ -297,7 +274,7 @@ public sealed class LensPart : OpticalPart
 	private int _thickness = DefaultThickness;
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.Lens;
+	public override string NameStem => "Lens";
 
 	/// <summary>Whether the part is a mirror (red 0, a wall no wave gets through) instead of a lens; the index, the coating and the absorption are ignored then.</summary>
 	[XmlAttribute]
@@ -692,7 +669,7 @@ public sealed class PolygonPart : ShapePart
 	private int _side = DefaultSide;
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.Polygon;
+	public override string NameStem => "Polygon";
 
 	/// <summary>Number of sides, 3 to 64.</summary>
 	[XmlAttribute]
@@ -762,7 +739,7 @@ public sealed class RectanglePart : ShapePart
 	private bool _linked;
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.Rectangle;
+	public override string NameStem => "Rectangle";
 
 	/// <summary>Extent along the axis in pixels.</summary>
 	[XmlAttribute]
@@ -859,7 +836,7 @@ public sealed class EllipsePart : ShapePart
 	private bool _linked;
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.Ellipse;
+	public override string NameStem => "Ellipse";
 
 	/// <summary>Diameter along the axis in pixels.</summary>
 	[XmlAttribute]
@@ -988,7 +965,7 @@ public sealed class TrianglePart : ShapePart
 	private double _angleB = 60.0;
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.Triangle;
+	public override string NameStem => "Triangle";
 
 	/// <summary>Length of the base in pixels.</summary>
 	[XmlAttribute]
@@ -1123,7 +1100,7 @@ public sealed class OutlinePart : ShapePart
 	private ObservableCollection<PartPoint> _points = [];
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.Outline;
+	public override string NameStem => "Outline";
 
 	/// <summary>The outline's vertices relative to the centre, before rotation; fewer than three points paint nothing.</summary>
 	[XmlElement("Point")]
@@ -1369,7 +1346,10 @@ public sealed class FiberPart : OpticalPart
 	}
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.Fiber;
+	public override string NameStem => "Fiber";
+
+	/// <summary>A new fibre gets the <see cref="DefaultPath"/>.</summary>
+	public override void PrepareNew() => Nodes = DefaultPath();
 
 	/// <summary>Refractive index of the core, 1.00 to 2.55.</summary>
 	[XmlAttribute]
@@ -1484,7 +1464,7 @@ public sealed class FiberPart : OpticalPart
 
 	/// <summary>
 	/// The default straight path, from (-100, 0) to (100, 0), the handles a third of the way along it so they can be
-	/// taken hold of. Given to a new fibre by <see cref="Project.AddPart"/>, not by the constructor:
+	/// taken hold of. Given to a new fibre by <see cref="PrepareNew"/>, not by the constructor:
 	/// <see cref="XmlSerializer"/> appends a file's nodes to the list it finds, so the constructor's list must be empty.
 	/// </summary>
 	public static ObservableCollection<FiberNode> DefaultPath()
@@ -1777,7 +1757,7 @@ public sealed class BraggReflectorPart : OpticalPart
 	private int _width = DefaultWidth;
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.BraggReflector;
+	public override string NameStem => "Bragg reflector";
 
 	/// <summary>Number of layer pairs, 1 to 200.</summary>
 	[XmlAttribute]
@@ -1911,7 +1891,7 @@ public sealed class GrinLensPart : OpticalPart
 	private int _coating;
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.GrinLens;
+	public override string NameStem => "GRIN lens";
 
 	/// <summary>Extent along the axis in pixels.</summary>
 	[XmlAttribute]
@@ -2346,7 +2326,7 @@ public abstract class LogicGatePart : OpticalPart, IFrequencyDesigned
 public sealed class XorGatePart : LogicGatePart
 {
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.XorGate;
+	public override string NameStem => "XOR gate";
 
 	/// <inheritdoc/>
 	public override double PhaseShift => 90.0;
@@ -2369,7 +2349,7 @@ public sealed class XorGatePart : LogicGatePart
 public sealed class AndGatePart : LogicGatePart
 {
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.AndGate;
+	public override string NameStem => "AND gate";
 
 	/// <inheritdoc/>
 	public override double PhaseShift => -90.0;
@@ -2391,7 +2371,7 @@ public sealed class AndGatePart : LogicGatePart
 public sealed class OrGatePart : LogicGatePart
 {
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.OrGate;
+	public override string NameStem => "OR gate";
 
 	/// <inheritdoc/>
 	public override double PhaseShift => 30.0;
@@ -2451,7 +2431,7 @@ public sealed class ZonePlatePart : OpticalPart, IFrequencyDesigned
 	public const int DefaultMountWidth = 200;
 
 	/// <inheritdoc/>
-	public override PartKind Kind => PartKind.ZonePlate;
+	public override string NameStem => "Zone plate";
 
 	/// <summary>
 	/// Whether an absorbing mount surrounds the plate (the user's request, 2026-10-22): a band of <see cref="MountWidth"/>

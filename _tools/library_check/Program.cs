@@ -194,17 +194,17 @@ internal static class Program
 			var project = new Project();
 			project.Scene.Width = 1920;
 			project.Scene.Height = 1080;
-			var outline = (OutlinePart)project.AddPart(PartKind.Outline);
+			var outline = project.AddPart<OutlinePart>();
 			foreach ((int px, int py) in new[] { (-200, -150), (200, -120), (150, 180), (-180, 120) })
 			{
 				outline.Points.Add(new PartPoint { X = px, Y = py });
 			}
-			var lens = (LensPart)project.AddPart(PartKind.Lens);
+			var lens = project.AddPart<LensPart>();
 			lens.Diameter = 400;
-			var polygon = (PolygonPart)project.AddPart(PartKind.Polygon);
+			var polygon = project.AddPart<PolygonPart>();
 			polygon.Side = 150;
 			// a fibre in an S-bend across the whole canvas: its bounding box is the canvas (2026-10-22)
-			var fiber = (FiberPart)project.AddPart(PartKind.Fiber);
+			var fiber = project.AddPart<FiberPart>();
 			fiber.Nodes[0].X = -900;
 			fiber.Nodes[0].SetHandle(true, 400, -500);
 			fiber.Nodes[1].X = 900;
@@ -218,7 +218,7 @@ internal static class Program
 				{
 					PartPainter.Paint(null, 1920, 1080, 1.0, single);
 				}
-				Console.WriteLine($"  {part.Kind}: {timer.Elapsed.TotalMilliseconds / 10:0.0} ms per paint");
+				Console.WriteLine($"  {part.NameStem}: {timer.Elapsed.TotalMilliseconds / 10:0.0} ms per paint");
 			}
 			var blank = Stopwatch.StartNew();
 			for (int i = 0; i < 10; i++)
@@ -843,7 +843,7 @@ internal static class Program
 		Source source = project.AddSource();
 		source.X = 10;
 		source.Y = 10;
-		OpticalPart part = project.AddPart(PartKind.Rectangle);
+		OpticalPart part = project.AddPart<RectanglePart>();
 		part.X = 50;
 		part.Y = 40;
 		Probe probe = project.AddProbe();
@@ -2083,7 +2083,7 @@ internal static class Program
 		project.Scene.Width = W;
 		project.Scene.Height = H;
 		Check(ReferenceEquals(PartPainter.Paint(image, W, H, 1.0, project.Parts), image) && PartPainter.Paint(null, W, H, 1.0, project.Parts) == null, "no enabled part: the painter returns the image itself (null for a canvas)");
-		var lens = (LensPart)project.AddPart(PartKind.Lens);
+		var lens = project.AddPart<LensPart>();
 		lens.Enabled = false;
 		Check(ReferenceEquals(PartPainter.Paint(image, W, H, 1.0, project.Parts), image), "a disabled part leaves the image untouched");
 		lens.Enabled = true;
@@ -2093,7 +2093,7 @@ internal static class Program
 		lens.R1 = 300;
 		lens.R2 = -300;
 		lens.Thickness = 40;
-		Check(lens.Name == "Lens 1" && lens.RefractiveIndex == 1.5 && lens.Kind == PartKind.Lens, "a new lens: 'Lens 1', index 1.5");
+		Check(lens.Name == "Lens 1" && lens.RefractiveIndex == 1.5, "a new lens: 'Lens 1', index 1.5");
 		ScenePixels painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
 		Check(!ReferenceEquals(painted, image) && painted.Width == W && painted.Height == H && image.Bgra[60 * stride + 100 * 4 + 2] == 100, "an enabled part paints a copy; the image is not modified");
 		Check(painted.Bgra[60 * painted.StrideBytes + 100 * 4 + 1] == 160 && painted.Bgra[60 * painted.StrideBytes + 100 * 4] == 33 && painted.Bgra[5 * painted.StrideBytes + 5 * 4] == 77, "green and blue are untouched under the lens");
@@ -2167,7 +2167,7 @@ internal static class Program
 		project.Parts.Clear();
 
 		// the shapes: a regular hexagon's area, a rectangle, triangles, an outline; then a GRIN lens, a Bragg stack, a fibre
-		var hexagon = (PolygonPart)project.AddPart(PartKind.Polygon);
+		var hexagon = project.AddPart<PolygonPart>();
 		hexagon.X = 100;
 		hexagon.Y = 60;
 		hexagon.Sides = 6;
@@ -2179,7 +2179,7 @@ internal static class Program
 		Check(RedAt(painted, 100 + 24, 60) == 150 && RedAt(painted, 100 + 26, 60) == 100 && RedAt(painted, 100, 60 + 14) == 150 && RedAt(painted, 100, 60 + 30) == 100, "the hexagon has flat faces at ±x' (26 px out) and vertices at ±y' (30 px out)");
 		Check(painted.Bgra[(60 * W + 100) * 4 + 3] == 255 && painted.Bgra[(60 * W + 100) * 4 + 1] == 0 && painted.Bgra[(0 * W + 0) * 4 + 2] == 100, "a blank canvas: opaque, no green, background red 100");
 		project.Parts.Clear();
-		var rectangle = (RectanglePart)project.AddPart(PartKind.Rectangle);
+		var rectangle = project.AddPart<RectanglePart>();
 		rectangle.X = 100;
 		rectangle.Y = 60;
 		rectangle.Length = 60;
@@ -2189,7 +2189,7 @@ internal static class Program
 		Check(Math.Abs(area - 1200.0) < 2.0 && RedAt(painted, 100 - 30, 60) == 150 && RedAt(painted, 100 - 31, 60) == 100 && RedAt(painted, 100 + 29, 60) == 150 && RedAt(painted, 100, 60 + 9) == 150 && RedAt(painted, 100, 60 + 10) == 100,
 			$"a rectangle of length 60 and width 20 lies square to the axis, x = 70..129, y = 50..69 ({area:F1} px)");
 		project.Parts.Clear();
-		var ellipse = (EllipsePart)project.AddPart(PartKind.Ellipse);
+		var ellipse = project.AddPart<EllipsePart>();
 		ellipse.X = 100;
 		ellipse.Y = 60;
 		ellipse.Length = 60;
@@ -2219,7 +2219,7 @@ internal static class Program
 		ellipse.Linked = true;
 		Check(ellipse.Width == 60 && ellipse.Vertices().All(v => Math.Abs(Math.Sqrt(v.X * v.X + v.Y * v.Y) - 30) < 1e-9), "a linked ellipse is a circle");
 		project.Parts.Clear();
-		var triangle = (TrianglePart)project.AddPart(PartKind.Triangle);
+		var triangle = project.AddPart<TrianglePart>();
 		triangle.X = 100;
 		triangle.Y = 60;
 		triangle.Base = 60;
@@ -2247,7 +2247,7 @@ internal static class Program
 		Check(Math.Abs(area - 1558.8) < 0.01 * 1558.8 && RedAt(painted, 100 - 25, 60) == 150 && RedAt(painted, 100 - 27, 60) == 100 && RedAt(painted, 100 + 20, 60) == 150 && RedAt(painted, 100 + 27, 60) == 100,
 			$"the painted equilateral triangle covers {area:F1} px of 1558.8, the base at x' = -26, the apex at +26");
 		project.Parts.Clear();
-		var outline = (OutlinePart)project.AddPart(PartKind.Outline);
+		var outline = project.AddPart<OutlinePart>();
 		outline.X = 100;
 		outline.Y = 60;
 		Check(PartShape.For(outline) == null && ReferenceEquals(PartPainter.Paint(image, W, H, 1.0, project.Parts), image) == false && RedAt(PartPainter.Paint(null, W, H, 1.0, project.Parts)!, 100, 60) == 100, "an outline without points paints nothing");
@@ -2259,7 +2259,7 @@ internal static class Program
 		area = PaintedArea(painted, 1.5);
 		Check(Math.Abs(area - 200.0) < 2.0 && RedAt(painted, 100, 60) == 150 && RedAt(painted, 100, 60 + 6) == 100, $"four points make a 20 × 10 outline ({area:F1} px)");
 		project.Parts.Clear();
-		var grin = (GrinLensPart)project.AddPart(PartKind.GrinLens);
+		var grin = project.AddPart<GrinLensPart>();
 		grin.X = 100;
 		grin.Y = 60;
 		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
@@ -2267,7 +2267,7 @@ internal static class Program
 		Check(RedAt(painted, 100, 60) == 180 && RedAt(painted, 100, 60 + 25) == 172 && RedAt(painted, 100, 60 + 48) == 152 && RedAt(painted, 100, 60 + 50) == 100 && RedAt(painted, 100 + 49, 60) == 180 && RedAt(painted, 100 + 50, 60) == 100,
 			"a GRIN lens 100 × 100: index 1.8 on the axis falling parabolically to 1.5 at the edge, 1 outside");
 		project.Parts.Clear();
-		var bragg = (BraggReflectorPart)project.AddPart(PartKind.BraggReflector);
+		var bragg = project.AddPart<BraggReflectorPart>();
 		bragg.X = 100;
 		bragg.Y = 60;
 		bragg.Pairs = 3;
@@ -2279,7 +2279,7 @@ internal static class Program
 		Check(layers == "." + string.Concat(Enumerable.Repeat("1111111111222222", 3)) + "." && RedAt(painted, 100, 60 + 9) == 150 && RedAt(painted, 100, 60 + 10) == 100,
 			"a Bragg stack of 3 pairs 10 + 6 px, indices 1.5 / 2.0, 20 wide, centred: " + layers);
 		project.Parts.Clear();
-		var fiber = (FiberPart)project.AddPart(PartKind.Fiber);
+		var fiber = project.AddPart<FiberPart>();
 		fiber.X = 80;
 		fiber.Y = 60;
 		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
@@ -2336,7 +2336,7 @@ internal static class Program
 		twin.Nodes[1].OutX = 0;
 		Check(twin.Nodes[1] is { OutX: 0, OutY: 37, InX: 0, InY: -37 } && bare is { InX: -37, OutX: 37, OutY: 0 }, "a clone keeps its own nodes smooth, the original's untouched");
 		var keeper = new Project();
-		var kept = (FiberPart)keeper.AddPart(PartKind.Fiber);
+		var kept = keeper.AddPart<FiberPart>();
 		kept.Nodes.Add(new FiberNode { X = 150, Y = 30, InX = -60, OutX = 60, OutY = 1 });
 		string keptXml;
 		using (var stream = new MemoryStream())
@@ -2360,7 +2360,7 @@ internal static class Program
 		const int cw = 64, ch = 48;
 		project.Scene.Width = cw;
 		project.Scene.Height = ch;
-		var wall = (OutlinePart)project.AddPart(PartKind.Outline);
+		var wall = project.AddPart<OutlinePart>();
 		wall.X = 32;
 		wall.Y = 24;
 		wall.Mirror = true;
@@ -2368,7 +2368,7 @@ internal static class Program
 		{
 			wall.Points.Add(new PartPoint { X = px, Y = py });
 		}
-		var hollow = (OutlinePart)project.AddPart(PartKind.Outline);
+		var hollow = project.AddPart<OutlinePart>();
 		hollow.X = 32;
 		hollow.Y = 24;
 		hollow.RefractiveIndex = 1.0;
@@ -2420,25 +2420,25 @@ internal static class Program
 		project.Scene.Width = W;
 		project.Scene.Height = H;
 		project.Parts.Clear();
-		project.AddPart(PartKind.Lens);
-		var polygon = (OutlinePart)project.AddPart(PartKind.Outline);
+		project.AddPart<LensPart>();
+		var polygon = project.AddPart<OutlinePart>();
 		polygon.Points.Add(new PartPoint { X = 3, Y = -4 });
 		polygon.Mirror = true;
-		project.AddPart(PartKind.Polygon);
-		((RectanglePart)project.AddPart(PartKind.Rectangle)).Width = 7;
-		var roundOne = (EllipsePart)project.AddPart(PartKind.Ellipse);
+		project.AddPart<PolygonPart>();
+		project.AddPart<RectanglePart>().Width = 7;
+		var roundOne = project.AddPart<EllipsePart>();
 		roundOne.Linked = true;
 		roundOne.Width = 9;
-		((TrianglePart)project.AddPart(PartKind.Triangle)).Type = TriangleType.RightIsosceles;
-		project.AddPart(PartKind.Fiber);
-		var reflector = (BraggReflectorPart)project.AddPart(PartKind.BraggReflector);
+		project.AddPart<TrianglePart>().Type = TriangleType.RightIsosceles;
+		project.AddPart<FiberPart>();
+		var reflector = project.AddPart<BraggReflectorPart>();
 		reflector.Angle = 45;
 		reflector.Index2 = 2.2;
-		project.AddPart(PartKind.GrinLens);
+		project.AddPart<GrinLensPart>();
 		OpticalPart copy = project.Duplicate(reflector);
 		Check(copy is BraggReflectorPart { Name: "Bragg reflector 1 copy", Angle: 45, Index2: 2.2 } && project.Parts.IndexOf(copy) == 8 && project.Parts.Count == 10, "Duplicate: a deep copy right after the original, named '… copy'");
 		Check(project.Remove(copy) && project.Move(reflector, 0) && project.Parts[0] == reflector && project.Parts.Count == 9, "Remove and Move work on the parts list");
-		((XorGatePart)project.AddPart(PartKind.XorGate)).DesignFrequency = 80;
+		project.AddPart<XorGatePart>().DesignFrequency = 80;
 		string xml;
 		using (var stream = new MemoryStream())
 		{
@@ -2458,8 +2458,14 @@ internal static class Program
 		{
 			back = Project.Load(stream);
 		}
-		Check(back.Parts.Count == 10 && back.Parts.Select(p => p.Kind).SequenceEqual([PartKind.BraggReflector, PartKind.Lens, PartKind.Outline, PartKind.Polygon, PartKind.Rectangle, PartKind.Ellipse, PartKind.Triangle, PartKind.Fiber, PartKind.GrinLens, PartKind.XorGate])
+		Check(back.Parts.Count == 10 && back.Parts.Select(p => p.GetType()).SequenceEqual([typeof(BraggReflectorPart), typeof(LensPart), typeof(OutlinePart), typeof(PolygonPart), typeof(RectanglePart), typeof(EllipsePart), typeof(TrianglePart), typeof(FiberPart), typeof(GrinLensPart), typeof(XorGatePart)])
 			&& back.Parts[9] is XorGatePart { DesignFrequency: 80 }, "the ten kinds load back in order");
+		// the class is the kind: every part class has its file element and is added by its type, so none is half wired
+		Type[] partTypes = [.. typeof(OpticalPart).Assembly.GetTypes().Where(type => type.IsSubclassOf(typeof(OpticalPart)) && !type.IsAbstract)];
+		HashSet<Type?> elements = [.. typeof(Project).GetProperty(nameof(Project.Parts))!.GetCustomAttributes<XmlElementAttribute>().Select(element => element.Type)];
+		var adder = new Project();
+		Check(partTypes.Length > 0 && partTypes.All(type => elements.Contains(type) && adder.AddPart(type) is { } added && added.GetType() == type && added.Name == added.NameStem + " 1"),
+			$"each of the {partTypes.Length} part classes has its file element and is added by its type as '<stem> 1'");
 		Check(xml.Contains("<Node X=\"-100\" Y=\"0\" OutX=\"67\" />") && xml.Contains("<Node X=\"100\" Y=\"0\" InX=\"-67\" />"), "a fibre's nodes are sparse Node children: handles only where set, Smooth only when off");
 		Check(back.Parts[7] is FiberPart { Nodes.Count: 2, Ends: FiberEnds.Flat } loaded && loaded.Nodes[0] is { X: -100, OutX: 67, Smooth: true } && loaded.Nodes[1] is { X: 100, InX: -67 }, "a loaded fibre has its two nodes with their handles, not the default path on top of them");
 		Check(back.Parts[2] is OutlinePart { Mirror: true, Points.Count: 1 } && back.Parts[0] is BraggReflectorPart { Angle: 45, Index2: 2.2, Pairs: 10 } && back.Parts[4] is RectanglePart { Width: 7, Length: 60 } && back.Parts[5] is EllipsePart { Width: 9, Length: 9, Linked: true } && back.Parts[6] is TrianglePart { Type: TriangleType.RightIsosceles, AngleB: 45 },
@@ -2648,7 +2654,7 @@ internal static class Program
 		foreach (LogicGatePart other in new LogicGatePart[] { new AndGatePart { X = gate.X, Y = gate.Y }, new OrGatePart { X = gate.X, Y = gate.Y } })
 		{
 			Check(other.Design!.Length == design.Length && other.Design.PortSpacing == design.PortSpacing && other.Ports()!.SequenceEqual(ports),
-				$"the {other.Kind} has the XOR gate's dimensions and ports ({2 * other.Design.PortSpacing} × {other.Design.Length} px; phase section {other.Design.PhaseLength} of {other.Design.PhaseRegionLength} px on arm {(other.Design.PhaseOnArmA ? "A" : "B")})");
+				$"the {other.NameStem} has the XOR gate's dimensions and ports ({2 * other.Design.PortSpacing} × {other.Design.Length} px; phase section {other.Design.PhaseLength} of {other.Design.PhaseRegionLength} px on arm {(other.Design.PhaseOnArmA ? "A" : "B")})");
 			ScenePixels otherPixels = PartPainter.Paint(null, width, height, 1.0, [other])!;
 			SceneData otherScene = SceneData.FromBgra(otherPixels.Bgra, width, height, otherPixels.StrideBytes, false, 0, true);
 			(double upperA, double lowerA, _) = Outputs([Make(ports[0].X, ports[0].Y, 0, 1.0) with { Level = level }], otherScene);
@@ -2770,7 +2776,7 @@ internal static class Program
 	private static void CheckGatePortFollower()
 	{
 		var project = new Project();
-		var gate = (XorGatePart)project.AddPart(PartKind.XorGate);
+		var gate = project.AddPart<XorGatePart>();
 		(int X, int Y)[] ports = gate.Ports()!;
 		var a = new Source { Name = "A", X = ports[0].X, Y = ports[0].Y };
 		var b = new Source { Name = "B", X = ports[1].X + 1, Y = ports[1].Y - 1 };
@@ -2793,7 +2799,7 @@ internal static class Program
 			(int X, int Y) bBefore = (b.X, b.Y);
 			Movable.MoveAll([gate, a], 7, -3);
 			Check(OnInputs() && (b.X, b.Y) == (bBefore.X + 7, bBefore.Y - 3), "a group move of the gate with A moves A once, and B follows the gate");
-			var second = (XorGatePart)project.AddPart(PartKind.XorGate);
+			var second = project.AddPart<XorGatePart>();
 			second.Y = 200;
 			var c = new Source { Name = "C", X = second.Ports()![0].X, Y = second.Ports()![0].Y };
 			project.Sources.Add(c);
@@ -2812,7 +2818,7 @@ internal static class Program
 		project.Scene.Width = W;
 		project.Scene.Height = H;
 		// a 100 × 100 square of index 1 centred on the corner of pixel (100, 60): x = 50..149, y = 10..109
-		var square = (RectanglePart)project.AddPart(PartKind.Rectangle);
+		var square = project.AddPart<RectanglePart>();
 		square.X = 100;
 		square.Y = 60;
 		square.Length = 100;
@@ -2847,7 +2853,7 @@ internal static class Program
 		square.Mirror = false;
 		// the lens carries the same two settings
 		project.Remove(square);
-		var lens = (LensPart)project.AddPart(PartKind.Lens);
+		var lens = project.AddPart<LensPart>();
 		lens.X = 100;
 		lens.Y = 60;
 		lens.Diameter = 100;

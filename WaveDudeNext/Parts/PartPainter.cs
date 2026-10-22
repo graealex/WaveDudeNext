@@ -101,16 +101,16 @@ public static class PartPainter
 		PartShape? shape = PartShape.For(part);
 		if (shape == null)
 		{
-			Logger.Debug("Part '{Name}' ({Kind}) has no shape to paint (too few points)", part.Name, part.Kind);
+			Logger.Debug("Part '{Name}' ({Type}) has no shape to paint (too few points)", part.Name, part.GetType().Name);
 			return;
 		}
 		(int x0, int y0, int x1, int y1) = shape.Bounds(width, height);
 		if (x0 > x1 || y0 > y1)
 		{
-			Logger.Debug("Part '{Name}' ({Kind}) lies outside the canvas", part.Name, part.Kind);
+			Logger.Debug("Part '{Name}' ({Type}) lies outside the canvas", part.Name, part.GetType().Name);
 			return;
 		}
-		Logger.Debug("Painting part '{Name}' ({Kind}) at ({X}, {Y}), {Angle}°, rows {Y0}..{Y1}", part.Name, part.Kind, part.X, part.Y, part.Angle, y0, y1);
+		Logger.Debug("Painting part '{Name}' ({Type}) at ({X}, {Y}), {Angle}°, rows {Y0}..{Y1}", part.Name, part.GetType().Name, part.X, part.Y, part.Angle, y0, y1);
 		if (shape.Absorption > 0)
 		{
 			PaintAbsorption(bgra, stride, shape, x0, y0, x1, y1);

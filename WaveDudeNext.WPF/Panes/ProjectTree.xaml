@@ -81,33 +81,37 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="MinHeight" Value="20" />
 			<Setter Property="Margin" Value="1,0" />
 		</Style>
-		<!-- the menu of part kinds, the optics first and the plain shapes after a separator: the "+ Part" button and the Parts
-		     folder's plus open it (AddPart without a parameter opens the invoking element's context menu; each entry adds its
-		     kind). One instance per button -->
-		<ContextMenu x:Key="PartKindMenu" x:Shared="False">
+		<!-- the part entries, the optics first and the plain shapes after a separator, in one place for both menus that offer
+		     them (the menu of kinds and the tree rows' Add part): each entry adds its kind, the class as the parameter. Not
+		     shared, so every menu that lists them gets its own entries (added to its items by ProjectTree.MenuEntries) -->
+		<x:Array x:Key="PartMenuEntries" x:Shared="False" Type="{x:Type FrameworkElement}">
+			<MenuItem Header="{DynamicResource MenuAddLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:LensPart}" AutomationProperties.AutomationId="AddPart:Lens" />
+			<MenuItem Header="{DynamicResource MenuAddFiber}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:FiberPart}" AutomationProperties.AutomationId="AddPart:Fiber" />
+			<MenuItem Header="{DynamicResource MenuAddBraggReflector}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:BraggReflectorPart}" AutomationProperties.AutomationId="AddPart:BraggReflector" />
+			<MenuItem Header="{DynamicResource MenuAddGrinLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:GrinLensPart}" AutomationProperties.AutomationId="AddPart:GrinLens" />
+			<MenuItem Header="{DynamicResource MenuAddZonePlate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:ZonePlatePart}" AutomationProperties.AutomationId="AddPart:ZonePlate" />
+			<Separator />
+			<MenuItem Header="{DynamicResource MenuAddPolygon}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:PolygonPart}" AutomationProperties.AutomationId="AddPart:Polygon" />
+			<MenuItem Header="{DynamicResource MenuAddRectangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:RectanglePart}" AutomationProperties.AutomationId="AddPart:Rectangle" />
+			<MenuItem Header="{DynamicResource MenuAddEllipse}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:EllipsePart}" AutomationProperties.AutomationId="AddPart:Ellipse" />
+			<MenuItem Header="{DynamicResource MenuAddTriangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:TrianglePart}" AutomationProperties.AutomationId="AddPart:Triangle" />
+			<MenuItem Header="{DynamicResource MenuAddOutline}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:OutlinePart}" AutomationProperties.AutomationId="AddPart:Outline" />
+			<Separator />
+			<!-- optical logic: one entry per gate (2026-10-21 and 22, the user's requests: XOR, then AND and OR) -->
+			<MenuItem Header="{DynamicResource MenuAddOpticalLogic}" AutomationProperties.AutomationId="AddPart:OpticalLogic">
+				<MenuItem Header="{DynamicResource MenuAddXorGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:XorGatePart}" AutomationProperties.AutomationId="AddPart:XorGate" />
+				<MenuItem Header="{DynamicResource MenuAddAndGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:AndGatePart}" AutomationProperties.AutomationId="AddPart:AndGate" />
+				<MenuItem Header="{DynamicResource MenuAddOrGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Type model:OrGatePart}" AutomationProperties.AutomationId="AddPart:OrGate" />
+			</MenuItem>
+		</x:Array>
+		<!-- the menu of part kinds: the "+ Part" button and the Parts folder's plus open it (AddPart without a parameter opens
+		     the invoking element's context menu). One instance per button -->
+		<ContextMenu x:Key="PartKindMenu" x:Shared="False" local:ProjectTree.MenuEntries="{StaticResource PartMenuEntries}">
 			<ContextMenu.Resources>
 				<Style TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
 					<Setter Property="CommandTarget" Value="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
 				</Style>
 			</ContextMenu.Resources>
-			<MenuItem Header="{DynamicResource MenuAddLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Lens}" AutomationProperties.AutomationId="AddPart:Lens" />
-			<MenuItem Header="{DynamicResource MenuAddFiber}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Fiber}" AutomationProperties.AutomationId="AddPart:Fiber" />
-			<MenuItem Header="{DynamicResource MenuAddBraggReflector}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.BraggReflector}" AutomationProperties.AutomationId="AddPart:BraggReflector" />
-			<MenuItem Header="{DynamicResource MenuAddGrinLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.GrinLens}" AutomationProperties.AutomationId="AddPart:GrinLens" />
-			<MenuItem Header="{DynamicResource MenuAddZonePlate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.ZonePlate}" AutomationProperties.AutomationId="AddPart:ZonePlate" />
-			<Separator />
-			<MenuItem Header="{DynamicResource MenuAddPolygon}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Polygon}" AutomationProperties.AutomationId="AddPart:Polygon" />
-			<MenuItem Header="{DynamicResource MenuAddRectangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Rectangle}" AutomationProperties.AutomationId="AddPart:Rectangle" />
-			<MenuItem Header="{DynamicResource MenuAddEllipse}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Ellipse}" AutomationProperties.AutomationId="AddPart:Ellipse" />
-			<MenuItem Header="{DynamicResource MenuAddTriangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Triangle}" AutomationProperties.AutomationId="AddPart:Triangle" />
-			<MenuItem Header="{DynamicResource MenuAddOutline}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Outline}" AutomationProperties.AutomationId="AddPart:Outline" />
-			<Separator />
-			<!-- optical logic: one entry per gate (2026-10-21 and 22, the user's requests: XOR, then AND and OR) -->
-			<MenuItem Header="{DynamicResource MenuAddOpticalLogic}" AutomationProperties.AutomationId="AddPart:OpticalLogic">
-				<MenuItem Header="{DynamicResource MenuAddXorGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.XorGate}" AutomationProperties.AutomationId="AddPart:XorGate" />
-				<MenuItem Header="{DynamicResource MenuAddAndGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.AndGate}" AutomationProperties.AutomationId="AddPart:AndGate" />
-				<MenuItem Header="{DynamicResource MenuAddOrGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.OrGate}" AutomationProperties.AutomationId="AddPart:OrGate" />
-			</MenuItem>
 		</ContextMenu>
 	</UserControl.Resources>
 
@@ -170,25 +174,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 									</Style>
 								</ContextMenu.Resources>
 								<MenuItem Header="{DynamicResource MenuProjectAddSource}" Command="{x:Static commands:ProjectCommands.AddSource}" />
-								<MenuItem Header="{DynamicResource MenuProjectAddPart}">
-									<MenuItem Header="{DynamicResource MenuAddLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Lens}" />
-									<MenuItem Header="{DynamicResource MenuAddFiber}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Fiber}" />
-									<MenuItem Header="{DynamicResource MenuAddBraggReflector}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.BraggReflector}" />
-									<MenuItem Header="{DynamicResource MenuAddGrinLens}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.GrinLens}" />
-									<MenuItem Header="{DynamicResource MenuAddZonePlate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.ZonePlate}" />
-									<Separator />
-									<MenuItem Header="{DynamicResource MenuAddPolygon}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Polygon}" />
-									<MenuItem Header="{DynamicResource MenuAddRectangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Rectangle}" />
-									<MenuItem Header="{DynamicResource MenuAddEllipse}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Ellipse}" />
-									<MenuItem Header="{DynamicResource MenuAddTriangle}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Triangle}" />
-									<MenuItem Header="{DynamicResource MenuAddOutline}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.Outline}" />
-									<Separator />
-									<MenuItem Header="{DynamicResource MenuAddOpticalLogic}">
-										<MenuItem Header="{DynamicResource MenuAddXorGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.XorGate}" />
-										<MenuItem Header="{DynamicResource MenuAddAndGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.AndGate}" />
-										<MenuItem Header="{DynamicResource MenuAddOrGate}" Command="{x:Static commands:ProjectCommands.AddPart}" CommandParameter="{x:Static model:PartKind.OrGate}" />
-									</MenuItem>
-								</MenuItem>
+								<MenuItem Header="{DynamicResource MenuProjectAddPart}" local:ProjectTree.MenuEntries="{StaticResource PartMenuEntries}" />
 								<MenuItem Header="{DynamicResource MenuProjectAddProbe}" Command="{x:Static commands:ProjectCommands.AddProbe}" />
 								<Separator />
 								<MenuItem Header="{DynamicResource MenuProjectToggleSelected}" Command="{x:Static commands:ProjectCommands.ToggleSelected}" InputGestureText="Ins" AutomationProperties.AutomationId="ContextToggleSelected" />

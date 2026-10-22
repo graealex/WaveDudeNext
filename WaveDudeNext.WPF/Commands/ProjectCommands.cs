@@ -29,7 +29,7 @@ public static class ProjectCommands
 	/// <summary>Appends a new source.</summary>
 	public static readonly RoutedUICommand AddSource = new("Add source", nameof(AddSource), typeof(ProjectCommands));
 
-	/// <summary>Appends a new optical part of the <see cref="WaveDudeNext.Model.PartKind"/> given as parameter; without one, opens the menu of kinds on the invoking element.</summary>
+	/// <summary>Appends a new optical part of the <see cref="WaveDudeNext.Model.OpticalPart"/> subclass given as parameter; without one, opens the menu of kinds on the invoking element.</summary>
 	public static readonly RoutedUICommand AddPart = new("Add part", nameof(AddPart), typeof(ProjectCommands));
 
 	/// <summary>Appends a new probe.</summary>

@@ -128,7 +128,7 @@ Index2 (2.00), Width (int, 200, ≥ 2). Layers stacked along +x', the stack cent
 **`GrinLensPart`** — Length (100), Diameter (100), CentreIndex (1.80), EdgeIndex (1.50), Coating (0).
 Rectangle Length × Diameter; n(y') = n_c − (n_c − n_e)·(2y'/D)².
 
-`Project`: `Parts` collection (serialised between `Sources` and `Probes`), `AddPart(PartKind)` using
+`Project`: `Parts` collection (serialised between `Sources` and `Probes`), `AddPart(Type)` and `AddPart<T>()` (the class is the kind; 2026-10-22, the `PartKind` enum removed) using
 `NumberedName`, `Duplicate(OpticalPart)`, `Normalize()` over the parts. `ProjectWatcher`: subscribe the parts and
 their `Points` lists (`Resubscribe`, the property-change filter list); `ProjectChange.AffectsSimulation` true for a
 part, a `PartPoint`, the parts list and `Project.Parts`. `LegacyProject` (Jeroen's `configuration.json`) has no
@@ -177,7 +177,7 @@ IReadOnlyList<OpticalPart> parts)`:
   "Part:<name>" and "PartAngle:<name>". The shape itself shows through the glowing outline; drawing the selected
   part's outline in the accent colour is a welcome extra if cheap (the painter can expose a polyline per part).
 - **Strings**: `TreeParts`, `ToolAddPart`, `TipToolAddPart`, `MenuAddLens` … (five), `Label.`/`Hint.` for every
-  member above, `Enum.PartKind.*`, in all four tables. British spelling in the UI.
+  member above, in all four tables. British spelling in the UI.
 - **Live editing** rules of `CLAUDE.md` hold: a part edit is a simulation edit.
 
 ## Verification

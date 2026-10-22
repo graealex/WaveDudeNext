@@ -111,15 +111,15 @@ public partial class MainWindow
 	private void OnAddSource(object sender, ExecutedRoutedEventArgs e) => Added(Project.AddSource());
 
 	/// <summary>
-	/// Add part: with a <see cref="PartKind"/> as parameter (the menu entries) the part is appended; without one (the
+	/// Add part: with an <see cref="OpticalPart"/> subclass as parameter (the menu entries) the part is appended; without one (the
 	/// "+ Part" button, the Parts folder's plus) the invoking element's context menu, the menu of kinds, opens under it,
 	/// so the kind is chosen there (keyboard: Space opens it, the arrows walk it, Enter picks).
 	/// </summary>
 	private void OnAddPart(object sender, ExecutedRoutedEventArgs e)
 	{
-		if (e.Parameter is PartKind kind)
+		if (e.Parameter is Type type)
 		{
-			Added(Project.AddPart(kind));
+			Added(Project.AddPart(type));
 		}
 		else
 		{

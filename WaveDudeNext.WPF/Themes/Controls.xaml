@@ -209,6 +209,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="Background" Value="Transparent" />
 		<Setter Property="Foreground" Value="{DynamicResource MenuForeground}" />
 		<Setter Property="Padding" Value="7,3" />
+		<!-- set here so the system theme's bindings to the parent ItemsControl never apply: the templates below do not use
+		     them, and a menu item made before its menu (the shared part entries in ProjectTree.xaml) logged a binding error -->
+		<Setter Property="HorizontalContentAlignment" Value="Left" />
+		<Setter Property="VerticalContentAlignment" Value="Center" />
 		<Setter Property="Template" Value="{StaticResource MenuSubmenuItemTemplate}" />
 		<Style.Triggers>
 			<Trigger Property="Role" Value="TopLevelHeader">
