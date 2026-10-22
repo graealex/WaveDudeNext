@@ -243,10 +243,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<MenuItem Header="{DynamicResource MenuEditDelete}" Command="{x:Static commands:EditCommands.Delete}" InputGestureText="Del" AutomationProperties.AutomationId="MenuDelete" controls:MenuIcon.Glyph="&#xE74D;" />
 			</MenuItem>
 			<MenuItem Header="{DynamicResource MenuView}">
-				<MenuItem Header="{DynamicResource MenuViewPanes}"
+				<MenuItem Header="{DynamicResource MenuViewPanes}" controls:MenuIcon.Glyph="&#xE8A0;"
 				          ItemsSource="{Binding Items, ElementName=dockHost}"
 				          ItemContainerStyle="{StaticResource PaneMenuItemStyle}" />
-				<MenuItem x:Name="themeMenu" Header="{DynamicResource MenuViewTheme}"
+				<MenuItem x:Name="themeMenu" Header="{DynamicResource MenuViewTheme}" controls:MenuIcon.Glyph="&#xE790;"
 				          ItemsSource="{Binding Options, Source={x:Static theming:ThemeController.Instance}}"
 				          ItemContainerStyle="{StaticResource ThemeMenuItemStyle}" />
 				<MenuItem Header="{DynamicResource MenuViewLanguage}"
@@ -255,7 +255,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Separator />
 				<!-- the reduced preview (2026-10-15): how much of a run is captured and kept, for weaker machines; user
 				     settings, never the project's, and an export always uses a full run -->
-				<MenuItem Header="{DynamicResource MenuViewResolution}" AutomationProperties.AutomationId="MenuPreviewResolution">
+				<MenuItem Header="{DynamicResource MenuViewResolution}" controls:MenuIcon.Drawing="PreviewResolution" AutomationProperties.AutomationId="MenuPreviewResolution">
 					<MenuItem Header="{DynamicResource MenuViewResolutionFull}" Command="{x:Static commands:ViewCommands.SetPreviewResolution}" CommandParameter="1"
 					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewResolution, Converter={StaticResource IntEquals}, ConverterParameter=1, Mode=OneWay}"
 					          AutomationProperties.AutomationId="MenuPreviewResolution1" />
@@ -266,7 +266,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewResolution, Converter={StaticResource IntEquals}, ConverterParameter=4, Mode=OneWay}"
 					          AutomationProperties.AutomationId="MenuPreviewResolution4" />
 				</MenuItem>
-				<MenuItem Header="{DynamicResource MenuViewFrames}" AutomationProperties.AutomationId="MenuPreviewFrames">
+				<MenuItem Header="{DynamicResource MenuViewFrames}" controls:MenuIcon.Drawing="PreviewFrames" AutomationProperties.AutomationId="MenuPreviewFrames">
 					<MenuItem Header="{DynamicResource MenuViewFramesFull}" Command="{x:Static commands:ViewCommands.SetPreviewFrames}" CommandParameter="1"
 					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewFrames, Converter={StaticResource IntEquals}, ConverterParameter=1, Mode=OneWay}"
 					          AutomationProperties.AutomationId="MenuPreviewFrames1" />
@@ -277,7 +277,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewFrames, Converter={StaticResource IntEquals}, ConverterParameter=4, Mode=OneWay}"
 					          AutomationProperties.AutomationId="MenuPreviewFrames4" />
 				</MenuItem>
-				<MenuItem Header="{DynamicResource MenuViewSamples}" AutomationProperties.AutomationId="MenuPreviewSamples">
+				<MenuItem Header="{DynamicResource MenuViewSamples}" controls:MenuIcon.Drawing="PreviewSamples" AutomationProperties.AutomationId="MenuPreviewSamples">
 					<MenuItem Header="{DynamicResource MenuViewSamples16}" Command="{x:Static commands:ViewCommands.SetPreviewSamples}" CommandParameter="2"
 					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewSampleBytes, Converter={StaticResource IntEquals}, ConverterParameter=2, Mode=OneWay}"
 					          AutomationProperties.AutomationId="MenuPreviewSamples2" />
@@ -312,7 +312,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				          AutomationProperties.AutomationId="MenuAutoRerun" />
 				<!-- the memory a run's frames may take before the rest goes to disk: the application decides from what is free
 				     ("Auto", 2026-10-15), a percentage of the RAM is only an upper bound on that -->
-				<MenuItem Header="{DynamicResource MenuSimulationFrameMemory}" AutomationProperties.AutomationId="MenuFrameMemory"
+				<MenuItem Header="{DynamicResource MenuSimulationFrameMemory}" controls:MenuIcon.Drawing="FrameMemory" AutomationProperties.AutomationId="MenuFrameMemory"
 				          ItemsSource="{x:Static local:MainWindow.FrameMemoryOptions}"
 				          ItemContainerStyle="{StaticResource FrameMemoryMenuItemStyle}" />
 			</MenuItem>

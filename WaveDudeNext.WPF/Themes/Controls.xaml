@@ -222,6 +222,48 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="VerticalAlignment" Value="Center" />
 	</Style>
 
+	<!-- the app's own menu icons (controls:MenuIcon.Drawing, 2026-10-23) for entries the icon font has no glyph for: 16 px
+	     line drawings, stroked at 1 px on half pixels so the lines are crisp at 100 %, a Fill geometry for the solid parts -->
+	<!-- a biconvex lens -->
+	<StreamGeometry x:Key="IconLens">M8,1.5 C11.5,4.5 11.5,11.5 8,14.5 C4.5,11.5 4.5,4.5 8,1.5 Z</StreamGeometry>
+	<!-- an S-bent fibre -->
+	<StreamGeometry x:Key="IconFiber">M1,13.5 C7,13.5 9,5.5 15,5.5 M1,10.5 C7,10.5 9,2.5 15,2.5</StreamGeometry>
+	<!-- alternating layers -->
+	<StreamGeometry x:Key="IconBraggReflectorFill">M2,2 H4 V14 H2 Z M6,2 H8 V14 H6 Z M10,2 H12 V14 H10 Z</StreamGeometry>
+	<!-- a block whose lines thicken toward the axis -->
+	<StreamGeometry x:Key="IconGrinLens">M2.5,2.5 H13.5 V13.5 H2.5 Z M2.5,8 H13.5 M4,6 H12 M4,10 H12 M6,4.5 H10 M6,11.5 H10</StreamGeometry>
+	<!-- a plate, open in the middle, its blocks narrowing outwards -->
+	<StreamGeometry x:Key="IconZonePlateFill">M6,3 H10 V6 H6 Z M6,10 H10 V13 H6 Z M6,0.5 H10 V1.75 H6 Z M6,14.25 H10 V15.5 H6 Z</StreamGeometry>
+	<!-- a hexagon -->
+	<StreamGeometry x:Key="IconPolygon">M5,2.5 L11,2.5 L14,8 L11,13.5 L5,13.5 L2,8 Z</StreamGeometry>
+	<!-- a rectangle -->
+	<StreamGeometry x:Key="IconRectangle">M2.5,4.5 H13.5 V11.5 H2.5 Z</StreamGeometry>
+	<!-- an ellipse -->
+	<StreamGeometry x:Key="IconEllipse">M2,8 A6,4.5 0 1 1 14,8 A6,4.5 0 1 1 2,8 Z</StreamGeometry>
+	<!-- a triangle -->
+	<StreamGeometry x:Key="IconTriangle">M8,2.5 L14,13.5 L2,13.5 Z</StreamGeometry>
+	<!-- a free outline -->
+	<StreamGeometry x:Key="IconOutline">M2.5,12.5 L5,3.5 L9.5,6.5 L13.5,2.5 L12.5,13.5 Z</StreamGeometry>
+	<!-- a gate with its inputs and output -->
+	<StreamGeometry x:Key="IconOpticalLogic">M2.5,3.5 H8 A4.5,4.5 0 0 1 8,12.5 H2.5 Z M0,6 H2.5 M0,10 H2.5 M12.5,8 H16</StreamGeometry>
+	<!-- the ANSI XOR symbol -->
+	<StreamGeometry x:Key="IconXorGate">M4,3.5 Q7,8 4,12.5 Q11,12.5 13.5,8 Q11,3.5 4,3.5 Z M2,3.5 Q5,8 2,12.5 M13.5,8 H16</StreamGeometry>
+	<!-- the ANSI AND symbol -->
+	<StreamGeometry x:Key="IconAndGate">M2.5,3.5 H8 A4.5,4.5 0 0 1 8,12.5 H2.5 Z M12.5,8 H16</StreamGeometry>
+	<!-- the ANSI OR symbol -->
+	<StreamGeometry x:Key="IconOrGate">M2.5,3.5 Q5.5,8 2.5,12.5 Q10,12.5 13.5,8 Q10,3.5 2.5,3.5 Z M13.5,8 H16</StreamGeometry>
+	<!-- a half-filled circle, the usual automatic contrast -->
+	<StreamGeometry x:Key="IconAutoBrightness">M8,2.5 A5.5,5.5 0 1 1 8,13.5 A5.5,5.5 0 1 1 8,2.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconAutoBrightnessFill">M8,2.5 A5.5,5.5 0 0 1 8,13.5 Z</StreamGeometry>
+	<!-- a pixel grid -->
+	<StreamGeometry x:Key="IconPreviewResolution">M2.5,2.5 H13.5 V13.5 H2.5 Z M6.5,2.5 V13.5 M10.5,2.5 V13.5 M2.5,6.5 H13.5 M2.5,10.5 H13.5</StreamGeometry>
+	<!-- a strip of frames -->
+	<StreamGeometry x:Key="IconPreviewFrames">M1.5,3.5 H14.5 V12.5 H1.5 Z M5.5,3.5 V12.5 M10.5,3.5 V12.5</StreamGeometry>
+	<!-- a quantisation staircase, the bit depth -->
+	<StreamGeometry x:Key="IconPreviewSamples">M1.5,14.5 V11.5 H4.5 V8.5 H7.5 V5.5 H10.5 V2.5 H14.5</StreamGeometry>
+	<!-- a memory module -->
+	<StreamGeometry x:Key="IconFrameMemory">M2.5,4.5 H13.5 V11.5 H2.5 Z M4.5,11.5 V14 M7,11.5 V14 M9,11.5 V14 M11.5,11.5 V14 M5,7 H11 V9 H5 Z</StreamGeometry>
+
 	<Style TargetType="{x:Type MenuItem}">
 		<Setter Property="Background" Value="Transparent" />
 		<Setter Property="Foreground" Value="{DynamicResource MenuForeground}" />
