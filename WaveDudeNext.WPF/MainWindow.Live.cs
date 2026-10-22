@@ -157,6 +157,7 @@ public partial class MainWindow
 		IsProbesStale = false;
 		IsDirty = false;
 		ScratchFrame = null;
+		StartHistory(project);
 		if (project != null)
 		{
 			_watcher = new ProjectWatcher(project);
@@ -170,9 +171,11 @@ public partial class MainWindow
 	private void OnProjectChanged(object? sender, ProjectChange change)
 	{
 		IsDirty = true;
-		if (change.Item is Scene && change.Property is nameof(Scene.ImagePath) or nameof(Scene.ImageData))
+		ScheduleRecord();
+		bool sceneReplaced = change.Item is Project && change.Property == nameof(Project.Scene);
+		if (change.Item is Scene && change.Property is nameof(Scene.ImagePath) or nameof(Scene.ImageData) || sceneReplaced)
 		{
-			// a new image file to watch (Browse, a reload, a path made relative)
+			// a new image file to watch (Browse, a reload, a path made relative, a scene written back by Undo or Redo)
 			ArmSceneImageWatch();
 		}
 		if (change.Item is ColorScheme or ObservableCollection<ColorScheme>)
@@ -213,7 +216,7 @@ public partial class MainWindow
 			// the parts are painted into the scene pixels: paint again, so the outline follows the edit at once
 			_partsVersion++;
 		}
-		if (change.Item is Scene || IsPartChange(change))
+		if (change.Item is Scene || sceneReplaced || IsPartChange(change))
 		{
 			UpdateScenePixels();
 		}

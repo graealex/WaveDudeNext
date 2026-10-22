@@ -143,7 +143,8 @@ public partial class MainWindow : Window
 	/// <summary>
 	/// Whether the project was edited since it was opened, created or last saved (2026-10-14): the title
 	/// carries an asterisk and New, Open, Close and Exit ask before discarding. Set by the watcher on any
-	/// change, model-wide; cleared when the project is replaced or saved.
+	/// change, model-wide; cleared when the project is replaced or saved, and when Undo or Redo reach the saved step
+	/// (<c>MainWindow.History.cs</c>).
 	/// </summary>
 	public bool IsDirty
 	{
@@ -290,6 +291,7 @@ public partial class MainWindow : Window
 			Project.Scene.RelativizeImagePath(Path.GetDirectoryName(fileName));
 			Project.Save(fileName);
 			Filename = fileName;
+			MarkHistorySaved();
 			IsDirty = false;
 			ArmSceneImageWatch();
 			Logger.Info("Saved '{Path}'", fileName);

@@ -42,6 +42,22 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         AllowDrop="True" Drop="OnDrop">
 
 	<Window.Resources>
+		<!-- a menu icon from Windows' icon font: Segoe Fluent Icons on Windows 11, Segoe MDL2 Assets on Windows 10 (the same code
+		     points), drawn on their 16 px grid; the line is held to 16 px, as the font's own line height overflowed the 16 px slot
+		     and cut the glyphs, and the glyph then moved down 3 px to the text's middle (measured on a capture: it sat 3.5 px high) -->
+		<Style x:Key="MenuIconText" TargetType="{x:Type TextBlock}">
+			<Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+			<Setter Property="FontSize" Value="16" />
+			<Setter Property="LineHeight" Value="16" />
+			<Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+			<Setter Property="RenderTransform">
+				<Setter.Value>
+					<TranslateTransform Y="3" />
+				</Setter.Value>
+			</Setter>
+			<Setter Property="HorizontalAlignment" Value="Center" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+		</Style>
 		<converters:EqualityConverter x:Key="Equality" />
 		<converters:FrameMemoryOptionConverter x:Key="FrameMemoryOption" />
 		<converters:IntEqualsConverter x:Key="IntEquals" />
@@ -176,6 +192,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<!-- the pictures' Auto brightness; handler in MainWindow.Display.cs -->
 		<CommandBinding Command="{x:Static commands:DisplayCommands.AutoBrightness}" CanExecute="CanAutoBrightness" Executed="OnAutoBrightness" />
 
+		<!-- undo and redo; handlers in MainWindow.History.cs -->
+		<CommandBinding Command="{x:Static commands:EditCommands.Undo}" CanExecute="CanUndo" Executed="OnUndo" />
+		<CommandBinding Command="{x:Static commands:EditCommands.Redo}" CanExecute="CanRedo" Executed="OnRedo" />
+		<!-- Edit > Delete; handlers in MainWindow.Project.cs (Cut, Copy and Paste are the text boxes' own) -->
+		<CommandBinding Command="{x:Static commands:EditCommands.Delete}" CanExecute="CanDelete" Executed="OnDelete" />
+
 		<!-- project structure; handlers in MainWindow.Project.cs -->
 		<CommandBinding Command="{x:Static commands:ProjectCommands.AddSource}" Executed="OnAddSource" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.AddPart}" Executed="OnAddPart" />
@@ -225,6 +247,28 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<MenuItem Command="ApplicationCommands.Close" Header="{DynamicResource MenuFileClose}" />
 				<Separator />
 				<MenuItem Command="{StaticResource FileExit}" Header="{DynamicResource MenuFileExit}" />
+			</MenuItem>
+			<MenuItem Header="{DynamicResource MenuEdit}">
+				<!-- the icons are Windows' own glyphs (Segoe Fluent Icons, Segoe MDL2 Assets on Windows 10), in the item's text colour -->
+				<MenuItem Header="{DynamicResource MenuEditUndo}" Command="{x:Static commands:EditCommands.Undo}" AutomationProperties.AutomationId="MenuUndo">
+					<MenuItem.Icon><TextBlock Style="{StaticResource MenuIconText}" Text="&#xE7A7;" /></MenuItem.Icon>
+				</MenuItem>
+				<MenuItem Header="{DynamicResource MenuEditRedo}" Command="{x:Static commands:EditCommands.Redo}" AutomationProperties.AutomationId="MenuRedo">
+					<MenuItem.Icon><TextBlock Style="{StaticResource MenuIconText}" Text="&#xE7A6;" /></MenuItem.Icon>
+				</MenuItem>
+				<Separator />
+				<MenuItem Header="{DynamicResource MenuEditCut}" Command="ApplicationCommands.Cut" AutomationProperties.AutomationId="MenuCut">
+					<MenuItem.Icon><TextBlock Style="{StaticResource MenuIconText}" Text="&#xE8C6;" /></MenuItem.Icon>
+				</MenuItem>
+				<MenuItem Header="{DynamicResource MenuEditCopy}" Command="ApplicationCommands.Copy" AutomationProperties.AutomationId="MenuCopy">
+					<MenuItem.Icon><TextBlock Style="{StaticResource MenuIconText}" Text="&#xE8C8;" /></MenuItem.Icon>
+				</MenuItem>
+				<MenuItem Header="{DynamicResource MenuEditPaste}" Command="ApplicationCommands.Paste" AutomationProperties.AutomationId="MenuPaste">
+					<MenuItem.Icon><TextBlock Style="{StaticResource MenuIconText}" Text="&#xE77F;" /></MenuItem.Icon>
+				</MenuItem>
+				<MenuItem Header="{DynamicResource MenuEditDelete}" Command="{x:Static commands:EditCommands.Delete}" InputGestureText="Del" AutomationProperties.AutomationId="MenuDelete">
+					<MenuItem.Icon><TextBlock Style="{StaticResource MenuIconText}" Text="&#xE74D;" /></MenuItem.Icon>
+				</MenuItem>
 			</MenuItem>
 			<MenuItem Header="{DynamicResource MenuView}">
 				<MenuItem Header="{DynamicResource MenuViewPanes}"

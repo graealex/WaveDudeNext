@@ -474,6 +474,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="Background" Value="Transparent" />
 		<Setter Property="Padding" Value="3,1" />
 		<Setter Property="HorizontalContentAlignment" Value="Left" />
+		<!-- set so the system theme's binding to the parent ItemsControl never applies (the template does not use it): it
+		     logged an error for every row dropped when a list was cleared and refilled, as Undo and Redo do -->
+		<Setter Property="VerticalContentAlignment" Value="Center" />
 		<Setter Property="Template">
 			<Setter.Value>
 				<ControlTemplate TargetType="{x:Type TreeViewItem}">

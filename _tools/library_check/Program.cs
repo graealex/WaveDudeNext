@@ -267,6 +267,7 @@ internal static class Program
 		CheckDecimalLevels(W, H);
 		CheckMovable();
 		CheckRanges();
+		CheckHistory();
 		CheckOpenEdges(W, H);
 		CheckFrameStore(scene);
 		CheckPreviewQuality(scene, W, H);
@@ -424,6 +425,77 @@ internal static class Program
 				failures.Add($"{where}, threw {e.GetType().Name}: {e.Message}");
 			}
 		}
+	}
+
+	/// <summary>
+	/// Undo and redo (<see cref="ProjectHistory"/>): a step written back gives the file it was recorded from, image
+	/// included, into the same project object and lists; an edit that leaves the file as it was is no step; equal image
+	/// bytes are shared between steps; a new edit after an undo drops the redo; the saved mark follows the steps.
+	/// </summary>
+	private static void CheckHistory()
+	{
+		Console.WriteLine("--- undo and redo (ProjectHistory)");
+		static string FileOf(Project project)
+		{
+			using var stream = new MemoryStream();
+			project.Save(stream);
+			return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+		}
+		var project = new Project { Seed = 7 };
+		byte[] image = [1, 2, 3, 4, 5];
+		project.Scene.ImageData = image;
+		var history = new ProjectHistory(project);
+		string first = FileOf(project);
+		Check(history.Count == 1 && !history.CanUndo && !history.CanRedo && history.IsAtSaved, "a new history: one step, the saved one, nothing to undo or redo");
+		Check(!history.Record(), "an unchanged project records no step");
+
+		var sources = project.Sources;
+		var parts = project.Parts;
+		project.Seed = 8;
+		project.AddSource().X = 40;
+		project.AddPart<FiberPart>().Nodes[0].OutY = 30;
+		project.AddProbe();
+		project.Display.Field.Brightness = 2.5;
+		project.Scene.ImageData = [9, 9, 9];
+		Check(history.Record() && history.Count == 2 && !history.IsAtSaved, "an edit (seed, a source, a fibre node, a probe, a layer, the image) records a step");
+		string second = FileOf(project);
+		Scene secondScene = project.Scene;
+
+		project.Scene.ImageData = [9, 9, 9];
+		byte[] shared = project.Scene.ImageData!;
+		Check(!history.Record(), "an image with equal bytes is no step");
+
+		Check(history.Undo() && FileOf(project) == first && ReferenceEquals(project.Scene.ImageData, image) && history.IsAtSaved,
+			"Undo writes the first step back: the same file, the first image's own bytes, the saved step");
+		Check(ReferenceEquals(project.Sources, sources) && ReferenceEquals(project.Parts, parts) && project.Sources.Count == 0 && project.Parts.Count == 0,
+			"the lists are the project's own, emptied: what is bound to them stays bound");
+		Check(!ReferenceEquals(project.Scene, secondScene), "the settings objects are replaced by the step's");
+
+		Check(history.Redo() && FileOf(project) == second && project.Sources.Count == 1 && project.Sources[0].Elements.Count > 0,
+			"Redo writes the second step back, the source's emitters generated again");
+		Check(project.Parts[0] is FiberPart { Nodes: [{ OutY: 30 }, _] }, "a fibre node's handle comes back with its part");
+		Check(project.Scene.ImageData != null && !ReferenceEquals(project.Scene.ImageData, image) && project.Scene.ImageData.SequenceEqual(shared),
+			"the second step's image comes back");
+
+		history.Undo();
+		project.Description = "another way";
+		Check(history.Record() && !history.CanRedo && history.Count == 2 && !history.IsAtSaved,
+			"an edit after an undo drops the undone step, and the saved state is no longer reachable by redo");
+		history.MarkSaved();
+		Check(history.IsAtSaved && history.Undo() && !history.IsAtSaved && history.Redo() && history.IsAtSaved, "the saved mark moves to the step saved");
+
+		// 100 steps of a few kilobytes: unlimited is affordable
+		for (int i = 0; i < 100; i++)
+		{
+			project.Seed = 100 + i;
+			history.Record();
+		}
+		int undone = 0;
+		while (history.Undo())
+		{
+			undone++;
+		}
+		Check(undone == 101 && history.Count == 102 && FileOf(project) == first, $"{undone} undos walk back through {history.Count} steps to the first");
 	}
 
 	/// <summary>"bench-render [w h]": what colouring a stored frame costs, per layer, at that size (the presenter's cost per picture).</summary>

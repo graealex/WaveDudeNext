@@ -45,6 +45,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipAutoBrightness">Die Helligkeit einmal an das gezeigte Bild anpassen: das hellste halbe Prozent erreicht das obere Ende des Farbschemas. Die Helligkeit bleibt danach, wie sie ist.</s:String>
 	<s:String x:Key="MenuExportProbeCsv">Sonden_daten als CSV exportieren...</s:String>
 	<s:String x:Key="MenuFileExit">_Beenden</s:String>
+	<s:String x:Key="MenuEdit">_Bearbeiten</s:String>
+	<s:String x:Key="MenuEditUndo">_Rückgängig</s:String>
+	<s:String x:Key="MenuEditRedo">_Wiederholen</s:String>
+	<s:String x:Key="MenuEditCut">_Ausschneiden</s:String>
+	<s:String x:Key="MenuEditCopy">_Kopieren</s:String>
+	<s:String x:Key="MenuEditPaste">_Einfügen</s:String>
+	<s:String x:Key="MenuEditDelete">_Löschen</s:String>
 	<s:String x:Key="MenuView">_Ansicht</s:String>
 	<s:String x:Key="MenuViewPanes">_Fenster</s:String>
 	<s:String x:Key="DockWindowPosition">Fensterposition</s:String>

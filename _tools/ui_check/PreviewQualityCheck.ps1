@@ -16,7 +16,7 @@
 # <https://www.gnu.org/licenses/>.
 
 # Drives View > Preview resolution / frames / samples by keyboard (F10 focuses the menu bar, Down opens a menu, Right moves
-# to View, Down walks its entries, Right opens a submenu, Enter picks) on tiny.wdproj (64 x 48, 200 steps, a frame every
+# over Edit to View, Down walks its entries, Right opens a submenu, Enter picks) on tiny.wdproj (64 x 48, 200 steps, a frame every
 # 2 steps): a run is made, then each choice marks it stale and the automatic re-run follows in the reduced shape (the
 # status bar, the frame readout and the log file next to the exe are the witnesses: "50 of 100 frames stored as 32x24
 # (1/2 resolution, every 2. frame, 8-bit)"). The timeline never changes: with every second frame stored, frames 98 and
@@ -45,10 +45,11 @@ function LogText() {
 	try { $sr = New-Object IO.StreamReader($fs); return $sr.ReadToEnd() } finally { $fs.Dispose() }
 }
 function LogHas([string]$text) { return (LogText).Contains($text) }
-# View (2nd header) > entry $entry (0 Panes, 1 Theme, 2 Language, 3 Preview resolution, 4 Preview frames, 5 Preview samples) > item $item
+# View (3rd header, after File and Edit) > entry $entry (0 Panes, 1 Theme, 2 Language, 3 Preview resolution, 4 Preview frames, 5 Preview samples) > item $item
 function ChooseView([int]$entry, [int]$item) {
 	Step "F10" 0x79 150                            # the menu bar's first header (File)
 	Step "Down" 0x28 150                           # opens File
+	Step "Right" $VK_RIGHT 150                     # moves to Edit and opens it
 	Step "Right" $VK_RIGHT 150                     # moves to View and opens it on its first entry
 	for ($i = 0; $i -lt $entry; $i++) { Step "Down" 0x28 100 }
 	Step "Right" $VK_RIGHT 150                     # opens the submenu on its first item

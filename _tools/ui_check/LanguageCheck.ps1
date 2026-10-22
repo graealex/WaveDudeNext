@@ -15,7 +15,7 @@
 # version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 # <https://www.gnu.org/licenses/>.
 
-# Drives View > Language by keyboard (F10 focuses the menu bar, Down opens a menu, Left/Right move between menus, Enter picks): switches to
+# Drives View > Language by keyboard (F10 focuses the menu bar, Down opens a menu, Left/Right move between menus, Edit lying between File and View, Enter picks): switches to
 # German, checks that menus, tooltips and property labels change at once, closes the app, starts it again
 # and checks the choice was kept (the Language user setting), then switches back to System and checks the
 # strings are English again. Posted keys and UI Automation properties only, as in the other harnesses.
@@ -46,6 +46,7 @@ function Step([string]$what, [int]$vk, [int]$settle) {
 function ChooseLanguage([int]$index) {
 	Step "F10" 0x79 150                            # the menu bar's first header (File)
 	Step "Down" 0x28 150                           # opens File
+	Step "Right" $VK_RIGHT 150                     # moves to Edit and opens it
 	Step "Right" $VK_RIGHT 150                     # moves to View and opens it on its first entry
 	Step "Down" 0x28 100; Step "Down" 0x28 100     # Theme, Language
 	Step "Right" $VK_RIGHT 150                     # opens Language on System
@@ -55,12 +56,12 @@ function ChooseLanguage([int]$index) {
 
 Start-App $exe $project
 try {
-	Check "menus are English to begin with" ((MenuNames) -eq "File|View|Simulation|Help") (MenuNames)
-	Key 0x79 200; Key 0x28 200; Key $VK_RIGHT 500
-	Check "F10, Down, Right opens the View menu by keyboard" (MenuItemVisible "Panes") (MenuNames)
+	Check "menus are English to begin with" ((MenuNames) -eq "File|Edit|View|Simulation|Help") (MenuNames)
+	Key 0x79 200; Key 0x28 200; Key $VK_RIGHT 300; Key $VK_RIGHT 500
+	Check "F10, Down, Right, Right opens the View menu by keyboard (Edit between)" (MenuItemVisible "Panes") (MenuNames)
 	Key $VK_ESCAPE 150; Key $VK_ESCAPE 150
 	ChooseLanguage 2
-	Check "View > Language > Deutsch relabels the menus at once" ((MenuNames) -eq "Datei|Ansicht|Simulation|Hilfe") (MenuNames)
+	Check "View > Language > Deutsch relabels the menus at once" ((MenuNames) -eq "Datei|Bearbeiten|Ansicht|Simulation|Hilfe") (MenuNames)
 	Check "tooltips follow (Play)" ((Find "PreviewPlay").Current.Name -eq "Wiedergabe (Leertaste)") ((Find "PreviewPlay").Current.Name)
 	FocusOn "Source:Source 1"
 	$c = New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, "Frequenz")
@@ -76,9 +77,9 @@ finally { Stop-App }
 # the choice is a user setting: a fresh start comes up German
 Start-App $exe $project
 try {
-	Check "after a restart the menus are still German (setting kept)" ((MenuNames) -eq "Datei|Ansicht|Simulation|Hilfe") (MenuNames)
+	Check "after a restart the menus are still German (setting kept)" ((MenuNames) -eq "Datei|Bearbeiten|Ansicht|Simulation|Hilfe") (MenuNames)
 	ChooseLanguage 0
-	Check "View > Language > System brings English back" ((MenuNames) -eq "File|View|Simulation|Help") (MenuNames)
+	Check "View > Language > System brings English back" ((MenuNames) -eq "File|Edit|View|Simulation|Help") (MenuNames)
 	Check "the folders are English again (Probes, Colour schemes)" ((MenuItemVisible "Probes") -and (MenuItemVisible "Colour schemes") -and -not (MenuItemVisible "Sonden"))
 	Check "the app never took the foreground" ((Foreground) -ne "APP") (Foreground)
 }

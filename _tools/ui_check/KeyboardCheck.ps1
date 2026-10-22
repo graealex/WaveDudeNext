@@ -82,6 +82,7 @@ try {
 		FocusOn "PreviewPlay"
 		Step "F10" 0x79 150                 # the menu bar, File header
 		Step "Down" $VK_DOWN 150            # opens File
+		Step "Right" $VK_RIGHT 150          # moves to Edit and opens it
 		Step "Right" $VK_RIGHT 150          # moves to View and opens it on its first entry (Panes)
 		Step "Right" $VK_RIGHT 150          # opens the Panes submenu on its first entry
 		for ($i = 0; $i -lt 5 -and (FocusedId) -notlike "*'Messages')"; $i++) { Step "Down" $VK_DOWN 120 }

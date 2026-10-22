@@ -24,6 +24,7 @@ using Microsoft.Win32;
 using WaveDudeNext.Model;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
+using WaveDudeNext.WPF.Commands;
 using WaveDudeNext.WPF.Converters;
 using WaveDudeNext.WPF.Rendering;
 
@@ -219,6 +220,24 @@ public partial class MainWindow
 			SelectedItems.Add(copy);
 		}
 		Added(copies[^1]);
+	}
+
+	/// <summary>Edit > Delete: in a text box (the menu's command starts from the element that had the focus) its selected text; else what Remove takes.</summary>
+	private void CanDelete(object sender, CanExecuteRoutedEventArgs e) =>
+		e.CanExecute = e.OriginalSource is System.Windows.Controls.TextBox box
+			? box is { IsReadOnly: false, SelectionLength: > 0 }
+			: Target(null) is Source or OpticalPart or Probe or ColorScheme;
+
+	private void OnDelete(object sender, ExecutedRoutedEventArgs e)
+	{
+		if (e.OriginalSource is System.Windows.Controls.TextBox box)
+		{
+			box.SelectedText = "";
+		}
+		else
+		{
+			ProjectCommands.Remove.Execute(null, this);
+		}
 	}
 
 	/// <summary>Removes the target, or the whole selection it belongs to; the user is kept in place at the slot of the last one removed.</summary>

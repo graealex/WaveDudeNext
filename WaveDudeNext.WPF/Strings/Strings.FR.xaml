@@ -45,6 +45,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipAutoBrightness">Ajuster une fois la luminosité à l'image affichée : le demi-pour-cent le plus clair atteint le haut du jeu de couleurs. La luminosité reste ensuite telle quelle.</s:String>
 	<s:String x:Key="MenuExportProbeCsv">Exporter les _données de la sonde en CSV...</s:String>
 	<s:String x:Key="MenuFileExit">_Quitter</s:String>
+	<s:String x:Key="MenuEdit">_Édition</s:String>
+	<s:String x:Key="MenuEditUndo">_Annuler</s:String>
+	<s:String x:Key="MenuEditRedo">_Rétablir</s:String>
+	<s:String x:Key="MenuEditCut">Co_uper</s:String>
+	<s:String x:Key="MenuEditCopy">Co_pier</s:String>
+	<s:String x:Key="MenuEditPaste">C_oller</s:String>
+	<s:String x:Key="MenuEditDelete">_Supprimer</s:String>
 	<s:String x:Key="MenuView">_Affichage</s:String>
 	<s:String x:Key="MenuViewPanes">_Panneaux</s:String>
 	<s:String x:Key="DockWindowPosition">Position du panneau</s:String>
