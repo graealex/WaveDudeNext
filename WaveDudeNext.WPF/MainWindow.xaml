@@ -40,7 +40,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         MinWidth="800" MinHeight="500"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResizeWithGrip"
-        AllowDrop="True" Drop="OnDrop">
+        AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
 
 	<Window.Resources>
 		<converters:EqualityConverter x:Key="Equality" />
@@ -180,7 +180,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<!-- undo and redo; handlers in MainWindow.History.cs -->
 		<CommandBinding Command="{x:Static commands:EditCommands.Undo}" CanExecute="CanUndo" Executed="OnUndo" />
 		<CommandBinding Command="{x:Static commands:EditCommands.Redo}" CanExecute="CanRedo" Executed="OnRedo" />
-		<!-- Edit > Delete; handlers in MainWindow.Project.cs (Cut, Copy and Paste are the text boxes' own) -->
+		<!-- Cut, Copy and Paste of project objects; handlers in MainWindow.Clipboard.cs. A focused text box handles them first, for its text -->
+		<CommandBinding Command="ApplicationCommands.Cut" CanExecute="CanCutObjects" Executed="OnCutObjects" />
+		<CommandBinding Command="ApplicationCommands.Copy" CanExecute="CanCopyObjects" Executed="OnCopyObjects" />
+		<CommandBinding Command="ApplicationCommands.Paste" CanExecute="CanPasteObjects" Executed="OnPasteObjects" />
+		<!-- Edit > Delete; handlers in MainWindow.Project.cs -->
 		<CommandBinding Command="{x:Static commands:EditCommands.Delete}" CanExecute="CanDelete" Executed="OnDelete" />
 
 		<!-- project structure; handlers in MainWindow.Project.cs -->

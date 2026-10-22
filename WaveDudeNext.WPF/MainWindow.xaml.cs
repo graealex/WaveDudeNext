@@ -488,6 +488,17 @@ public partial class MainWindow : Window
 		messagesPane.FocusList();
 	}
 
+	/// <summary>
+	/// The window takes files dropped on it (a project, a scheme, Jeroen's configuration file); anything else is refused
+	/// where nothing inside took it (the tree takes project objects, the text boxes text), so the cursor shows what a drop
+	/// does. Without this a dragged tree object showed as allowed over the pictures and was then ignored (2026-10-23).
+	/// </summary>
+	private void OnDragOver(object sender, DragEventArgs e)
+	{
+		e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+		e.Handled = true;
+	}
+
 	private void OnDrop(object sender, DragEventArgs e)
 	{
 		if (e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } files && ConfirmDiscard())

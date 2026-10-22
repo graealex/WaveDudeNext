@@ -268,6 +268,7 @@ internal static class Program
 		CheckMovable();
 		CheckRanges();
 		CheckHistory();
+		CheckClipboard();
 		CheckOpenEdges(W, H);
 		CheckFrameStore(scene);
 		CheckPreviewQuality(scene, W, H);
@@ -496,6 +497,73 @@ internal static class Program
 			undone++;
 		}
 		Check(undone == 101 && history.Count == 102 && FileOf(project) == first, $"{undone} undos walk back through {history.Count} steps to the first");
+	}
+
+	/// <summary>
+	/// Copy and paste (<see cref="ProjectClipboard"/>): the objects travel as clipboard text into another project, behind
+	/// its current item, renamed only on a clash, their emitters from the new project's seed; a settings object replaces on its
+	/// own row or the project root only; text that is no clip is refused.
+	/// </summary>
+	private static void CheckClipboard()
+	{
+		Console.WriteLine("--- copy and paste (ProjectClipboard)");
+		var from = new Project { Seed = 3 };
+		Source one = from.AddSource();
+		one.X = 40;
+		from.AddSource();
+		var fiber = from.AddPart<FiberPart>();
+		fiber.Nodes[0].OutY = 30;
+		Probe probe = from.AddProbe();
+		ColorScheme scheme = from.AddColorScheme();
+		from.Scene.Width = 333;
+		string text = ProjectClipboard.Write(from, [probe, fiber, one, from.Sources[1], scheme, new object()]);
+		Check(text.StartsWith("<Source", StringComparison.Ordinal) && text.Contains("<Fiber") && text.Contains("<Probe") && text.Contains("<ColorScheme")
+			&& !text.Contains("Project") && !text.Contains("Seed") && !text.Contains("Version") && !text.Contains("<Scene"),
+			"a copy is a fragment of the objects' own elements, in tree order: no wrapper, seed, version or settings not chosen; unknown objects left out");
+
+		var to = new Project { Seed = 9 };
+		Source existing = to.AddSource();
+		Source last = to.AddSource();
+		ProjectClipboard.Clip? clip = ProjectClipboard.Read(text);
+		Check(clip is { HasItems: true } && clip.CanPaste(to, null), "the text reads back as a clip with items");
+		IReadOnlyList<object> pasted = ProjectClipboard.Paste(to, clip!, existing);
+		Check(pasted.Count == 5 && to.Sources.Select(s => s.Name).SequenceEqual(["Source 1", "Source 1 copy", "Source 2 copy", "Source 2"]),
+			"sources paste behind the current one, in order, renamed only where the name is taken: " + string.Join(", ", to.Sources.Select(s => s.Name)));
+		Check(to.Sources[1] is { X: 40 } pastedOne && !ReferenceEquals(pastedOne, one) && pastedOne.Elements.Count > 0,
+			"a pasted source keeps its position, is a copy, and has its emitters");
+		Check(to.Parts is [FiberPart { Name: "Fiber 1", Nodes: [{ OutY: 30 }, _] }] && to.Probes is [{ Name: "Probe 1" }] && to.ColorSchemes.Count == 1,
+			"a part (with its nodes), a probe and a scheme paste at the end of their lists, their free names kept");
+
+		string scene = ProjectClipboard.Write(from, [from.Scene]);
+		ProjectClipboard.Clip? sceneClip = ProjectClipboard.Read(scene);
+		Check(sceneClip is { HasItems: false } && !sceneClip.CanPaste(to, to.Sources[0]) && sceneClip.CanPaste(to, to.Scene),
+			"a copied scene can be pasted only onto the scene row");
+		ProjectClipboard.Paste(to, sceneClip!, to.Scene);
+		Check(to.Scene.Width == 333, "pasted onto the scene row, it replaces the scene");
+		from.Simulation.Steps = 777;
+		from.Display.Field.Brightness = 4.5;
+		ProjectClipboard.Clip? settingsClip = ProjectClipboard.Read(ProjectClipboard.Write(from, [from.Simulation, from.Display]));
+		Check(settingsClip != null && settingsClip.CanPaste(to, to) && !settingsClip.CanPaste(to, to.Scene), "settings can be pasted onto the project root, not onto another settings row");
+		ProjectClipboard.Paste(to, settingsClip!, to);
+		Check(to.Simulation.Steps == 777 && to.Display.Field.Brightness == 4.5 && to.Scene.Width == 333,
+			"pasted onto the project root, each copied settings object replaces the project's, the others stay");
+
+		ProjectClipboard.Paste(to, ProjectClipboard.Read(ProjectClipboard.Write(from, [from.Sources[1]]))!, to.Sources[0], before: true);
+		Check(to.Sources[0].Name == "Source 2 copy 2" && to.Sources[1].Name == "Source 1",
+			"a drop on the upper half of a row puts the item in front of it: " + string.Join(", ", to.Sources.Select(s => s.Name)));
+		// a drop onto the picture: the first object's anchor on the drop pixel, the group's formation kept, inside the canvas
+		var group = new Project();
+		Source left = group.AddSource();
+		(left.X, left.Y) = (100, 100);
+		Probe right = group.AddProbe();
+		(right.AX, right.AY) = (150, 120);
+		var onto = new Project();
+		IReadOnlyList<object> dropped = ProjectClipboard.Paste(onto, ProjectClipboard.Read(ProjectClipboard.Write(group, [left, right]))!, null);
+		ProjectClipboard.PlaceAt(dropped, 300, 200, 1920, 1080);
+		Check(onto.Sources[0] is { X: 300, Y: 200 } && onto.Probes[0] is { AX: 350, AY: 220 }, "dropped onto the picture, the first object lands on the drop pixel and the rest keep their offsets");
+		ProjectClipboard.PlaceAt(dropped, 1910, 5, 1920, 1080);
+		Check(onto.Sources[0] is { X: 1869, Y: 5 } && onto.Probes[0] is { AX: 1919, AY: 25 }, "near the edge the group stops as a whole inside the canvas, as a group drag does");
+		Check(ProjectClipboard.Read("<Project />") == null && ProjectClipboard.Read("just text") == null, "other text is no clip");
 	}
 
 	/// <summary>"bench-render [w h]": what colouring a stored frame costs, per layer, at that size (the presenter's cost per picture).</summary>

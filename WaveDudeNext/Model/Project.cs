@@ -474,7 +474,7 @@ public sealed class Project : ObservableObject
 	}
 
 	/// <summary>"name copy", then "name copy 2", ... skipping names already in <paramref name="taken"/>.</summary>
-	private static string CopyName(string name, IEnumerable<string> taken)
+	internal static string CopyName(string name, IEnumerable<string> taken)
 	{
 		var names = taken.ToHashSet(StringComparer.OrdinalIgnoreCase);
 		string stem = $"{name} copy";

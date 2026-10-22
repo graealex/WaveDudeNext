@@ -184,6 +184,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 								<Separator />
 								<MenuItem Header="{DynamicResource MenuProjectToggleEnabled}" Command="{x:Static commands:ProjectCommands.ToggleEnabled}" InputGestureText="Space" controls:MenuIcon.Glyph="&#xE73A;" />
 								<MenuItem Header="{DynamicResource MenuProjectDuplicate}" Command="{x:Static commands:ProjectCommands.Duplicate}" InputGestureText="Ctrl+D" controls:MenuIcon.Glyph="&#xF413;" />
+								<MenuItem Header="{DynamicResource MenuEditCut}" controls:MenuIcon.Glyph="&#xE8C6;" Command="ApplicationCommands.Cut" />
+								<MenuItem Header="{DynamicResource MenuEditCopy}" controls:MenuIcon.Glyph="&#xE8C8;" Command="ApplicationCommands.Copy" />
+								<MenuItem Header="{DynamicResource MenuEditPaste}" controls:MenuIcon.Glyph="&#xE77F;" Command="ApplicationCommands.Paste" />
 								<MenuItem Header="{DynamicResource MenuProjectRemove}" Command="{x:Static commands:ProjectCommands.Remove}" InputGestureText="Del" controls:MenuIcon.Glyph="&#xE738;" />
 								<Separator />
 								<MenuItem Header="{DynamicResource MenuProjectMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" InputGestureText="Alt+Up" controls:MenuIcon.Glyph="&#xE74A;" />

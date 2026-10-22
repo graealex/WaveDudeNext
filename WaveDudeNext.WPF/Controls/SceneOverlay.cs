@@ -25,7 +25,9 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using NLog;
 using WaveDudeNext.Model;
+using WaveDudeNext.WPF.Panes;
 
 namespace WaveDudeNext.WPF.Controls;
 
@@ -121,6 +123,8 @@ public sealed class SceneOverlay : Panel
 	private const int KeyStepFast = 10;
 	private const double LabelOffset = 13.0;
 
+	private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+
 	/// <summary>Least distance of a rotation handle from its source's centre, in pixels.</summary>
 	private const double AngleHandleReach = 28.0;
 
@@ -155,6 +159,8 @@ public sealed class SceneOverlay : Panel
 		Background = Brushes.Transparent;
 		IsHitTestVisible = true;
 		Focusable = false;
+		// objects dragged from another window's tree are dropped onto the picture (2026-10-23)
+		AllowDrop = true;
 	}
 
 	/// <summary>The project whose sources and probes are shown; null shows nothing.</summary>
@@ -965,6 +971,70 @@ public sealed class SceneOverlay : Panel
 			dc.DrawGeometry(null, new Pen(HaloBrush, 3.0) { LineJoin = PenLineJoin.Round }, label.BuildGeometry(origin));
 			dc.DrawText(label, origin);
 		}
+	}
+
+	// ---------------------------------------------------------------- dropping objects from another window
+
+	/// <summary>The dragged text last parsed during a drag over this picture, and what it held.</summary>
+	private (string Text, ProjectClipboard.Clip? Clip)? _dropCache;
+
+	/// <summary>
+	/// The objects a drag from another window carries, when it carries sources, parts, probes or schemes (as Copy writes
+	/// them, through <see cref="ProjectTree.ObjectsText"/>); null for anything else, and for a drag from this window, which
+	/// the tree reorders.
+	/// </summary>
+	private ProjectClipboard.Clip? DroppableClip(IDataObject data)
+	{
+		if (Project is not { } project || ProjectTree.IsFromThisWindow(data, project) || ProjectTree.ObjectsText(data) is not { } text)
+		{
+			return null;
+		}
+		if (_dropCache is not { } cache || cache.Text != text)
+		{
+			_dropCache = cache = (text, ProjectClipboard.Read(text));
+		}
+		return cache.Clip is { HasItems: true } clip ? clip : null;
+	}
+
+	/// <inheritdoc/>
+	protected override void OnDragOver(DragEventArgs e)
+	{
+		base.OnDragOver(e);
+		e.Effects = DroppableClip(e.Data) != null ? DragDropEffects.Copy : DragDropEffects.None;
+		e.Handled = true;
+	}
+
+	/// <summary>
+	/// A drop of objects from another window (the user's choice, 2026-10-23): pasted as Paste does, at the end of their
+	/// lists, then moved as a group so the first one sits on the canvas pixel under the mouse, held inside the canvas as a
+	/// group drag is; the dropped objects become the selection. One undo step.
+	/// </summary>
+	protected override void OnDrop(DragEventArgs e)
+	{
+		base.OnDrop(e);
+		e.Handled = true;
+		// read afresh: the paste takes the clip's objects into the project, so the parsed one of the drag-over is dropped
+		if (Project is not { } project || DroppableClip(e.Data) == null || ProjectTree.ObjectsText(e.Data) is not { } text
+			|| ProjectClipboard.Read(text) is not { } clip)
+		{
+			return;
+		}
+		_dropCache = null;
+		(double x, double y) = ToCanvasExact(e.GetPosition(this));
+		int canvasX = (int)Math.Floor(x);
+		int canvasY = (int)Math.Floor(y);
+		IReadOnlyList<object> pasted = ProjectClipboard.Paste(project, clip, null);
+		ProjectClipboard.PlaceAt(pasted, canvasX, canvasY, CanvasWidth, CanvasHeight);
+		Logger.Debug("Dropped {Count} object(s) from another window onto the picture at ({X}, {Y})", pasted.Count, canvasX, canvasY);
+		if (SelectedItems is { } selection)
+		{
+			selection.Clear();
+			foreach (object item in pasted)
+			{
+				selection.Add(item);
+			}
+		}
+		SelectedItem = pasted.LastOrDefault();
 	}
 
 	// ---------------------------------------------------------------- the marquee
