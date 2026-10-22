@@ -238,3 +238,15 @@ upscale in exports; HEVC; the start-up stall (log milestones first); the GPU rea
 automatic quality lowering when a run would spill (undecided); dropping the 9-point Laplacian (undecided);
 **optical parts**: the open points at the end of `OpticalParts.md` (a `PartCheck.ps1` harness, example projects,
 the menu versus buttons, Bragg thicknesses in pixels, where examples live) wait for the user.
+
+**Unsolved: clicks on the intensity picture selected nothing** (2026-10-22, seen once, not reproduced). In
+`Wave_Dude_Examples/logical_elements_example.wdproj`, after several undo and redo cycles (gates moved, undone, redone),
+a click on Probe 1's or Rectangle 1 copy's handle in the intensity picture selected nothing; nothing lay over them, the
+user checked. Reopening the project (a fresh start) cured it. The session is in the Release build's log
+(`WaveDudeNext.WPF\bin\Release\net10.0-windows\WaveDudeNext.WPF.log`, 21:58:52 to 22:00:42): no warning or error, and
+the log records no clicks or selection changes. Looked at without a finding: `SceneOverlay` and `ProbeGraphOverlay`
+rebuild their handles on every list change (an undo keeps the list objects, refills them), the selection bindings
+overlay > pane > window are two-way, the marquee releases its mouse capture, the busy dimming is not hit-testable, the
+graph boxes lay far from both handles. A keyboard-driven rerun (handles moved, undone, redone) found every handle once,
+in place. Not yet looked at: the click path itself (`MarkerThumb` drag start, mouse capture after an undo during or
+right after a drag, focus) with logging of what a press hits.
