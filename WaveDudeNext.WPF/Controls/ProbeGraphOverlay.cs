@@ -273,6 +273,7 @@ public sealed class ProbeGraphOverlay : Panel
 			// the box's context menu (2026-10-18): the probe's recording as CSV; the header follows the language like the XAML menus
 			var export = new MenuItem { Command = Commands.ExportCommands.ProbeCsv, CommandParameter = probe, CommandTarget = thumb };
 			export.SetResourceReference(HeaderedItemsControl.HeaderProperty, "MenuExportProbeCsv");
+			MenuIcon.SetGlyph(export, char.ConvertFromUtf32(0xEDE1));   // Export
 			AutomationProperties.SetAutomationId(export, "ContextExportProbeCsv");
 			thumb.ContextMenu = new ContextMenu { Items = { export } };
 		}

@@ -21,6 +21,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WaveDudeNext.WPF.Panes"
+             xmlns:controls="clr-namespace:WaveDudeNext.WPF.Controls"
              xmlns:logging="clr-namespace:WaveDudeNext.WPF.Logging"
              DataContext="{Binding RelativeSource={RelativeSource Self}}">
 
@@ -172,10 +173,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</ListView.ItemContainerStyle>
 			<ListView.ContextMenu>
 				<ContextMenu>
-					<MenuItem Header="{DynamicResource MessagesCopy}" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" />
-					<MenuItem Header="{DynamicResource MessagesCopyAll}" Command="{x:Static local:MessagesPane.CopyAll}" />
+					<MenuItem Header="{DynamicResource MessagesCopy}" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" controls:MenuIcon.Glyph="&#xE8C8;" />
+					<MenuItem Header="{DynamicResource MessagesCopyAll}" Command="{x:Static local:MessagesPane.CopyAll}" controls:MenuIcon.Glyph="&#xE8C8;" />
 					<Separator />
-					<MenuItem Header="{DynamicResource MessagesClear}" Command="{x:Static local:MessagesPane.Clear}" />
+					<MenuItem Header="{DynamicResource MessagesClear}" Command="{x:Static local:MessagesPane.Clear}" controls:MenuIcon.Glyph="&#xE894;" />
 				</ContextMenu>
 			</ListView.ContextMenu>
 			<ListView.View>

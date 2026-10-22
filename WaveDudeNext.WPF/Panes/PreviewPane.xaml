@@ -673,14 +673,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 								<Setter Property="CommandTarget" Value="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
 							</Style>
 						</ContextMenu.Resources>
-						<MenuItem Header="{DynamicResource MenuBrightness}" Command="{x:Static commands:DisplayCommands.EditBrightness}" CommandParameter="{x:Static model:ProbeLayer.Field}" AutomationProperties.AutomationId="ContextBrightness" />
+						<MenuItem Header="{DynamicResource MenuBrightness}" Command="{x:Static commands:DisplayCommands.EditBrightness}" CommandParameter="{x:Static model:ProbeLayer.Field}" AutomationProperties.AutomationId="ContextBrightness" controls:MenuIcon.Glyph="&#xE706;" />
 						<MenuItem Header="{DynamicResource MenuAutoBrightness}" Command="{x:Static commands:DisplayCommands.AutoBrightness}" CommandParameter="{x:Static model:ProbeLayer.Field}" AutomationProperties.AutomationId="ContextAutoBrightness" />
 						<Separator />
-						<MenuItem Header="{DynamicResource MenuExportThisFrame}" Command="{x:Static commands:ExportCommands.FieldFrame}" AutomationProperties.AutomationId="ContextExportFrame" />
+						<MenuItem Header="{DynamicResource MenuExportThisFrame}" Command="{x:Static commands:ExportCommands.FieldFrame}" AutomationProperties.AutomationId="ContextExportFrame" controls:MenuIcon.Glyph="&#xEB9F;" />
 						<Separator />
-						<MenuItem Header="{DynamicResource MenuFileExportField}" Command="{x:Static commands:ExportCommands.Field}" AutomationProperties.AutomationId="ContextExportField" />
-						<MenuItem Header="{DynamicResource MenuFileExportIntensity}" Command="{x:Static commands:ExportCommands.Intensity}" AutomationProperties.AutomationId="ContextExportIntensity" />
-						<MenuItem Header="{DynamicResource MenuFileExportBoth}" Command="{x:Static commands:ExportCommands.Both}" AutomationProperties.AutomationId="ContextExportBoth" />
+						<MenuItem Header="{DynamicResource MenuFileExportField}" Command="{x:Static commands:ExportCommands.Field}" AutomationProperties.AutomationId="ContextExportField" controls:MenuIcon.Glyph="&#xEDE1;" />
+						<MenuItem Header="{DynamicResource MenuFileExportIntensity}" Command="{x:Static commands:ExportCommands.Intensity}" AutomationProperties.AutomationId="ContextExportIntensity" controls:MenuIcon.Glyph="&#xEDE1;" />
+						<MenuItem Header="{DynamicResource MenuFileExportBoth}" Command="{x:Static commands:ExportCommands.Both}" AutomationProperties.AutomationId="ContextExportBoth" controls:MenuIcon.Glyph="&#xEDE1;" />
 					</ContextMenu>
 				</HeaderedContentControl.ContextMenu>
 			</HeaderedContentControl>
@@ -699,14 +699,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 								<Setter Property="CommandTarget" Value="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
 							</Style>
 						</ContextMenu.Resources>
-						<MenuItem Header="{DynamicResource MenuBrightness}" Command="{x:Static commands:DisplayCommands.EditBrightness}" CommandParameter="{x:Static model:ProbeLayer.Intensity}" AutomationProperties.AutomationId="ContextBrightness" />
+						<MenuItem Header="{DynamicResource MenuBrightness}" Command="{x:Static commands:DisplayCommands.EditBrightness}" CommandParameter="{x:Static model:ProbeLayer.Intensity}" AutomationProperties.AutomationId="ContextBrightness" controls:MenuIcon.Glyph="&#xE706;" />
 						<MenuItem Header="{DynamicResource MenuAutoBrightness}" Command="{x:Static commands:DisplayCommands.AutoBrightness}" CommandParameter="{x:Static model:ProbeLayer.Intensity}" AutomationProperties.AutomationId="ContextAutoBrightness" />
 						<Separator />
-						<MenuItem Header="{DynamicResource MenuExportThisFrame}" Command="{x:Static commands:ExportCommands.IntensityFrame}" AutomationProperties.AutomationId="ContextExportFrame" />
+						<MenuItem Header="{DynamicResource MenuExportThisFrame}" Command="{x:Static commands:ExportCommands.IntensityFrame}" AutomationProperties.AutomationId="ContextExportFrame" controls:MenuIcon.Glyph="&#xEB9F;" />
 						<Separator />
-						<MenuItem Header="{DynamicResource MenuFileExportField}" Command="{x:Static commands:ExportCommands.Field}" AutomationProperties.AutomationId="ContextExportField" />
-						<MenuItem Header="{DynamicResource MenuFileExportIntensity}" Command="{x:Static commands:ExportCommands.Intensity}" AutomationProperties.AutomationId="ContextExportIntensity" />
-						<MenuItem Header="{DynamicResource MenuFileExportBoth}" Command="{x:Static commands:ExportCommands.Both}" AutomationProperties.AutomationId="ContextExportBoth" />
+						<MenuItem Header="{DynamicResource MenuFileExportField}" Command="{x:Static commands:ExportCommands.Field}" AutomationProperties.AutomationId="ContextExportField" controls:MenuIcon.Glyph="&#xEDE1;" />
+						<MenuItem Header="{DynamicResource MenuFileExportIntensity}" Command="{x:Static commands:ExportCommands.Intensity}" AutomationProperties.AutomationId="ContextExportIntensity" controls:MenuIcon.Glyph="&#xEDE1;" />
+						<MenuItem Header="{DynamicResource MenuFileExportBoth}" Command="{x:Static commands:ExportCommands.Both}" AutomationProperties.AutomationId="ContextExportBoth" controls:MenuIcon.Glyph="&#xEDE1;" />
 					</ContextMenu>
 				</HeaderedContentControl.ContextMenu>
 			</HeaderedContentControl>

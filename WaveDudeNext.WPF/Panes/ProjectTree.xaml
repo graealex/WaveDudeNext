@@ -21,6 +21,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WaveDudeNext.WPF.Panes"
+             xmlns:controls="clr-namespace:WaveDudeNext.WPF.Controls"
              xmlns:commands="clr-namespace:WaveDudeNext.WPF.Commands"
              xmlns:converters="clr-namespace:WaveDudeNext.WPF.Converters"
              xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext"
@@ -173,23 +174,23 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 										<Setter Property="CommandParameter" Value="{Binding}" />
 									</Style>
 								</ContextMenu.Resources>
-								<MenuItem Header="{DynamicResource MenuProjectAddSource}" Command="{x:Static commands:ProjectCommands.AddSource}" />
-								<MenuItem Header="{DynamicResource MenuProjectAddPart}" local:ProjectTree.MenuEntries="{StaticResource PartMenuEntries}" />
-								<MenuItem Header="{DynamicResource MenuProjectAddProbe}" Command="{x:Static commands:ProjectCommands.AddProbe}" />
+								<MenuItem Header="{DynamicResource MenuProjectAddSource}" Command="{x:Static commands:ProjectCommands.AddSource}" controls:MenuIcon.Glyph="&#xE710;" />
+								<MenuItem Header="{DynamicResource MenuProjectAddPart}" local:ProjectTree.MenuEntries="{StaticResource PartMenuEntries}" controls:MenuIcon.Glyph="&#xE710;" />
+								<MenuItem Header="{DynamicResource MenuProjectAddProbe}" Command="{x:Static commands:ProjectCommands.AddProbe}" controls:MenuIcon.Glyph="&#xE710;" />
 								<Separator />
 								<MenuItem Header="{DynamicResource MenuProjectToggleSelected}" Command="{x:Static commands:ProjectCommands.ToggleSelected}" InputGestureText="Ins" AutomationProperties.AutomationId="ContextToggleSelected" />
-								<MenuItem Header="{DynamicResource MenuProjectSelectAll}" Command="{x:Static commands:ProjectCommands.SelectAll}" InputGestureText="Ctrl+A" AutomationProperties.AutomationId="ContextSelectAll" />
+								<MenuItem Header="{DynamicResource MenuProjectSelectAll}" Command="{x:Static commands:ProjectCommands.SelectAll}" InputGestureText="Ctrl+A" AutomationProperties.AutomationId="ContextSelectAll" controls:MenuIcon.Glyph="&#xE8B3;" />
 								<Separator />
-								<MenuItem Header="{DynamicResource MenuProjectToggleEnabled}" Command="{x:Static commands:ProjectCommands.ToggleEnabled}" InputGestureText="Space" />
-								<MenuItem Header="{DynamicResource MenuProjectDuplicate}" Command="{x:Static commands:ProjectCommands.Duplicate}" InputGestureText="Ctrl+D" />
-								<MenuItem Header="{DynamicResource MenuProjectRemove}" Command="{x:Static commands:ProjectCommands.Remove}" InputGestureText="Del" />
+								<MenuItem Header="{DynamicResource MenuProjectToggleEnabled}" Command="{x:Static commands:ProjectCommands.ToggleEnabled}" InputGestureText="Space" controls:MenuIcon.Glyph="&#xE73A;" />
+								<MenuItem Header="{DynamicResource MenuProjectDuplicate}" Command="{x:Static commands:ProjectCommands.Duplicate}" InputGestureText="Ctrl+D" controls:MenuIcon.Glyph="&#xF413;" />
+								<MenuItem Header="{DynamicResource MenuProjectRemove}" Command="{x:Static commands:ProjectCommands.Remove}" InputGestureText="Del" controls:MenuIcon.Glyph="&#xE738;" />
 								<Separator />
-								<MenuItem Header="{DynamicResource MenuProjectMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" InputGestureText="Alt+Up" />
-								<MenuItem Header="{DynamicResource MenuProjectMoveDown}" Command="{x:Static commands:ProjectCommands.MoveDown}" InputGestureText="Alt+Down" />
+								<MenuItem Header="{DynamicResource MenuProjectMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" InputGestureText="Alt+Up" controls:MenuIcon.Glyph="&#xE74A;" />
+								<MenuItem Header="{DynamicResource MenuProjectMoveDown}" Command="{x:Static commands:ProjectCommands.MoveDown}" InputGestureText="Alt+Down" controls:MenuIcon.Glyph="&#xE74B;" />
 								<!-- a probe's recording as CSV (2026-10-18): only a probe node shows the entry -->
 								<Separator Visibility="{Binding Converter={StaticResource IsType}, ConverterParameter={x:Type model:Probe}}" />
 								<MenuItem Header="{DynamicResource MenuExportProbeCsv}" Command="{x:Static commands:ExportCommands.ProbeCsv}" AutomationProperties.AutomationId="ContextExportProbeCsv"
-								          Visibility="{Binding Converter={StaticResource IsType}, ConverterParameter={x:Type model:Probe}}" />
+								          Visibility="{Binding Converter={StaticResource IsType}, ConverterParameter={x:Type model:Probe}}" controls:MenuIcon.Glyph="&#xEDE1;" />
 							</ContextMenu>
 						</Setter.Value>
 					</Setter>
