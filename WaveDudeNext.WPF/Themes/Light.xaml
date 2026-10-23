@@ -36,6 +36,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<SolidColorBrush x:Key="MenuPopupBorder" Color="#FFCCCEDB" />
 	<SolidColorBrush x:Key="MenuItemHover" Color="#FFC9DEF5" />
 	<SolidColorBrush x:Key="MenuItemHoverForeground" Color="#FF1E1E1E" />
+	<!-- a menu bar header with its menu open: the hover blue (2026-10-23; the menu's near-white barely showed on the bar) -->
+	<SolidColorBrush x:Key="MenuHeaderOpen" Color="#FFC9DEF5" />
 	<SolidColorBrush x:Key="MenuSeparator" Color="#FFCCCEDB" />
 	<SolidColorBrush x:Key="MenuGlyph" Color="#FF717171" />
 	<SolidColorBrush x:Key="MenuGlyphHover" Color="#FF007ACC" />

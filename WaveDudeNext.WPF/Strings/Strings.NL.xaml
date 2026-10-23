@@ -148,9 +148,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuProjectMoveDown">Om_laag</s:String>
 	<s:String x:Key="MenuProjectSelectAll">_Alles selecteren</s:String>
 	<s:String x:Key="MenuProjectToggleSelected">Aan selectie toevoegen of eruit verwij_deren</s:String>
-	<s:String x:Key="ToolAddSource">+ Bron</s:String>
-	<s:String x:Key="ToolAddProbe">+ Sonde</s:String>
-	<s:String x:Key="ToolAddPart">+ Onderdeel</s:String>
+	<s:String x:Key="ToolAddSource">Bron</s:String>
+	<s:String x:Key="ToolAddProbe">Sonde</s:String>
+	<s:String x:Key="ToolAddPart">Onderdeel</s:String>
 	<s:String x:Key="TipAddSource">Bron toevoegen (achteraan)</s:String>
 	<s:String x:Key="TipAddProbe">Sonde toevoegen (achteraan)</s:String>
 	<s:String x:Key="TipAddPart">Optisch onderdeel toevoegen (menu met soorten; achteraan)</s:String>

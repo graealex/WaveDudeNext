@@ -540,7 +540,19 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 								     point 9: his previews had the scale factor beside them), so turned on the side the box and button turn
 								     with it and end at the picture's bottom edge; the caption gives way first when the strip is short -->
 								<controls:PictureFrame>
-									<controls:HeaderStrip Margin="0,10,0,4">
+									<controls:HeaderStrip>
+										<!-- above the picture, no margin over it (2026-10-23, the user's request: 10 px had put the title a
+										     good way below the pane's top, against 8 px at the side); turned on its side it keeps 10 px -->
+										<controls:HeaderStrip.Style>
+											<Style TargetType="{x:Type controls:HeaderStrip}">
+												<Setter Property="Margin" Value="0,0,0,4" />
+												<Style.Triggers>
+													<DataTrigger Binding="{Binding IsLabelOnSide, RelativeSource={RelativeSource AncestorType={x:Type controls:PictureFrame}}}" Value="True">
+														<Setter Property="Margin" Value="0,10,0,4" />
+													</DataTrigger>
+												</Style.Triggers>
+											</Style>
+										</controls:HeaderStrip.Style>
 										<TextBlock Style="{StaticResource PictureLabel}" Margin="0" TextTrimming="CharacterEllipsis" Text="{TemplateBinding Header}" />
 										<TextBlock Text="{DynamicResource Label.DisplayLayer.Brightness}" Foreground="{DynamicResource WindowForeground}" Margin="0,0,4,0" />
 										<StackPanel Orientation="Horizontal">

@@ -148,9 +148,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuProjectMoveDown">D_escendre</s:String>
 	<s:String x:Key="MenuProjectSelectAll">_Tout sélectionner</s:String>
 	<s:String x:Key="MenuProjectToggleSelected">Ajouter à la sélection ou en re_tirer</s:String>
-	<s:String x:Key="ToolAddSource">+ Source</s:String>
-	<s:String x:Key="ToolAddProbe">+ Sonde</s:String>
-	<s:String x:Key="ToolAddPart">+ Composant</s:String>
+	<s:String x:Key="ToolAddSource">Source</s:String>
+	<s:String x:Key="ToolAddProbe">Sonde</s:String>
+	<s:String x:Key="ToolAddPart">Composant</s:String>
 	<s:String x:Key="TipAddSource">Ajouter une source (à la fin)</s:String>
 	<s:String x:Key="TipAddProbe">Ajouter une sonde (à la fin)</s:String>
 	<s:String x:Key="TipAddPart">Ajouter un composant optique (menu des types ; à la fin)</s:String>

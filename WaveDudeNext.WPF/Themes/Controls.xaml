@@ -91,7 +91,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
 			<Grid>
 				<ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
-				<Popup x:Name="PART_Popup" Placement="Bottom" VerticalOffset="1"
+				<!-- placed by the whole header, not this grid inside its padding (2026-10-23: the menu opened 7 px in and over
+				     the header's bottom 3 px): left-aligned with the header, right below it -->
+				<Popup x:Name="PART_Popup" Placement="Bottom" PlacementTarget="{Binding ElementName=Bd}"
 				       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
 				       AllowsTransparency="True" Focusable="False" PopupAnimation="None">
 					<Border Background="{DynamicResource MenuPopupBackground}"
@@ -107,7 +109,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Setter Property="Foreground" Value="{DynamicResource MenuItemHoverForeground}" />
 			</Trigger>
 			<Trigger Property="IsSubmenuOpen" Value="True">
-				<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuPopupBackground}" />
+				<Setter TargetName="Bd" Property="Background" Value="{DynamicResource MenuHeaderOpen}" />
 			</Trigger>
 			<Trigger Property="IsEnabled" Value="False">
 				<Setter Property="Foreground" Value="{DynamicResource GrayText}" />
@@ -182,7 +184,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				                  Margin="4,2,8,2" VerticalAlignment="Center" />
 				<Path x:Name="Arrow" Grid.Column="3" Data="{StaticResource SubmenuArrowGeometry}"
 				      Fill="{DynamicResource MenuGlyph}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-				<Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="-1" VerticalOffset="-3"
+				<!-- placed by the whole entry (2026-10-23; by the grid inside its padding it covered the entry's last 3 px and
+				     its first entry came 2 px low): over the menu's padding and border, clear of this entry, the first entry level
+				     with this one -->
+				<Popup x:Name="PART_Popup" Placement="Right" PlacementTarget="{Binding ElementName=Bd}" VerticalOffset="-3"
 				       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
 				       AllowsTransparency="True" Focusable="False" PopupAnimation="None">
 					<Border Background="{DynamicResource MenuPopupBackground}"
@@ -233,10 +238,31 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<StreamGeometry x:Key="SourceGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
 	<StreamGeometry x:Key="ProbeGlyph">M4.5,4.5 L15.5,4.5 L15.5,15.5 L4.5,15.5 Z M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
 	<StreamGeometry x:Key="PartGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M7.5,10 A2.5,2.5 0 1 1 12.5,10 A2.5,2.5 0 1 1 7.5,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
-	<!-- the same glyphs as 16 px icons for the tree's rows and folders (IconView Drawing="Source", "Probe", "Part") -->
-	<GeometryGroup x:Key="IconSource" Transform="0.8,0,0,0.8,0,0"><StaticResource ResourceKey="SourceGlyph" /></GeometryGroup>
-	<GeometryGroup x:Key="IconProbe" Transform="0.8,0,0,0.8,0,0"><StaticResource ResourceKey="ProbeGlyph" /></GeometryGroup>
-	<GeometryGroup x:Key="IconPart" Transform="0.8,0,0,0.8,0,0"><StaticResource ResourceKey="PartGlyph" /></GeometryGroup>
+	<!-- the same glyphs as 16 px icons for the tree's rows and folders and the tree's toolbar (IconView Drawing="Source",
+	     "Probe", "Part"), drawn for the pixel grid (2026-10-23; the handle glyphs scaled to 0.8 had put ticks and edges between
+	     pixels, grey and heavier than the text): 1 px lines on half pixels around the pixel (7, 7), the ink in rows and columns
+	     0 to 14, an odd 15 so it centres in the 23 px toolbar buttons and tree rows as the text does; the probe's square is
+	     7 px, which weighs as much as the 9 px ring and leaves the corner free for the plus of an add button (IconPlusBadge) -->
+	<StreamGeometry x:Key="IconSource">M3.5,7.5 A4,4 0 1 1 11.5,7.5 A4,4 0 1 1 3.5,7.5 M7.5,0 V2 M7.5,13 V15 M0,7.5 H2 M13,7.5 H15</StreamGeometry>
+	<StreamGeometry x:Key="IconProbe">M4.5,4.5 H10.5 V10.5 H4.5 Z M7.5,0 V2 M7.5,13 V15 M0,7.5 H2 M13,7.5 H15</StreamGeometry>
+	<StreamGeometry x:Key="IconPart">M3.5,7.5 A4,4 0 1 1 11.5,7.5 A4,4 0 1 1 3.5,7.5 M5.5,7.5 A2,2 0 1 1 9.5,7.5 A2,2 0 1 1 5.5,7.5 M7.5,0 V2 M7.5,13 V15 M0,7.5 H2 M13,7.5 H15</StreamGeometry>
+	<!-- the plus of an add command over an icon (IconView PlusBadge): 5 px in the bottom-right corner, inside the 15 px ink,
+	     a pixel clear of the ring, the square and the ticks; stroked in the accent colour, in the text colour where the
+	     accent is the background (a pressed button) or the text is greyed (a disabled one) -->
+	<StreamGeometry x:Key="IconPlusBadge">M12.5,10 V15 M10,12.5 H15</StreamGeometry>
+	<Style x:Key="IconPlusBadgeStyle" TargetType="{x:Type Path}">
+		<Setter Property="Data" Value="{StaticResource IconPlusBadge}" />
+		<Setter Property="StrokeThickness" Value="1" />
+		<Setter Property="Stroke" Value="{DynamicResource Accent}" />
+		<Style.Triggers>
+			<DataTrigger Binding="{Binding IsPressed, RelativeSource={RelativeSource AncestorType={x:Type ButtonBase}}}" Value="True">
+				<Setter Property="Stroke" Value="{Binding (TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+			</DataTrigger>
+			<Trigger Property="IsEnabled" Value="False">
+				<Setter Property="Stroke" Value="{Binding (TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+			</Trigger>
+		</Style.Triggers>
+	</Style>
 	<!-- the project root: a wave on its canvas -->
 	<StreamGeometry x:Key="IconProject">M1.5,2.5 H14.5 V13.5 H1.5 Z M3,8 C4.5,4.5 6.5,4.5 8,8 C9.5,11.5 11.5,11.5 13,8</StreamGeometry>
 
@@ -288,7 +314,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<Style TargetType="{x:Type MenuItem}">
 		<Setter Property="Background" Value="Transparent" />
 		<Setter Property="Foreground" Value="{DynamicResource MenuForeground}" />
-		<Setter Property="Padding" Value="7,3" />
+		<!-- the menu bar's headers alone (the submenu templates pad themselves): 23 px high like the entries of their menus
+		     (2026-10-23, the user's request; 21 px before), the 15 px text line on rows 4 to 18 in both -->
+		<Setter Property="Padding" Value="7,4" />
 		<!-- set here so the system theme's bindings to the parent ItemsControl never apply: the templates below do not use
 		     them, and a menu item made before its menu (the shared part entries in ProjectTree.xaml) logged a binding error -->
 		<Setter Property="HorizontalContentAlignment" Value="Left" />
@@ -531,7 +559,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="Template">
 			<Setter.Value>
 				<ControlTemplate TargetType="{x:Type ToggleButton}">
-					<Border Background="Transparent" Width="16" Height="16">
+					<!-- a pixel above the middle of the 23 px row: the box on row 3, where the 16 px icons beside it round to 4, so
+					     the chevrons centre on the text (2026-10-23) -->
+					<Border Background="Transparent" Width="16" Height="16" Margin="0,0,0,1">
 						<Path x:Name="Glyph" Data="{StaticResource ChevronRightGeometry}" Stroke="{DynamicResource TreeViewGlyph}"
 						      StrokeThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0" />
 					</Border>
@@ -549,10 +579,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		</Setter>
 	</Style>
 
+	<!-- every row 23 px high (2026-10-23, the user's request for more room; the rows had been 18 px, 20 with glyph buttons),
+	     no padding above or below: the 15 px text line centres on row 4 and the 16 px icon on 3.5, which layout rounding takes
+	     to the even 4, so the text's 9 rows of ink land on 7 to 15 and an icon's 15 on 4 to 18, both centred, as in the
+	     project toolbar's buttons (a pixel of padding above had put the text on 3.5, rounded to 4, a pixel low) -->
 	<Style TargetType="{x:Type TreeViewItem}">
 		<Setter Property="Foreground" Value="{DynamicResource TreeViewForeground}" />
 		<Setter Property="Background" Value="Transparent" />
-		<Setter Property="Padding" Value="3,1" />
+		<Setter Property="Padding" Value="3,0" />
 		<Setter Property="HorizontalContentAlignment" Value="Left" />
 		<!-- set so the system theme's binding to the parent ItemsControl never applies (the template does not use it): it
 		     logged an error for every row dropped when a list was cleared and refilled, as Undo and Redo do -->
@@ -571,7 +605,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						</Grid.RowDefinitions>
 						<ToggleButton x:Name="Expander" Style="{StaticResource TreeViewToggleStyle}" ClickMode="Press"
 						              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}" />
-						<Border x:Name="Bd" Grid.Column="1" Background="{TemplateBinding Background}"
+						<Border x:Name="Bd" Grid.Column="1" Background="{TemplateBinding Background}" MinHeight="23"
 						        Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
 							<ContentPresenter x:Name="PART_Header" ContentSource="Header"
 							                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />

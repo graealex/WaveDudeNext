@@ -17,7 +17,7 @@
 
 # The keyboard gaps closed on 2026-10-15: the toolbars of the Project and Messages panes are in the Tab cycle and the
 # dock pane titles are visible to UI Automation. On the default project: Tab walks the Project toolbar (the disabled
-# buttons skipped) into the tree ("+ Part" between the two since 2026-10-18), Space on "+ Source" adds Source 2 and Space on the remove button takes it away, the
+# buttons skipped) into the tree ("Part" between the two since 2026-10-18), Space on "Source" adds Source 2 and Space on the remove button takes it away, the
 # Messages pane is opened through View > Panes by keyboard, Tab walks its toolbar left to right, Space flips a level
 # and clears the list, and both pane titles read through their ids. See Common.ps1 for the rules (no mouse, no
 # activation, no UIA patterns). Prints PASS/FAIL per check and exits with the failure count.
@@ -48,24 +48,24 @@ try {
 	# ------------------------------------------------------------ the Project toolbar (the default project has no sources)
 	FocusOn "ToolAddSource"
 	$order = @(); for ($i = 0; $i -lt 3; $i++) { Key $VK_TAB 120; $order += (FocusedId) }
-	Check "Tab walks + Source > + Part > + Probe > the tree (move and remove are disabled with nothing selected and skipped)" (($order -join ",") -eq "ToolAddPart,ToolAddProbe,tree") ($order -join ",")
+	Check "Tab walks Source > Probe > Part > the tree (move and remove are disabled with nothing selected and skipped)" (($order -join ",") -eq "ToolAddProbe,ToolAddPart,tree") ($order -join ",")
 	FocusOn "ToolAddSource"
 	Step "Space" $VK_SPACE 400
 	$null = WaitFor { Has "Tree:Source 1" } 3000 100
-	Check "Space on + Source adds Source 1, selected in the tree, the focus on its first editor" ((Has "Tree:Source 1") -and (TreeItemSelected "Source 1")) (FocusedId)
+	Check "Space on the Source button adds Source 1, selected in the tree, the focus on its first editor" ((Has "Tree:Source 1") -and (TreeItemSelected "Source 1")) (FocusedId)
 	FocusOn "ToolAddSource"   # round through the preview pane and back
 	Step "Space" $VK_SPACE 400
 	$null = WaitFor { Has "Tree:Source 2" } 3000 100
 	Check "a second Space adds Source 2" ((Has "Tree:Source 2") -and (TreeItemSelected "Source 2"))
 	# the walk to the toolbar passes the preview's source handles, and focusing a handle selects its source: the toolbar
 	# acts on whatever is selected when it is reached, so that is read first and the action checked against it
-	FocusOn "ToolAddProbe"
+	FocusOn "ToolAddPart"
 	Key $VK_TAB 150
 	$move = FocusedId
 	$sel = if (TreeItemSelected "Source 2") { "Source 2" } else { "Source 1" }
 	$other = if ($sel -eq "Source 2") { "Source 1" } else { "Source 2" }
 	$selBelow = (Find "Tree:$sel").Current.BoundingRectangle.Top -gt (Find "Tree:$other").Current.BoundingRectangle.Top
-	Check "after + Probe, Tab reaches the one move button that applies: up for the lower item, down for the upper (the other is disabled and skipped)" (($move -eq "ToolMoveUp") -eq $selBelow -and ($move -eq "ToolMoveDown") -eq (-not $selBelow)) ("{0}, {1} selected, below: {2}" -f $move, $sel, $selBelow)
+	Check "after Part, Tab reaches the one move button that applies: up for the lower item, down for the upper (the other is disabled and skipped)" (($move -eq "ToolMoveUp") -eq $selBelow -and ($move -eq "ToolMoveDown") -eq (-not $selBelow)) ("{0}, {1} selected, below: {2}" -f $move, $sel, $selBelow)
 	Step "Space" $VK_SPACE 300
 	$selBelowNow = (Find "Tree:$sel").Current.BoundingRectangle.Top -gt (Find "Tree:$other").Current.BoundingRectangle.Top
 	Check "Space on it swaps the two sources, the selection kept" ($selBelowNow -ne $selBelow -and (TreeItemSelected $sel)) ("{0} below: {1} -> {2}" -f $sel, $selBelow, $selBelowNow)

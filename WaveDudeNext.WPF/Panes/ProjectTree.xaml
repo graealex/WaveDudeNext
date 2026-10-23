@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 SPDX-License-Identifier: GPL-3.0-or-later
 Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 
@@ -78,9 +78,17 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="Focusable" Value="True" />
 			<Setter Property="IsTabStop" Value="True" />
 		</Style>
+		<!-- the toolbar's add buttons (2026-10-23, the user's choice): flat like the glyph buttons beside them, the hover
+		     background and, with the keyboard focus, the accent border; an icon with the add plus, then the label. 23 px high
+		     (the user's request for more room), the height of the tree's rows, the content one pixel down: with Display text
+		     formatting the capitals' ink is 9 rows, which only an odd height centres, 3 rows down its 15 px line; in 23 px the
+		     16 px icon lands on rows 4 to 19 and the line beside it on 4 to 18 (its half pixel rounded to the even 0), the
+		     text's ink on 7 to 15 and the icon's 15 rows on 4 to 18, both centred -->
 		<Style x:Key="TextButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
-			<Setter Property="Padding" Value="6,0" />
-			<Setter Property="MinHeight" Value="20" />
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="BorderBrush" Value="Transparent" />
+			<Setter Property="Padding" Value="6,1,6,0" />
+			<Setter Property="MinHeight" Value="23" />
 			<Setter Property="Margin" Value="1,0" />
 		</Style>
 		<!-- the part entries, the optics first and the plain shapes after a separator, in one place for both menus that offer
@@ -122,12 +130,31 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<!-- pane toolbar: acts on the tree selection -->
 		<Border DockPanel.Dock="Top" BorderBrush="{DynamicResource ToolWindowBorder}" BorderThickness="0,0,0,1" Padding="2,2">
 			<StackPanel Orientation="Horizontal">
-				<Button Style="{StaticResource TextButton}" Content="{DynamicResource ToolAddSource}" ToolTip="{DynamicResource TipAddSource}" AutomationProperties.Name="{DynamicResource TipAddSource}"
-				        Command="{x:Static commands:ProjectCommands.AddSource}" AutomationProperties.AutomationId="ToolAddSource" />
-				<Button Style="{StaticResource TextButton}" Content="{DynamicResource ToolAddPart}" ToolTip="{DynamicResource TipAddPart}" AutomationProperties.Name="{DynamicResource TipAddPart}"
-				        Command="{x:Static commands:ProjectCommands.AddPart}" ContextMenu="{StaticResource PartKindMenu}" AutomationProperties.AutomationId="ToolAddPart" />
-				<Button Style="{StaticResource TextButton}" Content="{DynamicResource ToolAddProbe}" ToolTip="{DynamicResource TipAddProbe}" AutomationProperties.Name="{DynamicResource TipAddProbe}"
-				        Command="{x:Static commands:ProjectCommands.AddProbe}" AutomationProperties.AutomationId="ToolAddProbe" />
+				<!-- each with the icon of what it adds, the one its folder in the tree shows, with the add plus; source, probe, then part (2026-10-23,
+				     the user's order); the part's button opens the menu of kinds rather than adding one, so it ends in the drop-down arrow of the combo boxes
+				     (the user's choice, in place of an ellipsis), in the text colour -->
+				<Button Style="{StaticResource TextButton}" ToolTip="{DynamicResource TipAddSource}" AutomationProperties.Name="{DynamicResource TipAddSource}"
+				        Command="{x:Static commands:ProjectCommands.AddSource}" AutomationProperties.AutomationId="ToolAddSource">
+					<StackPanel Orientation="Horizontal">
+						<controls:IconView Drawing="Source" PlusBadge="True" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<TextBlock Text="{DynamicResource ToolAddSource}" VerticalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Style="{StaticResource TextButton}" ToolTip="{DynamicResource TipAddProbe}" AutomationProperties.Name="{DynamicResource TipAddProbe}"
+				        Command="{x:Static commands:ProjectCommands.AddProbe}" AutomationProperties.AutomationId="ToolAddProbe">
+					<StackPanel Orientation="Horizontal">
+						<controls:IconView Drawing="Probe" PlusBadge="True" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<TextBlock Text="{DynamicResource ToolAddProbe}" VerticalAlignment="Center" />
+					</StackPanel>
+				</Button>
+				<Button Style="{StaticResource TextButton}" ToolTip="{DynamicResource TipAddPart}" AutomationProperties.Name="{DynamicResource TipAddPart}"
+				        Command="{x:Static commands:ProjectCommands.AddPart}" ContextMenu="{StaticResource PartKindMenu}" AutomationProperties.AutomationId="ToolAddPart">
+					<StackPanel Orientation="Horizontal">
+						<controls:IconView Drawing="Part" PlusBadge="True" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<TextBlock Text="{DynamicResource ToolAddPart}" VerticalAlignment="Center" />
+						<Path Data="{StaticResource DropDownGeometry}" Fill="{Binding (TextElement.Foreground), RelativeSource={RelativeSource Self}}" Margin="5,0,0,0" VerticalAlignment="Center" />
+					</StackPanel>
+				</Button>
 				<Rectangle Width="1" Margin="4,2" Fill="{DynamicResource ToolWindowBorder}" />
 				<Button Style="{StaticResource ToolGlyphButton}" Content="{StaticResource ChevronUpGeometry}" ToolTip="{DynamicResource TipMoveUp}" AutomationProperties.Name="{DynamicResource TipMoveUp}"
 				        Command="{x:Static commands:ProjectCommands.MoveUp}" AutomationProperties.AutomationId="ToolMoveUp" />

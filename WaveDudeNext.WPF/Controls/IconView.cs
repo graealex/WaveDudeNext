@@ -38,6 +38,10 @@ public sealed class IconView : ContentControl
 	public static readonly DependencyProperty DrawingProperty = DependencyProperty.Register(
 		nameof(Drawing), typeof(string), typeof(IconView), new PropertyMetadata(null, OnIconChanged));
 
+	/// <summary>Identifies the <see cref="PlusBadge"/> property.</summary>
+	public static readonly DependencyProperty PlusBadgeProperty = DependencyProperty.Register(
+		nameof(PlusBadge), typeof(bool), typeof(IconView), new PropertyMetadata(false, OnIconChanged));
+
 	public IconView()
 	{
 		Focusable = false;
@@ -63,10 +67,28 @@ public sealed class IconView : ContentControl
 		set => SetValue(DrawingProperty, value);
 	}
 
+	/// <summary>
+	/// Whether the <see cref="Drawing"/> carries the plus of an add command (2026-10-23, the tree's toolbar): the theme's
+	/// <c>IconPlusBadge</c> in its bottom-right corner, which the drawings leave free, styled by <c>IconPlusBadgeStyle</c>
+	/// (the accent colour, the text colour on a pressed or disabled button).
+	/// </summary>
+	public bool PlusBadge
+	{
+		get => (bool)GetValue(PlusBadgeProperty);
+		set => SetValue(PlusBadgeProperty, value);
+	}
+
 	private static void OnIconChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 	{
 		var view = (IconView)d;
-		view.Content = Create(view.Glyph, view.Drawing);
+		UIElement? icon = Create(view.Glyph, view.Drawing);
+		if (view.PlusBadge && icon is Grid drawn)
+		{
+			var badge = new Path();
+			badge.SetResourceReference(FrameworkElement.StyleProperty, "IconPlusBadgeStyle");
+			drawn.Children.Add(badge);
+		}
+		view.Content = icon;
 	}
 
 	/// <summary>The element showing <paramref name="glyph"/>, else <paramref name="drawing"/>; null for neither.</summary>
