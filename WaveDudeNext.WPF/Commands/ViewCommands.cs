@@ -35,4 +35,7 @@ public static class ViewCommands
 
 	/// <summary>Sets the preview's sample size: the parameter is the bytes per sample (2 for halves, 1 for palette indices).</summary>
 	public static readonly RoutedUICommand SetPreviewSamples = new("Preview samples", nameof(SetPreviewSamples), typeof(ViewCommands));
+
+	/// <summary>Sets the dithering of the 16-bit pictures (2026-10-23): the parameter is the bits per channel (0 for none, 10, 12, 14 or 16).</summary>
+	public static readonly RoutedUICommand SetPreviewDither = new("Preview dithering", nameof(SetPreviewDither), typeof(ViewCommands));
 }

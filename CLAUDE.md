@@ -48,7 +48,10 @@ harnesses run.
   string, `XmlSerializer` with sparse XML (attributes, repeated children, `[DefaultValue]`), Segoe UI 9 pt, the
   dnSpy look (its sources are GPL: look, do not copy). Inside a `DataTemplate` reference the string keys directly
   (`{DynamicResource Hint.Type.Member}`): the `meta:Label`/`meta:Hint` extensions wrap a resource reference a template
-  rejects for a string property and shows as text for an object one (2026-10-22, found on the fibre's node rows).
+  rejects for a string property and shows as text for an object one (2026-10-22, found on the fibre's node rows). An
+  implicit style never reaches a class derived from `Window`, so every window names the theme's
+  (`Style="{StaticResource {x:Type Window}}"`, 2026-10-23: without its layout rounding the pictures sat at fractional
+  pixels and WPF resampled them; its Display text formatting had never applied either).
 - **Model conventions**: a new property gets its XML attribute with a default, `[Category]`/`[DisplayName]`/
   `[Description]`, a `///` summary, a clamp in `Normalize()` with the matching `[Range]` beside the default (2026-10-21:
   the bounds are readable from outside, `library_check` proves each against `Normalize()`; a bound that depends on another
@@ -90,8 +93,9 @@ SimulationRun: stepping loop + writer threads; IWaveEngine (WaveSimulator CPU | 
    FrameCount, then State
 ScratchRunner: one kept engine; "frame k of the project as it is now" from step 0, probes sampled; newest request
    wins; every request is computed
-FramePresenter: CopyLayer -> FrameRenderer (a table lookup per pixel, 32-row blocks) -> the WriteableBitmap, copied on the pool
-   between Lock/Unlock on the UI thread; only the newest request is rendered
+FramePresenter: CopyLayer -> 8-bit: FrameRenderer.RenderIndexed at the store's size, WPF scales; 16-bit: ScreenRenderer at
+   the picture's size on screen -> the WriteableBitmap, copied on the pool between Lock/Unlock on the UI thread; only
+   the newest request is rendered
 ExportJob (own STA thread): CopyLayer -> FrameRenderer -> outline -> probe boxes/markers -> sinks (PNG, JPEG, MPEG-1, AVI, MP4, MOV)
 FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDATA%\WaveDudeNext\cache, DeleteOnClose)
 ```
@@ -170,6 +174,15 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   colours are taken is the renderer's (`ColorLut`): 255 at i/254 for 8-bit frames (the author's table, truncated as in
   his Python), and for 16-bit frames a table of the 65,536 half values per layer and brightness, the gradient at each
   value's position, rounded (the 255 entries had left visible patches two to five levels apart in dark gradients).
+- **Two preview paths** (2026-10-23, the user's design): 8-bit samples are the fast preview, coloured at the store's
+  size and scaled by WPF, as before. 16-bit samples are drawn at each picture's size on screen (`ScreenRenderer`, the
+  pane reports the Image's rounded `RenderSize` in device pixels): resampled in value space, never colours (a box mean
+  when shrinking, bilinear when enlarging, so every pixel shows a real value in a gradient colour), then the half
+  table; the bitmap's DPI makes it measure the canvas, so layout and overlays are unchanged and WPF draws it 1:1.
+  **Preview dithering** (View menu, user setting, off by default until the user has seen it; only with 16-bit samples):
+  the colours at 16 bits per channel (`DeepHalfTable`) to 8 through a Bayer matrix of 2, 4, 8 or 16 cells a side for
+  10, 12, 14 or 16 bits, fixed to the screen's pixels; preview only, never in an export (a video crushes it; an export
+  above 8 bits per channel is a possible future goal). A better algorithm than Bayer may come later.
 - **Colour schemes** are stop lists in `.wdscheme` XML, shipped ones embedded, user ones in
   `%LOCALAPPDATA%\WaveDudeNext\ColorSchemes`, project ones in the `.wdproj`; an in-house picker edits stops;
   renaming a project scheme repoints its layers. **The scene image** is embedded and follows its file on disk;
@@ -209,7 +222,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 
 GPU step at 1080p 0.25–0.5 ms, CPU 6–14 ms; OpenCL build 0.3 s; a full-HD run of 2500 steps 5.4 s in RAM, bound by
 the GPU readback. Renderer per 2880×1080 layer on ten cores (2026-10-23, a table lookup per pixel): 16-bit 0.5 ms,
-8-bit 0.6; a half table built in 0.4 ms. Presenter about 7 ms a frame quiet, 20 during a run. JPEG 1080p at 4:4:4: WIC 26 ms a frame
+8-bit 0.6; a half table built in 0.4 ms; the screen path from 1920×1080 to 914×514 1.4 ms, dithered 1.5. Presenter for
+Example 7 (2880×1080 in a 458×172 picture, both layers, playing): 16-bit 7.3–8.5 ms a frame, dithered 7.7–9.1, 8-bit
+10–11 (its bitmaps are canvas-sized). Presenter about 7 ms a frame quiet, 20 during a run. JPEG 1080p at 4:4:4: WIC 26 ms a frame
 single-threaded (9 ms a frame in a sequence job on half the cores), in-house 9.8 ms on ten cores (15 in a job);
 MP4 job 16 ms a frame. Part painter on a Full HD canvas (ten cores): a 400 × 330 outline 30 ms, a 400 px lens 5, a hexagon 8, an S-bent fibre across the canvas 51 (156 chords on the cell grid; 1.3 s without it);
 the glowing edges 22 ms; the preview's scene pictures about 100 ms more, so the scene rebuild is coalesced at background priority. Laptop (2 cores, HD 520, HDD): iGPU 4.3 ms a step against CPU 14.7; the ball

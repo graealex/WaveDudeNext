@@ -76,6 +76,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuViewSamples">Éc_hantillons de l'aperçu</s:String>
 	<s:String x:Key="MenuViewSamples16">Flottant _16 bits</s:String>
 	<s:String x:Key="MenuViewSamples8">Index de palette _8 bits (luminosité fixée au départ du calcul)</s:String>
+	<s:String x:Key="MenuViewDither">Tra_mage de l'aperçu</s:String>
+	<s:String x:Key="MenuViewDitherOff">_Désactivé</s:String>
+	<s:String x:Key="MenuViewDither10">_10 bits par canal</s:String>
+	<s:String x:Key="MenuViewDither12">1_2 bits par canal</s:String>
+	<s:String x:Key="MenuViewDither14">1_4 bits par canal</s:String>
+	<s:String x:Key="MenuViewDither16">1_6 bits par canal</s:String>
 	<s:String x:Key="LanguageSystem">Système</s:String>
 	<s:String x:Key="MenuSimulation">_Simulation</s:String>
 	<s:String x:Key="MenuSimulationRun">_Lancer</s:String>

@@ -111,6 +111,14 @@ public partial class MainWindow : Window
 				Logger.Info("Preview quality: {Quality} (View menu)", PreviewQualitySetting);
 				OnPreviewQualityChanged();
 			}
+			else if (args.PropertyName == nameof(Settings.PreviewDitherBits) && Settings.Default.PreviewDitherBits == 0)
+			{
+				Logger.Info("Preview dithering off (View menu)");
+			}
+			else if (args.PropertyName == nameof(Settings.PreviewDitherBits))
+			{
+				Logger.Info("Preview dithering from {Bits} bits per channel (View menu)", Settings.Default.PreviewDitherBits);
+			}
 		};
 		Closing += (_, e) =>
 		{
@@ -382,6 +390,9 @@ public partial class MainWindow : Window
 
 	/// <summary>View > Preview samples: the bytes per sample (2 halves, 1 palette indices).</summary>
 	private void OnSetPreviewSamples(object sender, ExecutedRoutedEventArgs e) => SetIntSetting(e, bytes => Settings.Default.PreviewSampleBytes = bytes);
+
+	/// <summary>View > Preview dithering: the bits per channel the 16-bit pictures are dithered from (0 none, 10, 12, 14, 16); the pictures redraw.</summary>
+	private void OnSetPreviewDither(object sender, ExecutedRoutedEventArgs e) => SetIntSetting(e, bits => Settings.Default.PreviewDitherBits = bits);
 
 	/// <summary>A menu choice carried as a number in the command parameter (an int, or digits as text): stores it and saves the settings.</summary>
 	private static void SetIntSetting(ExecutedRoutedEventArgs e, Action<int> apply)

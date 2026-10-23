@@ -557,7 +557,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 									</controls:HeaderStrip>
 									<!-- the picture with the source/probe handles over it; both fill the same rectangle -->
 									<Grid>
-										<Image Source="{TemplateBinding Content}" Stretch="Uniform" AutomationProperties.AutomationId="{TemplateBinding Tag}" />
+										<!-- its size on screen is where a 16-bit frame is rendered (OnPictureSizeChanged) -->
+										<Image Source="{TemplateBinding Content}" Stretch="Uniform" AutomationProperties.AutomationId="{TemplateBinding Tag}" SizeChanged="OnPictureSizeChanged" />
 										<!-- the scene outline, a translucent layer of the same pixel size, so it lands exactly on the frame -->
 										<Image Source="{Binding Path=(local:PreviewPane.OverlayImage), RelativeSource={RelativeSource TemplatedParent}}"
 										       Stretch="Uniform" IsHitTestVisible="False" />

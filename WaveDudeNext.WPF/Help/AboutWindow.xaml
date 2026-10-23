@@ -24,7 +24,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         Title="{DynamicResource AboutTitle}" Icon="/App.ico"
         Width="600" SizeToContent="Height" MinWidth="480" MinHeight="620" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource WindowBackground}" Foreground="{DynamicResource WindowForeground}"
+        Style="{StaticResource {x:Type Window}}"
         FocusManager.FocusedElement="{Binding ElementName=closeButton}"
         AutomationProperties.AutomationId="AboutWindow">
 	<!-- Help > About: identity, the credits word for word as in the source header, the license sentence with the full

@@ -227,6 +227,18 @@ namespace WaveDudeNext.WPF.Properties {
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int PreviewDitherBits {
+            get {
+                return ((int)(this["PreviewDitherBits"]));
+            }
+            set {
+                this["PreviewDitherBits"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
         public string LastExportFolder {
             get {

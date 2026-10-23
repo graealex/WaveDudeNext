@@ -76,6 +76,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuViewSamples">Voorbeeld_samples</s:String>
 	<s:String x:Key="MenuViewSamples16">_16-bits zwevende komma</s:String>
 	<s:String x:Key="MenuViewSamples8">_8-bits paletindex (helderheid vastgelegd bij de start van de run)</s:String>
+	<s:String x:Key="MenuViewDither">Voorbeeld_dithering</s:String>
+	<s:String x:Key="MenuViewDitherOff">_Uit</s:String>
+	<s:String x:Key="MenuViewDither10">_10 bits per kanaal</s:String>
+	<s:String x:Key="MenuViewDither12">1_2 bits per kanaal</s:String>
+	<s:String x:Key="MenuViewDither14">1_4 bits per kanaal</s:String>
+	<s:String x:Key="MenuViewDither16">1_6 bits per kanaal</s:String>
 	<s:String x:Key="LanguageSystem">Systeem</s:String>
 	<s:String x:Key="MenuSimulation">_Simulatie</s:String>
 	<s:String x:Key="MenuSimulationRun">_Starten</s:String>

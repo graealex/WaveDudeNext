@@ -24,7 +24,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         Title="{DynamicResource Title}" Icon="/App.ico"
         Width="440" SizeToContent="Height" ResizeMode="NoResize" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource WindowBackground}" Foreground="{DynamicResource WindowForeground}"
+        Style="{StaticResource {x:Type Window}}"
         AutomationProperties.AutomationId="MessageWindow">
 	<!-- the app's own message box: a disc with "!" or "?" in the theme's colours, the wrapped text, and the buttons
 	     the code-behind adds for the chosen set (Enter takes the default, Esc the cancel button, the underlined

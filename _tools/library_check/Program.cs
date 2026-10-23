@@ -649,6 +649,24 @@ internal static class Program
 			}
 			Console.WriteLine($"  half table build {clock.Elapsed.TotalMilliseconds / Builds,6:0.00} ms (65,536 colours from Inferno's {ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == "Inferno").Stops.Count} stops)");
 		}
+		// the preview's 16-bit path: resampled to the picture's size on screen, coloured, dithered or not
+		foreach ((int tw, int th, int bits) in new[] { (w, h, 0), (w, h, 12), (w * 10 / 21, h * 10 / 21, 0), (w * 10 / 21, h * 10 / 21, 16), (w * 3 / 2, h * 3 / 2, 16) })
+		{
+			var screen = new ScreenRenderer(w, h, tw, th);
+			var shown = new int[tw * th];
+			for (int i = 0; i < 30; i++)
+			{
+				screen.Render(intensity, lut, FrameLayer.Intensity, 1f, bits, shown);
+			}
+			Thread.Sleep(300);
+			var clock = Stopwatch.StartNew();
+			const int Runs = 50;
+			for (int i = 0; i < Runs; i++)
+			{
+				screen.Render(intensity, lut, FrameLayer.Intensity, 1f, bits, shown);
+			}
+			Console.WriteLine($"  screen {tw}x{th}{(bits == 0 ? "" : $", dithered from {bits} bits"),-26} {clock.Elapsed.TotalMilliseconds / Runs,6:0.00} ms per layer");
+		}
 		stop.Cancel();
 		if (run != null)
 		{
@@ -1802,6 +1820,131 @@ internal static class Program
 		ColorLut lifted = ColorLut.Build(scheme, blackLevel: 0.5);
 		Check(lifted.ColorAt(0).G == 127 && ((lifted.HalfTable(FrameLayer.Intensity, 1f)[0] >> 8) & 0xFF) == 128,
 			"black level 0.5 lifts a 0 channel to 127 in the palette (truncated, as in Python) and to 128 in the half table (rounded)");
+		CheckScreenRenderer(inferno);
+	}
+
+	/// <summary>The preview's 16-bit path (2026-10-23): resampling in value space to the screen's size, the 16-bit colours, the Bayer dither.</summary>
+	private static void CheckScreenRenderer(ColorLut lut)
+	{
+		// the axes: every target pixel's weights sum to 1, shrinking covers each sample once in all, the same size copies
+		bool sums = true;
+		bool covered = true;
+		foreach ((int source, int target) in new[] { (1920, 960), (1920, 1000), (37, 5), (64, 640), (64, 97), (5, 5), (1, 7), (7, 1) })
+		{
+			var axis = new ResampleAxis(source, target);
+			var coverage = new double[source];
+			for (int t = 0; t < target; t++)
+			{
+				ReadOnlySpan<float> weights = axis.WeightsOf(t, out int first);
+				double sum = 0;
+				for (int k = 0; k < weights.Length; k++)
+				{
+					sum += weights[k];
+					coverage[first + k] += weights[k];
+				}
+				sums &= Math.Abs(sum - 1) < 1e-5 && first >= 0 && first + weights.Length <= source;
+			}
+			double scale = source / (double)target;
+			covered &= target > source || coverage.All(c => Math.Abs(c - 1 / scale) < 1e-4);
+		}
+		Check(sums && covered, "resampling axes: each pixel's weights sum to 1 within the samples; shrinking weighs every sample alike (shrink, enlarge, odd ratios, 1:1, one sample)");
+		var copy = new ResampleAxis(9, 9);
+		var half = new ResampleAxis(8, 4);
+		var twice = new ResampleAxis(2, 4);
+		Check(copy.WeightsOf(4, out int c4).SequenceEqual([1f]) && c4 == 4 && half.WeightsOf(1, out int h1).SequenceEqual([0.5f, 0.5f]) && h1 == 2
+			&& twice.WeightsOf(1, out int t1).SequenceEqual([0.75f, 0.25f]) && t1 == 0 && twice.WeightsOf(0, out int t0).SequenceEqual([1f]) && t0 == 0,
+			"resampling axes: 1:1 copies, halving averages pairs, doubling blends a quarter of the neighbour at the pixel's centre and holds the edge");
+		// the frames: at the samples' size without dithering, the screen picture is the half table's, bit for bit
+		var rng = new Random(5);
+		int w = 61;
+		int h = 45;
+		var plane = new Half[w * h];
+		for (int i = 0; i < plane.Length; i++)
+		{
+			plane[i] = (Half)(rng.NextDouble() * 0.2);
+		}
+		var direct = new int[w * h];
+		FrameRenderer.Render(plane, w, h, lut, FrameLayer.Intensity, 3f, direct);
+		var screen = new int[w * h];
+		new ScreenRenderer(w, h, w, h).Render(plane, lut, FrameLayer.Intensity, 3f, 0, screen);
+		Check(screen.SequenceEqual(direct), "screen renderer at the samples' size, no dithering: the half table's picture, bit for bit");
+		// halved: each pixel the colour of its 2 x 2 block's mean (in value space, before any colour)
+		var shrunk = new int[30 * 22];
+		new ScreenRenderer(60, 44, 30, 22).Render(plane.AsMemory(0, 60 * 44), lut, FrameLayer.Intensity, 3f, 0, shrunk);
+		int[] table = lut.HalfTable(FrameLayer.Intensity, 3f);
+		bool means = true;
+		for (int y = 0; y < 22; y++)
+		{
+			for (int x = 0; x < 30; x++)
+			{
+				double mean = ((double)plane[2 * y * 60 + 2 * x] + (double)plane[2 * y * 60 + 2 * x + 1] + (double)plane[(2 * y + 1) * 60 + 2 * x] + (double)plane[(2 * y + 1) * 60 + 2 * x + 1]) / 4;
+				// the sums run in single precision (fused or not, by the machine): the half they round to may be the neighbour
+				int bits = BitConverter.HalfToUInt16Bits((Half)mean);
+				means &= shrunk[y * 30 + x] == table[bits] || shrunk[y * 30 + x] == table[bits - 1] || shrunk[y * 30 + x] == table[bits + 1];
+			}
+		}
+		Check(means, "screen renderer halving: every pixel the colour of its 2 x 2 samples' mean value");
+		// the field's crest and trough average to zero, the gradient's middle, not to a mix of their colours
+		var wave = new Half[4 * 2];
+		for (int i = 0; i < wave.Length; i++)
+		{
+			wave[i] = (Half)(i % 2 == 0 ? 0.5f : -0.5f);
+		}
+		var flat = new int[2];
+		new ScreenRenderer(4, 2, 2, 1).Render(wave, lut, FrameLayer.Field, 1f, 0, flat);
+		Check(flat.All(p => p == lut.HalfTable(FrameLayer.Field, 1f)[BitConverter.HalfToUInt16Bits((Half)0f)]), "screen renderer: a crest beside a trough shrinks to the colour of zero");
+		// the dither: a flat plane comes out at the colour's two neighbouring 8-bit levels, their mix over one matrix the
+		// 16-bit colour to the depth's bits; without dithering the level rounded
+		ulong[] deep = lut.DeepHalfTable(FrameLayer.Intensity, 1f);
+		bool deepRounds = Enumerable.Range(0, ColorLut.HalfValues).All(bits =>
+		{
+			int argb = lut.HalfTable(FrameLayer.Intensity, 1f)[bits];
+			ulong d = deep[bits];
+			return Math.Abs(((argb >> 16) & 0xFF) - ((d >> 32) & 0xFFFF) / 256.0) <= 0.5 + 1 / 256.0
+				&& Math.Abs(((argb >> 8) & 0xFF) - ((d >> 16) & 0xFFFF) / 256.0) <= 0.5 + 1 / 256.0
+				&& Math.Abs((argb & 0xFF) - (d & 0xFFFF) / 256.0) <= 0.5 + 1 / 256.0;
+		});
+		Check(deepRounds, "the 16-bit table rounds to the 8-bit one: each channel within half a level of it");
+		Half dark = (Half)0.0007f; // Inferno's dark start: blue between two levels
+		ulong colour = deep[BitConverter.HalfToUInt16Bits(dark)];
+		int blue16 = (int)(colour & 0xFFFF);
+		bool dithers = true;
+		var detail = new List<string>();
+		foreach (int bits in ScreenRenderer.DitherDepths)
+		{
+			int side = 1 << ((bits - 8) / 2);
+			int[] thresholds = ScreenRenderer.BayerThresholds(bits);
+			bool permutation = thresholds.Length == side * side && thresholds.Distinct().Count() == thresholds.Length
+				&& thresholds.All(t => t > 0 && t < 512 && (t >> (8 - (bits - 8))) % 2 == 1);
+			var flatPlane = new Half[32 * 32];
+			Array.Fill(flatPlane, dark);
+			var dithered = new int[32 * 32];
+			new ScreenRenderer(32, 32, 32, 32).Render(flatPlane, lut, FrameLayer.Intensity, 1f, bits, dithered);
+			int[] blues = [.. dithered.Select(p => p & 0xFF)];
+			double mean = Enumerable.Range(0, side).SelectMany(y => Enumerable.Range(0, side).Select(x => blues[y * 32 + x])).Average();
+			// the fraction to the depth's bits, a half going up (the threshold's tie)
+			double expected = (blue16 >> 8) + Math.Floor((blue16 & 0xFF) / (double)(1 << (16 - bits)) + 0.5) / (1 << (bits - 8));
+			bool twoLevels = blues.All(b => b == blue16 >> 8 || b == (blue16 >> 8) + 1);
+			bool tiles = Enumerable.Range(0, 32 * 32).All(i => blues[i] == blues[(i / 32 % side) * 32 + i % 32 % side]);
+			dithers &= permutation && twoLevels && tiles && Math.Abs(mean - expected) < 1e-9;
+			detail.Add($"{bits}: mean {mean:0.####} for {blue16 / 256.0:0.####}");
+		}
+		var plain = new int[32 * 32];
+		var plainPlane = new Half[32 * 32];
+		Array.Fill(plainPlane, dark);
+		new ScreenRenderer(32, 32, 32, 32).Render(plainPlane, lut, FrameLayer.Intensity, 1f, 0, plain);
+		Check(dithers && plain.All(p => p == lut.HalfTable(FrameLayer.Intensity, 1f)[BitConverter.HalfToUInt16Bits(dark)]),
+			"Bayer dither at 10, 12, 14 and 16 bits: a permutation of the matrix's thresholds, only the two neighbouring levels, one tile repeated, its mean the 16-bit colour to the depth's bits; off rounds (" + string.Join(", ", detail) + ")");
+		bool refused = false;
+		try
+		{
+			new ScreenRenderer(2, 2, 2, 2).Render(new Half[4], lut, FrameLayer.Field, 1f, 11, new int[4]);
+		}
+		catch (ArgumentOutOfRangeException)
+		{
+			refused = true;
+		}
+		Check(refused, "a dithering depth other than 0, 10, 12, 14 or 16 is refused");
 	}
 
 	private static void CheckColorSchemes()

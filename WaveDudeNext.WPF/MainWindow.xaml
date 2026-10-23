@@ -40,7 +40,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         MinWidth="800" MinHeight="500"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResizeWithGrip"
+        Style="{StaticResource {x:Type Window}}"
         AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
+
+	<!-- the theme's Window style named, since an implicit style never reaches a class derived from Window (2026-10-23):
+	     without its layout rounding the pictures sat at fractional positions and sizes and WPF resampled them, which blurred
+	     the 16-bit pictures' dither away -->
 
 	<Window.Resources>
 		<converters:EqualityConverter x:Key="Equality" />
@@ -174,6 +179,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="{x:Static commands:ViewCommands.SetPreviewResolution}" Executed="OnSetPreviewResolution" />
 		<CommandBinding Command="{x:Static commands:ViewCommands.SetPreviewFrames}" Executed="OnSetPreviewFrames" />
 		<CommandBinding Command="{x:Static commands:ViewCommands.SetPreviewSamples}" Executed="OnSetPreviewSamples" />
+		<CommandBinding Command="{x:Static commands:ViewCommands.SetPreviewDither}" Executed="OnSetPreviewDither" />
 		<!-- the pictures' Auto brightness; handler in MainWindow.Display.cs -->
 		<CommandBinding Command="{x:Static commands:DisplayCommands.AutoBrightness}" CanExecute="CanAutoBrightness" Executed="OnAutoBrightness" />
 
@@ -289,6 +295,26 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewSampleBytes, Converter={StaticResource IntEquals}, ConverterParameter=1, Mode=OneWay}"
 					          AutomationProperties.AutomationId="MenuPreviewSamples1" />
 				</MenuItem>
+				<!-- the dithering of the 16-bit pictures (2026-10-23): preview only, at each picture's size on screen; 8-bit samples
+				     have nothing finer to dither, so the entry waits for 16-bit ones -->
+				<MenuItem Header="{DynamicResource MenuViewDither}" controls:MenuIcon.Drawing="PreviewDither" AutomationProperties.AutomationId="MenuPreviewDither"
+				          IsEnabled="{Binding Source={x:Static p:Settings.Default}, Path=PreviewSampleBytes, Converter={StaticResource IntEquals}, ConverterParameter=2, Mode=OneWay}">
+					<MenuItem Header="{DynamicResource MenuViewDitherOff}" Command="{x:Static commands:ViewCommands.SetPreviewDither}" CommandParameter="0"
+					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewDitherBits, Converter={StaticResource IntEquals}, ConverterParameter=0, Mode=OneWay}"
+					          AutomationProperties.AutomationId="MenuPreviewDither0" />
+					<MenuItem Header="{DynamicResource MenuViewDither10}" Command="{x:Static commands:ViewCommands.SetPreviewDither}" CommandParameter="10"
+					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewDitherBits, Converter={StaticResource IntEquals}, ConverterParameter=10, Mode=OneWay}"
+					          AutomationProperties.AutomationId="MenuPreviewDither10" />
+					<MenuItem Header="{DynamicResource MenuViewDither12}" Command="{x:Static commands:ViewCommands.SetPreviewDither}" CommandParameter="12"
+					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewDitherBits, Converter={StaticResource IntEquals}, ConverterParameter=12, Mode=OneWay}"
+					          AutomationProperties.AutomationId="MenuPreviewDither12" />
+					<MenuItem Header="{DynamicResource MenuViewDither14}" Command="{x:Static commands:ViewCommands.SetPreviewDither}" CommandParameter="14"
+					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewDitherBits, Converter={StaticResource IntEquals}, ConverterParameter=14, Mode=OneWay}"
+					          AutomationProperties.AutomationId="MenuPreviewDither14" />
+					<MenuItem Header="{DynamicResource MenuViewDither16}" Command="{x:Static commands:ViewCommands.SetPreviewDither}" CommandParameter="16"
+					          IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PreviewDitherBits, Converter={StaticResource IntEquals}, ConverterParameter=16, Mode=OneWay}"
+					          AutomationProperties.AutomationId="MenuPreviewDither16" />
+				</MenuItem>
 			</MenuItem>
 			<MenuItem Header="{DynamicResource MenuSimulation}">
 				<MenuItem Command="{x:Static commands:SimulationCommands.Run}" Header="{DynamicResource MenuSimulationRun}" InputGestureText="F5" controls:MenuIcon.Glyph="&#xE768;" />
@@ -380,7 +406,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					                   IsStale="{Binding IsRunStale}" IsProbesStale="{Binding IsProbesStale}" ScratchFrame="{Binding ScratchFrame}"
 					                   IsComputing="{Binding IsComputingFrame}"
 					                   Position="{Binding PreviewPosition, Mode=TwoWay}" IsPlaying="{Binding IsPreviewPlaying, Mode=OneWayToSource}"
-					                   Orientation="{Binding Source={x:Static p:Settings.Default}, Path=PreviewOrientation, Mode=TwoWay}" />
+					                   Orientation="{Binding Source={x:Static p:Settings.Default}, Path=PreviewOrientation, Mode=TwoWay}"
+				                   DitherBits="{Binding Source={x:Static p:Settings.Default}, Path=PreviewDitherBits}" />
 				</Border>
 			</docking:DockHost.DocumentContent>
 		</docking:DockHost>

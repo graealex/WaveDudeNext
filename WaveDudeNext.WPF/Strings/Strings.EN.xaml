@@ -78,6 +78,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuViewSamples">Preview _samples</s:String>
 	<s:String x:Key="MenuViewSamples16">_16-bit float</s:String>
 	<s:String x:Key="MenuViewSamples8">_8-bit palette index (brightness fixed when the run starts)</s:String>
+	<s:String x:Key="MenuViewDither">Preview _dithering</s:String>
+	<s:String x:Key="MenuViewDitherOff">_Off</s:String>
+	<s:String x:Key="MenuViewDither10">_10 bits per channel</s:String>
+	<s:String x:Key="MenuViewDither12">1_2 bits per channel</s:String>
+	<s:String x:Key="MenuViewDither14">1_4 bits per channel</s:String>
+	<s:String x:Key="MenuViewDither16">1_6 bits per channel</s:String>
 	<s:String x:Key="LanguageSystem">System</s:String>
 	<s:String x:Key="MenuSimulation">_Simulation</s:String>
 	<s:String x:Key="MenuSimulationRun">_Run</s:String>

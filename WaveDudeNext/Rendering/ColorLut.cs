@@ -48,11 +48,13 @@ public sealed class ColorLut
 	private readonly double _blackLevel;
 	private readonly bool _makeSymmetric;
 	private readonly bool _reverse;
-	private HalfTableEntry? _fieldTable;
-	private HalfTableEntry? _intensityTable;
+	private TableEntry<int>? _fieldTable;
+	private TableEntry<int>? _intensityTable;
+	private TableEntry<ulong>? _fieldDeepTable;
+	private TableEntry<ulong>? _intensityDeepTable;
 
 	/// <summary>A built half table and the brightness it was built for.</summary>
-	private sealed record HalfTableEntry(float Brightness, int[] Argb);
+	private sealed record TableEntry<T>(float Brightness, T[] Table);
 
 	private ColorLut(List<ColorStop> stops, bool invert, double blackLevel, bool makeSymmetric, bool reverse)
 	{
@@ -146,27 +148,45 @@ public sealed class ColorLut
 	/// </summary>
 	/// <param name="layer">Which mapping: the signed field or the non-negative intensity.</param>
 	/// <param name="brightness">The layer's gain, applied as in <see cref="FieldIndex"/> and <see cref="IntensityIndex(float, float)"/>.</param>
-	public int[] HalfTable(FrameLayer layer, float brightness)
+	public int[] HalfTable(FrameLayer layer, float brightness) =>
+		Cached(ref (layer == FrameLayer.Field ? ref _fieldTable : ref _intensityTable), layer, brightness,
+			(r, g, b) => unchecked((int)0xFF000000) | (Round(r * 255.0) << 16) | (Round(g * 255.0) << 8) | Round(b * 255.0));
+
+	/// <summary>
+	/// The colours of <see cref="HalfTable"/> at 16 bits per channel, for the preview's dithering (2026-10-23): each channel
+	/// as the level times 256, 0..65,280 (<c>round(level · 255 · 256)</c>: the 8-bit level in the high byte, the fraction of
+	/// the next level in the low one), packed as <c>R &lt;&lt; 32 | G &lt;&lt; 16 | B</c>. Kept and built like the 8-bit table.
+	/// </summary>
+	/// <param name="layer">Which mapping: the signed field or the non-negative intensity.</param>
+	/// <param name="brightness">The layer's gain.</param>
+	public ulong[] DeepHalfTable(FrameLayer layer, float brightness) =>
+		Cached(ref (layer == FrameLayer.Field ? ref _fieldDeepTable : ref _intensityDeepTable), layer, brightness,
+			(r, g, b) => ((ulong)(uint)Round(r * 65280.0) << 32) | ((ulong)(uint)Round(g * 65280.0) << 16) | (uint)Round(b * 65280.0));
+
+	/// <summary>The table in <paramref name="slot"/> when it was built for this brightness, else a new one, kept there.</summary>
+	private T[] Cached<T>(ref TableEntry<T>? slot, FrameLayer layer, float brightness, Func<double, double, double, T> pack)
 	{
-		ref HalfTableEntry? slot = ref layer == FrameLayer.Field ? ref _fieldTable : ref _intensityTable;
-		HalfTableEntry? cached = Volatile.Read(ref slot);
+		TableEntry<T>? cached = Volatile.Read(ref slot);
 		if (cached != null && cached.Brightness.Equals(brightness))
 		{
-			return cached.Argb;
+			return cached.Table;
 		}
-		var table = new int[HalfValues];
+		var table = new T[HalfValues];
 		const int Blocks = 16;
 		Parallel.For(0, Blocks, block =>
 		{
 			for (int bits = block * (HalfValues / Blocks); bits < (block + 1) * (HalfValues / Blocks); bits++)
 			{
 				double value = (double)BitConverter.UInt16BitsToHalf((ushort)bits);
-				table[bits] = ColorOf(layer == FrameLayer.Field ? FieldPosition(value, brightness) : IntensityPosition(value, brightness));
+				(double r, double g, double b) = LevelsAt(layer == FrameLayer.Field ? FieldPosition(value, brightness) : IntensityPosition(value, brightness));
+				table[bits] = pack(r, g, b);
 			}
 		});
-		Volatile.Write(ref slot, new HalfTableEntry(brightness, table));
+		Volatile.Write(ref slot, new TableEntry<T>(brightness, table));
 		return table;
 	}
+
+	private static int Round(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
 
 	/// <summary>A field sample's position on the gradient: <c>(clamp(value · brightness, −1, 1) + 1) / 2</c>, NaN in the middle.</summary>
 	private static double FieldPosition(double value, float brightness)
@@ -179,8 +199,8 @@ public sealed class ColorLut
 	private static double IntensityPosition(double value, float brightness) =>
 		value > 0.0 ? Math.Clamp(Math.Sqrt(value) * brightness, 0.0, 1.0) : 0.0;
 
-	/// <summary>The gradient at a position through the display options (the order of <see cref="Build"/>), as an opaque ARGB int.</summary>
-	private int ColorOf(double position)
+	/// <summary>The gradient at a position through the display options (the order of <see cref="Build"/>): each channel 0..1, unrounded.</summary>
+	private (double R, double G, double B) LevelsAt(double position)
 	{
 		if (_makeSymmetric)
 		{
@@ -191,19 +211,18 @@ public sealed class ColorLut
 			position = 1.0 - position;
 		}
 		(double r, double g, double b) = ColorScheme.Evaluate(_stops, position);
-		return unchecked((int)0xFF000000) | (Level(r) << 16) | (Level(g) << 8) | Level(b);
+		return (Level(r), Level(g), Level(b));
 	}
 
-	/// <summary>One channel (0..255, unrounded) through invert and black level, rounded to the nearest level (half away from zero).</summary>
-	private int Level(double channel)
+	/// <summary>One channel (0..255, unrounded) through invert and black level, as a fraction 0..1.</summary>
+	private double Level(double channel)
 	{
 		double level = channel / 255.0;
 		if (_invert)
 		{
 			level = 1.0 - level;
 		}
-		level = Math.Clamp(level * (1.0 - _blackLevel) + _blackLevel, 0.0, 1.0);
-		return (int)Math.Round(level * 255.0, MidpointRounding.AwayFromZero);
+		return Math.Clamp(level * (1.0 - _blackLevel) + _blackLevel, 0.0, 1.0);
 	}
 
 	/// <summary>

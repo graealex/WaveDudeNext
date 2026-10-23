@@ -76,6 +76,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuViewSamples">Vorschau_werte</s:String>
 	<s:String x:Key="MenuViewSamples16">_16-Bit-Gleitkomma</s:String>
 	<s:String x:Key="MenuViewSamples8">_8-Bit-Palettenindex (Helligkeit beim Start des Laufs festgelegt)</s:String>
+	<s:String x:Key="MenuViewDither">Vorschau-Dit_hering</s:String>
+	<s:String x:Key="MenuViewDitherOff">_Aus</s:String>
+	<s:String x:Key="MenuViewDither10">_10 Bit pro Kanal</s:String>
+	<s:String x:Key="MenuViewDither12">1_2 Bit pro Kanal</s:String>
+	<s:String x:Key="MenuViewDither14">1_4 Bit pro Kanal</s:String>
+	<s:String x:Key="MenuViewDither16">1_6 Bit pro Kanal</s:String>
 	<s:String x:Key="LanguageSystem">System</s:String>
 	<s:String x:Key="MenuSimulation">_Simulation</s:String>
 	<s:String x:Key="MenuSimulationRun">_Starten</s:String>

@@ -153,6 +153,10 @@ public partial class PreviewPane : UserControl
 		nameof(Orientation), typeof(Orientation), typeof(PreviewPane),
 		new FrameworkPropertyMetadata(Orientation.Horizontal, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
+	/// <summary>Identifies the <see cref="DitherBits"/> property.</summary>
+	public static readonly DependencyProperty DitherBitsProperty = DependencyProperty.Register(
+		nameof(DitherBits), typeof(int), typeof(PreviewPane), new PropertyMetadata(0, (d, e) => ((PreviewPane)d)._presenter.DitherBits = (int)e.NewValue));
+
 	/// <summary>Identifies the <see cref="FieldImage"/> property.</summary>
 	public static readonly DependencyProperty FieldImageProperty = DependencyProperty.Register(
 		nameof(FieldImage), typeof(ImageSource), typeof(PreviewPane));
@@ -291,6 +295,8 @@ public partial class PreviewPane : UserControl
 	{
 		InitializeComponent();
 		_presenter = new FramePresenter(Dispatcher);
+		// a 16-bit picture of a new size arrives with its first frame
+		_presenter.BitmapsChanged += (_, _) => UpdateCanvas(_presenter.Source);
 
 		// frames = ceil(steps / visualize every); re-evaluated whenever the project or its settings change. The
 		// timeline is always the project's: a reduced preview (View > Preview frames) stores fewer frames, but
@@ -446,6 +452,16 @@ public partial class PreviewPane : UserControl
 	{
 		get => (Orientation)GetValue(OrientationProperty);
 		set => SetValue(OrientationProperty, value);
+	}
+
+	/// <summary>
+	/// The dithering of the 16-bit pictures (View > Preview dithering, 2026-10-23): 0 for none, else the bits per channel
+	/// the colours carry into the Bayer matrix (10, 12, 14, 16). Preview only; the 8-bit pictures are not dithered.
+	/// </summary>
+	public int DitherBits
+	{
+		get => (int)GetValue(DitherBitsProperty);
+		set => SetValue(DitherBitsProperty, value);
 	}
 
 	/// <summary>Picture of the field at <see cref="Position"/>; the presenter's bitmap, or a black frame without a run.</summary>
@@ -910,6 +926,21 @@ public partial class PreviewPane : UserControl
 		DisplayLayer? settings = layer == FrameLayer.Field ? FieldSettings : IntensitySettings;
 		ColorLut lut = settings == null ? ColorLut.Grey : ColorSchemeCatalog.Instance.LutFor(Project, settings.ColorScheme, settings.BlackLevel);
 		_presenter.SetLayer(layer, lut, (float)(settings?.Brightness ?? DisplayLayer.DefaultBrightness), settings?.Preview ?? true);
+	}
+
+	/// <summary>
+	/// A picture's size on screen changed (the window, the split, one picture or two): the presenter renders a 16-bit
+	/// frame at that size in device pixels, the picture's rounded layout size, so its pixels land 1:1 on the screen's.
+	/// </summary>
+	private void OnPictureSizeChanged(object sender, SizeChangedEventArgs e)
+	{
+		if (sender is not Image { TemplatedParent: DependencyObject cell } image)
+		{
+			return;
+		}
+		DpiScale dpi = VisualTreeHelper.GetDpi(image);
+		_presenter.SetTargetSize(GetLayer(cell) == ProbeLayer.Field ? FrameLayer.Field : FrameLayer.Intensity,
+			(int)Math.Round(e.NewSize.Width * dpi.DpiScaleX), (int)Math.Round(e.NewSize.Height * dpi.DpiScaleY));
 	}
 
 	/// <summary>Rebuilds both palettes and redraws: a project colour scheme changed, or the project was replaced.</summary>
