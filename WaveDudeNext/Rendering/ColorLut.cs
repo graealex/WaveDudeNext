@@ -15,62 +15,100 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+using WaveDudeNext.Runs;
+
 namespace WaveDudeNext.Rendering;
 
 /// <summary>
-/// An immutable palette of <see cref="Size"/> opaque ARGB entries built from a
-/// <see cref="ColorScheme"/> by <see cref="Build"/> plus the display options of the Python
-/// function <c>get_colormap_lut</c> (invert, black level, make symmetric), and the static
-/// value-to-index mappings used when colouring frames, which convert field and intensity
-/// values to table indices exactly like <c>WaveVisualizer.render_field</c> /
-/// <c>render_intensity</c>. Built on the UI thread when the display settings change; the
-/// <see cref="Argb"/> array is then read from <see cref="FrameRenderer"/>'s parallel loops without
-/// locking (it is never modified after construction).
+/// The colours a renderer takes from a <see cref="ColorScheme"/>'s gradient, with the display options of the Python
+/// function <c>get_colormap_lut</c> (invert, black level, make symmetric) applied, for the two kinds of stored frame
+/// (2026-10-23, the user's design: the scheme is the gradient, how many colours are taken from it is the renderer's
+/// business):
+/// <list type="bullet">
+/// <item>a frame of 8-bit palette indices: <see cref="Argb"/>, <see cref="Size"/> colours at i / 254 like the author's
+/// table, looked up by the byte the capture computed (<see cref="FieldIndex"/>, <see cref="IntensityIndex(float, float)"/>,
+/// the GPU's <c>capture_index</c>), channels truncated like the Python code;</item>
+/// <item>a frame of 16-bit samples: <see cref="HalfTable"/>, a colour for each of the 65,536 values a half can hold, the
+/// gradient evaluated at that value's own position and rounded to the nearest level, so a picture has every level the
+/// gradient passes through (the 255 entries had left steps of two to five levels in dark gradients, seen as patches).</item>
+/// </list>
+/// Built on the UI thread from a copy of the stops, then immutable apart from the cache of half tables: read from the
+/// presenter's and the export's threads without locking.
 /// </summary>
-/// <remarks>
-/// The options belong to how a scheme is used (field or intensity), not to the scheme itself, so
-/// they are not saved in the scheme file; they live in <see cref="Model.DisplayLayer"/>.
-/// </remarks>
 public sealed class ColorLut
 {
-	private ColorLut(int[] argb) => Argb = argb;
+	/// <summary>Number of entries in the 8-bit palette, index 0..254: the author's table, and the range of the captured index bytes.</summary>
+	public const int Size = 255;
+
+	/// <summary>Number of values a 16-bit sample can hold: the length of a <see cref="HalfTable"/>.</summary>
+	public const int HalfValues = 1 << 16;
+
+	private readonly List<ColorStop> _stops;
+	private readonly bool _invert;
+	private readonly double _blackLevel;
+	private readonly bool _makeSymmetric;
+	private readonly bool _reverse;
+	private HalfTableEntry? _fieldTable;
+	private HalfTableEntry? _intensityTable;
+
+	/// <summary>A built half table and the brightness it was built for.</summary>
+	private sealed record HalfTableEntry(float Brightness, int[] Argb);
+
+	private ColorLut(List<ColorStop> stops, bool invert, double blackLevel, bool makeSymmetric, bool reverse)
+	{
+		_stops = stops;
+		_invert = invert;
+		_blackLevel = blackLevel;
+		_makeSymmetric = makeSymmetric;
+		_reverse = reverse;
+		Argb = BuildPalette();
+	}
 
 	/// <summary>
-	/// The palette as packed opaque ARGB ints (<c>0xFFRRGGBB</c>, the memory order of BGRA32 pixels),
-	/// indices 0..<see cref="Size"/>-1. Returns the internal array, not a copy; callers must not modify it.
+	/// The 8-bit palette as packed opaque ARGB ints (<c>0xFFRRGGBB</c>, the memory order of BGRA32 pixels), indices
+	/// 0..<see cref="Size"/>-1. Returns the internal array, not a copy; callers must not modify it.
 	/// </summary>
 	public int[] Argb { get; }
 
-	/// <summary>Returns entry <paramref name="index"/> (0..<see cref="Size"/>-1) as a colour.</summary>
+	/// <summary>Returns palette entry <paramref name="index"/> (0..<see cref="Size"/>-1) as a colour.</summary>
 	public Rgb ColorAt(int index) => Rgb.FromArgb(Argb[index]);
 
 	/// <summary>
-	/// Builds a palette from the <see cref="Size"/> entries of <paramref name="scheme"/>.
-	/// Transformations are applied in the same order as in Python: <paramref name="reverse"/>
-	/// (new, optional; entry i is read from entry <c>Size-1-i</c>), <paramref name="invert"/>
-	/// (each channel becomes <c>1 - channel</c>), <paramref name="makeSymmetric"/> (entry i is
-	/// read from entry <c>2 * min(i, Size-1-i)</c>, so the palette runs from entry 0 at both
-	/// ends up to entry 254 in the middle), then <paramref name="blackLevel"/> maps every
-	/// channel linearly as <c>c * (1 - b) + b</c>, so 0 becomes <paramref name="blackLevel"/>
-	/// and 1 stays 1. Values are limited to 0..1 and converted to 8 bit by truncation, like
-	/// the Python code. Alpha is always 255.
+	/// The grey levels the Python code shows without a colour table: palette entry i is the level i, 0..254, and a
+	/// 16-bit sample the same ramp at its own position. Used when a layer's scheme cannot be found.
 	/// </summary>
-	/// <param name="scheme">Source colours; must have at least <see cref="Size"/> entries.</param>
+	public static ColorLut Grey { get; } = new([new ColorStop(0.0, new Rgb(0, 0, 0)), new ColorStop(1.0, new Rgb(254, 254, 254))], false, 0.0, false, false);
+
+	/// <summary>
+	/// The colours of <paramref name="scheme"/>'s gradient with the display options, applied in the Python order:
+	/// <paramref name="reverse"/> (new, optional; the gradient read from the far end), <paramref name="invert"/>
+	/// (each channel becomes <c>1 - channel</c>), <paramref name="makeSymmetric"/> (the gradient squeezed into each half
+	/// and mirrored, palette entry i read from entry <c>2 * min(i, Size-1-i)</c>), then <paramref name="blackLevel"/>,
+	/// which maps every channel linearly as <c>c * (1 - b) + b</c>, so 0 becomes <paramref name="blackLevel"/> and 1
+	/// stays 1. The palette's channels are converted to 8 bit by truncation, like the Python code; alpha is always 255.
+	/// UI thread (the scheme's stops are copied).
+	/// </summary>
+	/// <param name="scheme">The gradient.</param>
 	/// <param name="invert">Replaces every colour by its complement (1 - colour), like the Python option.</param>
 	/// <param name="blackLevel">Lifts (positive) or lowers (negative) the darkest level; 0 = unchanged.</param>
 	/// <param name="makeSymmetric">Squeezes the whole scheme into each half and mirrors it around the centre.</param>
 	/// <param name="reverse">Reverses the order of the scheme (like matplotlib's <c>_r</c> maps).</param>
-	public static ColorLut Build(ColorScheme scheme, bool invert = false, double blackLevel = 0.0, bool makeSymmetric = false, bool reverse = false)
+	public static ColorLut Build(ColorScheme scheme, bool invert = false, double blackLevel = 0.0, bool makeSymmetric = false, bool reverse = false) =>
+		new(scheme.SortedStops(), invert, blackLevel, makeSymmetric, reverse);
+
+	/// <summary>The 8-bit palette: the author's table of the gradient (<see cref="ColorScheme.Interpolate"/>, 255 entries at i / 254) through the display options.</summary>
+	private int[] BuildPalette()
 	{
+		Rgb[] table = ColorScheme.Interpolate(_stops, Size);
 		double[,] rgb = new double[Size, 3];
 		for (int i = 0; i < Size; i++)
 		{
-			Rgb entry = scheme.GetEntry(reverse ? (Size - 1 - i) : i);
+			Rgb entry = table[_reverse ? (Size - 1 - i) : i];
 			rgb[i, 0] = entry.R / 255.0;
 			rgb[i, 1] = entry.G / 255.0;
 			rgb[i, 2] = entry.B / 255.0;
 		}
-		if (invert)
+		if (_invert)
 		{
 			for (int i = 0; i < Size; i++)
 			{
@@ -85,23 +123,94 @@ public sealed class ColorLut
 		{
 			// Python: entries 0..127 = src[0::2] and entries 127..254 = the same list mirrored,
 			// which is entry i = src[2 * min(i, 254 - i)]
-			int sourceIndex = makeSymmetric ? 2 * Math.Min(i, Size - 1 - i) : i;
+			int sourceIndex = _makeSymmetric ? 2 * Math.Min(i, Size - 1 - i) : i;
 			int[] components = new int[3];
 			for (int channel = 0; channel < 3; channel++)
 			{
-				double level = Math.Clamp(rgb[sourceIndex, channel] * (1.0 - blackLevel) + blackLevel, 0.0, 1.0);
+				double level = Math.Clamp(rgb[sourceIndex, channel] * (1.0 - _blackLevel) + _blackLevel, 0.0, 1.0);
 				components[channel] = Math.Min(255, (int)(level * 255.0));
 			}
 			argb[i] = new Rgb((byte)components[0], (byte)components[1], (byte)components[2]).ToArgb();
 		}
-		return new ColorLut(argb);
+		return argb;
+	}
+
+	/// <summary>
+	/// The colour of every value a 16-bit sample can hold, indexed by the half's bits (<see cref="BitConverter.HalfToUInt16Bits"/>):
+	/// the value's position on the gradient by the layer's mapping at <paramref name="brightness"/>, the continuous forms
+	/// of the palette indices (the field <c>(clamp(value · brightness, −1, 1) + 1) / 2</c>, a zero field and NaN in the
+	/// middle; the intensity <c>min(√value · brightness, 1)</c>, 0 for NaN and for values not above zero), the gradient
+	/// evaluated there through the display options, each channel rounded to the nearest level. Kept per layer until a
+	/// call with another brightness; built on the calling thread (65,536 evaluations, spread over the pool). Any thread:
+	/// two threads asking at once may both build it, to the same colours. The array must not be modified.
+	/// </summary>
+	/// <param name="layer">Which mapping: the signed field or the non-negative intensity.</param>
+	/// <param name="brightness">The layer's gain, applied as in <see cref="FieldIndex"/> and <see cref="IntensityIndex(float, float)"/>.</param>
+	public int[] HalfTable(FrameLayer layer, float brightness)
+	{
+		ref HalfTableEntry? slot = ref layer == FrameLayer.Field ? ref _fieldTable : ref _intensityTable;
+		HalfTableEntry? cached = Volatile.Read(ref slot);
+		if (cached != null && cached.Brightness.Equals(brightness))
+		{
+			return cached.Argb;
+		}
+		var table = new int[HalfValues];
+		const int Blocks = 16;
+		Parallel.For(0, Blocks, block =>
+		{
+			for (int bits = block * (HalfValues / Blocks); bits < (block + 1) * (HalfValues / Blocks); bits++)
+			{
+				double value = (double)BitConverter.UInt16BitsToHalf((ushort)bits);
+				table[bits] = ColorOf(layer == FrameLayer.Field ? FieldPosition(value, brightness) : IntensityPosition(value, brightness));
+			}
+		});
+		Volatile.Write(ref slot, new HalfTableEntry(brightness, table));
+		return table;
+	}
+
+	/// <summary>A field sample's position on the gradient: <c>(clamp(value · brightness, −1, 1) + 1) / 2</c>, NaN in the middle.</summary>
+	private static double FieldPosition(double value, float brightness)
+	{
+		double scaled = value * brightness;
+		return double.IsNaN(scaled) ? 0.5 : (Math.Clamp(scaled, -1.0, 1.0) + 1.0) / 2.0;
+	}
+
+	/// <summary>An intensity sample's position on the gradient: <c>min(√value · brightness, 1)</c>, 0 for NaN and for values not above zero.</summary>
+	private static double IntensityPosition(double value, float brightness) =>
+		value > 0.0 ? Math.Clamp(Math.Sqrt(value) * brightness, 0.0, 1.0) : 0.0;
+
+	/// <summary>The gradient at a position through the display options (the order of <see cref="Build"/>), as an opaque ARGB int.</summary>
+	private int ColorOf(double position)
+	{
+		if (_makeSymmetric)
+		{
+			position = 2.0 * Math.Min(position, 1.0 - position);
+		}
+		if (_reverse)
+		{
+			position = 1.0 - position;
+		}
+		(double r, double g, double b) = ColorScheme.Evaluate(_stops, position);
+		return unchecked((int)0xFF000000) | (Level(r) << 16) | (Level(g) << 8) | Level(b);
+	}
+
+	/// <summary>One channel (0..255, unrounded) through invert and black level, rounded to the nearest level (half away from zero).</summary>
+	private int Level(double channel)
+	{
+		double level = channel / 255.0;
+		if (_invert)
+		{
+			level = 1.0 - level;
+		}
+		level = Math.Clamp(level * (1.0 - _blackLevel) + _blackLevel, 0.0, 1.0);
+		return (int)Math.Round(level * 255.0, MidpointRounding.AwayFromZero);
 	}
 
 	/// <summary>
 	/// Maps a signed field sample to a palette index, like <c>render_field</c>:
 	/// <c>clip(value * brightness, -1, 1) * 127 + 127</c>, so the result is 0..254 and a zero
-	/// field gives index 127 (the centre colour). NaN gives 127. Called per pixel from
-	/// <see cref="FrameRenderer.RenderField"/> on worker threads.
+	/// field gives index 127 (the centre colour). NaN gives 127. The index an 8-bit frame stores: computed by the
+	/// CPU's capture (<see cref="Engine.FrameShape"/>) and mirrored by the GPU's <c>capture_index</c> kernel.
 	/// </summary>
 	/// <param name="value">Raw field amplitude from the engine.</param>
 	/// <param name="brightness">Gain applied before clamping.</param>
@@ -116,9 +225,8 @@ public sealed class ColorLut
 	}
 
 	/// <summary>
-	/// The square-root case of <see cref="IntensityIndex(float, float, float)"/>, the arithmetic
-	/// <see cref="FrameRenderer.RenderIntensity"/> uses per pixel: <c>min(sqrt(intensity) · brightness, 1) · 254</c>,
-	/// 0 for NaN or a non-positive intensity. Also the mapping baked into a <see cref="Engine.FrameFormat.Index"/> frame.
+	/// The square-root case of <see cref="IntensityIndex(float, float, float)"/>, the index an 8-bit intensity frame
+	/// stores: <c>min(sqrt(intensity) · brightness, 1) · 254</c>, 0 for NaN or a non-positive intensity.
 	/// </summary>
 	/// <param name="intensity">Accumulated intensity from the engine.</param>
 	/// <param name="brightness">Gain applied after the square root.</param>
@@ -128,15 +236,15 @@ public sealed class ColorLut
 		{
 			return 0;
 		}
-		// single precision throughout (2026-10-16): what the GPU's capture_index kernel computes and what the
-		// vectorised renderer reproduces bit for bit; the double arithmetic before differed in the last bit at most
+		// single precision throughout (2026-10-16): what the GPU's capture_index kernel computes bit for bit; the
+		// double arithmetic before differed in the last bit at most
 		return (int)(MathF.Min(MathF.Sqrt(intensity) * brightness, 1f) * 254f);
 	}
 
 	/// <summary>
 	/// Maps a non-negative intensity to a palette index 0..254, like <c>render_intensity</c>:
 	/// <c>clip(intensity ^ exponent * brightness, 0, 1) * 254</c>. NaN or non-positive
-	/// intensity gives 0. <see cref="FrameRenderer.RenderIntensity"/> inlines the square-root case.
+	/// intensity gives 0. The captures use the square-root case, <see cref="IntensityIndex(float, float)"/>.
 	/// </summary>
 	/// <param name="intensity">Accumulated intensity from the engine.</param>
 	/// <param name="brightness">Gain applied after compression.</param>
@@ -154,7 +262,4 @@ public sealed class ColorLut
 		}
 		return (int)(Math.Min(scaled, 1.0) * 254.0);
 	}
-
-	/// <summary>Number of entries in a palette: <see cref="ColorScheme.EntryCount"/> (255).</summary>
-	public const int Size = ColorScheme.EntryCount;
 }

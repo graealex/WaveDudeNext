@@ -47,12 +47,12 @@ public enum ExportState
 /// render thread, once per frame, after the outline, on the frame's packed BGRA32 pixels.
 /// </summary>
 /// <param name="Layer">Which plane of the store.</param>
-/// <param name="Lut">The colour table (<c>ColorLut.Argb</c>), or null for grey levels.</param>
+/// <param name="Lut">The colours (<see cref="ColorLut.Grey"/> for grey levels).</param>
 /// <param name="Brightness">The layer's gain.</param>
 /// <param name="Edges">The glowing-edges picture (<see cref="GlowingEdges.Compute"/>) to add, or null.</param>
 /// <param name="EdgeGain">The outline's gain; 0 adds nothing.</param>
 /// <param name="Decorate">Draws over the rendered frame: the frame index and the pixels; null for none.</param>
-public sealed record ExportLayer(FrameLayer Layer, int[]? Lut, float Brightness, byte[]? Edges, double EdgeGain, Action<int, Memory<int>>? Decorate);
+public sealed record ExportLayer(FrameLayer Layer, ColorLut Lut, float Brightness, byte[]? Edges, double EdgeGain, Action<int, Memory<int>>? Decorate);
 
 /// <summary>
 /// One output of an export: a layer rendered into a sink. The sink is opened by the job on its sink thread
@@ -70,7 +70,7 @@ public sealed record ExportTarget(ExportLayer Layer, string Output, Func<IFrameS
 
 /// <summary>
 /// Renders a range of a run's stored frames into one or more sinks: a render thread reads each target's
-/// plane from the <see cref="FrameStore"/>, colours it with <see cref="FrameRenderer"/>, adds the outline
+/// plane of 16-bit samples from the <see cref="FrameStore"/>, colours it with <see cref="FrameRenderer"/>, adds the outline
 /// (<see cref="GlowingEdges.BlendAdditive"/>) and the decoration, and hands the pixels to a sink thread,
 /// which opens the sinks, encodes and writes; the two overlap, so a frame's encoding costs no rendering time
 /// (2026-10-14). Progress and the final state are published through the <see cref="SynchronizationContext"/>
@@ -107,9 +107,9 @@ public sealed class ExportJob : INotifyPropertyChanged
 		{
 			throw new ArgumentOutOfRangeException(nameof(lastFrame), "The range is empty.");
 		}
-		// an 8-bit store (palette indices with the brightness baked in) renders to the same pixels as the halves would
-		// (2026-10-18; until then every export demanded a 16-bit run): the palette and black level still apply at
-		// render time. Only a data sink (OpenEXR) needs the halves, which Render checks once the sinks are open.
+		// every export needs the 16-bit samples (2026-10-23, the user's choice): a picture takes every level of the
+		// gradient from them, which an 8-bit store's 255 palette entries cannot give, and a data sink (OpenEXR) writes
+		// them. Render refuses a store of palette indices once the sinks are open (from 2026-10-18 it had taken one for pictures)
 		Store = store;
 		FirstFrame = firstFrame;
 		LastFrame = lastFrame;
@@ -201,7 +201,7 @@ public sealed class ExportJob : INotifyPropertyChanged
 	/// <summary>A frame for one target: rendered pixels, or the store's halves for a sink that wants them (one of the two is set).</summary>
 	private sealed record Item(int Frame, int Target, int[]? Pixels, Half[]? Values);
 
-	/// <summary>The outline and the decoration over a rendered frame, the same for halves and for palette indices.</summary>
+	/// <summary>The outline and the decoration over a rendered frame.</summary>
 	private static void Finish(ExportLayer layer, int frame, int[] pixels, int width, int height)
 	{
 		if (layer.Edges != null && layer.EdgeGain > 0.0)
@@ -308,9 +308,9 @@ public sealed class ExportJob : INotifyPropertyChanged
 			sinksReady.Wait();
 			if (sinkError == null)
 			{
-				if (Store.Format != FrameFormat.Half && Targets.Any(target => target.Sink?.WantsHalves == true))
+				if (Store.Format != FrameFormat.Half)
 				{
-					throw new InvalidOperationException("A data export (OpenEXR) needs a 16-bit run; this store holds palette indices.");
+					throw new InvalidOperationException("An export needs a 16-bit run; this store holds palette indices.");
 				}
 				int pictureTargets = Targets.Count(target => target.Sink?.WantsHalves != true);
 				for (int i = 0; i < pictureTargets * QueueDepth + 1; i++)
@@ -323,7 +323,6 @@ public sealed class ExportJob : INotifyPropertyChanged
 				}
 			}
 			var values = new Half[width * height];
-			byte[]? indices = Store.Format == FrameFormat.Index ? new byte[width * height] : null;
 			for (int frame = FirstFrame; frame <= LastFrame && sinkError == null; frame++)
 			{
 				if (_cancel.IsCancellationRequested)
@@ -345,32 +344,12 @@ public sealed class ExportJob : INotifyPropertyChanged
 						queue.Add(new Item(frame, t, null, plane));
 						continue;
 					}
-					if (indices != null)
-					{
-						// the 8-bit store: the palette index as captured (brightness baked in), coloured through the LUT
-						if (frame >= Store.Count || !Store.CopyLayer(frame, layer.Layer, indices.AsSpan()))
-						{
-							throw new InvalidOperationException($"Frame {frame} is not in the store (it holds {Store.Count}).");
-						}
-						int[] indexed = free.Take();
-						FrameRenderer.RenderIndexed(indices, width, height, layer.Lut, indexed);
-						Finish(layer, frame, indexed, width, height);
-						queue.Add(new Item(frame, t, indexed, null));
-						continue;
-					}
 					if (frame >= Store.Count || !Store.CopyLayer(frame, layer.Layer, values))
 					{
 						throw new InvalidOperationException($"Frame {frame} is not in the store (it holds {Store.Count}).");
 					}
 					int[] pixels = free.Take();
-					if (layer.Layer == FrameLayer.Intensity)
-					{
-						FrameRenderer.RenderIntensity(values, width, height, layer.Lut, layer.Brightness, pixels);
-					}
-					else
-					{
-						FrameRenderer.RenderField(values, width, height, layer.Lut, layer.Brightness, pixels);
-					}
+					FrameRenderer.Render(values, width, height, layer.Lut, layer.Layer, layer.Brightness, pixels);
 					Finish(layer, frame, pixels, width, height);
 					queue.Add(new Item(frame, t, pixels, null));
 				}

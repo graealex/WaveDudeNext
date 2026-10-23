@@ -90,7 +90,7 @@ SimulationRun: stepping loop + writer threads; IWaveEngine (WaveSimulator CPU | 
    FrameCount, then State
 ScratchRunner: one kept engine; "frame k of the project as it is now" from step 0, probes sampled; newest request
    wins; every request is computed
-FramePresenter: CopyLayer -> FrameRenderer (Vector128, 32-row blocks) -> the WriteableBitmap, copied on the pool
+FramePresenter: CopyLayer -> FrameRenderer (a table lookup per pixel, 32-row blocks) -> the WriteableBitmap, copied on the pool
    between Lock/Unlock on the UI thread; only the newest request is rendered
 ExportJob (own STA thread): CopyLayer -> FrameRenderer -> outline -> probe boxes/markers -> sinks (PNG, JPEG, MPEG-1, AVI, MP4, MOV)
 FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDATA%\WaveDudeNext\cache, DeleteOnClose)
@@ -126,14 +126,13 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   cache reliance (both wrote at disk speed). Disposed on the thread pool. Full HD, 2500 steps, both planes: 10.4 GB
   in 16-bit, half in 8-bit.
 - **Reduced preview** (View menu): resolution 1/2/4, frames 1/2/4 (the timeline never changes), samples 16-bit or
-  **8-bit palette index, the default**: the same pixels at the captured brightness, half the store, half the
-  colouring; 16-bit keeps the brightness turnable after a run. In 8-bit a brightness edit is a simulation edit. The
-  index is computed from the sample rounded to a half, on the CPU and in the kernel (a bit-level rounding there), and
-  the GPU program is built with a correctly rounded square root where the card has one, so an 8-bit run exports the
-  same bytes as a 16-bit run of the same project (2026-10-19, two such exports had differed by a palette step in half a
-  percent of the pixels).
-  A picture export takes an 8-bit run as it is (the same pixels; 2026-10-18); an EXR data export, a reduced resolution or
-  skipped frames make the export run the simulation again at full quality first.
+  **8-bit palette index, the default**: the stored samples at the palette's 255 colours and the captured brightness,
+  half the store; 16-bit keeps the brightness turnable after a run and shows every level of the gradient. In 8-bit a
+  brightness edit is a simulation edit. The index is computed from the sample rounded to a half, on the CPU and in the
+  kernel (a bit-level rounding there), and the GPU program is built with a correctly rounded square root where the card
+  has one, so CPU and GPU store the same index bytes (2026-10-19).
+  Every export needs the 16-bit samples (2026-10-23, the user's choice, so a picture has every level of the gradient):
+  an 8-bit run, a reduced resolution or skipped frames make the export run the simulation again at full quality first.
 
 ## The app's rules
 
@@ -167,6 +166,10 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   and point handles belong to the current item alone. Probe graph boxes follow their probe while attached, resize by a grip, keep their text
   size; an amplitude axis is symmetric about zero; an intensity graph's value axis can be logarithmic (2026-10-20,
   Jeroen's point 8: `Decades` below the fitted top, zeros on the bottom line, powers-of-ten ticks; the field stays linear).
+- **Colour schemes are gradients** (2026-10-23, the user's design): the model holds the stops and no table; how many
+  colours are taken is the renderer's (`ColorLut`): 255 at i/254 for 8-bit frames (the author's table, truncated as in
+  his Python), and for 16-bit frames a table of the 65,536 half values per layer and brightness, the gradient at each
+  value's position, rounded (the 255 entries had left visible patches two to five levels apart in dark gradients).
 - **Colour schemes** are stop lists in `.wdscheme` XML, shipped ones embedded, user ones in
   `%LOCALAPPDATA%\WaveDudeNext\ColorSchemes`, project ones in the `.wdproj`; an in-house picker edits stops;
   renaming a project scheme repoints its layers. **The scene image** is embedded and follows its file on disk;
@@ -205,8 +208,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 ## Numbers (workstation: 10-core Xeon without AVX2, RTX 2080, 64 GB)
 
 GPU step at 1080p 0.25–0.5 ms, CPU 6–14 ms; OpenCL build 0.3 s; a full-HD run of 2500 steps 5.4 s in RAM, bound by
-the GPU readback. Renderer per 2880×1080 layer on ten cores: 8-bit 1.0 ms, 16-bit 2.0; vector rows gain 2× per
-core over scalar. Presenter about 7 ms a frame quiet, 20 during a run. JPEG 1080p at 4:4:4: WIC 26 ms a frame
+the GPU readback. Renderer per 2880×1080 layer on ten cores (2026-10-23, a table lookup per pixel): 16-bit 0.5 ms,
+8-bit 0.6; a half table built in 0.4 ms. Presenter about 7 ms a frame quiet, 20 during a run. JPEG 1080p at 4:4:4: WIC 26 ms a frame
 single-threaded (9 ms a frame in a sequence job on half the cores), in-house 9.8 ms on ten cores (15 in a job);
 MP4 job 16 ms a frame. Part painter on a Full HD canvas (ten cores): a 400 × 330 outline 30 ms, a 400 px lens 5, a hexagon 8, an S-bent fibre across the canvas 51 (156 chords on the cell grid; 1.3 s without it);
 the glowing edges 22 ms; the preview's scene pictures about 100 ms more, so the scene rebuild is coalesced at background priority. Laptop (2 cores, HD 520, HDD): iGPU 4.3 ms a step against CPU 14.7; the ball

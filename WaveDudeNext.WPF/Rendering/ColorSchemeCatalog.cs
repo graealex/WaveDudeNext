@@ -25,10 +25,10 @@ namespace WaveDudeNext.WPF.Rendering;
 /// The colour schemes available to a project: the project's own (<see cref="Project.ColorSchemes"/>,
 /// consulted first, so a project scheme shadows a built-in of the same name), then the user's folder
 /// (<see cref="ColorSchemeStore.UserFolder"/>), then the ones built into the library; the last two
-/// are loaded once. Also a cache of the palettes built from the shared schemes for the display
-/// settings in use; a project scheme's palette is built on every request, since it may be mid-edit
-/// and 255 entries cost nothing. UI thread only; the <c>int[]</c> palettes are immutable and may be
-/// handed to rendering threads.
+/// are loaded once. Also a cache of the colours built from the shared schemes for the display
+/// settings in use (each keeps the half tables it has built); a project scheme's are built on every
+/// request, since it may be mid-edit, and a copy of its stops and 255 entries cost nothing (the half
+/// tables follow on first use). UI thread only; a <see cref="ColorLut"/> may be handed to rendering threads.
 /// </summary>
 public sealed class ColorSchemeCatalog
 {
@@ -37,7 +37,7 @@ public sealed class ColorSchemeCatalog
 	/// <summary>The single catalog of the application.</summary>
 	public static ColorSchemeCatalog Instance { get; } = new();
 
-	private readonly Dictionary<(string Name, double BlackLevel), int[]?> _luts = new();
+	private readonly Dictionary<(string Name, double BlackLevel), ColorLut> _luts = new();
 	private readonly HashSet<string> _warned = new(StringComparer.OrdinalIgnoreCase);
 	private List<ColorScheme>? _schemes;
 
@@ -100,17 +100,17 @@ public sealed class ColorSchemeCatalog
 	}
 
 	/// <summary>
-	/// The palette of the scheme called <paramref name="name"/> with the given black level; null (greyscale)
+	/// The colours of the scheme called <paramref name="name"/> with the given black level; <see cref="ColorLut.Grey"/>
 	/// when no such scheme exists, which is logged once per name. Shared schemes are cached; a project scheme is built fresh.
 	/// </summary>
-	public int[]? LutFor(Project? project, string name, double blackLevel)
+	public ColorLut LutFor(Project? project, string name, double blackLevel)
 	{
 		if (project != null && ColorSchemeStore.Find(project.ColorSchemes, name) is { } own)
 		{
-			return ColorLut.Build(own, blackLevel: blackLevel).Argb;
+			return ColorLut.Build(own, blackLevel: blackLevel);
 		}
 		(string, double) key = (name, blackLevel);
-		if (_luts.TryGetValue(key, out int[]? lut))
+		if (_luts.TryGetValue(key, out ColorLut? lut))
 		{
 			return lut;
 		}
@@ -121,11 +121,11 @@ public sealed class ColorSchemeCatalog
 			{
 				Logger.Warn("Colour scheme '{Name}' not found; showing greyscale", name);
 			}
-			lut = null;
+			lut = ColorLut.Grey;
 		}
 		else
 		{
-			lut = ColorLut.Build(scheme, blackLevel: blackLevel).Argb;
+			lut = ColorLut.Build(scheme, blackLevel: blackLevel);
 		}
 		_luts[key] = lut;
 		return lut;

@@ -51,6 +51,9 @@ public static class ColorSchemeStore
 	/// <summary>Prefix of the embedded scheme resources (see the csproj's <c>LogicalName</c>).</summary>
 	private const string ResourcePrefix = "ColorSchemes/";
 
+	/// <summary>Entries of the author's JSON table ("entry_count"): his palette of 255 colours, the part his program reads.</summary>
+	private const int AuthorEntryCount = 255;
+
 	private static readonly XmlSerializer Serializer = new(typeof(ColorScheme));
 	private static readonly XmlSerializerNamespaces NoNamespaces = new([XmlQualifiedName.Empty]);
 	private static readonly XmlWriterSettings WriterSettings = new()
@@ -141,7 +144,7 @@ public static class ColorSchemeStore
 			stops = null;
 		}
 		IReadOnlyList<Rgb> kept;
-		if (stops != null && (colors == null || colors.Count < 2 || ColorScheme.IsInterpolationOf(colors, stops)))
+		if (stops != null && (colors == null || colors.Count < 2 || IsInterpolationOf(colors, stops)))
 		{
 			kept = stops;
 		}
@@ -157,6 +160,30 @@ public static class ColorSchemeStore
 		scheme.Description = GetString(root, "origin", scheme.Description);
 		scheme.Kind = KindOf(GetString(root, "scheme_type", ""));
 		return scheme;
+	}
+
+	/// <summary>
+	/// Whether a table equals the author's Python resampling of these evenly spaced colours exactly (the consolidation
+	/// test of <see cref="Parse"/>): entry i at position i × (n−1) / (count−1) on the colours, interpolated linearly,
+	/// each channel rounded half away from zero.
+	/// </summary>
+	private static bool IsInterpolationOf(IReadOnlyList<Rgb> table, IReadOnlyList<Rgb> stops)
+	{
+		if (table.Count != AuthorEntryCount || stops.Count < 2)
+		{
+			return false;
+		}
+		for (int i = 0; i < AuthorEntryCount; i++)
+		{
+			double position = (double)(i * (stops.Count - 1)) / (AuthorEntryCount - 1);
+			int index = (int)Math.Floor(position);
+			Rgb expected = index >= stops.Count - 1 ? stops[^1] : ColorScheme.Lerp(stops[index], stops[index + 1], position - index);
+			if (expected != table[i])
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/// <summary>Reads a standalone XML scheme file; <see cref="ColorScheme.FilePath"/> is set.</summary>
@@ -274,12 +301,12 @@ public static class ColorSchemeStore
 			json.AppendLine("  \"scheme_type\": " + Quote(scheme.Kind.ToString().ToLowerInvariant()) + ",");
 		}
 		json.AppendLine("  \"bits_per_channel\": 8,");
-		json.AppendLine("  \"entry_count\": " + ColorScheme.EntryCount.ToString(CultureInfo.InvariantCulture) + ",");
+		json.AppendLine("  \"entry_count\": " + AuthorEntryCount.ToString(CultureInfo.InvariantCulture) + ",");
 		if (scheme.IsStopScheme && scheme.IsEvenlySpaced)
 		{
 			json.AppendLine("  \"stops\": [" + string.Join(", ", scheme.Colors.Select(Triplet)) + "],");
 		}
-		Rgb[] entries = scheme.Entries;
+		Rgb[] entries = ColorScheme.Interpolate(scheme.SortedStops(), AuthorEntryCount);
 		json.AppendLine("  \"colors\": [");
 		for (int rowStart = 0; rowStart < entries.Length; rowStart += 8)
 		{

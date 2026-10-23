@@ -908,7 +908,7 @@ public partial class PreviewPane : UserControl
 	private void ApplyLayer(FrameLayer layer)
 	{
 		DisplayLayer? settings = layer == FrameLayer.Field ? FieldSettings : IntensitySettings;
-		int[]? lut = settings == null ? null : ColorSchemeCatalog.Instance.LutFor(Project, settings.ColorScheme, settings.BlackLevel);
+		ColorLut lut = settings == null ? ColorLut.Grey : ColorSchemeCatalog.Instance.LutFor(Project, settings.ColorScheme, settings.BlackLevel);
 		_presenter.SetLayer(layer, lut, (float)(settings?.Brightness ?? DisplayLayer.DefaultBrightness), settings?.Preview ?? true);
 	}
 

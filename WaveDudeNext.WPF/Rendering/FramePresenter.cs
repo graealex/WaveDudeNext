@@ -61,7 +61,7 @@ public sealed class FramePresenter
 	/// <summary>Colour and visibility of one layer, as last set through <see cref="SetLayer"/>.</summary>
 	private sealed record LayerSettings
 	{
-		public int[]? Lut { get; init; }
+		public ColorLut Lut { get; init; } = ColorLut.Grey;
 		public float Brightness { get; init; } = 1f;
 		public bool Enabled { get; init; } = true;
 	}
@@ -117,10 +117,10 @@ public sealed class FramePresenter
 
 	/// <summary>Sets how a layer is coloured and whether it is rendered at all; the shown frame is redrawn.</summary>
 	/// <param name="layer">The plane.</param>
-	/// <param name="lut">Palette, or null for greyscale.</param>
-	/// <param name="brightness">Gain before the palette lookup.</param>
+	/// <param name="lut">The colours (<see cref="ColorLut.Grey"/> for greyscale).</param>
+	/// <param name="brightness">Gain before the colour lookup.</param>
 	/// <param name="enabled">False leaves the bitmap untouched (the picture is hidden anyway).</param>
-	public void SetLayer(FrameLayer layer, int[]? lut, float brightness, bool enabled)
+	public void SetLayer(FrameLayer layer, ColorLut lut, float brightness, bool enabled)
 	{
 		_settings[(int)layer] = new LayerSettings { Lut = lut, Brightness = brightness, Enabled = enabled };
 		Rebuild();
@@ -246,13 +246,10 @@ public sealed class FramePresenter
 					// palette indices: the brightness was applied when the frame was captured, only the palette is looked up
 					FrameRenderer.RenderIndexed(job.Indices, width, height, settings.Lut, job.Pixels);
 				}
-				else if (layer == FrameLayer.Field)
-				{
-					FrameRenderer.RenderField(job.Halves, width, height, settings.Lut, settings.Brightness, job.Pixels);
-				}
 				else
 				{
-					FrameRenderer.RenderIntensity(job.Halves, width, height, settings.Lut, settings.Brightness, job.Pixels);
+					// 16-bit samples: every level of the gradient (a brightness new to the colours builds the layer's half table first)
+					FrameRenderer.Render(job.Halves, width, height, settings.Lut, layer, settings.Brightness, job.Pixels);
 				}
 				_colourClock.Stop();
 				// the copy into the bitmap runs here, on the pool thread, between a lock and an unlock on the UI thread

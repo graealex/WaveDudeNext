@@ -93,34 +93,31 @@ public sealed class ColorStop : ObservableObject
 }
 
 /// <summary>
-/// A colour scheme: colour stops at positions 0..1 along the value range, from which the
-/// <see cref="EntryCount"/>-entry lookup table is interpolated (<see cref="Interpolate"/>; before the
-/// first stop and after the last the end colours hold). This is the consolidated form (2026-10-13):
-/// the author's files carried a 255-entry table plus, for the ones made in his editor, 9 evenly spaced
-/// stops; every shipped table equals the interpolation of its stops, so those schemes keep the 9 stops
-/// and the sampled colormaps keep 255 stops at i/254. Stops may sit anywhere (2026-10-13, the user's
-/// call: positions are fractions of the gradient). Serialises to XML as attributes plus one <c>Stop</c> element per
-/// stop, both standalone (<c>.wdscheme</c>) and inside a project file. Observable: a stop's edit raises
-/// <c>Stops</c> on the scheme. UI thread for edits; the derived table is read by anyone building a LUT.
+/// A colour scheme: colour stops at positions 0..1 along the value range, the gradient as specified: linear
+/// between neighbouring stops, the end colours before the first stop and after the last (<see cref="Evaluate"/>).
+/// The model holds no table (2026-10-23, the user's call): how many colours are taken from the gradient is the
+/// renderer's business (<see cref="ColorLut"/>: 255 for a frame of 8-bit palette indices, one for every value a
+/// 16-bit sample can hold). This is the consolidated form (2026-10-13): the author's files carried a 255-entry
+/// table plus, for the ones made in his editor, 9 evenly spaced stops; every shipped table equals the interpolation
+/// of its stops, so those schemes keep the 9 stops and the sampled colormaps keep 255 stops at i/254. Stops may sit
+/// anywhere (2026-10-13, the user's call: positions are fractions of the gradient). Serialises to XML as attributes
+/// plus one <c>Stop</c> element per stop, both standalone (<c>.wdscheme</c>) and inside a project file. Observable:
+/// a stop's edit raises <c>Stops</c> on the scheme. UI thread; a renderer works on a copy (<see cref="SortedStops"/>).
 /// </summary>
 [XmlRoot("ColorScheme")]
 public sealed class ColorScheme : ObservableObject
 {
-	/// <summary>Size of the interpolated lookup table (the renderer's index range, 0..254).</summary>
-	public const int EntryCount = 255;
-
 	/// <summary>Number of stops of the author's editable gradient: nine, evenly spaced.</summary>
 	public const int StopCount = 9;
 
 	private string _name = "";
 	private string _description = "";
 	private ColorSchemeKind _kind;
-	private Rgb[]? _table;
 	private bool _replacing;
 
 	/// <summary>
 	/// An empty, nameless scheme: the serializer's starting point (it appends the file's stops to the
-	/// list, so the list must start empty) and the base of <see cref="Clone"/>. Without stops the table
+	/// list, so the list must start empty) and the base of <see cref="Clone"/>. Without stops the gradient
 	/// is the grey ramp; <see cref="Normalize"/> makes that explicit.
 	/// </summary>
 	public ColorScheme()
@@ -180,7 +177,7 @@ public sealed class ColorScheme : ObservableObject
 
 	/// <summary>
 	/// The stops, each a colour at a position 0..1; kept in position order by <see cref="Normalize"/>
-	/// (the table sorts a copy, so an editor may leave them unsorted while typing). Edit a stop, or add and
+	/// (a renderer sorts a copy, so an editor may leave them unsorted while typing). Edit a stop, or add and
 	/// remove through <see cref="AddStop"/> / <see cref="RemoveStop"/>; replace all with <see cref="SetStops"/>
 	/// or <see cref="SetColors"/>. Every change raises <see cref="INotifyPropertyChanged.PropertyChanged"/> for <c>Stops</c>.
 	/// </summary>
@@ -217,31 +214,12 @@ public sealed class ColorScheme : ObservableObject
 	[Browsable(false)]
 	public IEnumerable<Rgb> Colors => Stops.Select(s => s.Color);
 
-	/// <summary>The interpolated table, index 0..<see cref="EntryCount"/>-1 (a copy).</summary>
-	[XmlIgnore]
-	[Browsable(false)]
-	public Rgb[] Entries => (Rgb[])Table.Clone();
+	/// <summary>The stops in position order as copies, which a renderer may keep and read on any thread; the grey ramp's when there are none.</summary>
+	public List<ColorStop> SortedStops() =>
+		Stops.Count > 0 ? [.. Stops.OrderBy(s => s.Position).Select(s => new ColorStop(s.Position, s.Color))] : Spread(Grey());
 
-	/// <summary>One entry of the interpolated table, index 0..<see cref="EntryCount"/>-1.</summary>
-	public Rgb GetEntry(int index) => Table[index];
-
-	/// <summary>Interpolates the table at a fractional index (clamped to the ends).</summary>
-	public Rgb SampleAt(double position)
-	{
-		Rgb[] table = Table;
-		if (position <= 0.0)
-		{
-			return table[0];
-		}
-		if (position >= EntryCount - 1)
-		{
-			return table[EntryCount - 1];
-		}
-		int index = (int)Math.Floor(position);
-		return Lerp(table[index], table[index + 1], position - index);
-	}
-
-	private Rgb[] Table => _table ??= Stops.Count > 0 ? Interpolate(Stops, EntryCount) : Resample(Grey(), EntryCount);
+	/// <summary>The gradient's colour at <paramref name="position"/> (0..1), each channel rounded to the nearest level (half away from zero).</summary>
+	public Rgb ColorAt(double position) => Round(Evaluate(SortedStops(), position));
 
 	/// <summary>Replaces every stop with these colours spread evenly over 0..1 (one change notification); at least one.</summary>
 	/// <exception cref="ArgumentException">No colours.</exception>
@@ -252,8 +230,12 @@ public sealed class ColorScheme : ObservableObject
 		{
 			throw new ArgumentException("A color scheme needs at least one color.");
 		}
-		SetStops(list.Select((color, k) => new ColorStop(list.Count == 1 ? 0.0 : k / (double)(list.Count - 1), color)));
+		SetStops(Spread(list));
 	}
+
+	/// <summary>Stops for these colours at k / (n−1), the author's layout; a single colour sits at 0.</summary>
+	private static List<ColorStop> Spread(IReadOnlyList<Rgb> colors) =>
+		[.. colors.Select((color, k) => new ColorStop(colors.Count == 1 ? 0.0 : k / (double)(colors.Count - 1), color))];
 
 	/// <summary>Replaces every stop (copies are taken; one change notification); at least one.</summary>
 	/// <exception cref="ArgumentException">No stops.</exception>
@@ -304,7 +286,7 @@ public sealed class ColorScheme : ObservableObject
 		{
 			at = 0.0;
 		}
-		var stop = new ColorStop(at, SampleAt(at * (EntryCount - 1)));
+		var stop = new ColorStop(at, ColorAt(at));
 		int index = Stops.Count(s => s.Position <= at);
 		Stops.Insert(index, stop);
 		return stop;
@@ -418,7 +400,7 @@ public sealed class ColorScheme : ObservableObject
 		};
 	}
 
-	/// <summary>Nine colours from black to white, the default of a new scheme and the table of one without stops.</summary>
+	/// <summary>Nine colours from black to white, the default of a new scheme and the gradient of one without stops.</summary>
 	public static Rgb[] Grey()
 	{
 		var stops = new Rgb[StopCount];
@@ -431,10 +413,48 @@ public sealed class ColorScheme : ObservableObject
 	}
 
 	/// <summary>
-	/// The table of <paramref name="count"/> entries for these stops: entry i sits at t = i / (count−1);
-	/// before the first stop and after the last the end colours hold, between two stops the colour is
-	/// interpolated linearly (channels round half away from zero, as the author's Python did). Stops at
-	/// k / (n−1) reproduce <see cref="Resample"/> exactly, and 255 stops at i / 254 are the table itself.
+	/// The gradient at <paramref name="position"/>: between two stops the colour is interpolated linearly, before the
+	/// first stop and after the last the end colours hold, at a stop's own position the first stop there (two stops at
+	/// one position make a hard edge). Channels on the 0..255 scale, unrounded: how finely the gradient is sampled and
+	/// how it is rounded are the renderer's business. Any thread, while <paramref name="sorted"/> is left alone.
+	/// </summary>
+	/// <param name="sorted">At least one stop, in position order (<see cref="SortedStops"/>).</param>
+	/// <param name="position">Where along the gradient, 0..1; NaN gives the first stop's colour.</param>
+	public static (double R, double G, double B) Evaluate(IReadOnlyList<ColorStop> sorted, double position)
+	{
+		if (!(position > sorted[0].Position))
+		{
+			return Channels(sorted[0].Color);
+		}
+		if (position >= sorted[^1].Position)
+		{
+			return Channels(sorted[^1].Color);
+		}
+		// the first stop at or beyond the position, by bisection: a sampled colormap may keep 255 stops
+		int low = 1;
+		int high = sorted.Count - 1;
+		while (low < high)
+		{
+			int middle = (low + high) / 2;
+			if (sorted[middle].Position < position)
+			{
+				low = middle + 1;
+			}
+			else
+			{
+				high = middle;
+			}
+		}
+		Rgb a = sorted[low - 1].Color;
+		Rgb b = sorted[low].Color;
+		double t = (position - sorted[low - 1].Position) / (sorted[low].Position - sorted[low - 1].Position);
+		return (a.R + (b.R - a.R) * t, a.G + (b.G - a.G) * t, a.B + (b.B - a.B) * t);
+	}
+
+	/// <summary>
+	/// The gradient of these stops sampled at <paramref name="count"/> evenly spaced positions, entry i at
+	/// i / (count−1) (<see cref="Evaluate"/>), each channel rounded half away from zero, as the author's Python did:
+	/// a gradient brush's samples, the 8-bit palette, the author's JSON table.
 	/// </summary>
 	/// <exception cref="ArgumentException">No stops.</exception>
 	public static Rgb[] Interpolate(IReadOnlyList<ColorStop> stops, int count)
@@ -445,60 +465,22 @@ public sealed class ColorScheme : ObservableObject
 		}
 		List<ColorStop> sorted = [.. stops.OrderBy(s => s.Position)];
 		var result = new Rgb[count];
-		int k = 0;
 		for (int i = 0; i < count; i++)
 		{
-			double t = i / (double)(count - 1);
-			if (t <= sorted[0].Position)
-			{
-				result[i] = sorted[0].Color;
-				continue;
-			}
-			if (t >= sorted[^1].Position)
-			{
-				result[i] = sorted[^1].Color;
-				continue;
-			}
-			while (sorted[k + 1].Position < t)
-			{
-				k++;
-			}
-			ColorStop a = sorted[k];
-			ColorStop b = sorted[k + 1];
-			result[i] = t >= b.Position || b.Position <= a.Position
-				? b.Color
-				: Lerp(a.Color, b.Color, (t - a.Position) / (b.Position - a.Position));
+			result[i] = Round(Evaluate(sorted, i / (double)(count - 1)));
 		}
 		return result;
 	}
 
-	/// <summary>
-	/// Spreads <paramref name="source"/> evenly over <paramref name="count"/> entries with linear
-	/// interpolation (an identical count copies): the author's Python resampling, kept for the JSON
-	/// writer and the consolidation test. Entry i sits at position i × (n−1) / (count−1) on the source.
-	/// </summary>
-	/// <exception cref="ArgumentException">Fewer than two source colours.</exception>
-	public static Rgb[] Resample(IReadOnlyList<Rgb> source, int count)
-	{
-		if (source.Count < 2)
-		{
-			throw new ArgumentException("A color scheme needs at least 2 colors.");
-		}
-		var result = new Rgb[count];
-		for (int i = 0; i < count; i++)
-		{
-			double position = (double)(i * (source.Count - 1)) / (count - 1);
-			int index = (int)Math.Floor(position);
-			result[i] = index >= source.Count - 1 ? source[^1] : Lerp(source[index], source[index + 1], position - index);
-		}
-		return result;
-	}
+	private static (double R, double G, double B) Channels(Rgb color) => (color.R, color.G, color.B);
 
-	/// <summary>Whether a table equals the interpolation of these evenly spaced colours exactly (the consolidation test of the store).</summary>
-	public static bool IsInterpolationOf(IReadOnlyList<Rgb> table, IReadOnlyList<Rgb> stops) =>
-		table.Count == EntryCount && Resample(stops, EntryCount).SequenceEqual(table);
+	private static Rgb Round((double R, double G, double B) color) =>
+		Rgb.Clamped(RoundChannel(color.R), RoundChannel(color.G), RoundChannel(color.B));
 
-	private static Rgb Lerp(Rgb a, Rgb b, double t) =>
+	private static int RoundChannel(double level) => (int)Math.Round(level, MidpointRounding.AwayFromZero);
+
+	/// <summary>The straight line between two colours at <paramref name="t"/> (0..1), each channel rounded half away from zero.</summary>
+	internal static Rgb Lerp(Rgb a, Rgb b, double t) =>
 		Rgb.Clamped(LerpChannel(a.R, b.R, t), LerpChannel(a.G, b.G, t), LerpChannel(a.B, b.B, t));
 
 	private static int LerpChannel(int a, int b, double t) => (int)Math.Round(a + (b - a) * t, MidpointRounding.AwayFromZero);
@@ -537,7 +519,6 @@ public sealed class ColorScheme : ObservableObject
 
 	private void Invalidate()
 	{
-		_table = null;
 		OnPropertyChanged(nameof(Stops));
 		OnPropertyChanged(nameof(IsStopScheme));
 	}

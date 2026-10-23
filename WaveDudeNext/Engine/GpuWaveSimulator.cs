@@ -768,8 +768,9 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		source.AppendLine();
 		// the index mapping of ColorLut.FieldIndex / IntensityIndex: a NaN field gives the centre, a NaN or
 		// non-positive intensity 0. The sample is first rounded to half precision, as capture_half stores it, so the
-		// index equals the one the CPU renders from a 16-bit frame bit for bit (2026-10-19: an 8-bit run and a 16-bit
-		// run of the same project exported pictures that differed by a palette step in half a percent of the pixels).
+		// index is the palette index of the very half a 16-bit run stores, as the CPU's capture computes it, bit for bit
+		// (2026-10-19: an 8-bit run and a 16-bit run of the same project had differed by a palette step in half a percent
+		// of the pixels).
 		// The rounding is done on the float's bits, since a half variable needs an extension; it is round to nearest
 		// even, half's subnormals and overflow included. No contraction here: the CPU's multiply and add are separate
 		source.AppendLine("float round_to_half(float f)");

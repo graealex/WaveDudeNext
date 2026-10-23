@@ -277,7 +277,7 @@ public partial class MainWindow
 				}
 			}
 		}
-		SimulationRun? run = await EnsureRunForExport(intensity, ExportFormats.IsData(format));
+		SimulationRun? run = await EnsureRunForExport(intensity, needsHalves: true);
 		if (run == null)
 		{
 			return;
@@ -324,7 +324,7 @@ public partial class MainWindow
 			foreach ((FrameLayer layer, string path) in outputs)
 			{
 				DisplayLayer settings = layer == FrameLayer.Field ? display.Field : display.Intensity;
-				int[]? lut = ColorSchemeCatalog.Instance.LutFor(Project, settings.ColorScheme, settings.BlackLevel);
+				ColorLut lut = ColorSchemeCatalog.Instance.LutFor(Project, settings.ColorScheme, settings.BlackLevel);
 				Action<int, Memory<int>>? probes = painter?.For(layer == FrameLayer.Field ? ProbeLayer.Field : ProbeLayer.Intensity);
 				Action<int, Memory<int>>? decorate = sources == null ? probes : (frame, pixels) =>
 				{
@@ -385,7 +385,7 @@ public partial class MainWindow
 	/// be had (logged, and an error shown when the run could not start).
 	/// </summary>
 	/// <param name="intensity">The run must hold the intensity plane.</param>
-	/// <param name="needsHalves">The run must hold 16-bit samples (a data export); otherwise the 8-bit index does.</param>
+	/// <param name="needsHalves">The run must hold 16-bit samples (every picture or data export); the probe data does with the 8-bit index.</param>
 	private async Task<SimulationRun?> EnsureRunForExport(bool intensity, bool needsHalves)
 	{
 		IsExportWaiting = true;
@@ -394,12 +394,13 @@ public partial class MainWindow
 			for (int attempt = 0; attempt < 3; attempt++)
 			{
 				SimulationRun? run = Run;
-				// a reduced preview serves a picture export when only its samples are reduced: the 8-bit index gives the
-				// same pixels (2026-10-18); a smaller picture or skipped frames never do, and a data export needs the halves
+				// a reduced preview never serves a picture or data export: a smaller picture or skipped frames are not the
+				// run, and the 8-bit index has only the palette's 255 colours where the 16-bit samples give every level of the
+				// gradient (2026-10-23, the user's choice; from 2026-10-18 a picture export had taken an 8-bit run as it was)
 				PreviewQuality? quality = run?.Spec.Quality;
 				bool reduced = quality != null && (quality.ResolutionDivisor != 1 || quality.FrameDivisor != 1 || (quality.Format != FrameFormat.Half && needsHalves));
 				string? reason = run == null ? "no run" : IsRunStale ? "the run is stale" : IsProbesStale ? "the probes were edited since the run"
-					: reduced ? (quality!.Format != FrameFormat.Half && needsHalves && quality.ResolutionDivisor == 1 && quality.FrameDivisor == 1 ? "a data export needs the 16-bit samples" : "the run is a reduced preview (View menu)")
+					: reduced ? (quality!.Format != FrameFormat.Half && needsHalves && quality.ResolutionDivisor == 1 && quality.FrameDivisor == 1 ? "the export needs the 16-bit samples" : "the run is a reduced preview (View menu)")
 					: intensity && !run.Store.Has(FrameLayer.Intensity) ? "the run has no intensity plane" : !run.IsActive && run.State != RunState.Completed ? "the run did not complete" : null;
 				if (reason != null)
 				{

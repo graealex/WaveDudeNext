@@ -601,7 +601,7 @@ internal static class Program
 			field[i] = (Half)(random.NextDouble() * 2 - 1);
 			intensity[i] = (Half)(random.NextDouble() * 1.5);
 		}
-		int[] lut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == Display.DefaultFieldColorScheme)).Argb;
+		ColorLut lut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == Display.DefaultFieldColorScheme));
 		var pixels = new int[w * h];
 		// the 8-bit preview format: the index the GPU's capture_index kernel computed, the CPU only looks the colour up
 		var indices = new byte[w * h];
@@ -612,10 +612,10 @@ internal static class Program
 		foreach ((string name, Action render) in new (string, Action)[]
 		{
 			("8-bit index", () => FrameRenderer.RenderIndexed(indices, w, h, lut, pixels)),
-			("intensity", () => FrameRenderer.RenderIntensity(intensity, w, h, lut, 1f, pixels)),
-			("field", () => FrameRenderer.RenderField(field, w, h, lut, 1f, pixels)),
-			("field, grey", () => FrameRenderer.RenderField(field, w, h, null, 1f, pixels)),
-			("intensity again", () => FrameRenderer.RenderIntensity(intensity, w, h, lut, 1f, pixels)),
+			("intensity", () => FrameRenderer.Render(intensity, w, h, lut, FrameLayer.Intensity, 1f, pixels)),
+			("field", () => FrameRenderer.Render(field, w, h, lut, FrameLayer.Field, 1f, pixels)),
+			("field, grey", () => FrameRenderer.Render(field, w, h, ColorLut.Grey, FrameLayer.Field, 1f, pixels)),
+			("intensity again", () => FrameRenderer.Render(intensity, w, h, lut, FrameLayer.Intensity, 1f, pixels)),
 		})
 		{
 			for (int i = 0; i < 60; i++)
@@ -632,29 +632,22 @@ internal static class Program
 			double ms = clock.Elapsed.TotalMilliseconds / Runs;
 			Console.WriteLine($"  {name,-12} {ms,6:0.00} ms per layer  ({ms * 1e6 / (w * (double)h):0.00} ns per pixel)");
 		}
-		// one core's view: a single row, scalar helpers against the vector rows, no parallel loop and no memory traffic
+		// a half table's build, the cost of a brightness the colours have not seen (a drag on the brightness box, Auto)
 		{
-			var row = new float[w];
-			var got = new int[w];
-			var rng2 = new Random(3);
-			for (int i = 0; i < w; i++) { row[i] = (float)(rng2.NextDouble() * 2 - 1); }
-			foreach ((string name, Action render) in new (string, Action)[]
+			ColorLut fresh = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == "Inferno"));
+			float brightness = 1f;
+			for (int i = 0; i < 20; i++)
 			{
-				("field scalar", () => { for (int x = 0; x < w; x++) { got[x] = FrameRenderer.Colorize(ColorLut.FieldIndex(row[x], 1f), lut); } }),
-				("field vector", () => FrameRenderer.FieldRow(row, lut, 1f, got)),
-				("intensity scalar", () => { for (int x = 0; x < w; x++) { got[x] = FrameRenderer.Colorize(ColorLut.IntensityIndex(row[x], 1f), lut); } }),
-				("intensity vector", () => FrameRenderer.IntensityRow(row, lut, 1f, got)),
-				("grey scalar", () => { for (int x = 0; x < w; x++) { got[x] = FrameRenderer.Colorize(ColorLut.FieldIndex(row[x], 1f), null); } }),
-				("grey vector", () => FrameRenderer.FieldRow(row, null, 1f, got)),
-			})
-			{
-				for (int i = 0; i < 2000; i++) { render(); }
-				var clock = Stopwatch.StartNew();
-				const int Rows = 20000;
-				for (int i = 0; i < Rows; i++) { render(); }
-				double ns = clock.Elapsed.TotalMilliseconds * 1e6 / Rows / w;
-				Console.WriteLine($"  one thread, {name,-18} {ns:0.00} ns per pixel");
+				fresh.HalfTable(FrameLayer.Intensity, brightness += 0.01f);
 			}
+			Thread.Sleep(300);
+			var clock = Stopwatch.StartNew();
+			const int Builds = 100;
+			for (int i = 0; i < Builds; i++)
+			{
+				fresh.HalfTable(i % 2 == 0 ? FrameLayer.Field : FrameLayer.Intensity, brightness += 0.01f);
+			}
+			Console.WriteLine($"  half table build {clock.Elapsed.TotalMilliseconds / Builds,6:0.00} ms (65,536 colours from Inferno's {ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == "Inferno").Stops.Count} stops)");
 		}
 		stop.Cancel();
 		if (run != null)
@@ -1525,7 +1518,8 @@ internal static class Program
 			}
 		}
 		Check(same && indexField.Max() > 127 && indexField.Min() < 127 && indexInten.Max() > 0, "index shape: the renderer's palette index of every cell's half-rounded sample at brightness 30 and 5, both sides of the centre used");
-		// an index frame renders to the same pixels as a half frame of the same floats: the rule behind the 8-bit preview
+		// an index frame holds the palette index of the very half a 16-bit frame stores: the 8-bit preview shows the
+		// stored samples, at the palette's 255 colours
 		var halfField = new byte[full.PlaneBytes];
 		FrameConversion.Convert(field, stride + 1, stride, full, false, halfField);
 		ReadOnlySpan<Half> storedHalves = MemoryMarshal.Cast<byte, Half>(halfField);
@@ -1534,7 +1528,7 @@ internal static class Program
 		{
 			rendersAlike = indexField[i] == ColorLut.FieldIndex((float)storedHalves[i], 30f);
 		}
-		Check(rendersAlike, "index shape: every index equals the one a 16-bit frame of the same floats renders to");
+		Check(rendersAlike, "index shape: every index is the palette index of the half a 16-bit frame of the same floats stores");
 
 		// the CPU engine's captures of every shape equal the reference conversion of its own floats
 		foreach (FrameShape shape in new[] { half, third, index, halfIndex })
@@ -1633,18 +1627,16 @@ internal static class Program
 				refused = true;
 			}
 			Check(refused, "index store: the Half read is refused");
-			// a picture export takes the index store as it is (2026-10-18): the job colours the indices through the LUT, the
-			// same pixels the renderer makes of them; a data export (OpenEXR) needs the halves and fails on it
-			int[] indexLut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == Display.DefaultFieldColorScheme)).Argb;
+			// every export needs the 16-bit samples (2026-10-23): a picture takes every level of the gradient from them, a
+			// data export (OpenEXR) writes them; both fail on a store of palette indices, and the application runs again first
+			ColorLut indexLut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == Display.DefaultFieldColorScheme));
 			var collected = new CollectingSink(32, 24);
 			var indexJob = new ExportJob(store, 0, 2, [new ExportTarget(new ExportLayer(FrameLayer.Field, indexLut, 1f, null, 0, null), "memory", () => collected)], null);
 			indexJob.Start();
-			var fromIndices = new int[32 * 24];
-			FrameRenderer.RenderIndexed(expectedField, 32, 24, indexLut, fromIndices);
-			Check(indexJob.Completion.Wait(30000) && indexJob.State == ExportState.Completed && collected.Frames.Count == 3 && collected.Frames.All(f => f.SequenceEqual(fromIndices)),
-				"an export of pictures takes a store of palette indices and colours them as the renderer does");
+			Check(indexJob.Completion.Wait(30000) && indexJob.State == ExportState.Failed && indexJob.Error?.Message.Contains("16-bit") == true && collected.Frames.Count == 0,
+				"an export of pictures from a store of palette indices fails: it needs the 16-bit samples");
 			string exrOnIndex = Path.Combine(Path.GetTempPath(), "library_check-exr-" + Guid.NewGuid().ToString("N") + ".exr");
-			var dataJob = new ExportJob(store, 0, 0, [new ExportTarget(new ExportLayer(FrameLayer.Field, null, 1f, null, 0, null), exrOnIndex, () => ExportFormats.OpenStill(ExportFormat.Exr, exrOnIndex, 32, 24, 70))], null);
+			var dataJob = new ExportJob(store, 0, 0, [new ExportTarget(new ExportLayer(FrameLayer.Field, ColorLut.Grey, 1f, null, 0, null), exrOnIndex, () => ExportFormats.OpenStill(ExportFormat.Exr, exrOnIndex, 32, 24, 70))], null);
 			dataJob.Start();
 			Check(dataJob.Completion.Wait(30000) && dataJob.State == ExportState.Failed && dataJob.Error?.Message.Contains("16-bit") == true,
 				"a data export (OpenEXR) of a store of palette indices fails: it needs the 16-bit samples");
@@ -1745,55 +1737,57 @@ internal static class Program
 	private static void CheckRenderer()
 	{
 		Console.WriteLine("--- renderer");
+		static int Grey(int level) => unchecked((int)0xFF000000) | (level << 16) | (level << 8) | level;
+		// 16-bit samples (2026-10-23): the gradient at the sample's own position, rounded; grey is the Python code's 0..254 ramp
 		var values = new Half[4] { (Half)0f, (Half)0.5f, (Half)(-2f), (Half)1f };
 		var pixels = new int[4];
-		FrameRenderer.RenderField(values, 2, 2, null, 1f, pixels);
-		Check(pixels[0] == unchecked((int)0xFF7F7F7F) && pixels[2] == unchecked((int)0xFF000000) && pixels[3] == unchecked((int)0xFFFEFEFE), "field without LUT: grey 127 / 0 / 254");
-		int[] lut = new int[255];
-		for (int i = 0; i < 255; i++)
-		{
-			lut[i] = i;
-		}
-		FrameRenderer.RenderField(values, 2, 2, lut, 1f, pixels);
-		Check(pixels[1] == ColorLut.FieldIndex(0.5f, 1f) && pixels[1] == 190, "field with LUT uses FieldIndex (0.5 -> 190)");
+		FrameRenderer.Render(values, 2, 2, ColorLut.Grey, FrameLayer.Field, 1f, pixels);
+		Check(pixels[0] == Grey(127) && pixels[1] == Grey(191) && pixels[2] == Grey(0) && pixels[3] == Grey(254),
+			"field, grey: 0 -> 127, 0.5 -> 190.5 rounded to 191 (the palette truncates to 190), the clamp -> 0 and 254");
 		var intensities = new Half[4] { (Half)0f, (Half)(-1f), (Half)0.25f, (Half)9f };
-		FrameRenderer.RenderIntensity(intensities, 2, 2, lut, 1f, pixels);
-		// the vectorised rows (2026-10-16) equal the scalar helpers bit for bit: awkward values, every brightness, odd widths, with and without a palette
+		FrameRenderer.Render(intensities, 2, 2, ColorLut.Grey, FrameLayer.Intensity, 1f, pixels);
+		Check(pixels[0] == Grey(0) && pixels[1] == Grey(0) && pixels[2] == Grey(127) && pixels[3] == Grey(254), "intensity, grey: <= 0 -> 0, sqrt(0.25) -> 127, the clamp -> 254");
+		// every value a half can hold, against the gradient worked out here: a ramp from black to blue 250 gets the nearest
+		// level to 250 × position, NaN in the field's middle, and every one of the 251 levels is used
 		{
-			float[] awkward = [0f, -0f, 1f, -1f, 0.5f, -0.5f, 1.0001f, -1.0001f, 127f, 1e-7f, -1e-7f, float.NaN, float.PositiveInfinity, float.NegativeInfinity, 6.1e-5f, 65504f, 0.0078125f, 0.99999f];
-			var rng = new Random(11);
-			bool vectorEqual = true;
-			foreach (int width in new[] { 1, 3, 4, 5, 37 })
+			ColorLut ramp = ColorLut.Build(new ColorScheme("ramp", [new Rgb(0, 0, 0), new Rgb(0, 0, 250)]));
+			int[] fieldTable = ramp.HalfTable(FrameLayer.Field, 3.5f);
+			int[] intensityTable = ramp.HalfTable(FrameLayer.Intensity, 3.5f);
+			bool nearest = true;
+			for (int bits = 0; bits < ColorLut.HalfValues && nearest; bits++)
 			{
-				var row = new float[width];
-				var got = new int[width];
-				foreach (float brightness in new[] { 0f, 0.37f, 1f, 3.5f })
-				{
-					for (int trial = 0; trial < 200 && vectorEqual; trial++)
-					{
-						for (int x = 0; x < width; x++)
-						{
-							row[x] = trial % 3 == 0 ? awkward[rng.Next(awkward.Length)] : (float)(rng.NextDouble() * 4 - 2);
-						}
-						foreach (int[]? palette in new[] { lut, null })
-						{
-							FrameRenderer.FieldRow(row, palette, brightness, got);
-							for (int x = 0; x < width; x++)
-							{
-								vectorEqual &= got[x] == FrameRenderer.Colorize(ColorLut.FieldIndex(row[x], brightness), palette);
-							}
-							FrameRenderer.IntensityRow(row, palette, brightness, got);
-							for (int x = 0; x < width; x++)
-							{
-								vectorEqual &= got[x] == FrameRenderer.Colorize(ColorLut.IntensityIndex(row[x], brightness), palette);
-							}
-						}
-					}
-				}
+				double value = (double)BitConverter.UInt16BitsToHalf((ushort)bits);
+				double fieldAt = double.IsNaN(value) ? 0.5 : (Math.Clamp(value * 3.5, -1.0, 1.0) + 1.0) / 2.0;
+				double intensityAt = value > 0.0 ? Math.Min(Math.Sqrt(value) * 3.5, 1.0) : 0.0;
+				nearest = (fieldTable[bits] & ~0xFF) == unchecked((int)0xFF000000) && Math.Abs((fieldTable[bits] & 0xFF) - 250 * fieldAt) <= 0.5 + 1e-9
+					&& (intensityTable[bits] & ~0xFF) == unchecked((int)0xFF000000) && Math.Abs((intensityTable[bits] & 0xFF) - 250 * intensityAt) <= 0.5 + 1e-9;
 			}
-			Check(vectorEqual, "the vectorised field and intensity rows equal the scalar helpers bit for bit (NaN, infinities, zeros, the clamp edges, odd widths, grey and palette)");
+			Check(nearest && fieldTable.Distinct().Count() == 251 && intensityTable.Distinct().Count() == 251,
+				"half tables: each of the 65,536 values gets the level nearest the gradient at its position (field and intensity, NaN, infinities, zeros), every level used");
+			// the frame: a lookup per sample over several row blocks and an odd width
+			var rng = new Random(11);
+			var frame = new Half[37 * 70];
+			for (int i = 0; i < frame.Length; i++)
+			{
+				frame[i] = BitConverter.UInt16BitsToHalf((ushort)rng.Next(ColorLut.HalfValues));
+			}
+			var framePixels = new int[frame.Length];
+			FrameRenderer.Render(frame, 37, 70, ramp, FrameLayer.Field, 3.5f, framePixels);
+			Check(Enumerable.Range(0, frame.Length).All(i => framePixels[i] == fieldTable[BitConverter.HalfToUInt16Bits(frame[i])]), "Render looks every sample up in the half table (37 × 70, three row blocks)");
 		}
-		Check(pixels[0] == 0 && pixels[1] == 0 && pixels[2] == 127 && pixels[3] == 254, "intensity: <= 0 -> 0, sqrt(0.25) -> 127, clamp -> 254");
+		// the case that started it (2026-10-23): Inferno's dark start, blue 3 to 33 over its first 15 palette entries,
+		// showed as patches two levels apart; the half table has every level between
+		ColorScheme infernoScheme = ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == "Inferno");
+		ColorLut inferno = ColorLut.Build(infernoScheme);
+		int paletteBlues = Enumerable.Range(0, 16).Select(i => inferno.ColorAt(i).B).Distinct().Count();
+		int[] dark = inferno.HalfTable(FrameLayer.Intensity, 1f);
+		int halfBlues = Enumerable.Range(0, ColorLut.HalfValues)
+			.Where(bits => (double)BitConverter.UInt16BitsToHalf((ushort)bits) is var v && v > 0.0 && Math.Sqrt(v) <= 15 / 254.0)
+			.Select(bits => dark[bits] & 0xFF).Distinct().Count();
+		Check(paletteBlues == 16 && halfBlues == 31, $"Inferno's dark start: the palette's first 16 entries have {paletteBlues} levels of blue, the half table every one from 3 to 33 ({halfBlues})");
+		Check(ReferenceEquals(inferno.HalfTable(FrameLayer.Intensity, 1f), dark) && !ReferenceEquals(inferno.HalfTable(FrameLayer.Field, 1f), dark) && !ReferenceEquals(inferno.HalfTable(FrameLayer.Intensity, 2f), dark),
+			"a half table is kept per layer until another brightness asks");
+		// the 8-bit palette, as the author's table
 		var stops = new Rgb[ColorScheme.StopCount];
 		for (int i = 0; i < stops.Length; i++)
 		{
@@ -1801,8 +1795,13 @@ internal static class Program
 		}
 		ColorScheme scheme = ColorScheme.FromStops("test", stops);
 		ColorLut built = ColorLut.Build(scheme);
-		Check(built.ColorAt(0) == stops[0] && built.ColorAt(254) == stops[^1] && built.ColorAt(127) == stops[4], "LUT from a stop scheme hits the stops at 0, 127 and 254");
-		Check(ColorLut.Build(scheme, blackLevel: 0.5).ColorAt(0).G == 127, "black level 0.5 lifts a 0 channel to 127");
+		Check(built.ColorAt(0) == stops[0] && built.ColorAt(254) == stops[^1] && built.ColorAt(127) == stops[4], "the palette of a stop scheme hits the stops at 0, 127 and 254");
+		var indexed = new int[4];
+		FrameRenderer.RenderIndexed(new byte[] { 0, 127, 254, 255 }, 2, 2, built, indexed);
+		Check(indexed.SequenceEqual([built.Argb[0], built.Argb[127], built.Argb[254], built.Argb[254]]), "RenderIndexed looks each byte up in the palette, 255 as 254");
+		ColorLut lifted = ColorLut.Build(scheme, blackLevel: 0.5);
+		Check(lifted.ColorAt(0).G == 127 && ((lifted.HalfTable(FrameLayer.Intensity, 1f)[0] >> 8) & 0xFF) == 128,
+			"black level 0.5 lifts a 0 channel to 127 in the palette (truncated, as in Python) and to 128 in the half table (rounded)");
 	}
 
 	private static void CheckColorSchemes()
@@ -1837,8 +1836,8 @@ internal static class Program
 		var ramp = new ColorScheme("ramp", Enumerable.Range(0, 255).Select(i => i <= 127 ? new Rgb((byte)(i * 2), 0, 0) : new Rgb(254, (byte)((i - 127) * 2), 0)));
 		int sampled = ramp.Stops.Count;
 		ramp.Simplify(1.0);
-		Check(sampled == 255 && ramp.Stops.Count == 3 && Math.Abs(ramp.Stops[1].Position - 127 / 254.0) < 1e-9 && ramp.GetEntry(127) == new Rgb(254, 0, 0) && ramp.GetEntry(254) == new Rgb(254, 254, 0),
-			"Simplify keeps only the bend of a two-segment ramp and the table still hits it");
+		Check(sampled == 255 && ramp.Stops.Count == 3 && Math.Abs(ramp.Stops[1].Position - 127 / 254.0) < 1e-9 && ramp.ColorAt(127 / 254.0) == new Rgb(254, 0, 0) && ramp.ColorAt(1.0) == new Rgb(254, 254, 0),
+			"Simplify keeps only the bend of a two-segment ramp and the gradient still hits it");
 		Check(Rgb.Parse("#FF8000") == new Rgb(255, 128, 0) && Rgb.Parse("[10, 20, 30]") == new Rgb(10, 20, 30) && new Rgb(1, 2, 3).ToString() == "#010203", "Rgb parses hex and triplets and prints #RRGGBB");
 		if (field != null)
 		{
@@ -1860,7 +1859,9 @@ internal static class Program
 			Check(back.Name == field.Name && back.Kind == field.Kind && back.Stops.Select(s => (s.Position, s.Color)).SequenceEqual(field.Stops.Select(s => (s.Position, s.Color))), "XML round trip keeps name, kind and the 9 stops with positions");
 			var uneven = new ColorScheme("uneven", [new Rgb(0, 0, 0)]);
 			uneven.SetStops([new ColorStop(0.0, new Rgb(0, 0, 0)), new ColorStop(0.25, new Rgb(255, 255, 255)), new ColorStop(1.0, new Rgb(0, 0, 255))]);
-			Check(uneven.GetEntry(0) == new Rgb(0, 0, 0) && uneven.GetEntry(127) == new Rgb(170, 170, 255) && uneven.GetEntry(254) == new Rgb(0, 0, 255) && uneven.GetEntry(32) == new Rgb(129, 129, 129), "stops at any position interpolate between their neighbours (0, 0.25, 1)");
+			Check(uneven.ColorAt(0.0) == new Rgb(0, 0, 0) && uneven.ColorAt(127 / 254.0) == new Rgb(170, 170, 255) && uneven.ColorAt(1.0) == new Rgb(0, 0, 255) && uneven.ColorAt(32 / 254.0) == new Rgb(129, 129, 129)
+				&& ColorScheme.Interpolate(uneven.Stops, 255)[32] == new Rgb(129, 129, 129) && uneven.ColorAt(0.25) == new Rgb(255, 255, 255) && uneven.ColorAt(double.NaN) == new Rgb(0, 0, 0),
+				"stops at any position interpolate between their neighbours (0, 0.25, 1), a stop's own position gives its colour, the 255-entry sampling the same");
 			ColorStop added = uneven.AddStop();
 			Check(uneven.Stops.Count == 4 && Math.Abs(added.Position - 0.625) < 1e-9 && uneven.Stops.IndexOf(added) == 2, "AddStop fills the widest gap, in position order");
 			bool hsvRoundTrip = true;
@@ -1923,7 +1924,7 @@ internal static class Program
 			int changes = 0;
 			edited.PropertyChanged += (_, args) => changes += args.PropertyName == nameof(ColorScheme.Stops) ? 1 : 0;
 			edited.Stops[4].Color = new Rgb(1, 2, 3);
-			Check(changes == 1 && edited.GetEntry(127) == new Rgb(1, 2, 3), "editing one stop notifies once and rebuilds the table");
+			Check(changes == 1 && edited.ColorAt(0.5) == new Rgb(1, 2, 3), "editing one stop notifies once and the gradient follows");
 		}
 		// the author's glowing edges: a vertical black|white step at x = 2 of a 5 x 5 image
 		var image = new byte[5 * 5 * 4];

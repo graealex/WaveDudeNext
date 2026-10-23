@@ -484,14 +484,14 @@ internal static class ExportChecks
 		run.Start();
 		check(run.Completion.Wait(30000) && store.Count == 10, "job: a 10-frame run to export");
 
-		int[] lut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(scheme => scheme.Name == Display.DefaultFieldColorScheme)).Argb;
+		ColorLut lut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(scheme => scheme.Name == Display.DefaultFieldColorScheme));
 		var decorated = new List<int>();
 		var fieldLayer = new ExportLayer(FrameLayer.Field, lut, 30f, null, 0, (frame, pixels) =>
 		{
 			decorated.Add(frame);
 			pixels.Span[0] = unchecked((int)0xFFFF0000); // a red pixel at the top left, to be found in the file
 		});
-		var intensityLayer = new ExportLayer(FrameLayer.Intensity, null, 30f, null, 0, null);
+		var intensityLayer = new ExportLayer(FrameLayer.Intensity, ColorLut.Grey, 30f, null, 0, null);
 		string seqPath = Path.Combine(folder, "field.png");
 		string aviPath = Path.Combine(folder, "intensity.avi");
 		string exrPath = Path.Combine(folder, "data.exr");
@@ -526,7 +526,7 @@ internal static class ExportChecks
 		var values = new Half[64 * 48];
 		var expected = new int[64 * 48];
 		store.CopyLayer(2, FrameLayer.Field, values);
-		FrameRenderer.RenderField(values, 64, 48, lut, 30f, expected);
+		FrameRenderer.Render(values, 64, 48, lut, FrameLayer.Field, 30f, expected);
 		expected[0] = unchecked((int)0xFFFF0000);
 		int[]? first = DecodePng(File.ReadAllBytes(Path.Combine(folder, "field", "field_0002.png")), 64, 48);
 		check(first != null && first.SequenceEqual(expected), "job: field_0002.png is frame 2 as the renderer colours it, with the decoration");
@@ -677,7 +677,7 @@ internal static class ExportChecks
 				run.Completion.Wait();
 				Console.WriteLine("  run: " + run.EngineDescription + ", " + store.Count + " frames");
 			}
-			int[] lut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(scheme => scheme.Name == Display.DefaultFieldColorScheme)).Argb;
+			ColorLut lut = ColorLut.Build(ColorSchemeStore.LoadBuiltIn(null).First(scheme => scheme.Name == Display.DefaultFieldColorScheme));
 			// the MP4 writer alone on the run's real frames, rendered up front: input format and rate control compared
 			if (OperatingSystem.IsWindows() && ExportFormats.IsAvailable(ExportFormat.Mp4))
 			{
@@ -687,7 +687,7 @@ internal static class ExportChecks
 				{
 					var px = new int[w * h];
 					store.CopyLayer(i, FrameLayer.Field, values);
-					FrameRenderer.RenderField(values, w, h, lut, 30f, px);
+					FrameRenderer.Render(values, w, h, lut, FrameLayer.Field, 30f, px);
 					rendered.Add(px);
 				}
 				// the declared frame rate is varied too: if the time per frame tracks it, the encoder paces itself to real time
