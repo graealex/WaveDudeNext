@@ -103,7 +103,7 @@ public partial class MainWindow
 			}
 		}
 		FrameLayer plane = PlaneOf(_fitRequest.Layer);
-		var source = new SnapshotFrameSource(result.Snapshot);
+		IFrameSource source = new SnapshotFrameSource(result.Snapshot);
 		var halves = new Half[source.Width * source.Height];
 		double? fit = source.Has(plane) && source.CopyLayer(0, plane, halves) ? BrightnessFit.For(halves, source.KindOf(plane)) : null;
 		// the runner's engine is released once its result is read (the snapshot belongs to the runner)

@@ -22,14 +22,14 @@ using WaveDudeNext.Model;
 namespace WaveDudeNext.WPF.Converters;
 
 /// <summary>
-/// The icon drawing of an optical part (2026-10-23): its class name without "Part" (a <see cref="LensPart"/> is "Lens", an
+/// The icon drawing of an optical part (2026-10-23): its class name without the Part suffix (a <see cref="LensPart"/> is "Lens", an
 /// <see cref="XorGatePart"/> "XorGate"), the name of the theme's <c>Icon{name}</c> geometry the Add part menu shows too.
 /// </summary>
 public sealed class PartIconConverter : IValueConverter
 {
 	/// <inheritdoc/>
 	public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-		value is OpticalPart part ? part.GetType().Name.Replace("Part", "", StringComparison.Ordinal) : null;
+		value is OpticalPart part ? part.GetType().Name[..^"Part".Length] : null;
 
 	/// <inheritdoc/>
 	public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>

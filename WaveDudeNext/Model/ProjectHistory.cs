@@ -120,7 +120,7 @@ public sealed class ProjectHistory
 		var text = new StringWriter();
 		using (var writer = XmlWriter.Create(text, new XmlWriterSettings { Indent = false }))
 		{
-			Serializer.Serialize(writer, _project);
+			Serializer.Serialize(writer, _project, Project.NoNamespaces);
 		}
 		byte[]? image = _project.Scene.ImageData;
 		if (image != null && previous != null && !ReferenceEquals(image, previous) && image.AsSpan().SequenceEqual(previous))
@@ -150,6 +150,7 @@ public sealed class ProjectHistory
 			if (value is IList items && property.GetValue(_project) is IList target)
 			{
 				object[] moved = [.. items.Cast<object>()];
+				// the throw-away project lets go of them first (it follows its schemes' renames, as the real one will)
 				items.Clear();
 				target.Clear();
 				foreach (object item in moved)
@@ -171,13 +172,10 @@ public sealed class ProjectHistory
 		return new XmlSerializer(typeof(Project), overrides);
 	}
 
-	/// <summary>One step: the project's XML without the scene image, and the image's bytes (shared between steps while unchanged).</summary>
-	private sealed record Snapshot(string Xml, byte[]? Image)
-	{
-		/// <summary>Equal when the XML is and the image is the same array (equal bytes were made the same array by <see cref="Capture"/>).</summary>
-		public bool Equals(Snapshot? other) => other != null && ReferenceEquals(Image, other.Image) && Xml == other.Xml;
-
-		/// <inheritdoc/>
-		public override int GetHashCode() => Xml.GetHashCode();
-	}
+	/// <summary>
+	/// One step: the project's XML without the scene image, and the image's bytes (shared between steps while unchanged).
+	/// Two steps are equal when the XML is and the image is the same array (the record's own equality; equal bytes were
+	/// made the same array by <see cref="Capture"/>).
+	/// </summary>
+	private sealed record Snapshot(string Xml, byte[]? Image);
 }

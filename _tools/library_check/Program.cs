@@ -279,6 +279,7 @@ internal static class Program
 		CheckParts();
 		CheckAbsorbingParts();
 		CheckXorGate();
+		CheckGatePortFollower();
 		CheckZonePlate();
 		CheckBrightnessFit();
 		CheckRun();
@@ -497,6 +498,23 @@ internal static class Program
 			undone++;
 		}
 		Check(undone == 101 && history.Count == 102 && FileOf(project) == first, $"{undone} undos walk back through {history.Count} steps to the first");
+
+		// what the design rests on: a step written back reaches the watcher as an edit, and the restored objects are watched like any
+		project.AddSource().X = 12;
+		history.Record();
+		List<object> changed = [];
+		using (var watcher = new ProjectWatcher(project))
+		{
+			watcher.Changed += (_, change) => changed.Add(change.Item);
+			history.Undo();
+			int seen = changed.Count;
+			history.Redo();
+			int afterRedo = changed.Count;
+			project.Sources[0].X = 13;
+			project.Scene.Width += 1;
+			Check(seen > 0 && changed.Skip(afterRedo).Contains(project.Sources[0]) && changed.Skip(afterRedo).Contains(project.Scene),
+				$"a step written back reaches the watcher ({seen} changes), and the restored source and scene are watched");
+		}
 	}
 
 	/// <summary>
@@ -564,6 +582,11 @@ internal static class Program
 		ProjectClipboard.PlaceAt(dropped, 1910, 5, 1920, 1080);
 		Check(onto.Sources[0] is { X: 1869, Y: 5 } && onto.Probes[0] is { AX: 1919, AY: 25 }, "near the edge the group stops as a whole inside the canvas, as a group drag does");
 		Check(ProjectClipboard.Read("<Project />") == null && ProjectClipboard.Read("just text") == null, "other text is no clip");
+		Check(ProjectClipboard.Read("<Source Name=\"A\" /><Bogus />") == null, "a fragment with an element the file does not know is refused as a whole");
+		var twins = new Project();
+		string twin = ProjectClipboard.Write(from, [from.Sources[0]]);
+		ProjectClipboard.Paste(twins, ProjectClipboard.Read(twin + twin)!, null);
+		Check(twins.Sources.Select(s => s.Name).SequenceEqual(["Source 1", "Source 1 copy"]), "the same object twice in one text pastes as the name and the name with copy");
 	}
 
 	/// <summary>"bench-render [w h]": what colouring a stored frame costs, per layer, at that size (the presenter's cost per picture).</summary>
@@ -1847,7 +1870,7 @@ internal static class Program
 		// showed as patches two levels apart; the half table has every level between
 		ColorScheme infernoScheme = ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == "Inferno");
 		ColorLut inferno = ColorLut.Build(infernoScheme);
-		int paletteBlues = Enumerable.Range(0, 16).Select(i => inferno.ColorAt(i).B).Distinct().Count();
+		int paletteBlues = Enumerable.Range(0, 16).Select(i => Rgb.FromArgb(inferno.Argb[i]).B).Distinct().Count();
 		int[] dark = inferno.HalfTable(SampleKind.IntensityRoot, 1f);
 		int halfBlues = Enumerable.Range(0, ColorLut.HalfValues)
 			.Where(bits => (double)BitConverter.UInt16BitsToHalf((ushort)bits) is var v && v > 0.0 && v <= 15 / 254.0)
@@ -1861,14 +1884,14 @@ internal static class Program
 		{
 			stops[i] = new Rgb((byte)(i * 30), 0, (byte)(255 - i * 30));
 		}
-		ColorScheme scheme = ColorScheme.FromStops("test", stops);
+		ColorScheme scheme = new("test", stops);
 		ColorLut built = ColorLut.Build(scheme);
-		Check(built.ColorAt(0) == stops[0] && built.ColorAt(254) == stops[^1] && built.ColorAt(127) == stops[4], "the palette of a stop scheme hits the stops at 0, 127 and 254");
+		Check(Rgb.FromArgb(built.Argb[0]) == stops[0] && Rgb.FromArgb(built.Argb[254]) == stops[^1] && Rgb.FromArgb(built.Argb[127]) == stops[4], "the palette of a stop scheme hits the stops at 0, 127 and 254");
 		var indexed = new int[4];
 		FrameRenderer.RenderIndexed(new byte[] { 0, 127, 254, 255 }, 2, 2, built, indexed);
 		Check(indexed.SequenceEqual([built.Argb[0], built.Argb[127], built.Argb[254], built.Argb[254]]), "RenderIndexed looks each byte up in the palette, 255 as 254");
 		ColorLut lifted = ColorLut.Build(scheme, blackLevel: 0.5);
-		Check(lifted.ColorAt(0).G == 127 && ((lifted.HalfTable(SampleKind.IntensityRoot, 1f)[0] >> 8) & 0xFF) == 128,
+		Check(Rgb.FromArgb(lifted.Argb[0]).G == 127 && ((lifted.HalfTable(SampleKind.IntensityRoot, 1f)[0] >> 8) & 0xFF) == 128,
 			"black level 0.5 lifts a 0 channel to 127 in the palette (truncated, as in Python) and to 128 in the half table (rounded)");
 		CheckScreenRenderer(inferno);
 	}
@@ -1945,6 +1968,14 @@ internal static class Program
 		var flat = new int[2];
 		new ScreenRenderer(4, 2, 2, 1).Render(wave, lut, SampleKind.Field, 1f, 0, flat);
 		Check(flat.All(p => p == lut.HalfTable(SampleKind.Field, 1f)[BitConverter.HalfToUInt16Bits((Half)0f)]), "screen renderer: a crest beside a trough shrinks to the colour of zero");
+		// enlarging through the whole path: a 2 x 2 field to 4 x 4, each pixel the bilinear blend of the two samples nearest
+		// its centre on each axis (weights 3/4 and 1/4), the outer pixels holding the outer samples; exact in float and half
+		Half[] small = [(Half)0.5f, (Half)(-0.5f), (Half)1.0f, (Half)0.0f];
+		var large = new int[16];
+		new ScreenRenderer(2, 2, 4, 4).Render(small, lut, SampleKind.Field, 1f, 0, large);
+		float[] blended = [0.5f, 0.25f, -0.25f, -0.5f, 0.625f, 0.375f, -0.125f, -0.375f, 0.875f, 0.625f, 0.125f, -0.125f, 1.0f, 0.75f, 0.25f, 0.0f];
+		int[] fieldTable = lut.HalfTable(SampleKind.Field, 1f);
+		Check(large.SequenceEqual(blended.Select(v => fieldTable[BitConverter.HalfToUInt16Bits((Half)v)])), "enlarged 2 x 2 to 4 x 4, every pixel is the bilinear blend of the nearest samples, the ends held");
 		// the dither: a flat plane comes out at the colour's two neighbouring 8-bit levels, their mix over one matrix the
 		// 16-bit colour to the depth's bits; without dithering the level rounded
 		ulong[] deep = lut.DeepHalfTable(SampleKind.IntensityRoot, 1f);
@@ -2892,8 +2923,10 @@ internal static class Program
 				&& upper.Outline().Max(p => upper.ToCanvas(p.X, p.Y).Y) == lower.Outline().Min(p => lower.ToCanvas(p.X, p.Y).Y),
 				"gates set a port spacing above and below the next column: the XOR output meets the upper gate's input B, the sum output the lower gate's input A, and the two touch");
 		}
-		Check(new XorGatePart { PortSpacing = 20 }.Design!.PortSpacing == new XorGatePart().Design!.PortSpacing && new XorGatePart { PortSpacing = 120 }.Design!.PortSpacing == 120,
-			$"a port spacing below the design's minimum ({new XorGatePart().Design!.PortSpacing} px) is raised to it, a larger one is used as typed");
+		var odd = new XorGatePart { PortSpacing = 121 };
+		Check(new XorGatePart { PortSpacing = 20 }.Design!.PortSpacing == new XorGatePart().Design!.PortSpacing && new XorGatePart { PortSpacing = 120 }.Design!.PortSpacing == 120
+			&& odd.Design!.PortSpacing == 122 && odd.PortSpacing == 121,
+			$"a port spacing below the design's minimum ({new XorGatePart().Design!.PortSpacing} px) is raised to it, a larger one is used as typed, an odd one rounded up to even with the typed value kept");
 		Check(LogicGateDesign.BendShare(0) == 0 && Math.Abs(LogicGateDesign.BendShare(1) - 1) < 1e-12 && Math.Abs(LogicGateDesign.BendShare(0.5) - 0.5) < 1e-12,
 			"the S-bend runs from the ports' offset to the coupler's, symmetric about its middle");
 
@@ -2976,7 +3009,6 @@ internal static class Program
 		(double xorAB, double sumAB, _) = Outputs([Make(ports[0].X, ports[0].Y, 0, 1.0) with { Level = level }, Make(ports[1].X, ports[1].Y, 0, 1.0) with { Level = level }]);
 		double single = xorA + sumA;
 		Check(Math.Abs(xorA / single - 0.5) < 0.1, $"one input splits about evenly: {xorA / single:0.000} to the XOR output");
-		CheckGatePortFollower();
 		Check(xorAB / single < 0.03 && sumAB / single > 1.8, $"both inputs: the XOR output keeps {xorAB / single:0.000} of one input's power, the sum output {sumAB / single:0.00}× ({sw.ElapsedMilliseconds} ms)");
 		gate.UpperOutputActive = false;
 		gate.LowerOutputActive = false;
@@ -3141,6 +3173,18 @@ internal static class Program
 			project.Sources.Add(c);
 			second.PortSpacing = 80;
 			Check((c.X, c.Y) == second.Ports()![0], "a gate added later is followed too");
+			// a gate taken out of the list is let go; one whose cores guide nothing has no ports, so nothing follows until it guides again
+			project.Parts.Remove(second);
+			(int X, int Y) cBefore = (c.X, c.Y);
+			second.PortSpacing = 120;
+			Check((c.X, c.Y) == cBefore, "a gate removed from the project moves nothing");
+			(int X, int Y) aBefore = (a.X, a.Y);
+			gate.CoreIndex = 1.0;
+			gate.X += 10;
+			Check(gate.Ports() == null && (a.X, a.Y) == aBefore, "a gate whose cores guide nothing has no ports: its sources stay");
+			gate.CoreIndex = 2.55;
+			gate.X += 10;
+			Check(gate.Ports() != null && (a.X, a.Y) == aBefore, "guiding again, it starts from the ports it has then; the sources it left behind are not on them");
 		}
 		gate.PortSpacing = 140;
 		Check(!OnInputs(), "after Dispose nothing follows");

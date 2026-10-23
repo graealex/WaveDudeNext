@@ -19,7 +19,6 @@ using System.Collections;
 using System.Windows.Input;
 using System.Windows.Threading;
 using WaveDudeNext.Model;
-using WaveDudeNext.Rendering;
 
 namespace WaveDudeNext.WPF;
 
@@ -113,9 +112,8 @@ public partial class MainWindow
 		{
 			return;
 		}
-		object? current = SelectedItem;
-		List<(IList? List, string? Name, int Index)> selection = [.. SelectedItems.Select(Locate)];
-		(IList? List, string? Name, int Index)? currentPlace = current != null ? Locate(current) : null;
+		List<Place> selection = [.. SelectedItems.Select(Locate)];
+		Place? currentPlace = SelectedItem is { } current ? Locate(current) : null;
 		bool moved;
 		_restoring = true;
 		try
@@ -159,37 +157,23 @@ public partial class MainWindow
 		project => project.Display.Video,
 	];
 
-	/// <summary>Where a selected item sits: its list, name and index there; or, with no list, the index of its settings object (-1 for anything else).</summary>
-	private (IList? List, string? Name, int Index) Locate(object item)
-	{
-		foreach (IList list in (IList[])[Project.Sources, Project.Parts, Project.Probes, Project.ColorSchemes])
-		{
-			int index = list.IndexOf(item);
-			if (index >= 0)
-			{
-				return (list, NameOf(item), index);
-			}
-		}
-		return (null, null, Array.FindIndex(SettingsObjects, get => ReferenceEquals(get(Project), item)));
-	}
+	/// <summary>A selected item's place: its list, name and index there; or, with no list, the index of its settings object in <see cref="SettingsObjects"/> (-1 for anything else).</summary>
+	private readonly record struct Place(IList? List, string? Name, int Index);
 
-	/// <summary>The restored object at a place <see cref="Locate"/> gave: the item of that name in the same list, else at the same index, or the settings object at the same place; null when it is gone.</summary>
-	private object? Find((IList? List, string? Name, int Index) place)
+	/// <summary>Where a selected item sits now.</summary>
+	private Place Locate(object item) =>
+		ListOf(item) is { } list && list.IndexOf(item) is >= 0 and var index
+			? new Place(list, (item as INamed)?.Name, index)
+			: new Place(null, null, Array.FindIndex(SettingsObjects, get => ReferenceEquals(get(Project), item)));
+
+	/// <summary>The restored object at a place: the item of that name in the same list, else at the same index, or the settings object at the same place; null when it is gone.</summary>
+	private object? Find(Place place)
 	{
 		if (place.List is { } list)
 		{
-			object? named = place.Name != null ? list.Cast<object>().FirstOrDefault(item => NameOf(item) == place.Name) : null;
+			object? named = place.Name != null ? list.OfType<INamed>().FirstOrDefault(item => item.Name == place.Name) : null;
 			return named ?? (place.Index < list.Count ? list[place.Index] : null);
 		}
 		return place.Index >= 0 ? SettingsObjects[place.Index](Project) : null;
 	}
-
-	private static string? NameOf(object item) => item switch
-	{
-		Source source => source.Name,
-		OpticalPart part => part.Name,
-		Probe probe => probe.Name,
-		ColorScheme scheme => scheme.Name,
-		_ => null,
-	};
 }

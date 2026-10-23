@@ -90,7 +90,7 @@ public enum ProbeValueScale
 /// A measurement point or line on the canvas and the graph that shows its values. Positions are
 /// canvas pixels with the origin at the top left.
 /// </summary>
-public sealed class Probe : ObservableObject, IMovable
+public sealed class Probe : ObservableObject, IMovable, INamed
 {
 	/// <summary>Default <see cref="Window"/> in steps.</summary>
 	public const int DefaultWindow = 500;

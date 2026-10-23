@@ -89,29 +89,27 @@ public sealed class GatePortFollower : IDisposable
 		_parts.CollectionChanged += OnPartsChanged;
 		_simulation = _project.Simulation;
 		_simulation.PropertyChanged += OnSimulationChanged;
+		double scale = _simulation.SourceFrequencyScale;
 		foreach (LogicGatePart gate in _project.Parts.OfType<LogicGatePart>())
 		{
-			if (!_inputs.ContainsKey(gate))
+			gate.PropertyChanged += OnGateChanged;
+			if (known.TryGetValue(gate, out (int X, int Y)[]? ports))
 			{
-				// a gate seen before keeps its remembered ports, so its sources follow the scale handed over now; a new one starts at it
-				if (known.TryGetValue(gate, out (int X, int Y)[]? ports))
-				{
-					_inputs[gate] = ports;
-					gate.PropertyChanged += OnGateChanged;
-					gate.FrequencyScale = _project.Simulation.SourceFrequencyScale;
-				}
-				else
-				{
-					gate.FrequencyScale = _project.Simulation.SourceFrequencyScale;
-					_inputs[gate] = Inputs(gate);
-					gate.PropertyChanged += OnGateChanged;
-				}
+				// a gate seen before keeps its remembered ports, so its sources follow the scale handed over now
+				_inputs[gate] = ports;
+				gate.FrequencyScale = scale;
+			}
+			else
+			{
+				// a new one starts at the ports it has at that scale (the change handler does nothing without remembered ports)
+				gate.FrequencyScale = scale;
+				_inputs[gate] = Inputs(gate);
 			}
 		}
 		// the other parts laid out for a frequency (a zone plate) have no ports to follow, only the scale
 		foreach (IFrequencyDesigned part in _project.Parts.OfType<IFrequencyDesigned>().Where(part => part is not LogicGatePart))
 		{
-			part.FrequencyScale = _project.Simulation.SourceFrequencyScale;
+			part.FrequencyScale = scale;
 		}
 	}
 

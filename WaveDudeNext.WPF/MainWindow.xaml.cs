@@ -111,13 +111,9 @@ public partial class MainWindow : Window
 				Logger.Info("Preview quality: {Quality} (View menu)", PreviewQualitySetting);
 				OnPreviewQualityChanged();
 			}
-			else if (args.PropertyName == nameof(Settings.PreviewDitherBits) && Settings.Default.PreviewDitherBits == 0)
-			{
-				Logger.Info("Preview dithering off (View menu)");
-			}
 			else if (args.PropertyName == nameof(Settings.PreviewDitherBits))
 			{
-				Logger.Info("Preview dithering from {Bits} bits per channel (View menu)", Settings.Default.PreviewDitherBits);
+				Logger.Info("Preview dithering {State} (View menu)", Settings.Default.PreviewDitherBits == 0 ? "off" : "from " + Settings.Default.PreviewDitherBits + " bits per channel");
 			}
 		};
 		Closing += (_, e) =>

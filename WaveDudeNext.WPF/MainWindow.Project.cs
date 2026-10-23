@@ -166,7 +166,7 @@ public partial class MainWindow
 	}
 
 	private void CanEditItem(object sender, CanExecuteRoutedEventArgs e) =>
-		e.CanExecute = Target(e.Parameter) is Source or OpticalPart or Probe or ColorScheme;
+		e.CanExecute = Target(e.Parameter) is INamed;
 
 	private void CanToggleEnabled(object sender, CanExecuteRoutedEventArgs e) =>
 		e.CanExecute = Target(e.Parameter) is Source or OpticalPart or Probe;
@@ -226,7 +226,7 @@ public partial class MainWindow
 	private void CanDelete(object sender, CanExecuteRoutedEventArgs e) =>
 		e.CanExecute = e.OriginalSource is System.Windows.Controls.TextBox box
 			? box is { IsReadOnly: false, SelectionLength: > 0 }
-			: Target(null) is Source or OpticalPart or Probe or ColorScheme;
+			: Target(null) is INamed;
 
 	private void OnDelete(object sender, ExecutedRoutedEventArgs e)
 	{
@@ -282,13 +282,13 @@ public partial class MainWindow
 	private void CanMoveUp(object sender, CanExecuteRoutedEventArgs e)
 	{
 		object? item = Target(e.Parameter);
-		e.CanExecute = ListOf(item) is { } list && item is Source or OpticalPart or Probe or ColorScheme && list.IndexOf(item) > 0;
+		e.CanExecute = ListOf(item) is { } list && item is INamed && list.IndexOf(item) > 0;
 	}
 
 	private void CanMoveDown(object sender, CanExecuteRoutedEventArgs e)
 	{
 		object? item = Target(e.Parameter);
-		e.CanExecute = ListOf(item) is { } list && item is Source or OpticalPart or Probe or ColorScheme && list.IndexOf(item) < list.Count - 1;
+		e.CanExecute = ListOf(item) is { } list && item is INamed && list.IndexOf(item) < list.Count - 1;
 	}
 
 	private void OnMoveUp(object sender, ExecutedRoutedEventArgs e) => MoveBy(Target(e.Parameter), -1);

@@ -56,7 +56,7 @@ public static class ProjectClipboard
 
 	/// <summary>Whether <paramref name="item"/> of <paramref name="project"/> can be copied: a list item or a settings object.</summary>
 	public static bool CanCopy(Project project, object item) =>
-		item is Source or OpticalPart or Probe or ColorScheme || SettingsObjects.Any(entry => ReferenceEquals(entry.Get(project), item));
+		item is INamed || SettingsObjects.Any(entry => ReferenceEquals(entry.Get(project), item));
 
 	/// <summary>The clipboard text for <paramref name="items"/> of <paramref name="project"/>: their elements in tree order; items that cannot be copied are left out.</summary>
 	public static string Write(Project project, IEnumerable<object> items)
@@ -123,10 +123,10 @@ public static class ProjectClipboard
 				pasted.Add(value);
 			}
 		}
-		Insert(project.Sources, clip.Objects.OfType<Source>(), current, before, source => source.Name, (source, name) => source.Name = name, pasted);
-		Insert(project.Parts, clip.Objects.OfType<OpticalPart>(), current, before, part => part.Name, (part, name) => part.Name = name, pasted);
-		Insert(project.Probes, clip.Objects.OfType<Probe>(), current, before, probe => probe.Name, (probe, name) => probe.Name = name, pasted);
-		Insert(project.ColorSchemes, clip.Objects.OfType<ColorScheme>(), current, before, scheme => scheme.Name, (scheme, name) => scheme.Name = name, pasted);
+		Insert(project.Sources, clip.Objects.OfType<Source>(), current, before, pasted);
+		Insert(project.Parts, clip.Objects.OfType<OpticalPart>(), current, before, pasted);
+		Insert(project.Probes, clip.Objects.OfType<Probe>(), current, before, pasted);
+		Insert(project.ColorSchemes, clip.Objects.OfType<ColorScheme>(), current, before, pasted);
 		foreach (Source source in pasted.OfType<Source>())
 		{
 			// the emitters follow the seed of the project they are in now
@@ -153,16 +153,16 @@ public static class ProjectClipboard
 		Movable.MoveAll(movables, dx, dy);
 	}
 
-	private static void Insert<T>(IList<T> list, IEnumerable<T> items, object? current, bool before, Func<T, string> nameOf, Action<T, string> rename, List<object> pasted)
-		where T : class
+	/// <summary>Puts <paramref name="items"/> into <paramref name="list"/> behind (or before) <paramref name="current"/> when that is one of its items, else at its end, renamed where the name is taken.</summary>
+	private static void Insert<T>(IList<T> list, IEnumerable<T> items, object? current, bool before, List<object> pasted)
+		where T : class, INamed
 	{
 		int at = current is T anchor && list.IndexOf(anchor) is >= 0 and var index ? (before ? index : index + 1) : list.Count;
 		foreach (T item in items)
 		{
-			string name = nameOf(item);
-			if (list.Any(other => string.Equals(nameOf(other), name, StringComparison.OrdinalIgnoreCase)))
+			if (list.Any(other => string.Equals(other.Name, item.Name, StringComparison.OrdinalIgnoreCase)))
 			{
-				rename(item, Project.CopyName(name, list.Select(nameOf)));
+				item.Name = Project.CopyName(item.Name, list.Select(other => other.Name));
 			}
 			list.Insert(at++, item);
 			pasted.Add(item);
@@ -220,7 +220,7 @@ public static class ProjectClipboard
 	public sealed record Clip(IReadOnlyList<object> Objects)
 	{
 		/// <summary>Whether the clip holds list items (sources, parts, probes, schemes).</summary>
-		public bool HasItems => Objects.Any(item => item is Source or OpticalPart or Probe or ColorScheme);
+		public bool HasItems => Objects.Any(item => item is INamed);
 
 		/// <summary>Whether the clip can be pasted with <paramref name="current"/> the project's current item: it has list items, or a settings object of the current row's kind, or of any kind onto the project root.</summary>
 		public bool CanPaste(Project project, object? current) =>

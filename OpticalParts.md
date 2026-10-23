@@ -16,15 +16,21 @@ The class is the kind (2026-10-22: the `PartKind` enum was removed).
    (the English stem of new names, "Zone plate"), `PrepareNew()` if a new part needs something a loaded one must not
    get (a fibre's default path: `XmlSerializer` appends a file's items to the list it finds), and its properties under
    `CLAUDE.md`'s model conventions (`[Range]` beside every clamp in `Normalize()`).
-2. Its shape in `Parts/PartShape.cs` (`PartShape.For`) and, if it has one, its size grip in `SceneOverlay.GripOf`.
+2. Its shape in `Parts/PartShape.cs` (`PartShape.For`) and, if it has one, its size grip in `SceneOverlay.GripOf` and
+   `SetGrip`.
 3. An `[XmlElement("Name", typeof(…))]` line on `Project.Parts`: one element name per kind.
 4. Its entry in `PartMenuEntries` (`Panes/ProjectTree.xaml`), where the app decides which kinds it offers and in which
    order; both menus take their entries from there.
-5. A form in `Views/` with its `DataTemplate` in `PropertiesPane.xaml`, and its strings (`MenuAdd…`, `Label.`, `Hint.`,
-   `Enum.` for its enums) in all four tables.
+5. A form in `Views/` with its `DataTemplate` in `PropertiesPane.xaml` (a template for a base class serves its
+   subclasses: one for `LogicGatePart`), and its strings (`MenuAdd…`, `Label.`, `Hint.`, `Enum.` for its enums) in all
+   four tables.
+6. A 16 px drawing in `Themes/Controls.xaml` (2026-10-23): `Icon<Name>` stroked and, for solid parts, `Icon<Name>Fill`,
+   `<Name>` the class name without "Part", 1 px lines on half pixels, the ink in rows and columns 0 to 14; the menu
+   entry names it (`controls:MenuIcon.Drawing`) and the tree row finds it by the class name (`PartIconConverter`).
 
 `library_check` finds every part class by reflection: it fails one without its file element, one that `AddPart`
-cannot add as "<stem> 1", and a clamped number without its `[Range]`. The menu entry and the form are not checked.
+cannot add as "<stem> 1", and a clamped number without its `[Range]`. The menu entry, the form and the drawing are not
+checked.
 
 ## How parts reach the simulation
 
@@ -66,7 +72,7 @@ cladding rim (`LogicGateDesign.Absorption`).
 
 ## The kinds
 
-Every part has `Name`, `Enabled` (a disabled part is not painted), `X`, `Y` (its centre, ≥ 0) and `Angle` (−180..180).
+Every part has `Name`, `Enabled` (a disabled part is not painted), `X`, `Y` (its centre, ≥ 0) and `Angle` (−180, 180].
 Defaults and ranges are in the attributes beside each property; the figures below are the defaults.
 
 **Lens** (`LensPart`, `<Lens>`): `Diameter` 200 across the axis, `Thickness` 40 on the axis, signed radii `R1` 300 (the
@@ -120,7 +126,7 @@ three, so they share dimensions and ports and tile together (measured at 120 × 
 - **Design**: entered as a source frequency (`DesignFrequency` 50); the wavelength follows from
   `Simulation.SourceFrequencyScale`, which `GatePortFollower` hands each gate (`FrequencyScale`), and the form shows it.
   `LogicGateDesign` lays the gate out with `WaveguideModes`, a mode solver on the engine's own discrete equations
-  (4th-order stencil; its β matches a simulated guide to 1e-5): smooth S-bends whose radius follows the mode's
+  (4th-order stencil; its β matched a simulated guide to 1e-5 when measured, `library_check` holds it within 2e-3): smooth S-bends whose radius follows the mode's
   confinement, a measured coupling excess of 0.07 rad taken off. Defaults `CoreIndex` 2.55 in `CladdingIndex` 1.45,
   the phase section then lowered on arm A: port spacing 60, 120 × 544 px; both inputs leave about 1 % at the XOR output,
   the sum 1.9× (the user found 1600 px unacceptable).

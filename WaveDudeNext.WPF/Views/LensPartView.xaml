@@ -84,7 +84,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 				<!-- read-only: what the radii leave at the rim; 0 when the surfaces meet there -->
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelEdgeThickness}" />
-				<TextBlock VerticalAlignment="Center" ToolTip="{DynamicResource TipEdgeThickness}" AutomationProperties.AutomationId="PartEdgeThickness">
+				<TextBlock Style="{StaticResource FormReadout}" ToolTip="{DynamicResource TipEdgeThickness}" AutomationProperties.AutomationId="PartEdgeThickness">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource EdgeThickness}">
 							<Binding Path="Diameter" />

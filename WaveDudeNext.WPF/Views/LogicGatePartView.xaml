@@ -30,10 +30,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<UserControl.Resources>
 		<converters:LogicGateLayoutConverter x:Key="Layout" />
 		<converters:EnumNameConverter x:Key="EnumName" />
-		<!-- a read-only value beside its label; the layout values bind the gate plus every input they depend on, so the text follows them -->
-		<Style x:Key="LayoutText" TargetType="{x:Type TextBlock}">
-			<Setter Property="VerticalAlignment" Value="Center" />
-		</Style>
 	</UserControl.Resources>
 
 	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -47,7 +43,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 				<!-- read-only: the wavelength the frequency gives with the project's frequency scale -->
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelWavelength}" />
-				<TextBlock Style="{StaticResource LayoutText}" ToolTip="{DynamicResource TipGateWavelength}" AutomationProperties.AutomationId="PartWavelength">
+				<TextBlock Style="{StaticResource FormReadout}" ToolTip="{DynamicResource TipGateWavelength}" AutomationProperties.AutomationId="PartWavelength">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="Wavelength">
 							<Binding /><Binding Path="Wavelength" />
@@ -75,7 +71,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 				<!-- read-only: the quarter-wave thickness for the core, the least reflecting band -->
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelQuarterWave}" />
-				<TextBlock Style="{StaticResource LayoutText}" ToolTip="{DynamicResource TipQuarterWave}" AutomationProperties.AutomationId="PartQuarterWave">
+				<TextBlock Style="{StaticResource FormReadout}" ToolTip="{DynamicResource TipQuarterWave}" AutomationProperties.AutomationId="PartQuarterWave">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="QuarterWave">
 							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
@@ -117,7 +113,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionLayout}" />
 			<controls:FormPanel ToolTip="{DynamicResource TipGateLayout}">
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelCoreWidth}" />
-				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartCoreWidth">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartCoreWidth">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="CoreWidth">
 							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
@@ -126,7 +122,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</TextBlock>
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelCouplerGap}" />
-				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartCouplerGap">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartCouplerGap">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="Gap">
 							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
@@ -135,7 +131,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</TextBlock>
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelCouplerLength}" />
-				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartCouplerLength">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartCouplerLength">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="CouplerLength">
 							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
@@ -144,7 +140,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</TextBlock>
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelGateLength}" />
-				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartGateLength">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartGateLength">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="Length">
 							<Binding /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
@@ -156,7 +152,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionPorts}" />
 			<controls:FormPanel ToolTip="{DynamicResource TipGatePorts}">
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelInputA}" />
-				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartInputA">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartInputA">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="InputA">
 							<Binding /><Binding Path="X" /><Binding Path="Y" /><Binding Path="Angle" /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
@@ -165,7 +161,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</TextBlock>
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelInputB}" />
-				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartInputB">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartInputB">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="InputB">
 							<Binding /><Binding Path="X" /><Binding Path="Y" /><Binding Path="Angle" /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
@@ -174,7 +170,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</TextBlock>
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.UpperOutputActive}" />
-				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartOutputUpper">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartOutputUpper">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="OutputUpper">
 							<Binding /><Binding Path="X" /><Binding Path="Y" /><Binding Path="Angle" /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />
@@ -183,7 +179,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</TextBlock>
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LogicGatePart.LowerOutputActive}" />
-				<TextBlock Style="{StaticResource LayoutText}" AutomationProperties.AutomationId="PartOutputLower">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartOutputLower">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Layout}" ConverterParameter="OutputLower">
 							<Binding /><Binding Path="X" /><Binding Path="Y" /><Binding Path="Angle" /><Binding Path="Wavelength" /><Binding Path="CoreIndex" /><Binding Path="CladdingIndex" /><Binding Path="PortSpacing" />

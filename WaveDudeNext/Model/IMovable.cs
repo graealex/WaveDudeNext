@@ -66,7 +66,7 @@ public static class Movable
 	}
 
 	/// <summary>
-	/// Moves every item by the same delta; nothing happens for a zero delta. The optical parts move last: a source on an
+	/// Moves every item by the same delta; nothing happens for a zero delta. The optical parts move last: a source on a
 	/// logic gate's input follows the gate by itself (<see cref="Parts.GatePortFollower"/>), so a source moved with the group
 	/// must have left the old port before the gate moves, or it would be moved twice.
 	/// </summary>

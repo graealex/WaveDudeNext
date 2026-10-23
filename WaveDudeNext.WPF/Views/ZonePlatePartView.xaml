@@ -28,10 +28,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 	<UserControl.Resources>
 		<converters:ZonePlateConverter x:Key="Plate" />
-		<!-- a read-only value beside its label; it binds the plate plus every input it depends on, so the text follows them -->
-		<Style x:Key="ReadoutText" TargetType="{x:Type TextBlock}">
-			<Setter Property="VerticalAlignment" Value="Center" />
-		</Style>
 	</UserControl.Resources>
 
 	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -45,7 +41,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 				<!-- read-only: the wavelength the frequency gives with the project's frequency scale -->
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelWavelength}" />
-				<TextBlock Style="{StaticResource ReadoutText}" ToolTip="{DynamicResource TipGateWavelength}" AutomationProperties.AutomationId="PartWavelength">
+				<TextBlock Style="{StaticResource FormReadout}" ToolTip="{DynamicResource TipGateWavelength}" AutomationProperties.AutomationId="PartWavelength">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Plate}" ConverterParameter="Wavelength">
 							<Binding /><Binding Path="Wavelength" />
@@ -82,7 +78,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionZones}" />
 			<controls:FormPanel ToolTip="{DynamicResource TipZones}">
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelZoneCount}" />
-				<TextBlock Style="{StaticResource ReadoutText}" AutomationProperties.AutomationId="PartZoneCount">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartZoneCount">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Plate}" ConverterParameter="Zones">
 							<Binding /><Binding Path="ZoneCount" /><Binding Path="Diameter" /><Binding Path="FocalLength" />
@@ -91,7 +87,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</TextBlock>
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelOuterZone}" />
-				<TextBlock Style="{StaticResource ReadoutText}" AutomationProperties.AutomationId="PartOuterZone">
+				<TextBlock Style="{StaticResource FormReadout}" AutomationProperties.AutomationId="PartOuterZone">
 					<TextBlock.Text>
 						<MultiBinding Converter="{StaticResource Plate}" ConverterParameter="OuterZone">
 							<Binding /><Binding Path="ZoneCount" /><Binding Path="Diameter" /><Binding Path="FocalLength" />

@@ -113,7 +113,8 @@ public sealed class ResampleAxis
 /// the samples are resampled in value space first (<see cref="ResampleAxis"/>, rows then columns; the intensity's square
 /// root as energy), so every screen pixel shows a value the field or intensity has there, in a colour of the
 /// gradient; the value is looked up in the layer's
-/// half table and, with dithering, rounded to 8 bits per channel through a Bayer matrix fixed to the screen pixels. Only
+/// half table and, with dithering, rounded to 8 bits per channel through a Bayer matrix fixed to the picture's pixels (on
+/// the screen's, since the window's layout rounding puts the picture on whole pixels). Only
 /// for the screen: a dithered picture cannot be scaled again, and an export never is one. One instance per picture and
 /// size, holding the axes and the rows between the passes; one render at a time, on any thread, the rows of each pass
 /// in parallel blocks.

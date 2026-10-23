@@ -58,7 +58,8 @@ public sealed class Project : ObservableObject
 
 	private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 	private static readonly XmlSerializer Serializer = new(typeof(Project));
-	private static readonly XmlSerializerNamespaces NoNamespaces = new([XmlQualifiedName.Empty]);
+	/// <summary>No namespace declarations on the root: the file as it is written, and the history's snapshots of it.</summary>
+	internal static readonly XmlSerializerNamespaces NoNamespaces = new([XmlQualifiedName.Empty]);
 	private static readonly XmlWriterSettings WriterSettings = new()
 	{
 		Indent = true,

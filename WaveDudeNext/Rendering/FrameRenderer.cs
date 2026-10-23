@@ -77,13 +77,15 @@ public static class FrameRenderer
 	public static void RenderIndexed(ReadOnlyMemory<byte> indices, int width, int height, ColorLut lut, Memory<int> pixels)
 	{
 		int[] palette = lut.Argb;
-		Parallel.For(0, height, y =>
+		Parallel.ForEach(Blocks(height), block =>
 		{
-			ReadOnlySpan<byte> row = indices.Span.Slice(y * width, width);
-			Span<int> target = pixels.Span.Slice(y * width, width);
-			for (int x = 0; x < width; x++)
+			int start = block.Item1 * width;
+			int count = (block.Item2 - block.Item1) * width;
+			ReadOnlySpan<byte> source = indices.Span.Slice(start, count);
+			Span<int> target = pixels.Span.Slice(start, count);
+			for (int i = 0; i < source.Length; i++)
 			{
-				target[x] = palette[Math.Min((int)row[x], ColorLut.Size - 1)];
+				target[i] = palette[Math.Min((int)source[i], ColorLut.Size - 1)];
 			}
 		});
 	}

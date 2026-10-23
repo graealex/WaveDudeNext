@@ -105,7 +105,7 @@ public sealed class ColorStop : ObservableObject
 /// a stop's edit raises <c>Stops</c> on the scheme. UI thread; a renderer works on a copy (<see cref="SortedStops"/>).
 /// </summary>
 [XmlRoot("ColorScheme")]
-public sealed class ColorScheme : ObservableObject
+public sealed class ColorScheme : ObservableObject, INamed
 {
 	/// <summary>Number of stops of the author's editable gradient: nine, evenly spaced.</summary>
 	public const int StopCount = 9;
@@ -384,20 +384,6 @@ public sealed class ColorScheme : ObservableObject
 		var copy = new ColorScheme { Name = newName, Kind = Kind, Description = Description };
 		copy.SetStops(Stops);
 		return copy;
-	}
-
-	/// <summary>A scheme of exactly <see cref="StopCount"/> evenly spaced stops (the author's editor form).</summary>
-	/// <exception cref="ArgumentException">Not <see cref="StopCount"/> colours.</exception>
-	public static ColorScheme FromStops(string schemeName, IReadOnlyList<Rgb> stops)
-	{
-		if (stops.Count != StopCount)
-		{
-			throw new ArgumentException("Exactly " + StopCount.ToString(CultureInfo.InvariantCulture) + " stops are required.");
-		}
-		return new ColorScheme(schemeName, stops)
-		{
-			Description = StopCount.ToString(CultureInfo.InvariantCulture) + "-stop gradient made in the color scheme editor",
-		};
 	}
 
 	/// <summary>Nine colours from black to white, the default of a new scheme and the gradient of one without stops.</summary>

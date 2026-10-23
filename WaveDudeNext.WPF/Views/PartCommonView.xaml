@@ -32,7 +32,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" ToolTip="{meta:Hint model:OpticalPart.Name}" AutomationProperties.AutomationId="PartName" />
 
 			<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:OpticalPart.Enabled}"
-			          IsChecked="{Binding Enabled}" ToolTip="{meta:Hint model:OpticalPart.Enabled}" />
+			          IsChecked="{Binding Enabled}" ToolTip="{meta:Hint model:OpticalPart.Enabled}" AutomationProperties.AutomationId="PartEnabled" />
 		</controls:FormPanel>
 
 		<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionPosition}" />

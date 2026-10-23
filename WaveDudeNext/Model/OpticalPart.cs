@@ -34,7 +34,7 @@ namespace WaveDudeNext.Model;
 /// convention). Refractive indices run from 1.00 to 2.55 in steps of 0.01 (red = index × 100). The class is the kind,
 /// chosen when the part is added (<see cref="Project.AddPart(Type)"/>) and never changed.
 /// </summary>
-public abstract class OpticalPart : ObservableObject, IMovable
+public abstract class OpticalPart : ObservableObject, IMovable, INamed
 {
 	/// <summary>Smallest refractive index a part can have.</summary>
 	public const double MinIndex = 1.0;
@@ -2184,13 +2184,6 @@ public abstract class LogicGatePart : OpticalPart, IFrequencyDesigned
 		set => SetProperty(ref _lowerOutputActive, value);
 	}
 
-	/// <summary>Tells the form that the values derived from the design follow an edit of a design input.</summary>
-	private void OnDesignChanged()
-	{
-		OnPropertyChanged(nameof(Wavelength));
-		OnPropertyChanged(nameof(PortSpacingUsed));
-	}
-
 	/// <summary>Refractive index of the waveguide cores, 1.00 to 2.55; above the cladding's for guiding.</summary>
 	[XmlAttribute]
 	[DefaultValue(DefaultCoreIndex)]
@@ -2259,6 +2252,13 @@ public abstract class LogicGatePart : OpticalPart, IFrequencyDesigned
 	{
 		get => Design?.PortSpacing ?? PortSpacing;
 		set => PortSpacing = value;
+	}
+
+	/// <summary>Tells the form that the values derived from the design follow an edit of a design input.</summary>
+	private void OnDesignChanged()
+	{
+		OnPropertyChanged(nameof(Wavelength));
+		OnPropertyChanged(nameof(PortSpacingUsed));
 	}
 
 	/// <summary>The layout for the current values (guarded as the painter guards them), or null when the cores guide nothing. Any thread; cached.</summary>
@@ -2418,6 +2418,9 @@ public sealed class ZonePlatePart : OpticalPart, IFrequencyDesigned
 	/// </summary>
 	public const int BlockAbsorption = 96;
 
+	/// <summary>Default <see cref="MountWidth"/> in pixels.</summary>
+	public const int DefaultMountWidth = 200;
+
 	private int _diameter = DefaultDiameter;
 	private int _thickness = DefaultThickness;
 	private int _coating = DefaultCoating;
@@ -2427,9 +2430,6 @@ public sealed class ZonePlatePart : OpticalPart, IFrequencyDesigned
 	private bool _inverse;
 	private bool _mount;
 	private int _mountWidth = DefaultMountWidth;
-
-	/// <summary>Default <see cref="MountWidth"/> in pixels.</summary>
-	public const int DefaultMountWidth = 200;
 
 	/// <inheritdoc/>
 	public override string NameStem => "Zone plate";

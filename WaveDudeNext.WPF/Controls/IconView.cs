@@ -25,8 +25,8 @@ namespace WaveDudeNext.WPF.Controls;
 
 /// <summary>
 /// A 16 px icon (2026-10-23): a <see cref="Glyph"/> of Windows' icon font, or one of the app's own <see cref="Drawing"/>s,
-/// in its inherited text colour, so it greys out with the text beside it. Used in the project tree's rows and, through
-/// <see cref="Create"/>, by <see cref="MenuIcon"/>. Not focusable. UI thread.
+/// in its inherited text colour, so it greys out with the text beside it. The project tree's rows and toolbar hold one each,
+/// and <see cref="MenuIcon"/> gives one to a menu entry. Not focusable. UI thread.
 /// </summary>
 public sealed class IconView : ContentControl
 {
@@ -42,6 +42,7 @@ public sealed class IconView : ContentControl
 	public static readonly DependencyProperty PlusBadgeProperty = DependencyProperty.Register(
 		nameof(PlusBadge), typeof(bool), typeof(IconView), new PropertyMetadata(false, OnIconChanged));
 
+	/// <summary>An empty 16 px icon, out of the Tab cycle.</summary>
 	public IconView()
 	{
 		Focusable = false;
@@ -78,42 +79,40 @@ public sealed class IconView : ContentControl
 		set => SetValue(PlusBadgeProperty, value);
 	}
 
+	/// <summary>The glyph when there is one, else the drawing with its badge; nothing for neither.</summary>
 	private static void OnIconChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 	{
 		var view = (IconView)d;
-		UIElement? icon = Create(view.Glyph, view.Drawing);
-		if (view.PlusBadge && icon is Grid drawn)
-		{
-			var badge = new Path();
-			badge.SetResourceReference(FrameworkElement.StyleProperty, "IconPlusBadgeStyle");
-			drawn.Children.Add(badge);
-		}
-		view.Content = icon;
-	}
-
-	/// <summary>The element showing <paramref name="glyph"/>, else <paramref name="drawing"/>; null for neither.</summary>
-	public static UIElement? Create(string? glyph, string? drawing)
-	{
-		if (glyph is { Length: > 0 })
+		if (view.Glyph is { Length: > 0 } glyph)
 		{
 			var text = new TextBlock { Text = glyph };
 			// resolved once the element is in place, so a menu built in code finds the theme's style too
-			text.SetResourceReference(FrameworkElement.StyleProperty, "MenuIconText");
-			return text;
+			text.SetResourceReference(StyleProperty, "IconGlyphText");
+			view.Content = text;
 		}
-		if (drawing is not { Length: > 0 })
+		else if (view.Drawing is { Length: > 0 } drawing)
 		{
-			return null;
+			// the inherited text colour each path holds itself (an ancestor lookup ran before the icon was in place and never
+			// found one, 2026-10-23)
+			var colour = new Binding { Path = new PropertyPath(TextElement.ForegroundProperty), RelativeSource = RelativeSource.Self };
+			var stroke = new Path { StrokeThickness = 1.0 };
+			stroke.SetResourceReference(Path.DataProperty, "Icon" + drawing);
+			stroke.SetBinding(Shape.StrokeProperty, colour);
+			var fill = new Path();
+			fill.SetResourceReference(Path.DataProperty, "Icon" + drawing + "Fill");
+			fill.SetBinding(Shape.FillProperty, colour);
+			var drawn = new Grid { Width = 16, Height = 16, Children = { stroke, fill } };
+			if (view.PlusBadge)
+			{
+				var badge = new Path();
+				badge.SetResourceReference(StyleProperty, "IconPlusBadgeStyle");
+				drawn.Children.Add(badge);
+			}
+			view.Content = drawn;
 		}
-		// the inherited text colour each path holds itself (an ancestor lookup ran before the icon was in place and never
-		// found one, 2026-10-23)
-		var colour = new Binding { Path = new PropertyPath(TextElement.ForegroundProperty), RelativeSource = RelativeSource.Self };
-		var stroke = new Path { StrokeThickness = 1.0 };
-		stroke.SetResourceReference(Path.DataProperty, "Icon" + drawing);
-		stroke.SetBinding(Shape.StrokeProperty, colour);
-		var fill = new Path();
-		fill.SetResourceReference(Path.DataProperty, "Icon" + drawing + "Fill");
-		fill.SetBinding(Shape.FillProperty, colour);
-		return new Grid { Width = 16, Height = 16, Children = { stroke, fill } };
+		else
+		{
+			view.Content = null;
+		}
 	}
 }

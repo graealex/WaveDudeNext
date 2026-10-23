@@ -19,7 +19,6 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using WaveDudeNext.Model;
-using WaveDudeNext.Rendering;
 using WaveDudeNext.WPF.Commands;
 
 namespace WaveDudeNext.WPF;
@@ -36,14 +35,14 @@ namespace WaveDudeNext.WPF;
 /// </summary>
 public partial class MainWindow
 {
-	/// <summary>The clipboard text last looked at and what it held, so the menus' frequent "can paste" checks parse it once.</summary>
-	private (string Text, ProjectClipboard.Clip? Clip)? _clipCache;
+	/// <summary>The clipboard's objects as last parsed and the clipboard's change count then, so the menus' frequent "can paste" checks read the clipboard once per change.</summary>
+	private (uint Sequence, ProjectClipboard.Clip? Clip)? _clipCache;
 
 	/// <summary>The copyable objects the command acts on: the row given, or the selection it belongs to.</summary>
 	private object[] CopyGroup(object? parameter) => [.. Group(parameter).Where(item => ProjectClipboard.CanCopy(Project, item))];
 
 	/// <summary>The list items among them (sources, parts, probes, schemes): what Cut takes away.</summary>
-	private object[] CutGroup(object? parameter) => [.. Group(parameter).Where(item => item is Source or OpticalPart or Probe or ColorScheme)];
+	private object[] CutGroup(object? parameter) => [.. Group(parameter).Where(item => item is INamed)];
 
 	private void CanCopyObjects(object sender, CanExecuteRoutedEventArgs e) => e.CanExecute = CopyGroup(e.Parameter).Length > 0;
 
@@ -56,17 +55,19 @@ public partial class MainWindow
 
 	private void OnCutObjects(object sender, ExecutedRoutedEventArgs e)
 	{
-		object[] group = CutGroup(e.Parameter);
-		if (group.Length > 0 && CopyToClipboard(group))
+		if (CopyToClipboard(CutGroup(e.Parameter)))
 		{
-			ProjectCommands.Remove.Execute(group.Length == 1 ? group[0] : e.Parameter, this);
+			// the same group: Remove takes the row given, or the selection it belongs to, as Cut did
+			ProjectCommands.Remove.Execute(e.Parameter, this);
 		}
 	}
 
 	private void OnPasteObjects(object sender, ExecutedRoutedEventArgs e)
 	{
-		// read afresh: a paste takes the clip's objects into the project, so each paste needs its own
-		if (ReadClipboard() is not { } text || ProjectClipboard.Read(text) is not { } clip)
+		// taken, not kept: a paste makes the clip's objects the project's, so the next paste parses the text afresh
+		ProjectClipboard.Clip? clip = ClipboardClip();
+		_clipCache = null;
+		if (clip == null)
 		{
 			return;
 		}
@@ -77,7 +78,7 @@ public partial class MainWindow
 		}
 		Logger.Debug("Pasted {Count} object(s): {Names}", pasted.Count, string.Join(", ", pasted.Select(NameOrKind)));
 		SelectedItems.Clear();
-		foreach (object item in pasted.Where(item => item is Source or OpticalPart or Probe or ColorScheme))
+		foreach (object item in pasted.Where(item => item is INamed))
 		{
 			SelectedItems.Add(item);
 		}
@@ -99,51 +100,41 @@ public partial class MainWindow
 		{
 			Clipboard.SetDataObject(data, copy: true);
 		}
-		catch (COMException ex)
+		catch (ExternalException ex)
 		{
 			// another program holds the clipboard open
 			Logger.Warn(ex, "The clipboard is busy: nothing was copied");
 			return false;
 		}
 		Logger.Debug("Copied {Count} object(s): {Names}", items.Length, string.Join(", ", items.Select(NameOrKind)));
-		_clipCache = null;
 		return true;
 	}
 
-	/// <summary>The objects on the clipboard as last parsed, for the "can paste" checks; null without any.</summary>
+	/// <summary>The objects on the clipboard, read and parsed once per change of the clipboard (Windows counts its changes); null without any.</summary>
 	private ProjectClipboard.Clip? ClipboardClip()
 	{
-		if (ReadClipboard() is not { } text)
+		uint sequence = GetClipboardSequenceNumber();
+		if (sequence != 0 && _clipCache is { } cache && cache.Sequence == sequence)
 		{
-			return null;
+			return cache.Clip;
 		}
-		if (_clipCache is not { } cache || cache.Text != text)
-		{
-			_clipCache = cache = (text, ProjectClipboard.Read(text));
-		}
-		return cache.Clip;
-	}
-
-	/// <summary>The objects on the clipboard as text (the app's format, or plain text that may hold them), or null.</summary>
-	private static string? ReadClipboard()
-	{
+		ProjectClipboard.Clip? clip;
 		try
 		{
-			return Clipboard.GetDataObject() is { } data ? Panes.ProjectTree.ObjectsText(data) : null;
+			clip = Clipboard.GetDataObject() is { } data && ObjectsData.Text(data) is { } text ? ProjectClipboard.Read(text) : null;
 		}
-		catch (COMException)
+		catch (ExternalException)
 		{
 			// another program holds the clipboard open; the next check tries again
 			return null;
 		}
+		_clipCache = (sequence, clip);
+		return clip;
 	}
 
-	private static string NameOrKind(object item) => item switch
-	{
-		Source source => source.Name,
-		OpticalPart part => part.Name,
-		Probe probe => probe.Name,
-		ColorScheme scheme => scheme.Name,
-		_ => item.GetType().Name,
-	};
+	/// <summary>Windows' count of the clipboard's changes; 0 when it cannot be told (then the clipboard is read every time).</summary>
+	[DllImport("user32.dll")]
+	private static extern uint GetClipboardSequenceNumber();
+
+	private static string NameOrKind(object item) => (item as INamed)?.Name ?? item.GetType().Name;
 }

@@ -73,13 +73,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<DataTemplate DataType="{x:Type model:ZonePlatePart}">
 			<views:ZonePlatePartView />
 		</DataTemplate>
-		<DataTemplate DataType="{x:Type model:XorGatePart}">
-			<views:LogicGatePartView />
-		</DataTemplate>
-		<DataTemplate DataType="{x:Type model:AndGatePart}">
-			<views:LogicGatePartView />
-		</DataTemplate>
-		<DataTemplate DataType="{x:Type model:OrGatePart}">
+		<!-- an implicit template is found along the base classes, so the three gate kinds share one -->
+		<DataTemplate DataType="{x:Type model:LogicGatePart}">
 			<views:LogicGatePartView />
 		</DataTemplate>
 		<DataTemplate DataType="{x:Type model:Probe}">

@@ -37,22 +37,7 @@ public sealed class StridedFrameSource(FrameStore store, int stride, int frameCo
 	public int Stride { get; } = Math.Max(1, stride);
 
 	/// <inheritdoc/>
-	public int Width => Store.Width;
-
-	/// <inheritdoc/>
-	public int Height => Store.Height;
-
-	/// <inheritdoc/>
-	public int CanvasWidth => Store.CanvasWidth;
-
-	/// <inheritdoc/>
-	public int CanvasHeight => Store.CanvasHeight;
-
-	/// <inheritdoc/>
-	public FrameFormat Format => Store.Format;
-
-	/// <inheritdoc/>
-	public bool IntensityRoot => Store.IntensityRoot;
+	public FrameShape Shape => Store.Shape;
 
 	/// <summary>Timeline frames that can be shown: every stored frame covers <see cref="Stride"/> of them, never beyond the run's frame count.</summary>
 	public int Count => (int)Math.Min((long)Store.Count * Stride, frameCount);

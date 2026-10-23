@@ -163,9 +163,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</Setter>
 		</Style>
 
-		<!-- the handle glyphs (SourceGlyph, ProbeGlyph, PartGlyph) are in Themes/Controls.xaml, shared with the project tree's icons;
-		     every stroke is drawn twice here, a dark halo first, so the glyph reads on any picture. The selected item's handle and
-		     the focused handle show the accent -->
+		<!-- the handles of the sources, parts and probes on the pictures: a ring for a source, a ring with an inner ring for a
+		     part (a lens-shaped glyph read as squashed, 2026-10-18), a square for a probe point, each with four crosshair ticks
+		     outside it and a gap around the exact pixel; every stroke is drawn twice, a dark halo first, so the glyph reads on
+		     any picture. The selected item's handle and the focused handle show the accent. Glyphs are 20 x 20 with the point
+		     at (10, 10); the tree's 16 px icons (Themes/Controls.xaml) are drawn after them -->
+		<StreamGeometry x:Key="SourceGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
+		<StreamGeometry x:Key="ProbeGlyph">M4.5,4.5 L15.5,4.5 L15.5,15.5 L4.5,15.5 Z M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
+		<StreamGeometry x:Key="PartGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M7.5,10 A2.5,2.5 0 1 1 12.5,10 A2.5,2.5 0 1 1 7.5,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
 		<Style x:Key="MarkerBase" TargetType="{x:Type controls:MarkerThumb}">
 			<Setter Property="Width" Value="20" />
 			<Setter Property="Height" Value="20" />

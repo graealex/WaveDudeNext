@@ -46,7 +46,7 @@ public enum PulseShape
 /// remnant of the 8-bit image channel; above 255 the grid cannot sample the wave), amplitude in percent, phase in
 /// degrees with decimals, widths in cycles of the source frequency, detach time in simulation steps.
 /// </summary>
-public sealed class Source : ObservableObject, IMovable
+public sealed class Source : ObservableObject, IMovable, INamed
 {
 	/// <summary>Smallest frequency level: just above 0, a wave of any length.</summary>
 	public const double MinLevel = 0.01;

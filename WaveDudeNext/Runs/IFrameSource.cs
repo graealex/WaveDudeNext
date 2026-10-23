@@ -30,23 +30,26 @@ namespace WaveDudeNext.Runs;
 /// </summary>
 public interface IFrameSource
 {
+	/// <summary>The frames' geometry and format; the properties below read it.</summary>
+	FrameShape Shape { get; }
+
 	/// <summary>Frame width in samples.</summary>
-	int Width { get; }
+	int Width => Shape.Width;
 
 	/// <summary>Frame height in samples.</summary>
-	int Height { get; }
+	int Height => Shape.Height;
 
 	/// <summary>Width of the simulated canvas the frames were shrunk from, in cells; equals <see cref="Width"/> at full resolution.</summary>
-	int CanvasWidth { get; }
+	int CanvasWidth => Shape.CanvasWidth;
 
 	/// <summary>Height of the simulated canvas, in cells.</summary>
-	int CanvasHeight { get; }
+	int CanvasHeight => Shape.CanvasHeight;
 
 	/// <summary>The sample format of every plane.</summary>
-	FrameFormat Format { get; }
+	FrameFormat Format => Shape.Format;
 
 	/// <summary>Whether a <see cref="FrameFormat.Half"/> intensity plane holds the intensity's square root, the preview's, rather than the intensity (<see cref="FrameShape.IntensityRoot"/>).</summary>
-	bool IntensityRoot { get; }
+	bool IntensityRoot => Shape.IntensityRoot;
 
 	/// <summary>Frames available: indices 0..Count-1 may be read.</summary>
 	int Count { get; }
@@ -77,22 +80,7 @@ public sealed class SnapshotFrameSource(FrameSnapshot snapshot) : IFrameSource
 	public FrameSnapshot Snapshot { get; } = snapshot;
 
 	/// <inheritdoc/>
-	public int Width => Snapshot.Width;
-
-	/// <inheritdoc/>
-	public int Height => Snapshot.Height;
-
-	/// <inheritdoc/>
-	public int CanvasWidth => Snapshot.Shape.CanvasWidth;
-
-	/// <inheritdoc/>
-	public int CanvasHeight => Snapshot.Shape.CanvasHeight;
-
-	/// <inheritdoc/>
-	public FrameFormat Format => Snapshot.Shape.Format;
-
-	/// <inheritdoc/>
-	public bool IntensityRoot => Snapshot.Shape.IntensityRoot;
+	public FrameShape Shape => Snapshot.Shape;
 
 	/// <inheritdoc/>
 	public int Count => 1;
@@ -115,7 +103,7 @@ public sealed class SnapshotFrameSource(FrameSnapshot snapshot) : IFrameSource
 	/// <inheritdoc/>
 	public bool CopyLayer(int frame, FrameLayer layer, Span<Half> destination)
 	{
-		if (Format != FrameFormat.Half)
+		if (Shape.Format != FrameFormat.Half)
 		{
 			throw new InvalidOperationException("The snapshot's samples are palette indices, not halves.");
 		}

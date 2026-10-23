@@ -43,8 +43,6 @@ namespace WaveDudeNext.WPF.Panes;
 /// </summary>
 public partial class ProjectTree : UserControl
 {
-	private const string DragFormat = "WaveDudeNext.ProjectTree.Item";
-
 	private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 
 	/// <summary>Identifies the <see cref="Project"/> property.</summary>
@@ -93,8 +91,10 @@ public partial class ProjectTree : UserControl
 	private object? _dragCandidate;
 	/// <summary>Whether a drag started in this tree is under way: its drops reorder, and never paste a copy of themselves.</summary>
 	private bool _dragging;
-	/// <summary>The dragged text last parsed during a drag over this tree, and what it held.</summary>
-	private (string Text, ProjectClipboard.Clip? Clip)? _dropCache;
+	/// <summary>The list item a drag from this tree carries, which a drop on this tree reorders; null while a settings row is dragged.</summary>
+	private object? _dragItem;
+	/// <summary>The objects a drag from elsewhere carries, parsed once per drag.</summary>
+	private readonly ObjectsData _dragged = new();
 	private Point _dragStart;
 	private InsertionAdorner? _adorner;
 	private object? _anchor;
@@ -318,11 +318,12 @@ public partial class ProjectTree : UserControl
 		return false;
 	}
 
-	// ----- drag and drop: reordering within the tree, copying between windows -----
-	// A drag carries the item itself, for reordering within its list here, and the item as Copy writes it (the app's
-	// clipboard format and plain text, 2026-10-23), so another WaveDude Next window takes a copy as Paste would and a
-	// text editor takes the XML. A drop from another window is placed by the paste logic: before or after a row of a list
-	// (by the half of the row), at the end of a folder's list, or onto Scene, Simulation, Display or the project root.
+	// ----- drag and drop: reordering within the tree, copying anywhere else -----
+	// A drag carries the item as Copy writes it (the app's clipboard format and plain text, 2026-10-23) and nothing else;
+	// the item itself stays in a field here, so a drop on this tree reorders it within its list, while any other target
+	// takes a copy: another WaveDude Next window's tree as Paste would, a picture of this window or another at the drop
+	// pixel, a text editor as XML. A drop of objects on this tree is placed by the paste logic: before or after a row of a
+	// list (by the half of the row), at the end of a folder's list, or onto Scene, Simulation, Display or the project root.
 
 	private void OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
 	{
@@ -334,7 +335,7 @@ public partial class ProjectTree : UserControl
 		}
 		if (FindAncestor<TreeViewItem>(origin) is { } row && Project is { } project && ProjectClipboard.CanCopy(project, row.DataContext))
 		{
-			if (row.DataContext is Source or OpticalPart or Probe or ColorScheme && TryModifiedClick(row.DataContext))
+			if (row.DataContext is INamed && TryModifiedClick(row.DataContext))
 			{
 				e.Handled = true;   // the TreeView would make the row its plain selection
 				return;
@@ -359,10 +360,7 @@ public partial class ProjectTree : UserControl
 		object item = _dragCandidate;
 		_dragCandidate = null;
 		var data = new DataObject();
-		if (ListOf(item) != null)
-		{
-			data.SetData(DragFormat, item);
-		}
+		_dragItem = ListOf(item) != null ? item : null;
 		string text = ProjectClipboard.Write(project, [item]);
 		data.SetData(ProjectClipboard.Format, text);
 		data.SetText(text);
@@ -374,7 +372,8 @@ public partial class ProjectTree : UserControl
 		finally
 		{
 			_dragging = false;
-			_dropCache = null;
+			_dragItem = null;
+			_dragged.Clear();
 			ClearAdorner();
 		}
 	}
@@ -384,7 +383,7 @@ public partial class ProjectTree : UserControl
 		e.Effects = DragDropEffects.None;
 		e.Handled = true;
 		ClearAdorner();
-		if (OwnItem(e.Data) is { } item)
+		if (_dragItem is { } item)
 		{
 			if (FindDropTarget(item, e.GetPosition(tree)) is { } target)
 			{
@@ -393,7 +392,7 @@ public partial class ProjectTree : UserControl
 			}
 			return;
 		}
-		if (!_dragging && DraggedClip(e.Data) is { } clip && FindPasteTarget(clip, e.GetPosition(tree)) is { } paste)
+		if (!_dragging && _dragged.Clip(e.Data) is { } clip && FindPasteTarget(clip, e.GetPosition(tree)) is { } paste)
 		{
 			e.Effects = DragDropEffects.Copy;
 			ShowAdorner(paste.Row, paste.Header, paste.Placement);
@@ -410,7 +409,7 @@ public partial class ProjectTree : UserControl
 		{
 			return;
 		}
-		if (OwnItem(e.Data) is { } item)
+		if (_dragItem is { } item)
 		{
 			if (FindDropTarget(item, e.GetPosition(tree)) is not { } target)
 			{
@@ -429,23 +428,21 @@ public partial class ProjectTree : UserControl
 			}
 			return;
 		}
-		// read afresh: the paste takes the clip's objects into the project
-		if (_dragging || ObjectsText(e.Data) is not { } text || ProjectClipboard.Read(text) is not { } clip
-			|| FindPasteTarget(clip, e.GetPosition(tree)) is not { } paste)
+		// taken, not kept: the paste makes the clip's objects the project's
+		if (_dragging || _dragged.Take(e.Data) is not { } clip || FindPasteTarget(clip, e.GetPosition(tree)) is not { } paste)
 		{
 			return;
 		}
 		IReadOnlyList<object> pasted = ProjectClipboard.Paste(project, clip, paste.Current, paste.Before);
-		_dropCache = null;
 		if (pasted.Count == 0)
 		{
 			return;
 		}
-		Logger.Debug("Dropped {Count} object(s) from another window", pasted.Count);
+		Logger.Debug("Dropped {Count} object(s) into the tree", pasted.Count);
 		if (SelectedItems is { } selection)
 		{
 			selection.Clear();
-			foreach (object added in pasted.Where(added => added is Source or OpticalPart or Probe or ColorScheme))
+			foreach (object added in pasted.Where(added => added is INamed))
 			{
 				selection.Add(added);
 			}
@@ -453,80 +450,11 @@ public partial class ProjectTree : UserControl
 		Select(pasted[^1]);
 	}
 
-	/// <summary>
-	/// Whether a drag started in this window: it carries a live item of <paramref name="project"/>'s lists (a drag from
-	/// another window carries none that can be read here). The pictures refuse such drops: they take objects from other
-	/// windows only.
-	/// </summary>
-	internal static bool IsFromThisWindow(IDataObject data, Project project)
-	{
-		try
-		{
-			return data.GetDataPresent(DragFormat) && data.GetData(DragFormat) is { } item
-				&& ((IList[])[project.Sources, project.Parts, project.Probes, project.ColorSchemes]).Any(list => list.Contains(item));
-		}
-		catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException)
-		{
-			return false;
-		}
-	}
-
-	/// <summary>The dragged item when the drag started in this tree and the item is in this project's lists; null otherwise (a drag from another window carries no live object).</summary>
-	private object? OwnItem(IDataObject data)
-	{
-		try
-		{
-			return data.GetDataPresent(DragFormat) && data.GetData(DragFormat) is { } item && ListOf(item)?.Contains(item) == true ? item : null;
-		}
-		catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException)
-		{
-			return null;
-		}
-	}
-
-	/// <summary>
-	/// The objects a drag or the clipboard carries, as Copy writes them: the app's format, else plain text that may hold
-	/// them (2026-10-23: copied back from a text editor, which keeps text only; <see cref="ProjectClipboard.Read"/> decides,
-	/// and text not starting with an element is not even parsed). Null for neither. Shared by the tree, the pictures and
-	/// Paste.
-	/// </summary>
-	internal static string? ObjectsText(IDataObject data)
-	{
-		try
-		{
-			if (data.GetDataPresent(ProjectClipboard.Format))
-			{
-				return data.GetData(ProjectClipboard.Format) as string;
-			}
-			return data.GetDataPresent(DataFormats.UnicodeText) && data.GetData(DataFormats.UnicodeText) is string text && text.TrimStart().StartsWith('<')
-				? text
-				: null;
-		}
-		catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException)
-		{
-			return null;
-		}
-	}
-
-	/// <summary>The dragged objects as last parsed, for the many drag-over events of one drag; null without any.</summary>
-	private ProjectClipboard.Clip? DraggedClip(IDataObject data)
-	{
-		if (ObjectsText(data) is not { } text)
-		{
-			return null;
-		}
-		if (_dropCache is not { } cache || cache.Text != text)
-		{
-			_dropCache = cache = (text, ProjectClipboard.Read(text));
-		}
-		return cache.Clip;
-	}
-
-	/// <summary>Where a drop from another window would go, as the paste logic takes it: the current item it is placed by, and before it or not.</summary>
+	/// <summary>Where a drop of objects would go, as the paste logic takes it: the current item it is placed by, and before it or not.</summary>
 	private sealed record PasteTarget(TreeViewItem Row, FrameworkElement Header, InsertionPlacement Placement, object? Current, bool Before);
 
 	/// <summary>
-	/// Resolves a drop of <paramref name="clip"/> from another window: on a list item before or after it (by the half of the
+	/// Resolves a drop of <paramref name="clip"/> from elsewhere: on a list item before or after it (by the half of the
 	/// row), on a folder at the end of its list, on Scene, Simulation, Display or the project root as a paste onto them. Null
 	/// where the clip has nothing to give (settings onto a list row without list items, for instance).
 	/// </summary>

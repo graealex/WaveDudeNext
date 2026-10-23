@@ -1,6 +1,6 @@
 # WaveDude Next — project notes for Claude
 
-Last updated 2026-10-16. The long history is in git (`git show a6f85dc:CLAUDE.md`). Keep this file short.
+Last updated 2026-10-23. The long history is in git (`git show a6f85dc:CLAUDE.md`). Keep this file short.
 
 ## What this is
 
@@ -132,19 +132,19 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Reduced preview** (View menu): resolution 1/2/4, frames 1/2/4 (the timeline never changes), samples 16-bit or
   **8-bit palette index, the default**: the stored samples at the palette's 255 colours and the captured brightness,
   half the store; 16-bit keeps the brightness turnable after a run and shows every level of the gradient. In 8-bit a
-  brightness edit is a simulation edit. The index is computed from the value a 16-bit frame stores, rounded to a half
-  (the field, the intensity's root), on the CPU and in the kernel (a bit-level rounding there), and the GPU program is
-  built with a correctly rounded square root where the card has one, so CPU and GPU store the same index bytes (2026-10-19).
+  brightness edit is a simulation edit. **A 16-bit intensity plane holds √I** (2026-10-23, the user's choice: the
+  renderer colours √I, and as I the dark end lay among half's subnormals, below 6.1e-5, up to a palette level between
+  neighbours; as √I the floor is at I = 3.7e-9, the brightest parts a bit coarser): `FrameShape.IntensityRoot`, from the
+  run's `PreviewQuality`, produced by `FrameConversion` and `capture_half`, reported by every `IFrameSource` through its
+  `Shape`; the renderer, the screen path (which blends it as energy) and the fit go by its `SampleKind`. **The 8-bit
+  index is the palette index of the half a 16-bit frame would store** (the field, √I), computed on the CPU and in the
+  kernel (a bit-level rounding there, the GPU program built with a correctly rounded square root where the card has one),
+  so CPU and GPU store the same bytes (2026-10-19) and both previews start from one value (2026-10-23, the user's choice:
+  rounding I to a half first had merged the darkest indices at a high brightness, 2e-8 at 30 coming out 0 instead of 1).
   Every export needs the 16-bit samples (2026-10-23, the user's choice, so a picture has every level of the gradient):
   an 8-bit run, a reduced resolution or skipped frames make the export run the simulation again at full quality first.
-  **A 16-bit intensity plane holds √I** (2026-10-23, the user's choice: the renderer colours √I, and as I the dark end
-  lay among half's subnormals, below 6.1e-5, up to a palette level between neighbours; as √I the floor is at I =
-  3.7e-9, the brightest parts a bit coarser): `FrameShape.IntensityRoot`, from the run's `PreviewQuality`, produced by
-  `FrameConversion` and `capture_half`, reported by every `IFrameSource`; the renderer, the screen path (which blends
-  it as energy) and the fit go by its `SampleKind`. Only an OpenEXR export of I makes a run that stores I itself
-  (squaring √I back would lose a bit). The 8-bit index is the palette index of that same stored half, √I for the
-  intensity (2026-10-23, the user's choice: one rule for both previews; rounding I to a half first had merged the
-  darkest indices at a high brightness, 2e-8 at 30 coming out 0 instead of 1).
+  Only an OpenEXR export of I makes a run that stores I itself (squaring √I back would lose a bit); as coded, that run is
+  then the one the preview shows until the next edit or run (undecided whether it should be a side run).
 
 ## The app's rules
 
@@ -178,6 +178,32 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   and point handles belong to the current item alone. Probe graph boxes follow their probe while attached, resize by a grip, keep their text
   size; an amplitude axis is symmetric about zero; an intensity graph's value axis can be logarithmic (2026-10-20,
   Jeroen's point 8: `Decades` below the fitted top, zeros on the bottom line, powers-of-ten ticks; the field stays linear).
+- **Undo and redo** (2026-10-22, the user's request, unlimited): `ProjectHistory` keeps one snapshot per step, the
+  project file's XML without the scene image plus the image's bytes by reference (equal bytes shared). A step ends after
+  0.5 s of quiet with no mouse button held (`MainWindow.History`); Undo and Redo (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z; a text
+  box keeps its own) write the step back into the same project object, the lists refilled and the settings objects
+  replaced, so the watcher reports it as an edit (stale run, scratch frame, re-run) and nothing is recorded; the
+  selection follows by name, then by index; the title's asterisk clears at the saved step. The Edit menu (between File
+  and View) holds Undo, Redo, Cut, Copy, Paste and Delete; the UI harnesses step over it.
+- **Copy, cut, paste, drag and drop** (2026-10-23, the user's choices): `ProjectClipboard` writes sources, parts,
+  probes and schemes (the `INamed` items) and the Scene, Simulation and Display objects as a fragment of their own file
+  elements, in the app's format and as plain text (read back from text too, so a text editor takes and gives the XML).
+  Paste goes behind the current item, before it for a drop on a row's upper half, renames only on a clash, emitters
+  from the target's seed; a settings object replaces only on its own row or the project root. A tree drag carries the
+  same text and nothing else; the target decides (2026-10-23, the user's choice, replacing a live item in the drag data
+  and a refusal of the own drag by the pictures): the own tree reorders the item it keeps in a field, another window's
+  tree pastes, and a picture of this window or another pastes and moves the objects as a group onto the drop pixel
+  (`PlaceAt`, held inside the canvas), so a drag from the tree to the picture duplicates. `ObjectsData` reads a drag or
+  the clipboard and parses each text once; the window reads the clipboard once per change of Windows' clipboard
+  sequence number.
+- **Icons** (2026-10-22/23): a menu entry gets one through the attached `MenuIcon.Glyph` (a code point of Segoe Fluent
+  Icons that Segoe MDL2 Assets has too, for Windows 10; the `IconGlyphText` style, greyscale) or `MenuIcon.Drawing`, the
+  name of an `Icon<Name>` (and `Icon<Name>Fill`) `StreamGeometry` in `Themes/Controls.xaml`; both make an `IconView`,
+  which the tree's rows and toolbar use directly (`PlusBadge` on the add buttons) and which draws in the inherited text
+  colour, so a disabled row's icon greys with its name through one trigger on the row. Drawings are 16 px, 1 px strokes
+  on half pixels, ink in rows and columns 0 to 14 (odd, so it centres like text); every tree row, toolbar button and
+  menu entry is 23 px, the menu bar's headers through their padding. The pictures' 20 px handle glyphs stay in
+  `PreviewPane.xaml`.
 - **Colour schemes are gradients** (2026-10-23, the user's design): the model holds the stops and no table; how many
   colours are taken is the renderer's (`ColorLut`): 255 at i/254 for 8-bit frames (the author's table, truncated as in
   his Python), and for 16-bit frames a table of the 65,536 half values per layer and brightness, the gradient at each
@@ -191,7 +217,7 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   the canvas came back from WPF in single precision, the reuse test failed on every frame, and the pane flickered).
   **Preview dithering** (View menu, user setting, off by default until the user has seen it; only with 16-bit samples):
   the colours at 16 bits per channel (`DeepHalfTable`) to 8 through a Bayer matrix of 2, 4, 8 or 16 cells a side for
-  10, 12, 14 or 16 bits, fixed to the screen's pixels; preview only, never in an export (a video crushes it; an export
+  10, 12, 14 or 16 bits, fixed to the picture's pixels (on the screen's, by the window's layout rounding); preview only, never in an export (a video crushes it; an export
   above 8 bits per channel is a possible future goal). A better algorithm than Bayer may come later.
 - **Colour schemes** are stop lists in `.wdscheme` XML, shipped ones embedded, user ones in
   `%LOCALAPPDATA%\WaveDudeNext\ColorSchemes`, project ones in the `.wdproj`; an in-house picker edits stops;
@@ -245,7 +271,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, ranges, XOR gate).
+`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, ranges, XOR gate, zone plate, gate port follower, history, clipboard).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 38, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness

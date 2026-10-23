@@ -51,8 +51,8 @@ public static class ColorSchemeStore
 	/// <summary>Prefix of the embedded scheme resources (see the csproj's <c>LogicalName</c>).</summary>
 	private const string ResourcePrefix = "ColorSchemes/";
 
-	/// <summary>Entries of the author's JSON table ("entry_count"): his palette of 255 colours, the part his program reads.</summary>
-	private const int AuthorEntryCount = 255;
+	/// <summary>Entries of the author's JSON table ("entry_count"): his palette of 255 colours (<see cref="ColorLut.Size"/>), the part his program reads.</summary>
+	private const int AuthorEntryCount = ColorLut.Size;
 
 	private static readonly XmlSerializer Serializer = new(typeof(ColorScheme));
 	private static readonly XmlSerializerNamespaces NoNamespaces = new([XmlQualifiedName.Empty]);

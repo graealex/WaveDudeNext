@@ -584,6 +584,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="VerticalAlignment" Value="Center" />
 		<Setter Property="TextTrimming" Value="CharacterEllipsis" />
 	</Style>
+	<!-- a read-only value beside its label (a lens's edge thickness, a gate's layout): bound to every input it depends on, so the text follows them -->
+	<Style x:Key="FormReadout" TargetType="{x:Type TextBlock}">
+		<Setter Property="VerticalAlignment" Value="Center" />
+	</Style>
 
 	<!-- the chain between two number boxes that keeps them equal (a rectangle's or ellipse's width and length,
 	     2026-10-20, the user's request after the image editors): a toggle showing two linked rings, parted when off -->

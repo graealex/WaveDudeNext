@@ -20,7 +20,7 @@ namespace WaveDudeNext.Rendering;
 /// <summary>
 /// The display brightness that fits a frame (the preview's Auto, 2026-10-20, Jeroen's point 9): the gain that brings
 /// the <see cref="Percentile"/> of the coloured magnitude to the top of the palette, |value| for the field and the
-/// square root for the intensity (stored as such in the preview; the renderer's own mappings, see <see cref="ColorLut"/>), so the brightest half percent
+/// square root for the intensity (which the preview stores and the renderer colours, see <see cref="ColorLut"/>), so the brightest half percent
 /// saturates and a source cell, far above the field around it, does not darken the picture. Pure arithmetic; any
 /// thread.
 /// </summary>
