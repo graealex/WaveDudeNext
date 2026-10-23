@@ -17,7 +17,6 @@
 
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
-using WaveDudeNext.Runs;
 
 namespace WaveDudeNext.Rendering;
 
@@ -40,19 +39,19 @@ public static class FrameRenderer
 		Partitioner.Create(0, height, 32);
 
 	/// <summary>
-	/// Renders a plane of 16-bit samples: every sample's bits index the layer's half table at
+	/// Renders a plane of 16-bit samples: every sample's bits index the half table of its kind at
 	/// <paramref name="brightness"/>, built first when the brightness is new to <paramref name="lut"/>.
 	/// </summary>
 	/// <param name="values">Samples, row-major, <paramref name="width"/> × <paramref name="height"/>.</param>
 	/// <param name="width">Frame width in pixels.</param>
 	/// <param name="height">Frame height in pixels.</param>
 	/// <param name="lut">The colours (<see cref="ColorLut.Grey"/> for grey levels).</param>
-	/// <param name="layer">Which plane the samples are: the field is signed around the gradient's middle, the intensity runs from its start.</param>
+	/// <param name="kind">What the samples are: the field is signed around the gradient's middle, the intensity (or its root) runs from its start.</param>
 	/// <param name="brightness">The layer's gain.</param>
 	/// <param name="pixels">Destination, at least <paramref name="width"/> × <paramref name="height"/> packed BGRA32 pixels, row-major.</param>
-	public static void Render(ReadOnlyMemory<Half> values, int width, int height, ColorLut lut, FrameLayer layer, float brightness, Memory<int> pixels)
+	public static void Render(ReadOnlyMemory<Half> values, int width, int height, ColorLut lut, SampleKind kind, float brightness, Memory<int> pixels)
 	{
-		int[] table = lut.HalfTable(layer, brightness);
+		int[] table = lut.HalfTable(kind, brightness);
 		Parallel.ForEach(Blocks(height), block =>
 		{
 			int start = block.Item1 * width;

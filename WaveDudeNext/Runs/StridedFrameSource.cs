@@ -51,6 +51,9 @@ public sealed class StridedFrameSource(FrameStore store, int stride, int frameCo
 	/// <inheritdoc/>
 	public FrameFormat Format => Store.Format;
 
+	/// <inheritdoc/>
+	public bool IntensityRoot => Store.IntensityRoot;
+
 	/// <summary>Timeline frames that can be shown: every stored frame covers <see cref="Stride"/> of them, never beyond the run's frame count.</summary>
 	public int Count => (int)Math.Min((long)Store.Count * Stride, frameCount);
 

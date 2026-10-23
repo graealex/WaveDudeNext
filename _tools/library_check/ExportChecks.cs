@@ -390,6 +390,15 @@ internal static class ExportChecks
 				still.Add(halves);
 			}
 			check(ReadExr(File.ReadAllBytes(exrStill), w, h, out _) is { } stillBack && MemoryMarshal.AsBytes(stillBack.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(halves.AsSpan())), "formats: an OpenEXR still holds the frame");
+			// the two OpenEXR entries (2026-10-23): the intensity as I or as its square root, one extension, the dialog's
+			// filter telling them apart; a scripted .exr is I
+			using (IFrameSink rootSink = ExportFormats.Open(ExportFormat.ExrRoot, Path.Combine(folder, "root.exr"), w, h, 30, 70, 1))
+			{
+				check(rootSink.WantsHalves && ExportFormats.IsData(ExportFormat.ExrRoot) && ExportFormats.IsSequence(ExportFormat.ExrRoot) && ExportFormats.Extension(ExportFormat.ExrRoot) == ".exr"
+					&& ExportFormats.FromPath("data.exr") == ExportFormat.Exr && ExportFormats.IntensityRootFor(ExportFormat.Exr) == false && ExportFormats.IntensityRootFor(ExportFormat.ExrRoot) == true
+					&& ExportFormats.IntensityRootFor(ExportFormat.Png) == null && ExportFormats.Stills.Contains(ExportFormat.ExrRoot) && ExportFormats.All[^1] == ExportFormat.ExrRoot,
+					"formats: OpenEXR of the intensity as I (a scripted .exr) or as its square root, both data, both .exr; pictures take either");
+			}
 			bool videoRefused = false;
 			try
 			{
@@ -526,7 +535,7 @@ internal static class ExportChecks
 		var values = new Half[64 * 48];
 		var expected = new int[64 * 48];
 		store.CopyLayer(2, FrameLayer.Field, values);
-		FrameRenderer.Render(values, 64, 48, lut, FrameLayer.Field, 30f, expected);
+		FrameRenderer.Render(values, 64, 48, lut, SampleKind.Field, 30f, expected);
 		expected[0] = unchecked((int)0xFFFF0000);
 		int[]? first = DecodePng(File.ReadAllBytes(Path.Combine(folder, "field", "field_0002.png")), 64, 48);
 		check(first != null && first.SequenceEqual(expected), "job: field_0002.png is frame 2 as the renderer colours it, with the decoration");
@@ -687,7 +696,7 @@ internal static class ExportChecks
 				{
 					var px = new int[w * h];
 					store.CopyLayer(i, FrameLayer.Field, values);
-					FrameRenderer.Render(values, w, h, lut, FrameLayer.Field, 30f, px);
+					FrameRenderer.Render(values, w, h, lut, SampleKind.Field, 30f, px);
 					rendered.Add(px);
 				}
 				// the declared frame rate is varied too: if the time per frame tracks it, the encoder paces itself to real time

@@ -57,7 +57,7 @@ public partial class MainWindow
 			var halves = new Half[source.Width * source.Height];
 			if (source.CopyLayer(Math.Clamp(shown, 0, source.Count - 1), plane, halves))
 			{
-				ApplyFit(layer, BrightnessFit.For(halves, plane), PreviewPosition);
+				ApplyFit(layer, BrightnessFit.For(halves, source.KindOf(plane)), PreviewPosition);
 				return;
 			}
 		}
@@ -105,7 +105,7 @@ public partial class MainWindow
 		FrameLayer plane = PlaneOf(_fitRequest.Layer);
 		var source = new SnapshotFrameSource(result.Snapshot);
 		var halves = new Half[source.Width * source.Height];
-		double? fit = source.Has(plane) && source.CopyLayer(0, plane, halves) ? BrightnessFit.For(halves, plane) : null;
+		double? fit = source.Has(plane) && source.CopyLayer(0, plane, halves) ? BrightnessFit.For(halves, source.KindOf(plane)) : null;
 		// the runner's engine is released once its result is read (the snapshot belongs to the runner)
 		runner?.Dispose();
 		ApplyFit(_fitRequest.Layer, fit, result.Frame);

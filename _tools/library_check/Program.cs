@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Alexander Graef <alex@graef.cc>
 //
 // This file is part of WaveDude Next, a 2D wave simulator.
@@ -612,10 +612,10 @@ internal static class Program
 		foreach ((string name, Action render) in new (string, Action)[]
 		{
 			("8-bit index", () => FrameRenderer.RenderIndexed(indices, w, h, lut, pixels)),
-			("intensity", () => FrameRenderer.Render(intensity, w, h, lut, FrameLayer.Intensity, 1f, pixels)),
-			("field", () => FrameRenderer.Render(field, w, h, lut, FrameLayer.Field, 1f, pixels)),
-			("field, grey", () => FrameRenderer.Render(field, w, h, ColorLut.Grey, FrameLayer.Field, 1f, pixels)),
-			("intensity again", () => FrameRenderer.Render(intensity, w, h, lut, FrameLayer.Intensity, 1f, pixels)),
+			("intensity", () => FrameRenderer.Render(intensity, w, h, lut, SampleKind.IntensityRoot, 1f, pixels)),
+			("field", () => FrameRenderer.Render(field, w, h, lut, SampleKind.Field, 1f, pixels)),
+			("field, grey", () => FrameRenderer.Render(field, w, h, ColorLut.Grey, SampleKind.Field, 1f, pixels)),
+			("intensity again", () => FrameRenderer.Render(intensity, w, h, lut, SampleKind.IntensityRoot, 1f, pixels)),
 		})
 		{
 			for (int i = 0; i < 60; i++)
@@ -638,14 +638,14 @@ internal static class Program
 			float brightness = 1f;
 			for (int i = 0; i < 20; i++)
 			{
-				fresh.HalfTable(FrameLayer.Intensity, brightness += 0.01f);
+				fresh.HalfTable(SampleKind.IntensityRoot, brightness += 0.01f);
 			}
 			Thread.Sleep(300);
 			var clock = Stopwatch.StartNew();
 			const int Builds = 100;
 			for (int i = 0; i < Builds; i++)
 			{
-				fresh.HalfTable(i % 2 == 0 ? FrameLayer.Field : FrameLayer.Intensity, brightness += 0.01f);
+				fresh.HalfTable(i % 2 == 0 ? SampleKind.Field : SampleKind.IntensityRoot, brightness += 0.01f);
 			}
 			Console.WriteLine($"  half table build {clock.Elapsed.TotalMilliseconds / Builds,6:0.00} ms (65,536 colours from Inferno's {ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == "Inferno").Stops.Count} stops)");
 		}
@@ -656,14 +656,14 @@ internal static class Program
 			var shown = new int[tw * th];
 			for (int i = 0; i < 30; i++)
 			{
-				screen.Render(intensity, lut, FrameLayer.Intensity, 1f, bits, shown);
+				screen.Render(intensity, lut, SampleKind.IntensityRoot, 1f, bits, shown);
 			}
 			Thread.Sleep(300);
 			var clock = Stopwatch.StartNew();
 			const int Runs = 50;
 			for (int i = 0; i < Runs; i++)
 			{
-				screen.Render(intensity, lut, FrameLayer.Intensity, 1f, bits, shown);
+				screen.Render(intensity, lut, SampleKind.IntensityRoot, 1f, bits, shown);
 			}
 			Console.WriteLine($"  screen {tw}x{th}{(bits == 0 ? "" : $", dithered from {bits} bits"),-26} {clock.Elapsed.TotalMilliseconds / Runs,6:0.00} ms per layer");
 		}
@@ -871,7 +871,9 @@ internal static class Program
 			float tolerance = 2e-3f * Math.Max(1f, MaxAbs(at100));
 			Check(a.HasIntensity && !b.HasIntensity, name + ": intensity captured only when asked");
 			Check(MaxDiff(at100, engine.Stride, W, H, a.Field) < tolerance, name + ": deferred capture holds the field of its step (max diff " + MaxDiff(at100, engine.Stride, W, H, a.Field) + ")");
-			Check(MaxDiff(inten100, engine.Stride, W, H, a.Intensity!) < 2e-3f * Math.Max(1f, MaxAbs(inten100)), name + ": captured intensity matches");
+			// a 16-bit capture holds the intensity's square root (2026-10-23)
+			float[] root100 = [.. inten100.Select(MathF.Sqrt)];
+			Check(MaxDiff(root100, engine.Stride, W, H, a.Intensity!) < 2e-3f * Math.Max(1f, MaxAbs(root100)), name + ": captured intensity matches (its square root)");
 			Check(MaxDiff(at150, engine.Stride, W, H, b.Field) < tolerance, name + ": second capture holds the later step");
 			engine.Reset();
 			engine.CaptureFrame(a, true);
@@ -1492,6 +1494,31 @@ internal static class Program
 		var fullBytes = new byte[full.PlaneBytes];
 		FrameConversion.Convert(field, stride + 1, stride, full, false, fullBytes);
 		Check(MaxDiff(field, stride, W, H, MemoryMarshal.Cast<byte, Half>(fullBytes)) < tolerance, "full shape: the plain half conversion");
+		// the intensity as its square root, the preview's, or as itself for an OpenEXR export of I (2026-10-23): each the
+		// half of the float, the root correctly rounded first; the field the same either way
+		FrameShape linear = full with { IntensityRoot = false };
+		var rootBytes = new byte[full.PlaneBytes];
+		var linearBytes = new byte[full.PlaneBytes];
+		var fieldLinearBytes = new byte[full.PlaneBytes];
+		FrameConversion.Convert(inten, stride + 1, stride, full, true, rootBytes);
+		FrameConversion.Convert(inten, stride + 1, stride, linear, true, linearBytes);
+		FrameConversion.Convert(field, stride + 1, stride, linear, false, fieldLinearBytes);
+		bool samples = true;
+		for (int y = 0; y < H; y++)
+		{
+			for (int x = 0; x < W; x++)
+			{
+				float i = inten[(y + 1) * stride + x + 1];
+				samples &= MemoryMarshal.Cast<byte, Half>(rootBytes)[y * W + x] == (Half)MathF.Sqrt(i) && MemoryMarshal.Cast<byte, Half>(linearBytes)[y * W + x] == (Half)i;
+			}
+		}
+		Check(samples && fieldLinearBytes.AsSpan().SequenceEqual(fullBytes) && full.IntensityRoot && !full.SameLayoutAs(linear),
+			"the 16-bit intensity: the half of its square root by default, of itself when the shape says so; the field alike; the two layouts differ");
+		var rootSource = new SnapshotFrameSource(new FrameSnapshot(full, true));
+		var linearSource = new SnapshotFrameSource(new FrameSnapshot(linear, true));
+		Check(rootSource.KindOf(FrameLayer.Intensity) == SampleKind.IntensityRoot && linearSource.KindOf(FrameLayer.Intensity) == SampleKind.Intensity
+			&& linearSource.KindOf(FrameLayer.Field) == SampleKind.Field && RunSpec.Create(new Project(), null, false, quality: PreviewQuality.Full with { IntensityRoot = false }).Shape.IntensityRoot == false,
+			"a frame source says what its intensity holds; a run spec takes it from its quality");
 		// a half-size frame holds the 2 x 2 block means
 		var halfBytes = new byte[half.PlaneBytes];
 		FrameConversion.Convert(field, stride + 1, stride, half, false, halfBytes);
@@ -1528,28 +1555,43 @@ internal static class Program
 			for (int x = 0; x < W; x++)
 			{
 				int at = (y + 1) * stride + x + 1;
-				if (indexField[y * W + x] != ColorLut.FieldIndex((float)(Half)field[at], 30f) || indexInten[y * W + x] != ColorLut.IntensityIndex((float)(Half)inten[at], 5f))
+				if (indexField[y * W + x] != ColorLut.FieldIndex((float)(Half)field[at], 30f) || indexInten[y * W + x] != ColorLut.IntensityRootIndex((float)(Half)MathF.Sqrt(inten[at]), 5f))
 				{
 					same = false;
 					break;
 				}
 			}
 		}
-		Check(same && indexField.Max() > 127 && indexField.Min() < 127 && indexInten.Max() > 0, "index shape: the renderer's palette index of every cell's half-rounded sample at brightness 30 and 5, both sides of the centre used");
-		// an index frame holds the palette index of the very half a 16-bit frame stores: the 8-bit preview shows the
-		// stored samples, at the palette's 255 colours
+		Check(same && indexField.Max() > 127 && indexField.Min() < 127 && indexInten.Max() > 0, "index shape: the renderer's palette index of every cell's half-rounded field and intensity root at brightness 30 and 5, both sides of the centre used");
+		// an index frame holds the palette index of the very half a 16-bit frame stores, both planes (one rule since
+		// 2026-10-23): the 8-bit preview shows the stored samples, at the palette's 255 colours
 		var halfField = new byte[full.PlaneBytes];
+		var halfRoot = new byte[full.PlaneBytes];
 		FrameConversion.Convert(field, stride + 1, stride, full, false, halfField);
+		FrameConversion.Convert(inten, stride + 1, stride, full, true, halfRoot);
 		ReadOnlySpan<Half> storedHalves = MemoryMarshal.Cast<byte, Half>(halfField);
+		ReadOnlySpan<Half> storedRoots = MemoryMarshal.Cast<byte, Half>(halfRoot);
 		bool rendersAlike = true;
 		for (int i = 0; i < W * H && rendersAlike; i++)
 		{
-			rendersAlike = indexField[i] == ColorLut.FieldIndex((float)storedHalves[i], 30f);
+			rendersAlike = indexField[i] == ColorLut.FieldIndex((float)storedHalves[i], 30f) && indexInten[i] == ColorLut.IntensityRootIndex((float)storedRoots[i], 5f);
 		}
-		Check(rendersAlike, "index shape: every index is the palette index of the half a 16-bit frame of the same floats stores");
+		Check(rendersAlike, "index shape: every index is the palette index of the half a 16-bit frame of the same floats stores, field and intensity root");
+		// the darkest indices at a high brightness (2026-10-23): an intensity of 2e-8 at brightness 30 is index 1.08, so 1;
+		// the intensity rounded to a half first had made it 0 (below half's smallest step, 6e-8), the root keeps it
+		{
+			FrameShape bright = new(4, 1, 1, FrameFormat.Index, 1f, 30f);
+			float[] dim = [2e-8f, 5e-8f, 1e-7f, 1e-6f];
+			var dimIndices = new byte[4];
+			FrameConversion.Convert(dim, 0, 4, bright, true, dimIndices);
+			var oldIndices = dim.Select(i => ColorLut.IntensityIndex((float)(Half)i, 30f)).ToArray();
+			var exact = dim.Select(i => (int)(Math.Sqrt(i) * 30 * 254)).ToArray();
+			Check(dimIndices.Select(b => (int)b).SequenceEqual(exact) && oldIndices[0] == 0 && exact[0] == 1,
+				$"index of dim intensities at brightness 30: {string.Join(" ", dimIndices)}, the exact ones; rounding I to a half first gave {string.Join(" ", oldIndices)}");
+		}
 
 		// the CPU engine's captures of every shape equal the reference conversion of its own floats
-		foreach (FrameShape shape in new[] { half, third, index, halfIndex })
+		foreach (FrameShape shape in new[] { linear, half, third, index, halfIndex, half with { IntensityRoot = false } })
 		{
 			var expectedField = new byte[shape.PlaneBytes];
 			var expectedInten = new byte[shape.PlaneBytes];
@@ -1559,7 +1601,7 @@ internal static class Program
 			cpu.CaptureFrame(snapshot, true);
 			cpu.AwaitFrame(snapshot);
 			Check(snapshot.HasIntensity && snapshot.FieldBytes.AsSpan().SequenceEqual(expectedField) && snapshot.IntensityBytes!.AsSpan().SequenceEqual(expectedInten),
-				$"CPU capture of 1/{shape.Divisor} {shape.Format} equals the reference conversion");
+				$"CPU capture of 1/{shape.Divisor} {shape.Format}{(shape.IntensityRoot ? "" : ", the intensity as I")} equals the reference conversion");
 		}
 		// the GPU's: halves within the tolerance, indices exact where the card's square root rounds correctly (within one elsewhere)
 		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, Sources(), out string problems);
@@ -1575,7 +1617,7 @@ internal static class Program
 				gpu.PrepareFrame(true, true);
 				float[] gpuField = (float[])gpu.FieldData.Clone();
 				float[] gpuInten = (float[])gpu.IntensityData!.Clone();
-				foreach (FrameShape shape in new[] { half, third, index, halfIndex })
+				foreach (FrameShape shape in new[] { linear, half, third, index, halfIndex, half with { IntensityRoot = false } })
 				{
 					var expectedField = new byte[shape.PlaneBytes];
 					var expectedInten = new byte[shape.PlaneBytes];
@@ -1606,7 +1648,7 @@ internal static class Program
 					}
 					int allowed = gpu.Device.CorrectlyRoundedSqrt ? 0 : 1;
 					Check(snapshot.HasIntensity && worstIndex <= allowed && worstHalf < tolerance,
-						$"GPU capture of 1/{shape.Divisor} {shape.Format} matches the reference conversion (index off by at most {worstIndex} of {allowed} allowed, halves by {worstHalf})");
+						$"GPU capture of 1/{shape.Divisor} {shape.Format}{(shape.IntensityRoot ? "" : ", the intensity as I")} matches the reference conversion (index off by at most {worstIndex} of {allowed} allowed, halves by {worstHalf})");
 				}
 			}
 		}
@@ -1759,29 +1801,37 @@ internal static class Program
 		// 16-bit samples (2026-10-23): the gradient at the sample's own position, rounded; grey is the Python code's 0..254 ramp
 		var values = new Half[4] { (Half)0f, (Half)0.5f, (Half)(-2f), (Half)1f };
 		var pixels = new int[4];
-		FrameRenderer.Render(values, 2, 2, ColorLut.Grey, FrameLayer.Field, 1f, pixels);
+		FrameRenderer.Render(values, 2, 2, ColorLut.Grey, SampleKind.Field, 1f, pixels);
 		Check(pixels[0] == Grey(127) && pixels[1] == Grey(191) && pixels[2] == Grey(0) && pixels[3] == Grey(254),
 			"field, grey: 0 -> 127, 0.5 -> 190.5 rounded to 191 (the palette truncates to 190), the clamp -> 0 and 254");
-		var intensities = new Half[4] { (Half)0f, (Half)(-1f), (Half)0.25f, (Half)9f };
-		FrameRenderer.Render(intensities, 2, 2, ColorLut.Grey, FrameLayer.Intensity, 1f, pixels);
-		Check(pixels[0] == Grey(0) && pixels[1] == Grey(0) && pixels[2] == Grey(127) && pixels[3] == Grey(254), "intensity, grey: <= 0 -> 0, sqrt(0.25) -> 127, the clamp -> 254");
+		// the intensity plane holds the square root (2026-10-23)
+		var intensities = new Half[4] { (Half)0f, (Half)(-1f), (Half)0.5f, (Half)3f };
+		FrameRenderer.Render(intensities, 2, 2, ColorLut.Grey, SampleKind.IntensityRoot, 1f, pixels);
+		Check(pixels[0] == Grey(0) && pixels[1] == Grey(0) && pixels[2] == Grey(127) && pixels[3] == Grey(254), "intensity, grey: <= 0 -> 0, a stored root of 0.5 -> 127, the clamp -> 254");
+		// a run for an OpenEXR export of I stores the intensity itself, coloured through its square root
+		var linearIntensities = new Half[4] { (Half)0f, (Half)(-1f), (Half)0.25f, (Half)9f };
+		FrameRenderer.Render(linearIntensities, 2, 2, ColorLut.Grey, SampleKind.Intensity, 1f, pixels);
+		Check(pixels[0] == Grey(0) && pixels[1] == Grey(0) && pixels[2] == Grey(127) && pixels[3] == Grey(254), "intensity stored as I, grey: <= 0 -> 0, sqrt(0.25) -> 127, the clamp -> 254");
 		// every value a half can hold, against the gradient worked out here: a ramp from black to blue 250 gets the nearest
 		// level to 250 × position, NaN in the field's middle, and every one of the 251 levels is used
 		{
 			ColorLut ramp = ColorLut.Build(new ColorScheme("ramp", [new Rgb(0, 0, 0), new Rgb(0, 0, 250)]));
-			int[] fieldTable = ramp.HalfTable(FrameLayer.Field, 3.5f);
-			int[] intensityTable = ramp.HalfTable(FrameLayer.Intensity, 3.5f);
+			int[] fieldTable = ramp.HalfTable(SampleKind.Field, 3.5f);
+			int[] intensityTable = ramp.HalfTable(SampleKind.IntensityRoot, 3.5f);
+			int[] linearTable = ramp.HalfTable(SampleKind.Intensity, 3.5f);
 			bool nearest = true;
 			for (int bits = 0; bits < ColorLut.HalfValues && nearest; bits++)
 			{
 				double value = (double)BitConverter.UInt16BitsToHalf((ushort)bits);
 				double fieldAt = double.IsNaN(value) ? 0.5 : (Math.Clamp(value * 3.5, -1.0, 1.0) + 1.0) / 2.0;
-				double intensityAt = value > 0.0 ? Math.Min(Math.Sqrt(value) * 3.5, 1.0) : 0.0;
+				double intensityAt = value > 0.0 ? Math.Min(value * 3.5, 1.0) : 0.0;
+				double linearAt = value > 0.0 ? Math.Min(Math.Sqrt(value) * 3.5, 1.0) : 0.0;
 				nearest = (fieldTable[bits] & ~0xFF) == unchecked((int)0xFF000000) && Math.Abs((fieldTable[bits] & 0xFF) - 250 * fieldAt) <= 0.5 + 1e-9
-					&& (intensityTable[bits] & ~0xFF) == unchecked((int)0xFF000000) && Math.Abs((intensityTable[bits] & 0xFF) - 250 * intensityAt) <= 0.5 + 1e-9;
+					&& (intensityTable[bits] & ~0xFF) == unchecked((int)0xFF000000) && Math.Abs((intensityTable[bits] & 0xFF) - 250 * intensityAt) <= 0.5 + 1e-9
+					&& (linearTable[bits] & ~0xFF) == unchecked((int)0xFF000000) && Math.Abs((linearTable[bits] & 0xFF) - 250 * linearAt) <= 0.5 + 1e-9;
 			}
-			Check(nearest && fieldTable.Distinct().Count() == 251 && intensityTable.Distinct().Count() == 251,
-				"half tables: each of the 65,536 values gets the level nearest the gradient at its position (field and intensity, NaN, infinities, zeros), every level used");
+			Check(nearest && fieldTable.Distinct().Count() == 251 && intensityTable.Distinct().Count() == 251 && linearTable.Distinct().Count() == 251,
+				"half tables: each of the 65,536 values gets the level nearest the gradient at its position (field, the intensity's root, the intensity; NaN, infinities, zeros), every level used");
 			// the frame: a lookup per sample over several row blocks and an odd width
 			var rng = new Random(11);
 			var frame = new Half[37 * 70];
@@ -1790,7 +1840,7 @@ internal static class Program
 				frame[i] = BitConverter.UInt16BitsToHalf((ushort)rng.Next(ColorLut.HalfValues));
 			}
 			var framePixels = new int[frame.Length];
-			FrameRenderer.Render(frame, 37, 70, ramp, FrameLayer.Field, 3.5f, framePixels);
+			FrameRenderer.Render(frame, 37, 70, ramp, SampleKind.Field, 3.5f, framePixels);
 			Check(Enumerable.Range(0, frame.Length).All(i => framePixels[i] == fieldTable[BitConverter.HalfToUInt16Bits(frame[i])]), "Render looks every sample up in the half table (37 × 70, three row blocks)");
 		}
 		// the case that started it (2026-10-23): Inferno's dark start, blue 3 to 33 over its first 15 palette entries,
@@ -1798,12 +1848,12 @@ internal static class Program
 		ColorScheme infernoScheme = ColorSchemeStore.LoadBuiltIn(null).First(s => s.Name == "Inferno");
 		ColorLut inferno = ColorLut.Build(infernoScheme);
 		int paletteBlues = Enumerable.Range(0, 16).Select(i => inferno.ColorAt(i).B).Distinct().Count();
-		int[] dark = inferno.HalfTable(FrameLayer.Intensity, 1f);
+		int[] dark = inferno.HalfTable(SampleKind.IntensityRoot, 1f);
 		int halfBlues = Enumerable.Range(0, ColorLut.HalfValues)
-			.Where(bits => (double)BitConverter.UInt16BitsToHalf((ushort)bits) is var v && v > 0.0 && Math.Sqrt(v) <= 15 / 254.0)
+			.Where(bits => (double)BitConverter.UInt16BitsToHalf((ushort)bits) is var v && v > 0.0 && v <= 15 / 254.0)
 			.Select(bits => dark[bits] & 0xFF).Distinct().Count();
 		Check(paletteBlues == 16 && halfBlues == 31, $"Inferno's dark start: the palette's first 16 entries have {paletteBlues} levels of blue, the half table every one from 3 to 33 ({halfBlues})");
-		Check(ReferenceEquals(inferno.HalfTable(FrameLayer.Intensity, 1f), dark) && !ReferenceEquals(inferno.HalfTable(FrameLayer.Field, 1f), dark) && !ReferenceEquals(inferno.HalfTable(FrameLayer.Intensity, 2f), dark),
+		Check(ReferenceEquals(inferno.HalfTable(SampleKind.IntensityRoot, 1f), dark) && !ReferenceEquals(inferno.HalfTable(SampleKind.Field, 1f), dark) && !ReferenceEquals(inferno.HalfTable(SampleKind.IntensityRoot, 2f), dark),
 			"a half table is kept per layer until another brightness asks");
 		// the 8-bit palette, as the author's table
 		var stops = new Rgb[ColorScheme.StopCount];
@@ -1818,7 +1868,7 @@ internal static class Program
 		FrameRenderer.RenderIndexed(new byte[] { 0, 127, 254, 255 }, 2, 2, built, indexed);
 		Check(indexed.SequenceEqual([built.Argb[0], built.Argb[127], built.Argb[254], built.Argb[254]]), "RenderIndexed looks each byte up in the palette, 255 as 254");
 		ColorLut lifted = ColorLut.Build(scheme, blackLevel: 0.5);
-		Check(lifted.ColorAt(0).G == 127 && ((lifted.HalfTable(FrameLayer.Intensity, 1f)[0] >> 8) & 0xFF) == 128,
+		Check(lifted.ColorAt(0).G == 127 && ((lifted.HalfTable(SampleKind.IntensityRoot, 1f)[0] >> 8) & 0xFF) == 128,
 			"black level 0.5 lifts a 0 channel to 127 in the palette (truncated, as in Python) and to 128 in the half table (rounded)");
 		CheckScreenRenderer(inferno);
 	}
@@ -1864,26 +1914,28 @@ internal static class Program
 			plane[i] = (Half)(rng.NextDouble() * 0.2);
 		}
 		var direct = new int[w * h];
-		FrameRenderer.Render(plane, w, h, lut, FrameLayer.Intensity, 3f, direct);
+		FrameRenderer.Render(plane, w, h, lut, SampleKind.IntensityRoot, 3f, direct);
 		var screen = new int[w * h];
-		new ScreenRenderer(w, h, w, h).Render(plane, lut, FrameLayer.Intensity, 3f, 0, screen);
+		new ScreenRenderer(w, h, w, h).Render(plane, lut, SampleKind.IntensityRoot, 3f, 0, screen);
 		Check(screen.SequenceEqual(direct), "screen renderer at the samples' size, no dithering: the half table's picture, bit for bit");
-		// halved: each pixel the colour of its 2 x 2 block's mean (in value space, before any colour)
+		// halved: each pixel the colour of its 2 x 2 block's mean (in value space, before any colour; the intensity, stored as
+		// its root, as energy: the root of the mean square)
 		var shrunk = new int[30 * 22];
-		new ScreenRenderer(60, 44, 30, 22).Render(plane.AsMemory(0, 60 * 44), lut, FrameLayer.Intensity, 3f, 0, shrunk);
-		int[] table = lut.HalfTable(FrameLayer.Intensity, 3f);
+		new ScreenRenderer(60, 44, 30, 22).Render(plane.AsMemory(0, 60 * 44), lut, SampleKind.IntensityRoot, 3f, 0, shrunk);
+		int[] table = lut.HalfTable(SampleKind.IntensityRoot, 3f);
 		bool means = true;
 		for (int y = 0; y < 22; y++)
 		{
 			for (int x = 0; x < 30; x++)
 			{
-				double mean = ((double)plane[2 * y * 60 + 2 * x] + (double)plane[2 * y * 60 + 2 * x + 1] + (double)plane[(2 * y + 1) * 60 + 2 * x] + (double)plane[(2 * y + 1) * 60 + 2 * x + 1]) / 4;
+				double a = (double)plane[2 * y * 60 + 2 * x], b = (double)plane[2 * y * 60 + 2 * x + 1], c = (double)plane[(2 * y + 1) * 60 + 2 * x], d = (double)plane[(2 * y + 1) * 60 + 2 * x + 1];
+				double mean = Math.Sqrt((a * a + b * b + c * c + d * d) / 4);
 				// the sums run in single precision (fused or not, by the machine): the half they round to may be the neighbour
 				int bits = BitConverter.HalfToUInt16Bits((Half)mean);
 				means &= shrunk[y * 30 + x] == table[bits] || shrunk[y * 30 + x] == table[bits - 1] || shrunk[y * 30 + x] == table[bits + 1];
 			}
 		}
-		Check(means, "screen renderer halving: every pixel the colour of its 2 x 2 samples' mean value");
+		Check(means, "screen renderer halving: every pixel the colour of its 2 x 2 samples' mean (the intensity's mean energy)");
 		// the field's crest and trough average to zero, the gradient's middle, not to a mix of their colours
 		var wave = new Half[4 * 2];
 		for (int i = 0; i < wave.Length; i++)
@@ -1891,14 +1943,14 @@ internal static class Program
 			wave[i] = (Half)(i % 2 == 0 ? 0.5f : -0.5f);
 		}
 		var flat = new int[2];
-		new ScreenRenderer(4, 2, 2, 1).Render(wave, lut, FrameLayer.Field, 1f, 0, flat);
-		Check(flat.All(p => p == lut.HalfTable(FrameLayer.Field, 1f)[BitConverter.HalfToUInt16Bits((Half)0f)]), "screen renderer: a crest beside a trough shrinks to the colour of zero");
+		new ScreenRenderer(4, 2, 2, 1).Render(wave, lut, SampleKind.Field, 1f, 0, flat);
+		Check(flat.All(p => p == lut.HalfTable(SampleKind.Field, 1f)[BitConverter.HalfToUInt16Bits((Half)0f)]), "screen renderer: a crest beside a trough shrinks to the colour of zero");
 		// the dither: a flat plane comes out at the colour's two neighbouring 8-bit levels, their mix over one matrix the
 		// 16-bit colour to the depth's bits; without dithering the level rounded
-		ulong[] deep = lut.DeepHalfTable(FrameLayer.Intensity, 1f);
+		ulong[] deep = lut.DeepHalfTable(SampleKind.IntensityRoot, 1f);
 		bool deepRounds = Enumerable.Range(0, ColorLut.HalfValues).All(bits =>
 		{
-			int argb = lut.HalfTable(FrameLayer.Intensity, 1f)[bits];
+			int argb = lut.HalfTable(SampleKind.IntensityRoot, 1f)[bits];
 			ulong d = deep[bits];
 			return Math.Abs(((argb >> 16) & 0xFF) - ((d >> 32) & 0xFFFF) / 256.0) <= 0.5 + 1 / 256.0
 				&& Math.Abs(((argb >> 8) & 0xFF) - ((d >> 16) & 0xFFFF) / 256.0) <= 0.5 + 1 / 256.0
@@ -1919,7 +1971,7 @@ internal static class Program
 			var flatPlane = new Half[32 * 32];
 			Array.Fill(flatPlane, dark);
 			var dithered = new int[32 * 32];
-			new ScreenRenderer(32, 32, 32, 32).Render(flatPlane, lut, FrameLayer.Intensity, 1f, bits, dithered);
+			new ScreenRenderer(32, 32, 32, 32).Render(flatPlane, lut, SampleKind.IntensityRoot, 1f, bits, dithered);
 			int[] blues = [.. dithered.Select(p => p & 0xFF)];
 			double mean = Enumerable.Range(0, side).SelectMany(y => Enumerable.Range(0, side).Select(x => blues[y * 32 + x])).Average();
 			// the fraction to the depth's bits, a half going up (the threshold's tie)
@@ -1932,13 +1984,13 @@ internal static class Program
 		var plain = new int[32 * 32];
 		var plainPlane = new Half[32 * 32];
 		Array.Fill(plainPlane, dark);
-		new ScreenRenderer(32, 32, 32, 32).Render(plainPlane, lut, FrameLayer.Intensity, 1f, 0, plain);
-		Check(dithers && plain.All(p => p == lut.HalfTable(FrameLayer.Intensity, 1f)[BitConverter.HalfToUInt16Bits(dark)]),
+		new ScreenRenderer(32, 32, 32, 32).Render(plainPlane, lut, SampleKind.IntensityRoot, 1f, 0, plain);
+		Check(dithers && plain.All(p => p == lut.HalfTable(SampleKind.IntensityRoot, 1f)[BitConverter.HalfToUInt16Bits(dark)]),
 			"Bayer dither at 10, 12, 14 and 16 bits: a permutation of the matrix's thresholds, only the two neighbouring levels, one tile repeated, its mean the 16-bit colour to the depth's bits; off rounds (" + string.Join(", ", detail) + ")");
 		bool refused = false;
 		try
 		{
-			new ScreenRenderer(2, 2, 2, 2).Render(new Half[4], lut, FrameLayer.Field, 1f, 11, new int[4]);
+			new ScreenRenderer(2, 2, 2, 2).Render(new Half[4], lut, SampleKind.Field, 1f, 11, new int[4]);
 		}
 		catch (ArgumentOutOfRangeException)
 		{
@@ -3199,20 +3251,26 @@ internal static class Program
 			field[i] = (Half)((i % 2 == 0 ? 1 : -1) * 0.001f * i);
 		}
 		field[1234] = (Half)50f;
-		double? fit = BrightnessFit.For(field, FrameLayer.Field);
+		double? fit = BrightnessFit.For(field, SampleKind.Field);
 		// the 99.5th percentile of |v| is about 9.95 (the source cell moves it by one rank), so the gain is about 0.1
 		Check(fit is >= 0.099 and <= 0.102, "the field fit brings the 99.5th percentile of |value| to the palette's top, a source cell of 50 aside (" + fit + ")");
 		var intensity = new Half[10_000];
 		for (int i = 0; i < intensity.Length; i++)
 		{
-			intensity[i] = (Half)(0.0001f * i);
+			intensity[i] = (Half)MathF.Sqrt(0.0001f * i); // as a 16-bit frame stores it, the square root
 		}
-		double? intensityFit = BrightnessFit.For(intensity, FrameLayer.Intensity);
+		double? intensityFit = BrightnessFit.For(intensity, SampleKind.IntensityRoot);
 		// √(0.0001 × 9949) = 0.9974, its inverse 1.003, three digits
-		Check(intensityFit == 1.0, "the intensity fit works on the square root, as the renderer colours it (" + intensityFit + ")");
-		Check(BrightnessFit.For(new Half[100], FrameLayer.Field) == null && BrightnessFit.For([Half.NaN, Half.PositiveInfinity], FrameLayer.Field) == null, "an empty frame has nothing to fit");
-		Check(BrightnessFit.For([(Half)1e-6f, (Half)1e-6f], FrameLayer.Field) == 1e5, "the fit is clamped to the model's range (1e5 at most)");
-		double? rounded = BrightnessFit.For([(Half)0.03f, (Half)0.03f], FrameLayer.Field);
+		Check(intensityFit == 1.0, "the intensity fit works on the stored square root, as the renderer colours it (" + intensityFit + ")");
+		var linearIntensity = new Half[10_000];
+		for (int i = 0; i < linearIntensity.Length; i++)
+		{
+			linearIntensity[i] = (Half)(0.0001f * i); // as a run for an OpenEXR export of I stores it
+		}
+		Check(BrightnessFit.For(linearIntensity, SampleKind.Intensity) == intensityFit, "the fit of an intensity stored as I takes its square root, to the same brightness");
+		Check(BrightnessFit.For(new Half[100], SampleKind.Field) == null && BrightnessFit.For([Half.NaN, Half.PositiveInfinity], SampleKind.Field) == null, "an empty frame has nothing to fit");
+		Check(BrightnessFit.For([(Half)1e-6f, (Half)1e-6f], SampleKind.Field) == 1e5, "the fit is clamped to the model's range (1e5 at most)");
+		double? rounded = BrightnessFit.For([(Half)0.03f, (Half)0.03f], SampleKind.Field);
 		Check(rounded is { } r && r.ToString(CultureInfo.InvariantCulture).Length <= 4, "the fit is rounded to three significant digits (" + rounded + ")");
 	}
 

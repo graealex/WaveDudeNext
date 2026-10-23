@@ -349,7 +349,7 @@ public sealed class ExportJob : INotifyPropertyChanged
 						throw new InvalidOperationException($"Frame {frame} is not in the store (it holds {Store.Count}).");
 					}
 					int[] pixels = free.Take();
-					FrameRenderer.Render(values, width, height, layer.Lut, layer.Layer, layer.Brightness, pixels);
+					FrameRenderer.Render(values, width, height, layer.Lut, Store.KindOf(layer.Layer), layer.Brightness, pixels);
 					Finish(layer, frame, pixels, width, height);
 					queue.Add(new Item(frame, t, pixels, null));
 				}

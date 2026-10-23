@@ -18,7 +18,6 @@
 using System.Collections.Concurrent;
 using System.Numerics.Tensors;
 using System.Runtime.InteropServices;
-using WaveDudeNext.Runs;
 
 namespace WaveDudeNext.Rendering;
 
@@ -111,8 +110,9 @@ public sealed class ResampleAxis
 
 /// <summary>
 /// Renders a plane of 16-bit samples at the size it is shown on screen, for the preview (2026-10-23, the user's design):
-/// the samples are resampled in value space first (<see cref="ResampleAxis"/>, rows then columns), so every screen pixel
-/// shows a value the field or intensity has there, in a colour of the gradient; the value is looked up in the layer's
+/// the samples are resampled in value space first (<see cref="ResampleAxis"/>, rows then columns; the intensity's square
+/// root as energy), so every screen pixel shows a value the field or intensity has there, in a colour of the
+/// gradient; the value is looked up in the layer's
 /// half table and, with dithering, rounded to 8 bits per channel through a Bayer matrix fixed to the screen pixels. Only
 /// for the screen: a dithered picture cannot be scaled again, and an export never is one. One instance per picture and
 /// size, holding the axes and the rows between the passes; one render at a time, on any thread, the rows of each pass
@@ -156,11 +156,11 @@ public sealed class ScreenRenderer
 	/// </summary>
 	/// <param name="values">The plane's samples.</param>
 	/// <param name="lut">The colours.</param>
-	/// <param name="layer">Which mapping the samples take: the signed field or the non-negative intensity.</param>
+	/// <param name="kind">What the samples are: the signed field, the intensity, or its square root.</param>
 	/// <param name="brightness">The layer's gain.</param>
 	/// <param name="ditherBits">0 for none (each value's colour rounded to 8 bits, <see cref="ColorLut.HalfTable"/>), else one of <see cref="DitherDepths"/>.</param>
 	/// <param name="pixels">Destination.</param>
-	public void Render(ReadOnlyMemory<Half> values, ColorLut lut, FrameLayer layer, float brightness, int ditherBits, Memory<int> pixels)
+	public void Render(ReadOnlyMemory<Half> values, ColorLut lut, SampleKind kind, float brightness, int ditherBits, Memory<int> pixels)
 	{
 		if (ditherBits != 0 && !DitherDepths.Contains(ditherBits))
 		{
@@ -169,12 +169,18 @@ public sealed class ScreenRenderer
 		int sourceWidth = _x.Source;
 		int targetWidth = _x.Target;
 		float[] rows = _rows;
+		// the intensity's square root is blended as energy, its square, and rooted again before the lookup
+		bool energy = kind == SampleKind.IntensityRoot;
 		// rows: every sample row to the screen's width
 		Parallel.ForEach(Partitioner.Create(0, _y.Source, 32), () => new float[sourceWidth], (block, _, line) =>
 		{
 			for (int y = block.Item1; y < block.Item2; y++)
 			{
 				TensorPrimitives.ConvertToSingle(values.Span.Slice(y * sourceWidth, sourceWidth), line);
+				if (energy)
+				{
+					TensorPrimitives.Multiply(line, line, line);
+				}
 				Span<float> target = rows.AsSpan(y * targetWidth, targetWidth);
 				for (int t = 0; t < targetWidth; t++)
 				{
@@ -190,8 +196,8 @@ public sealed class ScreenRenderer
 			return line;
 		}, _ => { });
 		// columns: every screen row from the rows it covers, then its colours
-		int[]? table = ditherBits == 0 ? lut.HalfTable(layer, brightness) : null;
-		ulong[]? deep = ditherBits == 0 ? null : lut.DeepHalfTable(layer, brightness);
+		int[]? table = ditherBits == 0 ? lut.HalfTable(kind, brightness) : null;
+		ulong[]? deep = ditherBits == 0 ? null : lut.DeepHalfTable(kind, brightness);
 		int[] thresholds = ditherBits == 0 ? [] : BayerThresholds(ditherBits);
 		int side = ditherBits == 0 ? 1 : 1 << ((ditherBits - 8) / 2);
 		Parallel.ForEach(Partitioner.Create(0, _y.Target, 32), () => (Values: new float[targetWidth], Halves: new Half[targetWidth]), (block, _, buffers) =>
@@ -203,6 +209,10 @@ public sealed class ScreenRenderer
 				for (int k = 1; k < weights.Length; k++)
 				{
 					TensorPrimitives.MultiplyAdd(rows.AsSpan((first + k) * targetWidth, targetWidth), weights[k], buffers.Values, buffers.Values);
+				}
+				if (energy)
+				{
+					TensorPrimitives.Sqrt(buffers.Values, buffers.Values);
 				}
 				TensorPrimitives.ConvertToHalf(buffers.Values, buffers.Halves);
 				ReadOnlySpan<ushort> bits = MemoryMarshal.Cast<Half, ushort>(buffers.Halves);

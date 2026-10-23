@@ -17,6 +17,7 @@
 
 using System.Runtime.InteropServices;
 using WaveDudeNext.Engine;
+using WaveDudeNext.Rendering;
 
 namespace WaveDudeNext.Runs;
 
@@ -44,6 +45,9 @@ public interface IFrameSource
 	/// <summary>The sample format of every plane.</summary>
 	FrameFormat Format { get; }
 
+	/// <summary>Whether a <see cref="FrameFormat.Half"/> intensity plane holds the intensity's square root, the preview's, rather than the intensity (<see cref="FrameShape.IntensityRoot"/>).</summary>
+	bool IntensityRoot { get; }
+
 	/// <summary>Frames available: indices 0..Count-1 may be read.</summary>
 	int Count { get; }
 
@@ -56,6 +60,14 @@ public interface IFrameSource
 	/// <summary>Reads one plane of a frame as <see cref="Half"/> values into <paramref name="destination"/>; false when the source is gone.</summary>
 	/// <exception cref="InvalidOperationException">The samples are not halves (<see cref="Format"/>).</exception>
 	bool CopyLayer(int frame, FrameLayer layer, Span<Half> destination);
+}
+
+/// <summary>What the planes of a frame source hold, for the renderer and the brightness fit.</summary>
+public static class FrameSources
+{
+	/// <summary>The kind of the 16-bit samples of <paramref name="layer"/>: the field, the intensity, or its square root.</summary>
+	public static SampleKind KindOf(this IFrameSource source, FrameLayer layer) =>
+		layer == FrameLayer.Field ? SampleKind.Field : source.IntensityRoot ? SampleKind.IntensityRoot : SampleKind.Intensity;
 }
 
 /// <summary>A single captured frame as a one-frame <see cref="IFrameSource"/>; every frame index reads the same snapshot.</summary>
@@ -78,6 +90,9 @@ public sealed class SnapshotFrameSource(FrameSnapshot snapshot) : IFrameSource
 
 	/// <inheritdoc/>
 	public FrameFormat Format => Snapshot.Shape.Format;
+
+	/// <inheritdoc/>
+	public bool IntensityRoot => Snapshot.Shape.IntensityRoot;
 
 	/// <inheritdoc/>
 	public int Count => 1;

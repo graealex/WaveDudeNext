@@ -277,7 +277,7 @@ public partial class MainWindow
 				}
 			}
 		}
-		SimulationRun? run = await EnsureRunForExport(intensity, needsHalves: true);
+		SimulationRun? run = await EnsureRunForExport(intensity, needsHalves: true, intensityRoot: intensity ? ExportFormats.IntensityRootFor(format) : null);
 		if (run == null)
 		{
 			return;
@@ -344,7 +344,8 @@ public partial class MainWindow
 				targets.Add(new ExportTarget(exportLayer, output, open));
 				if (ExportFormats.IsData(format))
 				{
-					Logger.Debug("Export target {Layer}: the stored 16-bit values as OpenEXR (no colours, outline or boxes), to {Output}", layer, output);
+					Logger.Debug("Export target {Layer}: the stored 16-bit values as OpenEXR{Samples} (no colours, outline or boxes), to {Output}",
+						layer, layer == FrameLayer.Intensity ? (run.Store.IntensityRoot ? ", the intensity's square root" : ", the intensity itself") : "", output);
 				}
 				else
 				{
@@ -386,7 +387,8 @@ public partial class MainWindow
 	/// </summary>
 	/// <param name="intensity">The run must hold the intensity plane.</param>
 	/// <param name="needsHalves">The run must hold 16-bit samples (every picture or data export); the probe data does with the 8-bit index.</param>
-	private async Task<SimulationRun?> EnsureRunForExport(bool intensity, bool needsHalves)
+	/// <param name="intensityRoot">What the run's 16-bit intensity must hold for an OpenEXR export of it: its square root (true), the intensity (false), or either (null).</param>
+	private async Task<SimulationRun?> EnsureRunForExport(bool intensity, bool needsHalves, bool? intensityRoot = null)
 	{
 		IsExportWaiting = true;
 		try
@@ -401,11 +403,13 @@ public partial class MainWindow
 				bool reduced = quality != null && (quality.ResolutionDivisor != 1 || quality.FrameDivisor != 1 || (quality.Format != FrameFormat.Half && needsHalves));
 				string? reason = run == null ? "no run" : IsRunStale ? "the run is stale" : IsProbesStale ? "the probes were edited since the run"
 					: reduced ? (quality!.Format != FrameFormat.Half && needsHalves && quality.ResolutionDivisor == 1 && quality.FrameDivisor == 1 ? "the export needs the 16-bit samples" : "the run is a reduced preview (View menu)")
-					: intensity && !run.Store.Has(FrameLayer.Intensity) ? "the run has no intensity plane" : !run.IsActive && run.State != RunState.Completed ? "the run did not complete" : null;
+					: intensity && !run.Store.Has(FrameLayer.Intensity) ? "the run has no intensity plane"
+					: intensityRoot is bool root && run.Store.IntensityRoot != root ? (root ? "the export needs the intensity as its square root" : "the export needs the intensity as I, which the preview stores as its square root")
+					: !run.IsActive && run.State != RunState.Completed ? "the run did not complete" : null;
 				if (reason != null)
 				{
 					Logger.Debug("Export: a run is started first ({Reason})", reason);
-					StartRun(automatic: true, trackIntensity: intensity, fullQuality: true);
+					StartRun(automatic: true, trackIntensity: intensity, fullQuality: true, intensityRoot: intensityRoot ?? true);
 					run = Run;
 				}
 				else if (run!.IsActive)

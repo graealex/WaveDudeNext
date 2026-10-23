@@ -31,13 +31,14 @@ namespace WaveDudeNext.Runs;
 /// <param name="ResolutionDivisor">Cells per sample along each axis (1, 2, 4: full, half, quarter resolution).</param>
 /// <param name="FrameDivisor">Timeline frames per stored frame (1, 2, 4: every frame, every second, every fourth); see <see cref="RunSpec.FrameStride"/>.</param>
 /// <param name="Format">The sample format; <see cref="FrameFormat.Index"/> bakes the display brightness into the frames.</param>
-public sealed record PreviewQuality(int ResolutionDivisor, int FrameDivisor, FrameFormat Format)
+/// <param name="IntensityRoot">Whether 16-bit frames hold the intensity's square root, as the preview keeps it, or the intensity itself, for an OpenEXR export of I (<see cref="FrameShape.IntensityRoot"/>).</param>
+public sealed record PreviewQuality(int ResolutionDivisor, int FrameDivisor, FrameFormat Format, bool IntensityRoot = true)
 {
-	/// <summary>Every cell of every frame as a <see cref="FrameFormat.Half"/>: what an export needs and the default.</summary>
+	/// <summary>Every cell of every frame as a <see cref="FrameFormat.Half"/>, the intensity as its root: what an export needs and the default.</summary>
 	public static readonly PreviewQuality Full = new(1, 1, FrameFormat.Half);
 
-	/// <summary>Whether this is <see cref="Full"/>.</summary>
-	public bool IsFull => this == Full;
+	/// <summary>Whether every cell of every frame is kept as a <see cref="FrameFormat.Half"/>, whatever the intensity's samples are.</summary>
+	public bool IsFull => ResolutionDivisor == 1 && FrameDivisor == 1 && Format == FrameFormat.Half;
 
 	/// <summary>Validates the record: both divisors at least 1.</summary>
 	/// <exception cref="ArgumentOutOfRangeException">A divisor is below 1.</exception>
@@ -50,5 +51,6 @@ public sealed record PreviewQuality(int ResolutionDivisor, int FrameDivisor, Fra
 
 	/// <inheritdoc/>
 	public override string ToString() =>
-		IsFull ? "full" : $"1/{ResolutionDivisor} resolution, every {FrameDivisor}. frame, {(Format == FrameFormat.Half ? "16-bit" : "8-bit")}";
+		(IsFull ? "full" : $"1/{ResolutionDivisor} resolution, every {FrameDivisor}. frame, {(Format == FrameFormat.Half ? "16-bit" : "8-bit")}")
+		+ (IntensityRoot || Format != FrameFormat.Half ? "" : ", the intensity as I");
 }

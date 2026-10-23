@@ -46,7 +46,7 @@ public sealed class RunSpec
 		Steps = project.Simulation.Steps;
 		Quality = quality.Validate();
 		VisualizeEvery = Math.Max(1, project.Simulation.VisualizeEvery);
-		Shape = new FrameShape(width, height, quality.ResolutionDivisor, quality.Format, (float)project.Display.Field.Brightness, (float)project.Display.Intensity.Brightness);
+		Shape = new FrameShape(width, height, quality.ResolutionDivisor, quality.Format, (float)project.Display.Field.Brightness, (float)project.Display.Intensity.Brightness, quality.IntensityRoot);
 		PreferGpu = preferGpu;
 		Engine = EngineOptions.From(project.Simulation, project.Scene, trackIntensity);
 		Image = image;

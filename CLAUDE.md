@@ -132,11 +132,19 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Reduced preview** (View menu): resolution 1/2/4, frames 1/2/4 (the timeline never changes), samples 16-bit or
   **8-bit palette index, the default**: the stored samples at the palette's 255 colours and the captured brightness,
   half the store; 16-bit keeps the brightness turnable after a run and shows every level of the gradient. In 8-bit a
-  brightness edit is a simulation edit. The index is computed from the sample rounded to a half, on the CPU and in the
-  kernel (a bit-level rounding there), and the GPU program is built with a correctly rounded square root where the card
-  has one, so CPU and GPU store the same index bytes (2026-10-19).
+  brightness edit is a simulation edit. The index is computed from the value a 16-bit frame stores, rounded to a half
+  (the field, the intensity's root), on the CPU and in the kernel (a bit-level rounding there), and the GPU program is
+  built with a correctly rounded square root where the card has one, so CPU and GPU store the same index bytes (2026-10-19).
   Every export needs the 16-bit samples (2026-10-23, the user's choice, so a picture has every level of the gradient):
   an 8-bit run, a reduced resolution or skipped frames make the export run the simulation again at full quality first.
+  **A 16-bit intensity plane holds √I** (2026-10-23, the user's choice: the renderer colours √I, and as I the dark end
+  lay among half's subnormals, below 6.1e-5, up to a palette level between neighbours; as √I the floor is at I =
+  3.7e-9, the brightest parts a bit coarser): `FrameShape.IntensityRoot`, from the run's `PreviewQuality`, produced by
+  `FrameConversion` and `capture_half`, reported by every `IFrameSource`; the renderer, the screen path (which blends
+  it as energy) and the fit go by its `SampleKind`. Only an OpenEXR export of I makes a run that stores I itself
+  (squaring √I back would lose a bit). The 8-bit index is the palette index of that same stored half, √I for the
+  intensity (2026-10-23, the user's choice: one rule for both previews; rounding I to a half first had merged the
+  darkest indices at a high brightness, 2e-8 at 30 coming out 0 instead of 1).
 
 ## The app's rules
 
@@ -178,7 +186,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   size and scaled by WPF, as before. 16-bit samples are drawn at each picture's size on screen (`ScreenRenderer`, the
   pane reports the Image's rounded `RenderSize` in device pixels): resampled in value space, never colours (a box mean
   when shrinking, bilinear when enlarging, so every pixel shows a real value in a gradient colour), then the half
-  table; the bitmap's DPI makes it measure the canvas, so layout and overlays are unchanged and WPF draws it 1:1.
+  table. The pictures are `CanvasImage`s, sized by the canvas and never by their bitmap, so a 16-bit bitmap is plain
+  screen pixels drawn 1:1 and a new one never moves the layout (2026-10-23: a resolution set to make the bitmap measure
+  the canvas came back from WPF in single precision, the reuse test failed on every frame, and the pane flickered).
   **Preview dithering** (View menu, user setting, off by default until the user has seen it; only with 16-bit samples):
   the colours at 16 bits per channel (`DeepHalfTable`) to 8 through a Bayer matrix of 2, 4, 8 or 16 cells a side for
   10, 12, 14 or 16 bits, fixed to the screen's pixels; preview only, never in an export (a video crushes it; an export
@@ -205,7 +215,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   at quality 100; 4:4:4 at 90 beat it in every channel at half the size), and
   **OpenEXR sequences or stills** (2026-10-18, the user's choice for data export to NumPy, MATLAB, Octave add-ons
   and viewers such as DJV): the stored halves themselves, one uncompressed "Y" channel per file, no colours,
-  brightness, outline or boxes; a sink that `WantsHalves` gets the plane from the job unrendered. **Source markers**
+  brightness, outline or boxes; a sink that `WantsHalves` gets the plane from the job unrendered. Two entries in the
+  dialog (2026-10-23): the intensity as I (a run storing I is made first; a scripted `.exr`) or as √I (the preview's
+  run as it is); the field the same in both. **Source markers**
   (2026-10-21, Display, off by default, the user's choices): the preview's marker, a composite source's dots and the
   name, enabled sources only, scaled like the probe labels, under the probe markers and boxes. Harness hooks:
   `WAVEDUDE_EXPORT_PATH`, `WAVEDUDE_DISCARD_EDITS=1`.

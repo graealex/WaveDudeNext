@@ -34,7 +34,7 @@ namespace WaveDudeNext.WPF.Rendering;
 /// indices, the fast preview, is coloured at its own size and WPF scales the picture; a frame of 16-bit samples is
 /// rendered at the size its picture takes on screen (<see cref="SetTargetSize"/>, <see cref="ScreenRenderer"/>:
 /// resampled in value space, coloured from the gradient, optionally dithered, <see cref="DitherBits"/>), into a bitmap
-/// whose resolution makes it measure the canvas size, so the layout is the same and WPF draws it 1:1. A UI-thread
+/// of that many pixels, which the picture (<see cref="Controls.CanvasImage"/>, sized by the canvas) draws 1:1. A UI-thread
 /// object: <see cref="Source"/>, <see cref="SetLayer"/> and <see cref="Show"/> are called there; the colouring
 /// runs on the thread pool, one job at a time, and only the newest request is honoured (a scrub that outruns
 /// the renderer skips frames rather than queueing them). The bitmaps are written on the UI thread.
@@ -326,7 +326,7 @@ public sealed class FramePresenter
 				else
 				{
 					// 16-bit samples: resampled to the picture's size on screen, every level of the gradient, dithered if chosen
-					Screen(layer, width, height, outWidth, outHeight).Render(job.Halves, settings.Lut, layer, settings.Brightness, job.DitherBits, pixels);
+					Screen(layer, width, height, outWidth, outHeight).Render(job.Halves, settings.Lut, job.Source.KindOf(layer), settings.Brightness, job.DitherBits, pixels);
 				}
 				_colourClock.Stop();
 				_shownSize = (outWidth, outHeight);
@@ -336,20 +336,20 @@ public sealed class FramePresenter
 				// dependency properties with thread affinity (read from here they threw on every frame, 2026-10-16). Both
 				// layers are unlocked in one call below, one render pass per presented frame instead of two. Render
 				// priority, on purpose: at background priority the calls waited behind every mouse move of a scrub.
-				// A 16-bit picture of another size is made here and shown once written: its resolution makes it measure
-				// the canvas, so the layout stays, and its pixels are the picture's on screen
+				// A 16-bit picture of another size is made here and shown once written; the picture sizes itself by the canvas
+				// (CanvasImage), so its bitmap is plain screen pixels and a new one never moves the layout. It is kept while its
+				// pixel size fits (2026-10-23: a resolution set to make it measure the canvas came back from WPF in single
+				// precision, a compare with it failed on every frame, and two new pictures a frame made the whole pane flicker)
 				_writeClock.Start();
-				double dpiX = 96.0 * outWidth / job.Source.CanvasWidth;
-				double dpiY = 96.0 * outHeight / job.Source.CanvasHeight;
 				(WriteableBitmap? bitmap, bool isNew, IntPtr buffer, int stride) = _dispatcher.Invoke(() =>
 				{
 					WriteableBitmap? target = job.Indices != null ? job.Bitmaps[(int)layer] : layer == FrameLayer.Field ? FieldBitmap : IntensityBitmap;
 					bool fresh = false;
-					if (job.Indices == null && (target == null || target.PixelWidth != outWidth || target.PixelHeight != outHeight
-						|| Math.Abs(target.DpiX - dpiX) > 1e-9 || Math.Abs(target.DpiY - dpiY) > 1e-9))
+					if (job.Indices == null && (target == null || target.PixelWidth != outWidth || target.PixelHeight != outHeight))
 					{
-						target = NewBitmap(outWidth, outHeight, dpiX, dpiY);
+						target = NewBitmap(outWidth, outHeight, 96, 96);
 						fresh = true;
+						Logger.Debug("Preview {Layer}: a new 16-bit picture of {Width}×{Height} screen pixels", layer, outWidth, outHeight);
 					}
 					if (target == null)
 					{

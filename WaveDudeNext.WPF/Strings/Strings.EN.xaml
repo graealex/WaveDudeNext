@@ -232,11 +232,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Ready">Ready</s:String>
 
 	<!-- export: the Save dialog, the status bar line ({0} frames done, {1} frames) and the questions -->
-	<s:String x:Key="ExportDialogFilter">MP4 video, H.264 (*.mp4)|*.mp4|MPEG-1 video (*.mpg)|*.mpg|AVI video, uncompressed (*.avi)|*.avi|QuickTime movie, Animation codec, lossless (*.mov)|*.mov|QuickTime movie, PNG codec, lossless (*.mov)|*.mov|PNG image sequence (*.png)|*.png|JPEG image sequence (*.jpg)|*.jpg|OpenEXR image sequence, 16-bit float data (*.exr)|*.exr</s:String>
+	<s:String x:Key="ExportDialogFilter">MP4 video, H.264 (*.mp4)|*.mp4|MPEG-1 video (*.mpg)|*.mpg|AVI video, uncompressed (*.avi)|*.avi|QuickTime movie, Animation codec, lossless (*.mov)|*.mov|QuickTime movie, PNG codec, lossless (*.mov)|*.mov|PNG image sequence (*.png)|*.png|JPEG image sequence (*.jpg)|*.jpg|OpenEXR image sequence, 16-bit float data, intensity as I (*.exr)|*.exr|OpenEXR image sequence, 16-bit float data, intensity as √I (*.exr)|*.exr</s:String>
 	<s:String x:Key="ExportDialogTitleField">Export the field</s:String>
 	<s:String x:Key="ExportDialogTitleIntensity">Export the intensity</s:String>
 	<s:String x:Key="ExportDialogTitleBoth">Export the field and the intensity</s:String>
-	<s:String x:Key="ExportDialogFilterStill">PNG image (*.png)|*.png|JPEG image (*.jpg)|*.jpg|OpenEXR image, 16-bit float data (*.exr)|*.exr</s:String>
+	<s:String x:Key="ExportDialogFilterStill">PNG image (*.png)|*.png|JPEG image (*.jpg)|*.jpg|OpenEXR image, 16-bit float data, intensity as I (*.exr)|*.exr|OpenEXR image, 16-bit float data, intensity as √I (*.exr)|*.exr</s:String>
 	<s:String x:Key="ExportDialogTitleFrame">Export the frame</s:String>
 	<s:String x:Key="ExportDialogTitleProbeCsv">Export the probe data</s:String>
 	<s:String x:Key="ExportDialogFilterCsv">CSV file (*.csv)|*.csv</s:String>

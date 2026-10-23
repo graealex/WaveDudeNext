@@ -281,7 +281,12 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		if (shape.Format == FrameFormat.Index)
 		{
 			SetFloat(kernel, 8U, shape.BrightnessOf(intensity));
-			SetInt(kernel, 9U, intensity ? 1 : 0);
+			// 0 the field, 1 the intensity, 2 its root (the preview's)
+			SetInt(kernel, 9U, intensity ? (shape.IntensityRoot ? 2 : 1) : 0);
+		}
+		else
+		{
+			SetInt(kernel, 9U, intensity && shape.IntensityRoot ? 1 : 0);
 		}
 		Enqueue(kernel, _captureGrid!, "capture");
 		OpenClApi.Check(OpenClApi.clEnqueueReadBufferPtr(_queue, staging, 0U, IntPtr.Zero, new IntPtr(plane.Length), FrameSnapshot.AddressOf(plane), 0U, IntPtr.Zero, out IntPtr evt), "clEnqueueReadBuffer (capture)");
@@ -758,19 +763,21 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		source.AppendLine("    return sum / (float)((y1 - y0) * (x1 - x0));");
 		source.AppendLine("}");
 		source.AppendLine();
-		source.AppendLine("__kernel void capture_half(__global const float* src, __global half* dst, const int w, const int h, const int stride, const int div, const int fw, const int fh, const int rim)");
+		// the intensity as its square root when the shape says so (2026-10-23, FrameConversion): the block's mean energy, then the root
+		source.AppendLine("__kernel void capture_half(__global const float* src, __global half* dst, const int w, const int h, const int stride, const int div, const int fw, const int fh, const int rim, const int root)");
 		source.AppendLine("{");
 		source.AppendLine("    int x = get_global_id(0);");
 		source.AppendLine("    int y = get_global_id(1);");
 		source.AppendLine("    if (x >= fw || y >= fh) return;");
-		source.AppendLine("    vstore_half(capture_sample(src, w, h, stride, div, rim, x, y), y * fw + x, dst);");
+		source.AppendLine("    float v = capture_sample(src, w, h, stride, div, rim, x, y);");
+		source.AppendLine("    vstore_half(root ? sqrt(v) : v, y * fw + x, dst);");
 		source.AppendLine("}");
 		source.AppendLine();
-		// the index mapping of ColorLut.FieldIndex / IntensityIndex: a NaN field gives the centre, a NaN or
-		// non-positive intensity 0. The sample is first rounded to half precision, as capture_half stores it, so the
-		// index is the palette index of the very half a 16-bit run stores, as the CPU's capture computes it, bit for bit
-		// (2026-10-19: an 8-bit run and a 16-bit run of the same project had differed by a palette step in half a percent
-		// of the pixels).
+		// the index mapping of ColorLut.FieldIndex / IntensityRootIndex / IntensityIndex: a NaN field gives the centre, a NaN
+		// or non-positive intensity 0. The index is that of exactly the half a 16-bit frame stores, rounded as the CPU's
+		// capture rounds it, bit for bit (2026-10-19: an 8-bit run and a 16-bit run of the same project had differed by a
+		// palette step in half a percent of the pixels): the field, the intensity's root (intensity 2, the preview's since
+		// 2026-10-23: rooted, then rounded) or the intensity itself (intensity 1).
 		// The rounding is done on the float's bits, since a half variable needs an extension; it is round to nearest
 		// even, half's subnormals and overflow included. No contraction here: the CPU's multiply and add are separate
 		source.AppendLine("float round_to_half(float f)");
@@ -796,9 +803,12 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		source.AppendLine("    int x = get_global_id(0);");
 		source.AppendLine("    int y = get_global_id(1);");
 		source.AppendLine("    if (x >= fw || y >= fh) return;");
-		source.AppendLine("    float v = round_to_half(capture_sample(src, w, h, stride, div, rim, x, y));");
+		source.AppendLine("    float raw = capture_sample(src, w, h, stride, div, rim, x, y);");
+		source.AppendLine("    float v = round_to_half(intensity == 2 ? sqrt(raw) : raw);");
 		source.AppendLine("    int index;");
-		source.AppendLine("    if (intensity)");
+		source.AppendLine("    if (intensity == 2)");
+		source.AppendLine("        index = v > 0.0f ? (int)(fmin(v * brightness, 1.0f) * 254.0f) : 0;");
+		source.AppendLine("    else if (intensity == 1)");
 		source.AppendLine("        index = v > 0.0f ? (int)(fmin(sqrt(v) * brightness, 1.0f) * 254.0f) : 0;");
 		source.AppendLine("    else {");
 		source.AppendLine("        float s = v * brightness;");

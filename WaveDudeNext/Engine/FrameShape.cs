@@ -24,7 +24,7 @@ namespace WaveDudeNext.Engine;
 /// <summary>How the samples of a captured frame are stored.</summary>
 public enum FrameFormat
 {
-	/// <summary>One <see cref="System.Half"/> per sample: the raw amplitude or intensity, coloured at display time with any brightness.</summary>
+	/// <summary>One <see cref="System.Half"/> per sample: the field's amplitude, the intensity or its square root (<see cref="FrameShape.IntensityRoot"/>), coloured at display time with any brightness.</summary>
 	Half = 0,
 
 	/// <summary>
@@ -49,7 +49,13 @@ public enum FrameFormat
 /// <param name="Format">The sample format.</param>
 /// <param name="FieldBrightness">Gain applied to the field before the palette index is taken (<see cref="FrameFormat.Index"/> only).</param>
 /// <param name="IntensityBrightness">Gain applied to the compressed intensity before the palette index is taken (<see cref="FrameFormat.Index"/> only).</param>
-public sealed record FrameShape(int CanvasWidth, int CanvasHeight, int Divisor, FrameFormat Format, float FieldBrightness, float IntensityBrightness)
+/// <param name="IntensityRoot">
+/// Whether a <see cref="FrameFormat.Half"/> plane of the intensity holds its square root, as the preview keeps it, rather
+/// than the intensity itself, which an OpenEXR export of I asks for (2026-10-23). The renderer colours √I: stored as I,
+/// the dark end lay among half's subnormals, below 6.1e-5, where neighbouring halves were up to a palette level apart;
+/// as √I that floor is at I = 3.7e-9. The field and a frame of palette indices are the same either way.
+/// </param>
+public sealed record FrameShape(int CanvasWidth, int CanvasHeight, int Divisor, FrameFormat Format, float FieldBrightness, float IntensityBrightness, bool IntensityRoot = true)
 {
 	/// <summary>The full-quality shape of a canvas: every cell as a <see cref="FrameFormat.Half"/>.</summary>
 	public static FrameShape Full(int canvasWidth, int canvasHeight) => new(canvasWidth, canvasHeight, 1, FrameFormat.Half, 1f, 1f);
@@ -72,8 +78,8 @@ public sealed record FrameShape(int CanvasWidth, int CanvasHeight, int Divisor, 
 	/// <summary>The brightness baked into a plane: the field's or the intensity's.</summary>
 	public float BrightnessOf(bool intensity) => intensity ? IntensityBrightness : FieldBrightness;
 
-	/// <summary>Whether frames of this shape and of <paramref name="other"/> have the same size and format (the brightness may differ).</summary>
-	public bool SameLayoutAs(FrameShape other) => Width == other.Width && Height == other.Height && Format == other.Format;
+	/// <summary>Whether frames of this shape and of <paramref name="other"/> have the same size, format and intensity samples (the brightness may differ).</summary>
+	public bool SameLayoutAs(FrameShape other) => Width == other.Width && Height == other.Height && Format == other.Format && IntensityRoot == other.IntensityRoot;
 
 	/// <summary>Validates the record: the canvas at least 1 × 1, the divisor at least 1.</summary>
 	/// <exception cref="ArgumentOutOfRangeException">A dimension or the divisor is below 1.</exception>
@@ -97,9 +103,12 @@ public static class FrameConversion
 	/// <summary>
 	/// Converts one plane. For a divisor of 1 a <see cref="FrameFormat.Half"/> plane is the vectorised
 	/// float-to-half conversion; otherwise every block of <see cref="FrameShape.Divisor"/>² cells (fewer at the
-	/// right and bottom edges) is averaged first, then the sample is taken as a half or as the palette index
-	/// (<see cref="ColorLut.FieldIndex"/> or <see cref="ColorLut.IntensityIndex(float, float)"/> with the shape's brightness)
-	/// of the sample rounded to a half, so an index frame holds exactly what a half frame renders to (2026-10-19).
+	/// right and bottom edges) is averaged first, then the sample is taken as a half or as the palette index, with the
+	/// shape's brightness, of exactly the half a 16-bit frame of the shape stores (2026-10-19; one rule for both since
+	/// 2026-10-23): <see cref="ColorLut.FieldIndex"/> of the field, <see cref="ColorLut.IntensityRootIndex"/> of the
+	/// intensity's root, or <see cref="ColorLut.IntensityIndex(float, float)"/> of the intensity where the shape keeps I.
+	/// The intensity's root is taken when the shape says so (<see cref="FrameShape.IntensityRoot"/>): the block's mean
+	/// energy, then the root.
 	/// </summary>
 	/// <param name="source">The float values; row y of the canvas starts at <paramref name="offset"/> + y × <paramref name="stride"/>.</param>
 	/// <param name="offset">Index of the canvas's first cell in <paramref name="source"/> (stride + 1 for an engine's padded buffer, 0 for a packed plane).</param>
@@ -118,7 +127,8 @@ public static class FrameConversion
 		}
 		int divisor = shape.Divisor;
 		float brightness = shape.BrightnessOf(intensity);
-		if (divisor == 1 && shape.Format == FrameFormat.Half)
+		bool root = intensity && shape.IntensityRoot;
+		if (divisor == 1 && shape.Format == FrameFormat.Half && !root)
 		{
 			Parallel.For(0, height, y =>
 				TensorPrimitives.ConvertToHalf(source.AsSpan(offset + y * stride, width), MemoryMarshal.Cast<byte, Half>(destination.Span.Slice(y * width * 2, width * 2))));
@@ -138,12 +148,24 @@ public static class FrameConversion
 			}
 			if (shape.Format == FrameFormat.Half)
 			{
+				if (root)
+				{
+					TensorPrimitives.Sqrt(row, row);
+				}
 				TensorPrimitives.ConvertToHalf(row, MemoryMarshal.Cast<byte, Half>(destination.Span.Slice(y * width * 2, width * 2)));
 			}
 			else
 			{
 				Span<byte> target = destination.Span.Slice(y * width, width);
-				if (intensity)
+				if (root)
+				{
+					// the index of the root as a 16-bit frame stores it: rooted, then rounded to a half
+					for (int x = 0; x < width; x++)
+					{
+						target[x] = (byte)ColorLut.IntensityRootIndex((float)(Half)MathF.Sqrt(row[x]), brightness);
+					}
+				}
+				else if (intensity)
 				{
 					for (int x = 0; x < width; x++)
 					{

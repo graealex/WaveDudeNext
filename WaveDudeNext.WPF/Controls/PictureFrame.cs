@@ -25,9 +25,9 @@ namespace WaveDudeNext.WPF.Controls;
 /// Lays out a label and a picture so the label takes as little of the picture's room as possible:
 /// above the picture when the available space is taller than the picture's aspect ratio (spare room
 /// is above and below anyway), or rotated by 90° on its left when the space is wider (spare room is
-/// at the sides). The first child is the label, the second the picture (an <see cref="Image"/> with
-/// <see cref="Stretch.Uniform"/>, or a panel holding one under an overlay; its <see cref="Image.Source"/>
-/// gives the aspect ratio, 16:9 when there is none). UI thread, like every element.
+/// at the sides). The first child is the label, the second the picture (a <see cref="CanvasImage"/>, whose canvas
+/// gives the aspect ratio, or an <see cref="Image"/> with <see cref="Stretch.Uniform"/>, whose <see cref="Image.Source"/>
+/// gives it, 16:9 when there is none; or a panel holding one under an overlay). UI thread, like every element.
 /// </summary>
 public sealed class PictureFrame : Panel
 {
@@ -125,11 +125,19 @@ public sealed class PictureFrame : Panel
 		return finalSize;
 	}
 
-	/// <summary>Width over height of the picture's source, or 16:9 without one. The picture is an <see cref="Image"/>, or a panel whose first <see cref="Image"/> child is it (an overlay on top).</summary>
+	/// <summary>
+	/// Width over height of the picture: a <see cref="CanvasImage"/>'s canvas, else the source's, or 16:9 without one. The
+	/// picture is an <see cref="Image"/>, or a panel whose first <see cref="Image"/> child is it (an overlay on top).
+	/// </summary>
 	private static double AspectOf(UIElement picture)
 	{
 		Image? image = picture as Image ?? (picture as Panel)?.Children.OfType<Image>().FirstOrDefault();
-		return image is { Source: { Width: > 0, Height: > 0 } source } ? source.Width / source.Height : DefaultAspect;
+		return image switch
+		{
+			CanvasImage canvas => canvas.Aspect,
+			{ Source: { Width: > 0, Height: > 0 } source } => source.Width / source.Height,
+			_ => DefaultAspect,
+		};
 	}
 
 	private static Transform Freeze(Transform transform)

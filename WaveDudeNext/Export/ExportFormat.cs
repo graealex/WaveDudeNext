@@ -34,8 +34,18 @@ public enum ExportFormat
 	Png,
 	/// <summary>A JPEG per frame in a folder of its own; the quality setting applies.</summary>
 	Jpeg,
-	/// <summary>An OpenEXR file per frame in a folder of its own: the stored 16-bit floats themselves, one channel, uncompressed; data, not a rendered picture (2026-10-18).</summary>
+	/// <summary>
+	/// An OpenEXR file per frame in a folder of its own: 16-bit floats, one channel, uncompressed; data, not a rendered
+	/// picture (2026-10-18). The field, and the intensity as I: a run that stores it so is made first (the preview stores its
+	/// square root, and squaring that back would lose a bit). What a scripted <c>.exr</c> means.
+	/// </summary>
 	Exr,
+	/// <summary>
+	/// An OpenEXR file per frame like <see cref="Exr"/>, the intensity as its square root, as the preview stores it
+	/// (2026-10-23): the dark end at half's full precision, and no extra run after a 16-bit preview. The field is the same.
+	/// Shares the extension with <see cref="Exr"/>: the dialog's filter tells them apart.
+	/// </summary>
+	ExrRoot,
 }
 
 /// <summary>What is known about each <see cref="ExportFormat"/>: extensions, whether it is a sequence, how to open its sink.</summary>
@@ -117,17 +127,17 @@ public static class ExportFormats
 	}
 
 	/// <summary>The formats in filter order: the videos, then the sequences.</summary>
-	public static readonly ExportFormat[] All = [ExportFormat.Mp4, ExportFormat.Mpeg1, ExportFormat.Avi, ExportFormat.Mov, ExportFormat.MovPng, ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Exr];
+	public static readonly ExportFormat[] All = [ExportFormat.Mp4, ExportFormat.Mpeg1, ExportFormat.Avi, ExportFormat.Mov, ExportFormat.MovPng, ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Exr, ExportFormat.ExrRoot];
 
 	/// <summary>The formats a still can take, in the order of the still's filter: the sequence formats.</summary>
-	public static readonly ExportFormat[] Stills = [ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Exr];
+	public static readonly ExportFormat[] Stills = [ExportFormat.Png, ExportFormat.Jpeg, ExportFormat.Exr, ExportFormat.ExrRoot];
 
-	/// <summary>The file extensions a format accepts, with their dots, the first the one it writes; both MOV formats take <c>.mov</c>.</summary>
+	/// <summary>The file extensions a format accepts, with their dots, the first the one it writes; both MOV formats take <c>.mov</c>, both OpenEXR ones <c>.exr</c>.</summary>
 	public static string[] Extensions(ExportFormat format) => format switch
 	{
 		ExportFormat.Png => [".png"],
 		ExportFormat.Jpeg => [".jpg", ".jpeg"],
-		ExportFormat.Exr => [".exr"],
+		ExportFormat.Exr or ExportFormat.ExrRoot => [".exr"],
 		ExportFormat.Mpeg1 => [".mpg", ".mpeg", ".m1v"],
 		ExportFormat.Avi => [".avi"],
 		ExportFormat.Mp4 => [".mp4", ".m4v"],
@@ -154,8 +164,8 @@ public static class ExportFormats
 
 	/// <summary>
 	/// The first format in filter order that accepts the path's extension, or null. The extension alone cannot tell
-	/// the two MOV formats apart (a <c>.mov</c> means the Animation codec here): the dialog's filter decides the
-	/// format, this serves a scripted path (2026-10-19).
+	/// the two MOV formats apart (a <c>.mov</c> means the Animation codec here) nor the two OpenEXR ones (an <c>.exr</c>
+	/// holds the intensity as I): the dialog's filter decides the format, this serves a scripted path (2026-10-19).
 	/// </summary>
 	public static ExportFormat? FromPath(string path)
 	{
@@ -170,10 +180,22 @@ public static class ExportFormats
 	}
 
 	/// <summary>Whether the format writes one file per frame (these are also the formats a still can take).</summary>
-	public static bool IsSequence(ExportFormat format) => format is ExportFormat.Png or ExportFormat.Jpeg or ExportFormat.Exr;
+	public static bool IsSequence(ExportFormat format) => format is ExportFormat.Png or ExportFormat.Jpeg or ExportFormat.Exr or ExportFormat.ExrRoot;
 
 	/// <summary>Whether the format holds the stored values rather than a rendered picture (OpenEXR): colours, brightness, outline and boxes do not apply.</summary>
-	public static bool IsData(ExportFormat format) => format == ExportFormat.Exr;
+	public static bool IsData(ExportFormat format) => format is ExportFormat.Exr or ExportFormat.ExrRoot;
+
+	/// <summary>
+	/// What the run's 16-bit intensity must hold for an export of the intensity in this format: true for its square root
+	/// (<see cref="ExportFormat.ExrRoot"/>), false for the intensity itself (<see cref="ExportFormat.Exr"/>), null when
+	/// either serves (a picture is coloured from both alike).
+	/// </summary>
+	public static bool? IntensityRootFor(ExportFormat format) => format switch
+	{
+		ExportFormat.Exr => false,
+		ExportFormat.ExrRoot => true,
+		_ => null,
+	};
 
 	/// <summary>Whether the quality setting means anything to the format.</summary>
 	public static bool UsesQuality(ExportFormat format) => format is ExportFormat.Jpeg or ExportFormat.Mpeg1 or ExportFormat.Mp4;
@@ -199,7 +221,7 @@ public static class ExportFormats
 	{
 		ExportFormat.Png => new ImageFileSink(path, width, height, (stream, frame) => PngEncoder.Write(stream, frame.Span, width, height)),
 		ExportFormat.Jpeg => new ImageFileSink(path, width, height, JpegWriter(width, height, quality)),
-		ExportFormat.Exr => ExrSink.Still(path, width, height),
+		ExportFormat.Exr or ExportFormat.ExrRoot => ExrSink.Still(path, width, height),
 		_ => throw new NotSupportedException("A still is a PNG, a JPEG or an OpenEXR file."),
 	};
 
@@ -226,6 +248,7 @@ public static class ExportFormats
 				return new ImageSequenceSink(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), ".jpg", width, height,
 					() => JpegWriter(width, height, quality), SequenceWorkers(encoderIsParallel: PreferredJpeg == null), plannedFrames, firstFrame);
 			case ExportFormat.Exr:
+			case ExportFormat.ExrRoot:
 				return ExrSink.Sequence(SequenceFolder(path), Path.GetFileNameWithoutExtension(path), width, height, plannedFrames, firstFrame);
 			case ExportFormat.Mpeg1:
 				return new Mpeg1Writer(path, width, height, fps, quality);

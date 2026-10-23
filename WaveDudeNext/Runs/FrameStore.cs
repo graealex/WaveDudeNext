@@ -49,7 +49,8 @@ namespace WaveDudeNext.Runs;
 /// them (<see cref="PrepareBlocks"/>): a fresh block costs a page fault per 4 KB on first touch, 8 to 14 ms
 /// for a full-HD frame, which would make the writer slower than the engine; prepared, a frame is a plain copy.
 /// File layout: a <see cref="HeaderSize"/>-byte header ("WDFS", version, width, height, layers,
-/// visualize-every, capacity, first frame in the file, format, divisor, canvas width, canvas height), then one
+/// visualize-every, capacity, first frame in the file, format, divisor, canvas width, canvas height, 1 when the
+/// intensity is stored as its square root), then one
 /// <see cref="FrameBytes"/> record per spilled frame; within a frame the planes follow the order of
 /// <see cref="FrameLayer"/>, only those present.
 /// </remarks>
@@ -239,6 +240,9 @@ public sealed unsafe class FrameStore : IFrameSource, IDisposable
 
 	/// <inheritdoc/>
 	public FrameFormat Format => Shape.Format;
+
+	/// <inheritdoc/>
+	public bool IntensityRoot => Shape.IntensityRoot;
 
 	/// <summary>The planes every frame holds.</summary>
 	public FrameLayers Layers { get; }
@@ -616,6 +620,7 @@ public sealed unsafe class FrameStore : IFrameSource, IDisposable
 		BitConverter.TryWriteBytes(header[36..], Shape.Divisor);
 		BitConverter.TryWriteBytes(header[40..], CanvasWidth);
 		BitConverter.TryWriteBytes(header[44..], CanvasHeight);
+		BitConverter.TryWriteBytes(header[48..], IntensityRoot ? 1 : 0);
 		RandomAccess.Write(_handle!, header, 0);
 	}
 }

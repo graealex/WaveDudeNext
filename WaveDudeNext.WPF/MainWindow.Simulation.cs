@@ -82,13 +82,14 @@ public partial class MainWindow
 	/// <param name="automatic">Started after an edit rather than by the user: the preview keeps its position.</param>
 	/// <param name="trackIntensity">Store the intensity plane whatever the project needs (an export of the intensity asks for it).</param>
 	/// <param name="fullQuality">Capture every cell of every frame as a half whatever the View menu says (an export needs that).</param>
-	private void StartRun(bool automatic = false, bool trackIntensity = false, bool fullQuality = false)
+	/// <param name="intensityRoot">With <paramref name="fullQuality"/>: store the intensity as its square root, the preview's, or as I (an OpenEXR export of I).</param>
+	private void StartRun(bool automatic = false, bool trackIntensity = false, bool fullQuality = false, bool intensityRoot = true)
 	{
 		if (!Settings.Default.UseGpu)
 		{
 			Logger.Info("Running on the CPU: 'Use the GPU' is off in the Simulation menu");
 		}
-		PreviewQuality quality = fullQuality ? PreviewQuality.Full : PreviewQualitySetting;
+		PreviewQuality quality = fullQuality ? PreviewQuality.Full with { IntensityRoot = intensityRoot } : PreviewQualitySetting;
 		RunSpec spec = RunSpec.Create(Project, LoadSceneImage(), Settings.Default.UseGpu, trackIntensity, quality);
 		// the frames stay in memory up to the budget (the user's share of the RAM, capped by what is free now); only
 		// the rest needs room on the cache drive (2026-10-14). The outgoing run's frames count as free: DiscardRun

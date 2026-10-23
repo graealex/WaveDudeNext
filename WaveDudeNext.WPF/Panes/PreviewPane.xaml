@@ -557,8 +557,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 									</controls:HeaderStrip>
 									<!-- the picture with the source/probe handles over it; both fill the same rectangle -->
 									<Grid>
-										<!-- its size on screen is where a 16-bit frame is rendered (OnPictureSizeChanged) -->
-										<Image Source="{TemplateBinding Content}" Stretch="Uniform" AutomationProperties.AutomationId="{TemplateBinding Tag}" SizeChanged="OnPictureSizeChanged" />
+										<!-- sized by the canvas, never by its bitmap; its size on screen is where a 16-bit frame is rendered (OnPictureSizeChanged) -->
+										<controls:CanvasImage Source="{TemplateBinding Content}" AutomationProperties.AutomationId="{TemplateBinding Tag}" SizeChanged="OnPictureSizeChanged"
+										                      CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+										                      CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}" />
 										<!-- the scene outline, a translucent layer of the same pixel size, so it lands exactly on the frame -->
 										<Image Source="{Binding Path=(local:PreviewPane.OverlayImage), RelativeSource={RelativeSource TemplatedParent}}"
 										       Stretch="Uniform" IsHitTestVisible="False" />

@@ -15,8 +15,6 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
-using WaveDudeNext.Runs;
-
 namespace WaveDudeNext.Rendering;
 
 /// <summary>
@@ -48,10 +46,10 @@ public sealed class ColorLut
 	private readonly double _blackLevel;
 	private readonly bool _makeSymmetric;
 	private readonly bool _reverse;
-	private TableEntry<int>? _fieldTable;
-	private TableEntry<int>? _intensityTable;
-	private TableEntry<ulong>? _fieldDeepTable;
-	private TableEntry<ulong>? _intensityDeepTable;
+	/// <summary>The half tables built, one per <see cref="SampleKind"/>.</summary>
+	private readonly TableEntry<int>?[] _tables = new TableEntry<int>?[3];
+	/// <summary>The 16-bit half tables built, one per <see cref="SampleKind"/>.</summary>
+	private readonly TableEntry<ulong>?[] _deepTables = new TableEntry<ulong>?[3];
 
 	/// <summary>A built half table and the brightness it was built for.</summary>
 	private sealed record TableEntry<T>(float Brightness, T[] Table);
@@ -139,17 +137,18 @@ public sealed class ColorLut
 
 	/// <summary>
 	/// The colour of every value a 16-bit sample can hold, indexed by the half's bits (<see cref="BitConverter.HalfToUInt16Bits"/>):
-	/// the value's position on the gradient by the layer's mapping at <paramref name="brightness"/>, the continuous forms
-	/// of the palette indices (the field <c>(clamp(value · brightness, −1, 1) + 1) / 2</c>, a zero field and NaN in the
-	/// middle; the intensity <c>min(√value · brightness, 1)</c>, 0 for NaN and for values not above zero), the gradient
-	/// evaluated there through the display options, each channel rounded to the nearest level. Kept per layer until a
-	/// call with another brightness; built on the calling thread (65,536 evaluations, spread over the pool). Any thread:
-	/// two threads asking at once may both build it, to the same colours. The array must not be modified.
+	/// the value's position on the gradient by the sample kind's mapping at <paramref name="brightness"/>, the continuous
+	/// forms of the palette indices (the field <c>(clamp(value · brightness, −1, 1) + 1) / 2</c>, a zero field and NaN in
+	/// the middle; the intensity <c>min(√value · brightness, 1)</c>, its stored square root <c>min(value · brightness, 1)</c>,
+	/// both 0 for NaN and for values not above zero), the gradient evaluated there through the display options, each
+	/// channel rounded to the nearest level. Kept per kind until a call with another brightness; built on the calling
+	/// thread (65,536 evaluations, spread over the pool). Any thread: two threads asking at once may both build it, to the
+	/// same colours. The array must not be modified.
 	/// </summary>
-	/// <param name="layer">Which mapping: the signed field or the non-negative intensity.</param>
+	/// <param name="kind">What the samples are: the signed field, the intensity, or its square root.</param>
 	/// <param name="brightness">The layer's gain, applied as in <see cref="FieldIndex"/> and <see cref="IntensityIndex(float, float)"/>.</param>
-	public int[] HalfTable(FrameLayer layer, float brightness) =>
-		Cached(ref (layer == FrameLayer.Field ? ref _fieldTable : ref _intensityTable), layer, brightness,
+	public int[] HalfTable(SampleKind kind, float brightness) =>
+		Cached(ref _tables[(int)kind], kind, brightness,
 			(r, g, b) => unchecked((int)0xFF000000) | (Round(r * 255.0) << 16) | (Round(g * 255.0) << 8) | Round(b * 255.0));
 
 	/// <summary>
@@ -157,14 +156,14 @@ public sealed class ColorLut
 	/// as the level times 256, 0..65,280 (<c>round(level · 255 · 256)</c>: the 8-bit level in the high byte, the fraction of
 	/// the next level in the low one), packed as <c>R &lt;&lt; 32 | G &lt;&lt; 16 | B</c>. Kept and built like the 8-bit table.
 	/// </summary>
-	/// <param name="layer">Which mapping: the signed field or the non-negative intensity.</param>
+	/// <param name="kind">What the samples are: the signed field, the intensity, or its square root.</param>
 	/// <param name="brightness">The layer's gain.</param>
-	public ulong[] DeepHalfTable(FrameLayer layer, float brightness) =>
-		Cached(ref (layer == FrameLayer.Field ? ref _fieldDeepTable : ref _intensityDeepTable), layer, brightness,
+	public ulong[] DeepHalfTable(SampleKind kind, float brightness) =>
+		Cached(ref _deepTables[(int)kind], kind, brightness,
 			(r, g, b) => ((ulong)(uint)Round(r * 65280.0) << 32) | ((ulong)(uint)Round(g * 65280.0) << 16) | (uint)Round(b * 65280.0));
 
 	/// <summary>The table in <paramref name="slot"/> when it was built for this brightness, else a new one, kept there.</summary>
-	private T[] Cached<T>(ref TableEntry<T>? slot, FrameLayer layer, float brightness, Func<double, double, double, T> pack)
+	private T[] Cached<T>(ref TableEntry<T>? slot, SampleKind kind, float brightness, Func<double, double, double, T> pack)
 	{
 		TableEntry<T>? cached = Volatile.Read(ref slot);
 		if (cached != null && cached.Brightness.Equals(brightness))
@@ -178,7 +177,12 @@ public sealed class ColorLut
 			for (int bits = block * (HalfValues / Blocks); bits < (block + 1) * (HalfValues / Blocks); bits++)
 			{
 				double value = (double)BitConverter.UInt16BitsToHalf((ushort)bits);
-				(double r, double g, double b) = LevelsAt(layer == FrameLayer.Field ? FieldPosition(value, brightness) : IntensityPosition(value, brightness));
+				(double r, double g, double b) = LevelsAt(kind switch
+				{
+					SampleKind.Field => FieldPosition(value, brightness),
+					SampleKind.Intensity => IntensityPosition(value > 0.0 ? Math.Sqrt(value) : 0.0, brightness),
+					_ => IntensityPosition(value, brightness),
+				});
 				table[bits] = pack(r, g, b);
 			}
 		});
@@ -195,9 +199,9 @@ public sealed class ColorLut
 		return double.IsNaN(scaled) ? 0.5 : (Math.Clamp(scaled, -1.0, 1.0) + 1.0) / 2.0;
 	}
 
-	/// <summary>An intensity sample's position on the gradient: <c>min(√value · brightness, 1)</c>, 0 for NaN and for values not above zero.</summary>
-	private static double IntensityPosition(double value, float brightness) =>
-		value > 0.0 ? Math.Clamp(Math.Sqrt(value) * brightness, 0.0, 1.0) : 0.0;
+	/// <summary>An intensity's position on the gradient from its square root: <c>min(root · brightness, 1)</c>, 0 for NaN and for values not above zero.</summary>
+	private static double IntensityPosition(double root, float brightness) =>
+		root > 0.0 ? Math.Clamp(root * brightness, 0.0, 1.0) : 0.0;
 
 	/// <summary>The gradient at a position through the display options (the order of <see cref="Build"/>): each channel 0..1, unrounded.</summary>
 	private (double R, double G, double B) LevelsAt(double position)
@@ -244,8 +248,19 @@ public sealed class ColorLut
 	}
 
 	/// <summary>
-	/// The square-root case of <see cref="IntensityIndex(float, float, float)"/>, the index an 8-bit intensity frame
-	/// stores: <c>min(sqrt(intensity) · brightness, 1) · 254</c>, 0 for NaN or a non-positive intensity.
+	/// The palette index of an intensity's square root, the index an 8-bit intensity frame stores (2026-10-23, the user's
+	/// choice: the index of the very half a 16-bit frame stores, so both previews start from one value, and the darkest
+	/// indices stay right at a high brightness, where the intensity rounded to a half had merged them):
+	/// <c>min(root · brightness, 1) · 254</c>, 0 for NaN or a root not above zero.
+	/// </summary>
+	/// <param name="root">The intensity's square root, rounded to a half by the caller.</param>
+	/// <param name="brightness">Gain applied to the root.</param>
+	public static int IntensityRootIndex(float root, float brightness) =>
+		root > 0f ? (int)(MathF.Min(root * brightness, 1f) * 254f) : 0;
+
+	/// <summary>
+	/// The square-root case of <see cref="IntensityIndex(float, float, float)"/>: <c>min(sqrt(intensity) · brightness, 1) · 254</c>,
+	/// 0 for NaN or a non-positive intensity; the index of a frame whose 16-bit intensity is I itself (<see cref="Engine.FrameShape.IntensityRoot"/>).
 	/// </summary>
 	/// <param name="intensity">Accumulated intensity from the engine.</param>
 	/// <param name="brightness">Gain applied after the square root.</param>
