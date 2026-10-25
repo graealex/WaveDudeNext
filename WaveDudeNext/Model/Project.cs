@@ -331,9 +331,17 @@ public sealed class Project : ObservableObject
 	}
 
 	/// <summary>Appends a new source named "Source n" with the first free n, and returns it.</summary>
-	public Source AddSource()
+	public Source AddSource() => AddSource(Scene.Width / 2, Scene.Height / 2);
+
+	/// <summary>
+	/// Appends a new source named "Source n" at canvas pixel (<paramref name="x"/>, <paramref name="y"/>), its emitters
+	/// from the seed, and returns it. New objects land at the centre of the canvas (2026-10-26, Jeroen's report: a source at
+	/// the corner went unnoticed, the more so inside the absorbing rim): <see cref="AddSource()"/> takes the scene's size,
+	/// the application passes the centre of the canvas it shows, which an image scene sizes.
+	/// </summary>
+	public Source AddSource(int x, int y)
 	{
-		var source = new Source { Name = NumberedName("Source", Sources.Select(s => s.Name)) };
+		var source = new Source { Name = NumberedName("Source", Sources.Select(s => s.Name)), X = x, Y = y };
 		source.GenerateElements(Seed);
 		Sources.Add(source);
 		return source;
@@ -342,10 +350,13 @@ public sealed class Project : ObservableObject
 	/// <summary>
 	/// Appends a new part of the concrete <see cref="OpticalPart"/> subclass <paramref name="type"/> (the "+ Part" menu's
 	/// parameter), prepared as new (<see cref="OpticalPart.PrepareNew"/>), named by its <see cref="OpticalPart.NameStem"/>
-	/// with the first free n ("Lens 1", "Bragg reflector 2"), centred on the canvas (the scene's size; an image scene's own
-	/// size is not known here), and returns it.
+	/// with the first free n ("Lens 1", "Bragg reflector 2"), centred on the scene's size (see <see cref="AddSource()"/>),
+	/// and returns it.
 	/// </summary>
-	public OpticalPart AddPart(Type type)
+	public OpticalPart AddPart(Type type) => AddPart(type, Scene.Width / 2, Scene.Height / 2);
+
+	/// <summary>Appends a new part as <see cref="AddPart(Type)"/> does, centred on canvas pixel (<paramref name="x"/>, <paramref name="y"/>).</summary>
+	public OpticalPart AddPart(Type type, int x, int y)
 	{
 		if (!type.IsSubclassOf(typeof(OpticalPart)) || type.IsAbstract)
 		{
@@ -354,8 +365,8 @@ public sealed class Project : ObservableObject
 		var part = (OpticalPart)Activator.CreateInstance(type)!;
 		part.PrepareNew();
 		part.Name = NumberedName(part.NameStem, Parts.Select(p => p.Name));
-		part.X = Scene.Width / 2;
-		part.Y = Scene.Height / 2;
+		part.X = x;
+		part.Y = y;
 		Parts.Add(part);
 		return part;
 	}
@@ -364,9 +375,15 @@ public sealed class Project : ObservableObject
 	public T AddPart<T>() where T : OpticalPart, new() => (T)AddPart(typeof(T));
 
 	/// <summary>Appends a new probe named "Probe n" with the first free n, and returns it.</summary>
-	public Probe AddProbe()
+	public Probe AddProbe() => AddProbe(Scene.Width / 2, Scene.Height / 2);
+
+	/// <summary>
+	/// Appends a new probe named "Probe n" with its point at canvas pixel (<paramref name="x"/>, <paramref name="y"/>) and the
+	/// end of its line, should it become one, 100 pixels to the right (see <see cref="AddSource(int, int)"/>), and returns it.
+	/// </summary>
+	public Probe AddProbe(int x, int y)
 	{
-		var probe = new Probe { Name = NumberedName("Probe", Probes.Select(p => p.Name)) };
+		var probe = new Probe { Name = NumberedName("Probe", Probes.Select(p => p.Name)), AX = x, AY = y, BX = x + 100, BY = y };
 		Probes.Add(probe);
 		return probe;
 	}

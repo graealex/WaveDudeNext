@@ -109,7 +109,10 @@ public partial class MainWindow
 		_ => null,
 	};
 
-	private void OnAddSource(object sender, ExecutedRoutedEventArgs e) => Added(Project.AddSource());
+	/// <summary>The centre of the canvas the preview shows (an image scene's own size), where a new source, probe or part lands (2026-10-26, Jeroen's report: one at the corner went unnoticed).</summary>
+	private (int X, int Y) CanvasCentre => (previewPane.CanvasWidth / 2, previewPane.CanvasHeight / 2);
+
+	private void OnAddSource(object sender, ExecutedRoutedEventArgs e) => Added(Project.AddSource(CanvasCentre.X, CanvasCentre.Y));
 
 	/// <summary>
 	/// Add part: with an <see cref="OpticalPart"/> subclass as parameter (the menu entries) the part is appended; without one (the
@@ -120,7 +123,7 @@ public partial class MainWindow
 	{
 		if (e.Parameter is Type type)
 		{
-			Added(Project.AddPart(type));
+			Added(Project.AddPart(type, CanvasCentre.X, CanvasCentre.Y));
 		}
 		else
 		{
@@ -139,7 +142,7 @@ public partial class MainWindow
 		}
 	}
 
-	private void OnAddProbe(object sender, ExecutedRoutedEventArgs e) => Added(Project.AddProbe());
+	private void OnAddProbe(object sender, ExecutedRoutedEventArgs e) => Added(Project.AddProbe(CanvasCentre.X, CanvasCentre.Y));
 
 	private void CanAdd(object sender, CanExecuteRoutedEventArgs e) =>
 		e.CanExecute = Target(e.Parameter) is NamedCollection folder && ListOf(folder) != null;

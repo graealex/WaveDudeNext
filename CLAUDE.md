@@ -169,6 +169,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Play means "show me the simulation"**: it starts an automatic run when needed and holds at the newest frame
   until the run catches up. Live follows a running run until the user scrubs; it ends with a last follow to the
   final frame. A replaced project goes to frame 0; a discarded run keeps the position. In/out points are steps.
+- **A new source, probe or part lands at the centre of the canvas the preview shows** (2026-10-26, Jeroen's report: one
+  at the corner went unnoticed inside the rim); the model's parameterless adders take the scene's size, the window passes
+  the shown canvas's centre, which an image scene sizes; a new probe's line end lies 100 px to the right.
 - **Handles and overlays**: sources, probes, emitter dots and the rotation handle are drawn over the pictures in
   canvas pixels, over a dark halo, clipped to the picture; a probe's handles and line appear only on the picture of
   the layer it measures (2026-10-18), sources on both; graph boxes lie over every handle and dot, the selected

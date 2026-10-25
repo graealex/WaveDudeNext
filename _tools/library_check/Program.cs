@@ -2835,6 +2835,12 @@ internal static class Program
 		Type[] partTypes = [.. typeof(OpticalPart).Assembly.GetTypes().Where(type => type.IsSubclassOf(typeof(OpticalPart)) && !type.IsAbstract)];
 		HashSet<Type?> elements = [.. typeof(Project).GetProperty(nameof(Project.Parts))!.GetCustomAttributes<XmlElementAttribute>().Select(element => element.Type)];
 		var adder = new Project();
+		var placed = new Project();
+		placed.Scene.Width = 400;
+		placed.Scene.Height = 300;
+		Check(placed.AddSource() is { X: 200, Y: 150 } && placed.AddProbe() is { AX: 200, AY: 150, BX: 300, BY: 150 } && placed.AddPart<LensPart>() is { X: 200, Y: 150 }
+			&& placed.AddSource(10, 20) is { X: 10, Y: 20, Elements: [{ X: 10, Y: 20 }] } && placed.AddProbe(30, 40) is { AX: 30, AY: 40 } && placed.AddPart(typeof(LensPart), 50, 60) is { X: 50, Y: 60 },
+			"a new source, probe or part lands at the scene's centre, or where the application puts it (the canvas it shows); the source's emitter with it");
 		Check(partTypes.Length > 0 && partTypes.All(type => elements.Contains(type) && adder.AddPart(type) is { } added && added.GetType() == type && added.Name == added.NameStem + " 1"),
 			$"each of the {partTypes.Length} part classes has its file element and is added by its type as '<stem> 1'");
 		Check(xml.Contains("<Node X=\"-100\" Y=\"0\" OutX=\"67\" />") && xml.Contains("<Node X=\"100\" Y=\"0\" InX=\"-67\" />"), "a fibre's nodes are sparse Node children: handles only where set, Smooth only when off");
