@@ -173,7 +173,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   at the corner went unnoticed inside the rim); the model's parameterless adders take the scene's size, the window passes
   the shown canvas's centre, which an image scene sizes; a new probe's line end lies 100 px to the right.
 - **Handles and overlays**: sources, probes, emitter dots and the rotation handle are drawn over the pictures in
-  canvas pixels, over a dark halo, clipped to the picture; a probe's handles and line appear only on the picture of
+  canvas pixels, over a dark halo, clipped to the picture, in a light grey, the selected item's in a bright yellow
+  (`PictureHandle`, `PictureSelection` in `Controls.xaml`, 2026-10-26, Jeroen's tester: the accent blue was duller than
+  the rest and lost on a blue scheme and to colour-blind eyes; the keyboard focus keeps the accent); a probe's handles and line appear only on the picture of
   the layer it measures (2026-10-18), sources on both; graph boxes lie over every handle and dot, the selected
   item is drawn last among its kind, except the handles themselves (Panel.ZIndex breaks the Tab cycle, 2026-10-18);
   arrows nudge, selection syncs with the tree, a click on

@@ -166,7 +166,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<!-- the handles of the sources, parts and probes on the pictures: a ring for a source, a ring with an inner ring for a
 		     part (a lens-shaped glyph read as squashed, 2026-10-18), a square for a probe point, each with four crosshair ticks
 		     outside it and a gap around the exact pixel; every stroke is drawn twice, a dark halo first, so the glyph reads on
-		     any picture. The selected item's handle and the focused handle show the accent. Glyphs are 20 x 20 with the point
+		     any picture. The selected item's handle shows the selection yellow, the focused handle the accent fill. Glyphs are 20 x 20 with the point
 		     at (10, 10); the tree's 16 px icons (Themes/Controls.xaml) are drawn after them -->
 		<StreamGeometry x:Key="SourceGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
 		<StreamGeometry x:Key="ProbeGlyph">M4.5,4.5 L15.5,4.5 L15.5,15.5 L4.5,15.5 Z M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
@@ -176,14 +176,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="Height" Value="20" />
 			<Setter Property="Cursor" Value="SizeAll" />
 			<Setter Property="FocusVisualStyle" Value="{x:Null}" />
-			<Setter Property="Foreground" Value="White" />
+			<Setter Property="Foreground" Value="{DynamicResource PictureHandle}" />
 			<Setter Property="Background" Value="#60000000" />
-			<Setter Property="BorderBrush" Value="White" />
+			<Setter Property="BorderBrush" Value="{DynamicResource PictureHandle}" />
 			<Setter Property="StrokeThickness" Value="1.5" />
 			<Style.Triggers>
 				<Trigger Property="IsSelectedMarker" Value="True">
-					<Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
-					<Setter Property="Foreground" Value="{DynamicResource Accent}" />
+					<Setter Property="BorderBrush" Value="{DynamicResource PictureSelection}" />
+					<Setter Property="Foreground" Value="{DynamicResource PictureSelection}" />
 				</Trigger>
 				<Trigger Property="IsKeyboardFocused" Value="True">
 					<Setter Property="Background" Value="{DynamicResource DropPreviewFill}" />
@@ -603,7 +603,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 											<!-- the handles: sources, emitter dots, probe points and lines. Styled here, not implicitly: WPF applies
 											     implicit styles inside a template only to Controls, and the overlay is a Panel -->
 											<controls:SceneOverlay SourceStyle="{StaticResource SourceMarker}" PartStyle="{StaticResource PartMarker}" GripStyle="{StaticResource PartGripMarker}" PointStyle="{StaticResource PartPointMarker}" HandleStyle="{StaticResource FiberHandleMarker}" ProbeStyle="{StaticResource ProbeMarker}" AngleStyle="{StaticResource AngleMarker}"
-											                       LineBrush="White" LabelBrush="White" AccentBrush="{DynamicResource Accent}"
+											                       LineBrush="{DynamicResource PictureHandle}" LabelBrush="{DynamicResource PictureHandle}" AccentBrush="{DynamicResource PictureSelection}"
 											                       Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
 											                       CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
 											                       CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
@@ -615,7 +615,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 											     a handle under a box is reached by Tab or the tree instead); which probes depends on the cell's layer
 											     (the attached PreviewPane.Layer) -->
 											<controls:ProbeGraphOverlay BoxStyle="{StaticResource ProbeBoxThumb}" CornerStyle="{StaticResource ProbeBoxCornerThumb}"
-											                            AccentBrush="{DynamicResource Accent}"
+											                            AccentBrush="{DynamicResource PictureSelection}"
 											                            Layer="{Binding Path=(local:PreviewPane.Layer), RelativeSource={RelativeSource TemplatedParent}}"
 											                            Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
 											                            Run="{Binding Run, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"

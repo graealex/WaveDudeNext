@@ -27,6 +27,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 	<BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
+	<!-- over the pictures (2026-10-26, Jeroen's tester: the selected item's accent blue was duller than the rest, lost on a blue
+	     scheme and to colour-blind eyes): the handles, labels, lines, outlines and graph boxes in a light grey, the selected
+	     item's in a bright yellow, both over the dark halo, so luminance tells them apart; the same in both themes, the
+	     pictures being data, not chrome. The keyboard focus keeps the accent, as everywhere -->
+	<SolidColorBrush x:Key="PictureHandle" Color="#FFC8C8C8" />
+	<SolidColorBrush x:Key="PictureSelection" Color="#FFFFE000" />
+
 	<!-- glyphs -->
 	<StreamGeometry x:Key="ArrowUpGeometry">M0,4 L4,0 L8,4 Z</StreamGeometry>
 	<StreamGeometry x:Key="ArrowDownGeometry">M0,0 L8,0 L4,4 Z</StreamGeometry>
