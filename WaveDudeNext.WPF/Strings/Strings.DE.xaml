@@ -332,6 +332,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 	<s:String x:Key="ButtonBrowse">Durchsuchen…</s:String>
 	<s:String x:Key="TipBrowseSceneImage">Bilddatei wählen; sie wird in das Projekt eingebettet</s:String>
+	<s:String x:Key="TipRemoveSceneImage">Eingebettetes Bild und Dateipfad verwerfen; die Leinwand behält die Bildgröße</s:String>
+	<s:String x:Key="SceneImageNotFound">(nicht gefunden)</s:String>
 	<s:String x:Key="LabelEmbeddedImage">Eingebettetes Bild</s:String>
 	<s:String x:Key="TipEmbeddedImage">Größe des eingebetteten Szenenbilds; die Leinwand übernimmt diese Größe</s:String>
 	<s:String x:Key="SceneImageFilter">Bilder (*.png;*.bmp;*.jpg;*.jpeg;*.tif;*.tiff;*.gif)|*.png;*.bmp;*.jpg;*.jpeg;*.tif;*.tiff;*.gif|Alle Dateien (*.*)|*.*</s:String>
@@ -454,7 +456,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Scene.Image">Szenenbild</s:String>
 	<s:String x:Key="Hint.Scene.Image">Bild, aus dem die Leinwand gebaut wird: Rot = Brechungsindex (Rot 0 = ein Spiegel), Grün = Quellen, Blau = Dämpfung. Der Name des eingebetteten Bilds oder ein Pfad relativ zum Projektordner.</s:String>
 	<s:String x:Key="Label.Scene.ImagePath">Bilddatei</s:String>
-	<s:String x:Key="Hint.Scene.ImagePath">Herkunft des eingebetteten Bilds. Die Datei wird beobachtet, solange das Projekt offen ist, und bei Änderung neu eingebettet; beim Öffnen des Projekts ersetzt eine geänderte Datei das eingebettete Bild ebenfalls.</s:String>
+	<s:String x:Key="Hint.Scene.ImagePath">Herkunft des eingebetteten Bilds; simuliert wird das eingebettete Bild, eine fehlende Datei ändert nichts. Die Datei wird beobachtet, solange das Projekt offen ist, und bei Änderung neu eingebettet; beim Öffnen des Projekts ersetzt eine geänderte Datei das eingebettete Bild ebenfalls.</s:String>
 	<s:String x:Key="Label.Scene.Width">Breite</s:String>
 	<s:String x:Key="Hint.Scene.Width">Breite einer leeren Leinwand in Pixeln.</s:String>
 	<s:String x:Key="Label.Scene.Height">Höhe</s:String>

@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.IO;
+using System.Windows;
 using System.Windows.Threading;
 using WaveDudeNext.Model;
 using WaveDudeNext.Runs;
@@ -29,11 +30,17 @@ namespace WaveDudeNext.WPF;
 /// on disk (debounced, read again while the editor still holds it), and when a project is opened the file is
 /// compared with the embedded bytes once and taken instead when it differs. Either way the change goes
 /// through the model, so it marks the project dirty, makes the run stale and asks the scratch runner for the
-/// frame, like a scene edit. The embedded bytes are the baseline, so "changed" is a byte comparison; no hash.
-/// UI thread; the watcher's events are marshalled to it.
+/// frame, like a scene edit. The embedded bytes are the baseline, so "changed" is a byte comparison; no hash. A file
+/// that is gone changes nothing but is reported (<see cref="SceneImageFileMissing"/>, 2026-10-26, Jeroen's report: a
+/// deleted file still showed its path, which is right, but nothing said so). UI thread; the watcher's events are
+/// marshalled to it.
 /// </summary>
 public partial class MainWindow
 {
+	/// <summary>Identifies the <see cref="SceneImageFileMissing"/> property.</summary>
+	public static readonly DependencyProperty SceneImageFileMissingProperty = DependencyProperty.Register(
+		nameof(SceneImageFileMissing), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+
 	/// <summary>How long after the last file event the image is read: editors write in several steps.</summary>
 	private static readonly TimeSpan SceneImageDebounce = TimeSpan.FromMilliseconds(400);
 
@@ -42,6 +49,17 @@ public partial class MainWindow
 
 	/// <summary>Folders beside the project file where a project without a path may find its image by name: the folder itself and the author's layout.</summary>
 	private static readonly string[] SceneImageFolders = ["", "scene_images"];
+
+	/// <summary>
+	/// Whether the scene's image file (<see cref="Scene.ImagePath"/>) is named but not on disk: the scene form says so beside
+	/// the path. The embedded image is what is simulated, so nothing else follows. An unsaved project with a relative path
+	/// cannot tell and says no. Kept up to date by the watch.
+	/// </summary>
+	public bool SceneImageFileMissing
+	{
+		get => (bool)GetValue(SceneImageFileMissingProperty);
+		private set => SetValue(SceneImageFileMissingProperty, value);
+	}
 
 	/// <summary>Arms the watch on the current scene image file (after a project, path or file name change) and takes the file at once when it differs from the embedded image.</summary>
 	private void SyncSceneImage(string reason)
@@ -82,6 +100,7 @@ public partial class MainWindow
 		DisarmSceneImageWatch();
 		Scene scene = Project.Scene;
 		string path = scene.ResolveImagePath(ProjectFolder);
+		SceneImageFileMissing = IsSceneImageFileMissing();
 		if (path.Length == 0 || scene.ImageData == null)
 		{
 			return;
@@ -100,6 +119,7 @@ public partial class MainWindow
 			_sceneImageWatcher.Changed += OnSceneImageFileEvent;
 			_sceneImageWatcher.Created += OnSceneImageFileEvent;
 			_sceneImageWatcher.Renamed += OnSceneImageFileEvent;
+			_sceneImageWatcher.Deleted += OnSceneImageFileEvent;
 			_sceneImageWatcher.EnableRaisingEvents = true;
 			Logger.Debug("Watching the scene image file '{Path}'", path);
 		}
@@ -121,17 +141,26 @@ public partial class MainWindow
 		}
 	}
 
-	/// <summary>A file event (on the watcher's thread): restarts the debounce on the UI thread.</summary>
+	/// <summary>A file event (on the watcher's thread): restarts the debounce on the UI thread; the file is then read again, or found gone.</summary>
 	private void OnSceneImageFileEvent(object sender, FileSystemEventArgs e) => Dispatcher.BeginInvoke(() =>
 	{
 		_sceneImageTimer ??= MakeTimer(SceneImageDebounce, () =>
 		{
 			_sceneImageTimer!.Stop();
 			ReloadSceneImageIfChanged("changed on disk");
+			SceneImageFileMissing = IsSceneImageFileMissing();
 		});
 		_sceneImageTimer.Stop();
 		_sceneImageTimer.Start();
 	});
+
+	/// <summary>Whether the scene names an image file that is not on disk (see <see cref="SceneImageFileMissing"/>).</summary>
+	private bool IsSceneImageFileMissing()
+	{
+		Scene scene = Project.Scene;
+		string path = scene.ResolveImagePath(ProjectFolder);
+		return path.Length > 0 && scene.ImageData != null && !File.Exists(path);
+	}
 
 	/// <summary>
 	/// Reads the scene image's source file and embeds it when its bytes differ from the embedded ones; a file

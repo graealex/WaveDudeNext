@@ -355,4 +355,32 @@ public partial class MainWindow
 			Logger.Error(ex, "The image could not be loaded: {Message}", ex.Message);
 		}
 	}
+
+	private void CanRemoveSceneImage(object sender, CanExecuteRoutedEventArgs e) =>
+		e.CanExecute = Project.Scene is { } scene && (scene.ImageData != null || scene.Image.Length > 0 || scene.ImagePath.Length > 0);
+
+	/// <summary>
+	/// Remove beside Browse (2026-10-26, Jeroen's report: there was no way to drop an image): the canvas takes the image's
+	/// size, so nothing moves, then the scene drops the name, the path and the embedded bytes and is a blank canvas. The
+	/// watcher treats it like any scene edit, one undo step.
+	/// </summary>
+	private void OnRemoveSceneImage(object sender, ExecutedRoutedEventArgs e)
+	{
+		Scene scene = Project.Scene;
+		if (scene.ImageData != null)
+		{
+			try
+			{
+				ScenePixels pixels = SceneImageLoader.Load(scene.ImageData);
+				scene.Width = pixels.Width;
+				scene.Height = pixels.Height;
+			}
+			catch (Exception ex) when (ex is NotSupportedException or FileFormatException or IOException)
+			{
+				Logger.Debug("The embedded image could not be decoded for its size; the canvas keeps {Width}×{Height}: {Message}", scene.Width, scene.Height, ex.Message);
+			}
+		}
+		scene.RemoveImage();
+		Logger.Info("Scene image removed: a blank canvas of {Width}×{Height}", scene.Width, scene.Height);
+	}
 }

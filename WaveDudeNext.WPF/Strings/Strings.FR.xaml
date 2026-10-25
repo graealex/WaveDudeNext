@@ -332,6 +332,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 	<s:String x:Key="ButtonBrowse">Parcourir…</s:String>
 	<s:String x:Key="TipBrowseSceneImage">Choisir un fichier image ; il est intégré au projet</s:String>
+	<s:String x:Key="TipRemoveSceneImage">Abandonne l'image intégrée et son chemin ; la toile garde la taille de l'image</s:String>
+	<s:String x:Key="SceneImageNotFound">(introuvable)</s:String>
 	<s:String x:Key="LabelEmbeddedImage">Image intégrée</s:String>
 	<s:String x:Key="TipEmbeddedImage">Taille de l'image de scène intégrée ; la toile prend cette taille</s:String>
 	<s:String x:Key="SceneImageFilter">Images (*.png;*.bmp;*.jpg;*.jpeg;*.tif;*.tiff;*.gif)|*.png;*.bmp;*.jpg;*.jpeg;*.tif;*.tiff;*.gif|Tous les fichiers (*.*)|*.*</s:String>
@@ -454,7 +456,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Scene.Image">Image de scène</s:String>
 	<s:String x:Key="Hint.Scene.Image">Image dont la toile est construite : rouge = indice de réfraction (rouge 0 = un miroir), vert = sources, bleu = amortissement. Le nom de l'image intégrée, ou un chemin relatif au dossier du projet.</s:String>
 	<s:String x:Key="Label.Scene.ImagePath">Fichier image</s:String>
-	<s:String x:Key="Hint.Scene.ImagePath">Origine de l'image intégrée. Le fichier est surveillé tant que le projet est ouvert et réintégré quand il change ; à l'ouverture du projet, un fichier modifié remplace aussi l'image intégrée.</s:String>
+	<s:String x:Key="Hint.Scene.ImagePath">Origine de l'image intégrée ; c'est l'image intégrée qui est simulée, un fichier manquant ne change rien. Le fichier est surveillé tant que le projet est ouvert et réintégré quand il change ; à l'ouverture du projet, un fichier modifié remplace aussi l'image intégrée.</s:String>
 	<s:String x:Key="Label.Scene.Width">Largeur</s:String>
 	<s:String x:Key="Hint.Scene.Width">Largeur d'une toile vierge en pixels.</s:String>
 	<s:String x:Key="Label.Scene.Height">Hauteur</s:String>

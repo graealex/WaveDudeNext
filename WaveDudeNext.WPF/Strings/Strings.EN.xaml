@@ -334,6 +334,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 	<s:String x:Key="ButtonBrowse">Browse…</s:String>
 	<s:String x:Key="TipBrowseSceneImage">Pick an image file; it is embedded in the project</s:String>
+	<s:String x:Key="TipRemoveSceneImage">Drop the embedded image and its file path; the canvas keeps the image's size</s:String>
+	<s:String x:Key="SceneImageNotFound">(not found)</s:String>
 	<s:String x:Key="LabelEmbeddedImage">Embedded image</s:String>
 	<s:String x:Key="TipEmbeddedImage">Size of the embedded scene image; the canvas takes this size</s:String>
 	<s:String x:Key="SceneImageFilter">Images (*.png;*.bmp;*.jpg;*.jpeg;*.tif;*.tiff;*.gif)|*.png;*.bmp;*.jpg;*.jpeg;*.tif;*.tiff;*.gif|All files (*.*)|*.*</s:String>
@@ -456,7 +458,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Scene.Image">Scene image</s:String>
 	<s:String x:Key="Hint.Scene.Image">Image the canvas is built from: red = refractive index (red 0 = a mirror), green = sources, blue = damping. The name of the embedded image, or a path relative to the project folder.</s:String>
 	<s:String x:Key="Label.Scene.ImagePath">Image file</s:String>
-	<s:String x:Key="Hint.Scene.ImagePath">Where the embedded image came from. It is watched while the project is open and re-embedded when it changes; on opening the project a changed file replaces the embedded image too.</s:String>
+	<s:String x:Key="Hint.Scene.ImagePath">Where the embedded image came from; the embedded image is what is simulated, a missing file changes nothing. The file is watched while the project is open and re-embedded when it changes; on opening the project a changed file replaces the embedded image too.</s:String>
 	<s:String x:Key="Label.Scene.Width">Width</s:String>
 	<s:String x:Key="Hint.Scene.Width">Width of a blank canvas in pixels.</s:String>
 	<s:String x:Key="Label.Scene.Height">Height</s:String>

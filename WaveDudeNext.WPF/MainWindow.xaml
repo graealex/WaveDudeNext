@@ -206,6 +206,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="{x:Static commands:ProjectCommands.SelectAll}" CanExecute="CanSelectAll" Executed="OnSelectAll" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.ToggleSelected}" CanExecute="CanToggleSelected" Executed="OnToggleSelected" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.BrowseSceneImage}" Executed="OnBrowseSceneImage" />
+		<CommandBinding Command="{x:Static commands:ProjectCommands.RemoveSceneImage}" CanExecute="CanRemoveSceneImage" Executed="OnRemoveSceneImage" />
 		<CommandBinding Command="{x:Static commands:HelpCommands.About}" Executed="OnHelpAbout" />
 	</Window.CommandBindings>
 

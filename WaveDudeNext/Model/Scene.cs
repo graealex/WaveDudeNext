@@ -136,7 +136,7 @@ public sealed class Scene : ObservableObject
 	[DefaultValue("")]
 	[Category("Canvas")]
 	[DisplayName("Image file")]
-	[Description("Where the embedded image came from. It is watched while the project is open and re-embedded when it changes; on opening the project a changed file replaces the embedded image too.")]
+	[Description("Where the embedded image came from; the embedded image is what is simulated, a missing file changes nothing. The file is watched while the project is open and re-embedded when it changes; on opening the project a changed file replaces the embedded image too.")]
 	public string ImagePath
 	{
 		get => _imagePath;
@@ -177,6 +177,19 @@ public sealed class Scene : ObservableObject
 		{
 			ImagePath = StoredImagePath(projectFolder, ImagePath);
 		}
+	}
+
+	/// <summary>
+	/// Drops the scene image (2026-10-26, Jeroen's report: there was no way): the name, the file path and the embedded
+	/// bytes go, and the scene is a blank canvas of <see cref="Width"/> × <see cref="Height"/> again (the application sets
+	/// those to the image's size first, so the canvas keeps its size and the sources their places).
+	/// </summary>
+	public void RemoveImage()
+	{
+		Image = "";
+		ImagePath = "";
+		ImageData = null;
+		Mode = SceneMode.Canvas;
 	}
 
 	/// <summary>Width of a blank canvas in pixels.</summary>

@@ -2146,6 +2146,10 @@ internal static class Program
 			var abs = new Scene { ImagePath = Path.Combine(projectFolder, "a.png") };
 			abs.RelativizeImagePath(projectFolder);
 			Check(abs.ImagePath == "a.png", "RelativizeImagePath on save");
+			var pictured = new Scene { Mode = SceneMode.Image, Image = "a.png", ImagePath = "a.png", ImageData = [1, 2, 3] };
+			pictured.RemoveImage();
+			Check(pictured.Mode == SceneMode.Canvas && pictured.Image.Length == 0 && pictured.ImagePath.Length == 0 && pictured.ImageData == null && pictured.IsDefault,
+				"RemoveImage drops the name, the path and the bytes and leaves a blank canvas, the default scene");
 			var edited = loaded.ColorSchemes[0];
 			int changes = 0;
 			edited.PropertyChanged += (_, args) => changes += args.PropertyName == nameof(ColorScheme.Stops) ? 1 : 0;

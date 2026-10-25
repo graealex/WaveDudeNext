@@ -227,7 +227,10 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   above 8 bits per channel is a possible future goal). A better algorithm than Bayer may come later.
 - **Colour schemes** are stop lists in `.wdscheme` XML, shipped ones embedded, user ones in
   `%LOCALAPPDATA%\WaveDudeNext\ColorSchemes`, project ones in the `.wdproj`; an in-house picker edits stops;
-  renaming a project scheme repoints its layers. **The scene image** is embedded and follows its file on disk;
+  renaming a project scheme repoints its layers. **The scene image** is embedded and follows its file on disk, the
+  path being where it came from (2026-10-26, Jeroen's report: the scene form shows the image rows for an image scene
+  only, says "(not found)" beside a path whose file is gone, which changes nothing, and has an X beside Browse, which
+  drops the name, the path and the bytes and leaves a blank canvas of the image's size);
   the "glowing edges" outline overlays the pictures. **Import** of Jeroen's `configuration.json` is key for key; a source whose position was
   never picked (`has_position` false) stays enabled at its x/y, since his program simulated it there (Example 11's
   lattice came in disabled and ran black until 2026-10-16).

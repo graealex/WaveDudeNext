@@ -24,11 +24,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns:commands="clr-namespace:WaveDudeNext.WPF.Commands"
              xmlns:converters="clr-namespace:WaveDudeNext.WPF.Converters"
              xmlns:meta="clr-namespace:WaveDudeNext.WPF.Markup"
+             xmlns:local="clr-namespace:WaveDudeNext.WPF"
              xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext">
 
 	<UserControl.Resources>
 		<converters:ImageInfoConverter x:Key="ImageInfo" />
-		<!-- the size applies to a blank canvas, the image path to an image scene -->
+		<!-- the size applies to a blank canvas; the image rows (name, file, embedded size) show for an image scene and are gone
+		     for a canvas (2026-10-26, Jeroen's report: the path of an image no longer in use kept showing) -->
 		<Style x:Key="CanvasOnly" TargetType="{x:Type controls:NumberBox}" BasedOn="{StaticResource {x:Type controls:NumberBox}}">
 			<Style.Triggers>
 				<DataTrigger Binding="{Binding Mode}" Value="Image">
@@ -36,10 +38,17 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</DataTrigger>
 			</Style.Triggers>
 		</Style>
-		<Style x:Key="ImageOnly" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
+		<Style x:Key="ImageRow" TargetType="{x:Type FrameworkElement}">
 			<Style.Triggers>
 				<DataTrigger Binding="{Binding Mode}" Value="Canvas">
-					<Setter Property="IsEnabled" Value="False" />
+					<Setter Property="Visibility" Value="Collapsed" />
+				</DataTrigger>
+			</Style.Triggers>
+		</Style>
+		<Style x:Key="ImageRowLabel" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource FormLabel}">
+			<Style.Triggers>
+				<DataTrigger Binding="{Binding Mode}" Value="Canvas">
+					<Setter Property="Visibility" Value="Collapsed" />
 				</DataTrigger>
 			</Style.Triggers>
 		</Style>
@@ -53,28 +62,43 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<ComboBox Style="{StaticResource EnumComboBox}" ItemsSource="{meta:EnumValues model:SceneMode}"
 				          SelectedItem="{Binding Mode}" ToolTip="{meta:Hint model:Scene.Mode}" />
 
-				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.Image}" />
-				<!-- the name of the embedded image (or a legacy path), and the picker that embeds a file -->
-				<DockPanel>
+				<TextBlock Style="{StaticResource ImageRowLabel}" Text="{meta:Label model:Scene.Image}" />
+				<!-- the name of the embedded image (or a legacy path), the picker that embeds a file, and the X that removes the image
+				     (2026-10-26, Jeroen's report: there was no way to drop one), leaving a blank canvas of the image's size; the X is
+				     the panes' close glyph in the button's text colour, so it greys with the button -->
+				<DockPanel Style="{StaticResource ImageRow}">
+					<Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="7,0" ToolTip="{DynamicResource TipRemoveSceneImage}"
+					        AutomationProperties.Name="{DynamicResource TipRemoveSceneImage}" Command="{x:Static commands:ProjectCommands.RemoveSceneImage}"
+					        AutomationProperties.AutomationId="SceneRemoveImage">
+						<Path Data="{StaticResource CloseGeometry}" Width="8" Height="8" Stretch="Uniform" Fill="{Binding (TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+					</Button>
 					<Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="8,0" Content="{DynamicResource ButtonBrowse}"
 					        ToolTip="{DynamicResource TipBrowseSceneImage}" Command="{x:Static commands:ProjectCommands.BrowseSceneImage}"
 					        AutomationProperties.AutomationId="SceneBrowse" />
-					<TextBox Style="{StaticResource ImageOnly}" Text="{Binding Image, UpdateSourceTrigger=PropertyChanged}" ToolTip="{meta:Hint model:Scene.Image}" />
+					<TextBox Text="{Binding Image, UpdateSourceTrigger=PropertyChanged}" ToolTip="{meta:Hint model:Scene.Image}" />
 				</DockPanel>
 
-				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.ImagePath}" />
-				<TextBlock VerticalAlignment="Center" Text="{Binding ImagePath}" TextTrimming="CharacterEllipsis" ToolTip="{meta:Hint model:Scene.ImagePath}"
-				           AutomationProperties.AutomationId="SceneImagePath" />
+				<TextBlock Style="{StaticResource ImageRowLabel}" Text="{meta:Label model:Scene.ImagePath}" />
+				<!-- the path and, when the file is not on disk, a note (the window checks; the embedded image is what is simulated) -->
+				<DockPanel Style="{StaticResource ImageRow}">
+					<TextBlock DockPanel.Dock="Right" Margin="4,0,0,0" VerticalAlignment="Center" Text="{DynamicResource SceneImageNotFound}"
+					           Visibility="{Binding SceneImageFileMissing, RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}}, Converter={StaticResource BoolToVisibility}}"
+					           AutomationProperties.AutomationId="SceneImageNotFound" />
+					<TextBlock VerticalAlignment="Center" Text="{Binding ImagePath}" TextTrimming="CharacterEllipsis" ToolTip="{meta:Hint model:Scene.ImagePath}"
+					           AutomationProperties.AutomationId="SceneImagePath" />
+				</DockPanel>
 
-				<TextBlock Style="{StaticResource FormLabel}" Text="{DynamicResource LabelEmbeddedImage}" />
-				<TextBlock VerticalAlignment="Center" Text="{Binding ImageData, Converter={StaticResource ImageInfo}}"
-				           ToolTip="{DynamicResource TipEmbeddedImage}" AutomationProperties.AutomationId="SceneImageInfo" />
+				<TextBlock Style="{StaticResource ImageRowLabel}" Text="{DynamicResource LabelEmbeddedImage}" />
+				<DockPanel Style="{StaticResource ImageRow}">
+					<TextBlock VerticalAlignment="Center" Text="{Binding ImageData, Converter={StaticResource ImageInfo}}"
+					           ToolTip="{DynamicResource TipEmbeddedImage}" AutomationProperties.AutomationId="SceneImageInfo" />
+				</DockPanel>
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.Width}" />
-				<controls:NumberBox Style="{StaticResource CanvasOnly}" Text="{Binding Width}" Minimum="8" Maximum="16384" ToolTip="{meta:Hint model:Scene.Width}" />
+				<controls:NumberBox Style="{StaticResource CanvasOnly}" Text="{Binding Width}" Minimum="8" Maximum="16384" ToolTip="{meta:Hint model:Scene.Width}" AutomationProperties.AutomationId="SceneWidth" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.Height}" />
-				<controls:NumberBox Style="{StaticResource CanvasOnly}" Text="{Binding Height}" Minimum="8" Maximum="16384" ToolTip="{meta:Hint model:Scene.Height}" />
+				<controls:NumberBox Style="{StaticResource CanvasOnly}" Text="{Binding Height}" Minimum="8" Maximum="16384" ToolTip="{meta:Hint model:Scene.Height}" AutomationProperties.AutomationId="SceneHeight" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.Edges}" />
 				<ComboBox Style="{StaticResource EnumComboBox}" ItemsSource="{meta:EnumValues model:EdgeMode}"
