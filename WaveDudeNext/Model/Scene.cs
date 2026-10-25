@@ -221,9 +221,17 @@ public sealed class Scene : ObservableObject
 		set
 		{
 			_dampingEdgeRead = true;
-			SetProperty(ref _dampingEdge, value);
+			if (SetProperty(ref _dampingEdge, value))
+			{
+				OnPropertyChanged(nameof(HasRim));
+			}
 		}
 	}
+
+	/// <summary>Whether a damping rim lies outside the canvas (a negative <see cref="DampingEdge"/>, <see cref="Runs.RunSpec.Rim"/> cells), which the preview frames in blue (2026-10-25).</summary>
+	[XmlIgnore]
+	[Browsable(false)]
+	public bool HasRim => _dampingEdge < 0;
 
 	/// <summary>
 	/// Whether <see cref="DampingEdge"/> has been set since construction: right after a file is read, whether the file

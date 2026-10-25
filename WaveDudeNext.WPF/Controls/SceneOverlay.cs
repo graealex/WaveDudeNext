@@ -58,11 +58,11 @@ public sealed class SceneOverlay : Panel
 
 	/// <summary>Identifies the <see cref="CanvasWidth"/> property.</summary>
 	public static readonly DependencyProperty CanvasWidthProperty = DependencyProperty.Register(
-		nameof(CanvasWidth), typeof(int), typeof(SceneOverlay), new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsArrange | FrameworkPropertyMetadataOptions.AffectsRender));
+		nameof(CanvasWidth), typeof(int), typeof(SceneOverlay), new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
 
 	/// <summary>Identifies the <see cref="CanvasHeight"/> property.</summary>
 	public static readonly DependencyProperty CanvasHeightProperty = DependencyProperty.Register(
-		nameof(CanvasHeight), typeof(int), typeof(SceneOverlay), new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsArrange | FrameworkPropertyMetadataOptions.AffectsRender));
+		nameof(CanvasHeight), typeof(int), typeof(SceneOverlay), new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
 
 	/// <summary>Identifies the <see cref="SelectedItem"/> property.</summary>
 	public static readonly DependencyProperty SelectedItemProperty = DependencyProperty.Register(
@@ -797,14 +797,22 @@ public sealed class SceneOverlay : Panel
 		}
 	}
 
-	/// <inheritdoc/>
+	/// <summary>
+	/// The picture's size, the canvas fitted uniformly into the room (as <see cref="CanvasImage"/> fits it), so the cell
+	/// holding the picture and its overlays is sized to the picture and its edge line hugs it (2026-10-25); nothing without a bound.
+	/// </summary>
 	protected override Size MeasureOverride(Size availableSize)
 	{
 		foreach (UIElement child in Children)
 		{
 			child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
 		}
-		return new Size(double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width, double.IsInfinity(availableSize.Height) ? 0 : availableSize.Height);
+		if (double.IsInfinity(availableSize.Width) || double.IsInfinity(availableSize.Height))
+		{
+			return default;
+		}
+		double scale = Math.Min(availableSize.Width / Math.Max(1, CanvasWidth), availableSize.Height / Math.Max(1, CanvasHeight));
+		return new Size(Math.Max(1, CanvasWidth) * scale, Math.Max(1, CanvasHeight) * scale);
 	}
 
 	/// <inheritdoc/>

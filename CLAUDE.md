@@ -160,6 +160,12 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   gives way first, the box and **Auto** at the far end; turned on its side with the title); Auto fits once to the frame
   shown (the 99.5th percentile of |field| or √intensity at the palette's top, the user's choice of the variants), an
   8-bit preview computing that frame in 16-bit first; the context menu has Brightness and Auto brightness.
+- **Edge line** (2026-10-25, the user's choice): a 1 px line around each preview picture in the colour of what a wave
+  meets at the canvas edge: pure red for a reflective wall (the index's channel), pure blue for a damping rim outside
+  the canvas (the absorbers' channel; `Scene.HasRim`; a rim wins over a wall), nothing for open edges or a damping band
+  inside the canvas; the scene's colours, not the theme's; preview only. For it the picture's cell is sized to the
+  picture (the overlays measure to the uniform fit and remeasure on a canvas change) while `PictureFrame` fills its
+  cell, so the heading stays at the top.
 - **Play means "show me the simulation"**: it starts an automatic run when needed and holds at the newest frame
   until the run catches up. Live follows a running run until the user scrubs; it ends with a last follow to the
   final frame. A replaced project goes to frame 0; a discarded run keeps the position. In/out points are steps.

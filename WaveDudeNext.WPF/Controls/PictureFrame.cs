@@ -25,7 +25,9 @@ namespace WaveDudeNext.WPF.Controls;
 /// Lays out a label and a picture so the label takes as little of the picture's room as possible:
 /// above the picture when the available space is taller than the picture's aspect ratio (spare room
 /// is above and below anyway), or rotated by 90° on its left when the space is wider (spare room is
-/// at the sides). The first child is the label, the second the picture (a <see cref="CanvasImage"/>, whose canvas
+/// at the sides). The frame takes all the room it is given (2026-10-25: the picture's cell sizes itself to the
+/// picture since its edge line, and the label stays at the top of the cell, the picture centred in the rest). The
+/// first child is the label, the second the picture (a <see cref="CanvasImage"/>, whose canvas
 /// gives the aspect ratio, or an <see cref="Image"/> with <see cref="Stretch.Uniform"/>, whose <see cref="Image.Source"/>
 /// gives it, 16:9 when there is none; or a panel holding one under an overlay). UI thread, like every element.
 /// </summary>
@@ -91,9 +93,11 @@ public sealed class PictureFrame : Panel
 			? new Size(Math.Max(0, availableSize.Width - label.DesiredSize.Width - gap), availableSize.Height)
 			: new Size(availableSize.Width, Math.Max(0, availableSize.Height - label.DesiredSize.Height - gap));
 		picture.Measure(rest);
-		return side
+		Size content = side
 			? new Size(label.DesiredSize.Width + gap + picture.DesiredSize.Width, Math.Max(label.DesiredSize.Height, picture.DesiredSize.Height))
 			: new Size(Math.Max(label.DesiredSize.Width, picture.DesiredSize.Width), label.DesiredSize.Height + gap + picture.DesiredSize.Height);
+		return new Size(double.IsInfinity(availableSize.Width) ? content.Width : Math.Max(content.Width, availableSize.Width),
+			double.IsInfinity(availableSize.Height) ? content.Height : Math.Max(content.Height, availableSize.Height));
 	}
 
 	/// <inheritdoc/>
@@ -127,11 +131,13 @@ public sealed class PictureFrame : Panel
 
 	/// <summary>
 	/// Width over height of the picture: a <see cref="CanvasImage"/>'s canvas, else the source's, or 16:9 without one. The
-	/// picture is an <see cref="Image"/>, or a panel whose first <see cref="Image"/> child is it (an overlay on top).
+	/// picture is an <see cref="Image"/>, or a panel whose first <see cref="Image"/> child is it (an overlay on top), either
+	/// possibly inside a <see cref="Decorator"/> (the edge line's border).
 	/// </summary>
 	private static double AspectOf(UIElement picture)
 	{
-		Image? image = picture as Image ?? (picture as Panel)?.Children.OfType<Image>().FirstOrDefault();
+		UIElement inner = picture is Decorator { Child: { } child } ? child : picture;
+		Image? image = inner as Image ?? (inner as Panel)?.Children.OfType<Image>().FirstOrDefault();
 		return image switch
 		{
 			CanvasImage canvas => canvas.Aspect,

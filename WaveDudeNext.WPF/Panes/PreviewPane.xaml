@@ -572,46 +572,66 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 											        AutomationProperties.AutomationId="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, StringFormat={}{0}AutoBrightness}" />
 										</StackPanel>
 									</controls:HeaderStrip>
-									<!-- the picture with the source/probe handles over it; both fill the same rectangle -->
-									<Grid>
-										<!-- sized by the canvas, never by its bitmap; its size on screen is where a 16-bit frame is rendered (OnPictureSizeChanged) -->
-										<controls:CanvasImage Source="{TemplateBinding Content}" AutomationProperties.AutomationId="{TemplateBinding Tag}" SizeChanged="OnPictureSizeChanged"
-										                      CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                      CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}" />
-										<!-- the scene outline, a translucent layer of the same pixel size, so it lands exactly on the frame -->
-										<Image Source="{Binding Path=(local:PreviewPane.OverlayImage), RelativeSource={RelativeSource TemplatedParent}}"
-										       Stretch="Uniform" IsHitTestVisible="False" />
-										<!-- the handles: sources, emitter dots, probe points and lines. Styled here, not implicitly: WPF applies
-										     implicit styles inside a template only to Controls, and the overlay is a Panel -->
-										<controls:SceneOverlay SourceStyle="{StaticResource SourceMarker}" PartStyle="{StaticResource PartMarker}" GripStyle="{StaticResource PartGripMarker}" PointStyle="{StaticResource PartPointMarker}" HandleStyle="{StaticResource FiberHandleMarker}" ProbeStyle="{StaticResource ProbeMarker}" AngleStyle="{StaticResource AngleMarker}"
-										                       LineBrush="White" LabelBrush="White" AccentBrush="{DynamicResource Accent}"
-										                       Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                       CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                       CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                       Layer="{Binding Path=(local:PreviewPane.Layer), RelativeSource={RelativeSource TemplatedParent}}"
-										                       SelectedItem="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Mode=TwoWay}"
-										                       SelectedItems="{Binding SelectedItems, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}" />
-										<!-- the probes' graph boxes, over the handles: no handle or emitter dot is ever drawn on a graph (the user's
-										     rule, 2026-10-18; until then the boxes lay under the handles, to keep a handle over a box grabbable, and
-										     a handle under a box is reached by Tab or the tree instead); which probes depends on the cell's layer
-										     (the attached PreviewPane.Layer) -->
-										<controls:ProbeGraphOverlay BoxStyle="{StaticResource ProbeBoxThumb}" CornerStyle="{StaticResource ProbeBoxCornerThumb}"
-										                            AccentBrush="{DynamicResource Accent}"
-										                            Layer="{Binding Path=(local:PreviewPane.Layer), RelativeSource={RelativeSource TemplatedParent}}"
-										                            Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                            Run="{Binding Run, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                            Scratch="{Binding GraphScratch, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                            Frame="{Binding Position, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                            CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                            CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
-										                            SelectedItem="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Mode=TwoWay}" />
-										<!-- a frame for this position is being computed (longer than a moment): the stale picture dims and a spinner
-										     turns, so the wait reads as work in progress and not as a preview that does not update (2026-10-14) -->
-										<Grid IsHitTestVisible="False" Visibility="{Binding IsBusyOverlayVisible, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Converter={StaticResource BoolToVisibility}}">
-											<Rectangle Fill="Black" Opacity="0.45" />
-											<Path Style="{StaticResource Spinner}" />
+									<!-- the edge line (2026-10-25, the user's choice): 1 px around the picture, which the border is sized to (centred,
+									     so the cell's spare room stays outside it), in the colour of what a wave meets at the canvas edge: red for a
+									     reflective wall, the index's channel, blue for a damping rim outside the canvas, the absorbers' channel (a rim
+									     wins, the wave meets it first); nothing for open edges and for a damping band inside the canvas, which shows
+									     itself. The pure channel colours, not the theme's (the user's choice). Preview only, never in an export -->
+									<Border BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="True">
+										<Border.Style>
+											<Style TargetType="{x:Type Border}">
+												<Setter Property="BorderBrush" Value="Transparent" />
+												<Style.Triggers>
+													<DataTrigger Binding="{Binding Project.Scene.Edges, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}" Value="Reflective">
+														<Setter Property="BorderBrush" Value="#FFFF0000" />
+													</DataTrigger>
+													<DataTrigger Binding="{Binding Project.Scene.HasRim, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}" Value="True">
+														<Setter Property="BorderBrush" Value="#FF0000FF" />
+													</DataTrigger>
+												</Style.Triggers>
+											</Style>
+										</Border.Style>
+										<!-- the picture with the source/probe handles over it; both fill the same rectangle -->
+										<Grid>
+											<!-- sized by the canvas, never by its bitmap; its size on screen is where a 16-bit frame is rendered (OnPictureSizeChanged) -->
+											<controls:CanvasImage Source="{TemplateBinding Content}" AutomationProperties.AutomationId="{TemplateBinding Tag}" SizeChanged="OnPictureSizeChanged"
+											                      CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                      CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}" />
+											<!-- the scene outline, a translucent layer of the same pixel size, so it lands exactly on the frame -->
+											<Image Source="{Binding Path=(local:PreviewPane.OverlayImage), RelativeSource={RelativeSource TemplatedParent}}"
+											       Stretch="Uniform" IsHitTestVisible="False" />
+											<!-- the handles: sources, emitter dots, probe points and lines. Styled here, not implicitly: WPF applies
+											     implicit styles inside a template only to Controls, and the overlay is a Panel -->
+											<controls:SceneOverlay SourceStyle="{StaticResource SourceMarker}" PartStyle="{StaticResource PartMarker}" GripStyle="{StaticResource PartGripMarker}" PointStyle="{StaticResource PartPointMarker}" HandleStyle="{StaticResource FiberHandleMarker}" ProbeStyle="{StaticResource ProbeMarker}" AngleStyle="{StaticResource AngleMarker}"
+											                       LineBrush="White" LabelBrush="White" AccentBrush="{DynamicResource Accent}"
+											                       Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                       CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                       CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                       Layer="{Binding Path=(local:PreviewPane.Layer), RelativeSource={RelativeSource TemplatedParent}}"
+											                       SelectedItem="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Mode=TwoWay}"
+											                       SelectedItems="{Binding SelectedItems, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}" />
+											<!-- the probes' graph boxes, over the handles: no handle or emitter dot is ever drawn on a graph (the user's
+											     rule, 2026-10-18; until then the boxes lay under the handles, to keep a handle over a box grabbable, and
+											     a handle under a box is reached by Tab or the tree instead); which probes depends on the cell's layer
+											     (the attached PreviewPane.Layer) -->
+											<controls:ProbeGraphOverlay BoxStyle="{StaticResource ProbeBoxThumb}" CornerStyle="{StaticResource ProbeBoxCornerThumb}"
+											                            AccentBrush="{DynamicResource Accent}"
+											                            Layer="{Binding Path=(local:PreviewPane.Layer), RelativeSource={RelativeSource TemplatedParent}}"
+											                            Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                            Run="{Binding Run, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                            Scratch="{Binding GraphScratch, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                            Frame="{Binding Position, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                            CanvasWidth="{Binding CanvasWidth, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                            CanvasHeight="{Binding CanvasHeight, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}}"
+											                            SelectedItem="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Mode=TwoWay}" />
+											<!-- a frame for this position is being computed (longer than a moment): the stale picture dims and a spinner
+											     turns, so the wait reads as work in progress and not as a preview that does not update (2026-10-14) -->
+											<Grid IsHitTestVisible="False" Visibility="{Binding IsBusyOverlayVisible, RelativeSource={RelativeSource AncestorType={x:Type local:PreviewPane}}, Converter={StaticResource BoolToVisibility}}">
+												<Rectangle Fill="Black" Opacity="0.45" />
+												<Path Style="{StaticResource Spinner}" />
+											</Grid>
 										</Grid>
-									</Grid>
+									</Border>
 								</controls:PictureFrame>
 							</ControlTemplate>
 						</Setter.Value>

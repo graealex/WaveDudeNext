@@ -81,7 +81,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				          SelectedItem="{Binding Edges}" ToolTip="{meta:Hint model:Scene.Edges}" AutomationProperties.AutomationId="SceneEdges" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.DampingEdge}" />
-				<controls:NumberBox Text="{Binding DampingEdge}" Minimum="-8192" Maximum="8192" ToolTip="{meta:Hint model:Scene.DampingEdge}" />
+				<controls:NumberBox Text="{Binding DampingEdge}" Minimum="-8192" Maximum="8192" ToolTip="{meta:Hint model:Scene.DampingEdge}" AutomationProperties.AutomationId="SceneDampingEdge" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Scene.RefractiveIndex}" />
 				<controls:NumberBox Text="{Binding RefractiveIndex}" Minimum="1" Maximum="2.55" Increment="0.01" ToolTip="{meta:Hint model:Scene.RefractiveIndex}" />

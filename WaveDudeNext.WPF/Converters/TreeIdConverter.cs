@@ -18,7 +18,6 @@
 using System.Globalization;
 using System.Windows.Data;
 using WaveDudeNext.Model;
-using WaveDudeNext.Rendering;
 
 namespace WaveDudeNext.WPF.Converters;
 
@@ -31,10 +30,7 @@ public sealed class TreeIdConverter : IValueConverter
 {
 	public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => "Tree:" + value switch
 	{
-		Source source => source.Name,
-		OpticalPart part => part.Name,
-		Probe probe => probe.Name,
-		ColorScheme scheme => scheme.Name,
+		INamed named => named.Name,
 		NamedCollection folder => folder.Key,
 		null => "",
 		_ => value.GetType().Name,
