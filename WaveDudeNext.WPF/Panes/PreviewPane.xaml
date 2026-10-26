@@ -561,7 +561,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 										<TextBlock Style="{StaticResource PictureLabel}" Margin="0" TextTrimming="CharacterEllipsis" Text="{TemplateBinding Header}" />
 										<TextBlock Text="{DynamicResource Label.DisplayLayer.Brightness}" Foreground="{DynamicResource WindowForeground}" Margin="0,0,4,0" />
 										<StackPanel Orientation="Horizontal">
-											<controls:NumberBox x:Name="brightnessBox" Width="64" Minimum="0.0001" Maximum="100000"
+											<controls:NumberBox x:Name="brightnessBox" Width="64" Minimum="0.0001" Maximum="100000" Logarithmic="True"
 											                    Text="{Binding Path=(local:PreviewPane.Settings).Brightness, RelativeSource={RelativeSource TemplatedParent}}"
 											                    ToolTip="{DynamicResource Hint.DisplayLayer.Brightness}"
 											                    AutomationProperties.Name="{DynamicResource Label.DisplayLayer.Brightness}"

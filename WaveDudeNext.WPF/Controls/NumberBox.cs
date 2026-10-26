@@ -35,7 +35,8 @@ namespace WaveDudeNext.WPF.Controls;
 /// finer with Shift, ten times coarser with Ctrl, rounded to <see cref="Decimals"/> places (by default the
 /// increment's, so a whole-number box never writes a fraction); a drag that reaches the edge of the monitor wraps
 /// the cursor to the opposite edge and goes on (2026-10-19, as Blender does); Escape during the drag restores the
-/// value the drag started from; a press without movement stays an ordinary click that places the caret. Every step
+/// value the drag started from; a press without movement stays an ordinary click that places the caret. A
+/// <see cref="Logarithmic"/> box, for a gain such as a brightness, steps by a factor instead (2026-10-26). Every step
 /// clamps to <see cref="Minimum"/>..<see cref="Maximum"/>, writes the text back through the
 /// <see cref="TextBox.Text"/> binding at once and selects it, so a source moves on the picture with each key
 /// press. Typing stays plain text: the binding converts and the model clamps as before, and Enter/Escape come
@@ -64,8 +65,18 @@ public sealed class NumberBox : TextBox
 	public static readonly DependencyProperty DecimalsProperty = DependencyProperty.Register(
 		nameof(Decimals), typeof(int), typeof(NumberBox), new PropertyMetadata(-1));
 
+	/// <summary>Identifies the <see cref="Logarithmic"/> property.</summary>
+	public static readonly DependencyProperty LogarithmicProperty = DependencyProperty.Register(
+		nameof(Logarithmic), typeof(bool), typeof(NumberBox), new PropertyMetadata(false));
+
 	/// <summary>Steps per PageUp/PageDown and per wheel notch with Shift.</summary>
 	private const int PageSteps = 10;
+
+	/// <summary>The factor of one step of a <see cref="Logarithmic"/> box: two percent (seven, a tenth of a doubling, was too coarse, 2026-10-26).</summary>
+	private const double StepFactor = 1.02;
+
+	/// <summary>Mouse pixels per doubling while scrubbing a <see cref="Logarithmic"/> box (before the Shift and Ctrl factors).</summary>
+	private const double PixelsPerDoubling = 40.0;
 
 	/// <summary>Mouse pixels per increment while scrubbing when <see cref="DragStep"/> is not set.</summary>
 	public const double PixelsPerStep = 2.0;
@@ -121,13 +132,27 @@ public sealed class NumberBox : TextBox
 		set => SetValue(DecimalsProperty, value);
 	}
 
+	/// <summary>
+	/// Whether the box holds a gain and steps by a factor (2026-10-26, the user's choice after the preview's brightness,
+	/// which added 1 to 0.0001 on one press and nothing visible to 30000): Up and Down by <see cref="StepFactor"/>, two
+	/// percent, PageUp and PageDown and a Shift wheel notch by ten such steps, a fifth, a drag by a doubling per
+	/// <see cref="PixelsPerDoubling"/> pixels; the result rounded to three significant digits. <see cref="Increment"/>,
+	/// <see cref="DragStep"/> and <see cref="Decimals"/> play no part; <see cref="Minimum"/> must be positive, where a
+	/// value that is not starts.
+	/// </summary>
+	public bool Logarithmic
+	{
+		get => (bool)GetValue(LogarithmicProperty);
+		set => SetValue(LogarithmicProperty, value);
+	}
+
 	/// <summary>The value the text holds, or null while it does not parse.</summary>
 	public double? Value => double.TryParse(Text, NumberStyles.Float, CultureInfo.CurrentCulture, out double value) ? value : null;
 
 	/// <summary>
 	/// Adds <paramref name="steps"/> increments to the value (a non-parsing text counts as 0), clamps,
 	/// writes the text and pushes it into the binding. Rounded to the increment's precision so that
-	/// 0.1 steps do not accumulate binary noise.
+	/// 0.1 steps do not accumulate binary noise. A <see cref="Logarithmic"/> box multiplies by <see cref="StepFactor"/> per step instead.
 	/// </summary>
 	public void Step(int steps)
 	{
@@ -135,14 +160,25 @@ public sealed class NumberBox : TextBox
 		{
 			return;
 		}
-		Write((Value ?? 0.0) + steps * Increment);
+		Write(Logarithmic ? Positive(Value) * Math.Pow(StepFactor, steps) : (Value ?? 0.0) + steps * Increment);
 	}
+
+	/// <summary>A value a logarithmic step can start from: the one given when above zero, else the minimum, else 1.</summary>
+	private double Positive(double? value) => value is > 0.0 ? value.Value : Minimum > 0.0 ? Minimum : 1.0;
 
 	/// <summary>Clamps <paramref name="value"/>, rounds it to the box's precision, writes the text, pushes it into the binding and selects it.</summary>
 	private void Write(double value)
 	{
-		int decimals = Math.Clamp(Decimals >= 0 ? Decimals : DecimalsOf(Increment), 0, 10);
-		value = Math.Round(Math.Clamp(value, Minimum, Maximum), decimals);
+		value = Math.Clamp(value, Minimum, Maximum);
+		if (Logarithmic)
+		{
+			// three significant digits, through the text so the double is the one that prints as them
+			value = double.Parse(value.ToString("G3", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+		}
+		else
+		{
+			value = Math.Round(value, Math.Clamp(Decimals >= 0 ? Decimals : DecimalsOf(Increment), 0, 10));
+		}
 		Text = value.ToString(CultureInfo.CurrentCulture);
 		GetBindingExpression(TextProperty)?.UpdateSource();
 		SelectAll();
@@ -232,7 +268,7 @@ public sealed class NumberBox : TextBox
 				Focus();
 			}
 		}
-		double step = double.IsNaN(DragStep) ? Increment / PixelsPerStep : DragStep;
+		double step = Logarithmic ? 1.0 / PixelsPerDoubling : double.IsNaN(DragStep) ? Increment / PixelsPerStep : DragStep;
 		if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
 		{
 			step /= 10.0;
@@ -241,7 +277,7 @@ public sealed class NumberBox : TextBox
 		{
 			step *= 10.0;
 		}
-		Write(_pressValue + dx * step);
+		Write(Logarithmic ? Positive(_pressValue) * Math.Pow(2.0, dx * step) : _pressValue + dx * step);
 		WrapAtMonitorEdge(screen);
 		e.Handled = true;   // not a text selection
 	}

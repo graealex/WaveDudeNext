@@ -34,7 +34,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		                            Project="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type panes:PropertiesPane}}}" />
 
 		<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:DisplayLayer.Brightness}" />
-		<controls:NumberBox Text="{Binding Brightness}" Minimum="0.0001" Maximum="100000" ToolTip="{meta:Hint model:DisplayLayer.Brightness}" />
+		<controls:NumberBox Text="{Binding Brightness}" Minimum="0.0001" Maximum="100000" Logarithmic="True" ToolTip="{meta:Hint model:DisplayLayer.Brightness}" />
 
 		<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:DisplayLayer.BlackLevel}" />
 		<controls:NumberBox Text="{Binding BlackLevel}" Minimum="-10" Maximum="1" Increment="0.01" ToolTip="{meta:Hint model:DisplayLayer.BlackLevel}" />

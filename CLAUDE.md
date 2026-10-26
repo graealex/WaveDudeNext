@@ -159,7 +159,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Brightness** (2026-10-20, Jeroen's point 9) sits in each picture's header strip (`HeaderStrip`: title, a caption that
   gives way first, the box and **Auto** at the far end; turned on its side with the title); Auto fits once to the frame
   shown (the 99.5th percentile of |field| or √intensity at the palette's top, the user's choice of the variants), an
-  8-bit preview computing that frame in 16-bit first; the context menu has Brightness and Auto brightness.
+  8-bit preview computing that frame in 16-bit first; the context menu has Brightness and Auto brightness. The box
+  steps by a factor (`NumberBox.Logarithmic`, 2026-10-26): two percent a key, a fifth a page, three significant digits.
 - **Edge line** (2026-10-25, the user's choice): a 1 px line around each preview picture in the colour of what a wave
   meets at the canvas edge: pure red for a reflective wall (the index's channel), pure blue for a damping rim outside
   the canvas (the absorbers' channel; `Scene.HasRim`; a rim wins over a wall), nothing for open edges or a damping band
