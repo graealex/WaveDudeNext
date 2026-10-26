@@ -206,6 +206,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipMarkerFormat">{0}: drag to move; with keyboard focus the arrow keys move it by a pixel, ten with Shift</s:String>
 	<s:String x:Key="TipAngleMarkerFormat">{0}: drag to turn the array (Shift snaps to 15 degrees); with keyboard focus the arrow keys turn it by a degree, ten with Shift</s:String>
 	<s:String x:Key="TipGripFormat">{0}: drag to resize; with keyboard focus the arrow keys move the grip by a pixel, ten with Shift</s:String>
+	<s:String x:Key="TipSurfaceFormat">{0}, surface {1}: drag along the axis to curve it, outward bulges, inward flattens and then hollows; the rim stays. With keyboard focus the arrow keys move it by a pixel, ten with Shift</s:String>
 	<s:String x:Key="TipPointFormat">{0}, point {1}: drag to move it; with keyboard focus the arrow keys move it by a pixel, ten with Shift</s:String>
 	<s:String x:Key="TipNodeFormat">{0}, node {1}: drag to move it with its handles; with keyboard focus the arrow keys move it by a pixel, ten with Shift</s:String>
 	<s:String x:Key="TipInHandleFormat">{0}, node {1}, in-handle: drag to shape the segment arriving here; a smooth node turns the out-handle with it. With keyboard focus the arrow keys move it by a pixel, ten with Shift</s:String>

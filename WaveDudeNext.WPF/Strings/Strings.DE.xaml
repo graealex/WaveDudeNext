@@ -204,6 +204,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipMarkerFormat">{0}: zum Verschieben ziehen; mit Tastaturfokus bewegen die Pfeiltasten um ein Pixel, mit Umschalt um zehn</s:String>
 	<s:String x:Key="TipAngleMarkerFormat">{0}: zum Drehen des Rasters ziehen (Umschalt rastet auf 15 Grad ein); mit Tastaturfokus drehen die Pfeiltasten um ein Grad, mit Umschalt um zehn</s:String>
 	<s:String x:Key="TipGripFormat">{0}: zum Ändern der Größe ziehen; mit Tastaturfokus bewegen die Pfeiltasten den Griff um ein Pixel, mit Umschalt um zehn</s:String>
+	<s:String x:Key="TipSurfaceFormat">{0}, Fläche {1}: entlang der Achse ziehen, um sie zu wölben; nach außen wölbt, nach innen ebnet und höhlt; der Rand bleibt. Mit Tastaturfokus bewegen die Pfeiltasten sie um ein Pixel, mit Umschalt um zehn</s:String>
 	<s:String x:Key="TipPointFormat">{0}, Punkt {1}: zum Verschieben ziehen; mit Tastaturfokus bewegen die Pfeiltasten um ein Pixel, mit Umschalt um zehn</s:String>
 	<s:String x:Key="TipNodeFormat">{0}, Knoten {1}: zum Verschieben mit seinen Griffen ziehen; mit Tastaturfokus bewegen die Pfeiltasten um ein Pixel, mit Umschalt um zehn</s:String>
 	<s:String x:Key="TipInHandleFormat">{0}, Knoten {1}, Eingangsgriff: Ziehen formt das hier ankommende Segment; ein glatter Knoten dreht den Ausgangsgriff mit. Mit Tastaturfokus bewegen die Pfeiltasten um ein Pixel, mit Umschalt um zehn</s:String>

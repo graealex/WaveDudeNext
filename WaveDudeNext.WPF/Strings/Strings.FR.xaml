@@ -204,6 +204,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipMarkerFormat">{0} : glisser pour déplacer ; avec le focus clavier, les flèches déplacent d'un pixel, de dix avec Maj</s:String>
 	<s:String x:Key="TipAngleMarkerFormat">{0} : glisser pour tourner la grille (Maj aligne sur 15 degrés) ; avec le focus clavier, les flèches la tournent d'un degré, de dix avec Maj</s:String>
 	<s:String x:Key="TipGripFormat">{0} : glisser pour redimensionner ; avec le focus clavier, les flèches déplacent la poignée d'un pixel, de dix avec Maj</s:String>
+	<s:String x:Key="TipSurfaceFormat">{0}, surface {1} : glisser le long de l'axe pour la courber, vers l'extérieur elle bombe, vers l'intérieur elle s'aplatit puis se creuse ; le bord reste. Avec le focus clavier, les flèches la déplacent d'un pixel, de dix avec Maj</s:String>
 	<s:String x:Key="TipPointFormat">{0}, point {1} : glisser pour déplacer ; avec le focus clavier, les flèches déplacent d'un pixel, de dix avec Maj</s:String>
 	<s:String x:Key="TipNodeFormat">{0}, nœud {1} : glisser pour le déplacer avec ses poignées ; avec le focus clavier, les flèches le déplacent d'un pixel, de dix avec Maj</s:String>
 	<s:String x:Key="TipInHandleFormat">{0}, nœud {1}, poignée d'entrée : glisser pour former le segment qui arrive ici ; un nœud lisse entraîne la poignée de sortie. Avec le focus clavier, les flèches la déplacent d'un pixel, de dix avec Maj</s:String>

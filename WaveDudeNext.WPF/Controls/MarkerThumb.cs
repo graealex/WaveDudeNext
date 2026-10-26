@@ -17,6 +17,7 @@
 
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 
 namespace WaveDudeNext.WPF.Controls;
 
@@ -35,6 +36,8 @@ public enum MarkerRole
 	PartGrip,
 	/// <summary>One point of an outline's list, or one node of a fibre's path (<see cref="MarkerThumb.Index"/> says which).</summary>
 	PartPoint,
+	/// <summary>The vertex of a lens surface (<see cref="MarkerThumb.Index"/> 1 or 2): moves along the axis and sets the surface's radius, the rim held (2026-10-26, Jeroen's proposal).</summary>
+	PartSurface,
 	/// <summary>The in-handle of a node of a fibre's path: the Bézier handle of the segment arriving there (<see cref="MarkerThumb.Index"/> says which node; 2026-10-22).</summary>
 	FiberIn,
 	/// <summary>The out-handle of a node of a fibre's path: the Bézier handle of the segment leaving there.</summary>
@@ -131,4 +134,14 @@ public sealed class MarkerThumb : Thumb
 
 	/// <summary>For the Bézier handle of a smooth node: the other handle's length when the drag or key press began, which it keeps while it turns (canvas pixels); null otherwise.</summary>
 	internal double? MirrorLength { get; set; }
+
+	/// <summary>Canvas points captured as a drag or a run of keyboard steps starts, which it holds still: a lens surface's rim and the other surface's vertex (2026-10-26); null for a handle without any. Forgotten when the focus leaves.</summary>
+	internal (double X, double Y)[]? DragAnchors { get; set; }
+
+	/// <inheritdoc/>
+	protected override void OnLostKeyboardFocus(KeyboardFocusChangedEventArgs e)
+	{
+		base.OnLostKeyboardFocus(e);
+		DragAnchors = null;
+	}
 }

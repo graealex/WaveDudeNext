@@ -507,7 +507,8 @@ public sealed class LensPart : OpticalPart
 		double sag2 = Sag(r2, half);
 		double convex = (r1 > 0.0 ? sag1 : 0.0) + (r2 < 0.0 ? sag2 : 0.0);
 		double budget = Math.Max(1, thickness) + (r1 < 0.0 ? sag1 : 0.0) + (r2 > 0.0 ? sag2 : 0.0);
-		if (convex > budget)
+		// a hair over the budget (the floating point of a stretched lens's sags) is no case for a refit
+		if (convex > budget + 1e-9)
 		{
 			double scale = budget / convex;
 			if (r1 > 0.0)
@@ -524,6 +525,103 @@ public sealed class LensPart : OpticalPart
 
 	/// <summary>The radius whose sag at <paramref name="half"/> from the axis is <paramref name="sag"/>, (h² + s²) / 2s, rounded up to a whole pixel (a flatter surface still fits).</summary>
 	private static double RadiusForSag(double half, double sag) => Math.Ceiling((half * half + sag * sag) / (2.0 * sag));
+
+	/// <summary>
+	/// Sets the diameter and the centre thickness the size grip stands for by stretching the lens as a rectangle's or an
+	/// ellipse's grip stretches theirs (2026-10-26, Jeroen's report and the user's rule after it: a grip dragged a little inward
+	/// had the radii fitted flat and the lens was a rectangle; held sags made a stretched lens a slab): the diameter stretches
+	/// the lens across, the profile along the axis held; the thickness stretches the whole profile along the axis, the sags
+	/// and the edge with it, so a thinner lens is the same lens squashed and never a slab; pulled out diagonally the lens
+	/// scales as a whole, its shape kept. The surfaces are refitted as circles through the stretched rim and vertex (a sag
+	/// beyond the half diameter is a hemisphere's). Nothing stops the grip but a thickness of 1. Typed values are fitted as
+	/// before.
+	/// </summary>
+	/// <param name="diameter">The diameter asked for, in pixels.</param>
+	/// <param name="thickness">The centre thickness asked for, in pixels.</param>
+	public void SetExtents(int diameter, int thickness)
+	{
+		(double r1, double r2) = FitRadii(Diameter, Thickness, R1, R2);
+		double half = Math.Max(2, Diameter) / 2.0;
+		double grown = Math.Max(2, diameter) / 2.0;
+		double along = Math.Max(1, thickness) / (double)Math.Max(1, Thickness);
+		if (grown == half && along == 1.0)
+		{
+			return;
+		}
+		// the sags signed as the radii are: surface 1 convex is positive, surface 2 convex is negative
+		double sag1 = Math.Clamp(SurfaceSag(r1, half) * along, -grown, grown);
+		double sag2 = Math.Clamp(SurfaceSag(r2, half) * along, -grown, grown);
+		// the thicker value first, so no state in between has the radii fitted
+		if (thickness > Thickness)
+		{
+			Thickness = Math.Max(1, thickness);
+		}
+		Diameter = Math.Max(2, diameter);
+		R1 = RadiusOfSag(grown, sag1);
+		R2 = RadiusOfSag(grown, sag2);
+		Thickness = Math.Max(1, thickness);
+	}
+
+	/// <summary>The radius, signed as <paramref name="sag"/> is, whose surface has that sag at <paramref name="half"/> from the axis: the sagitta (h² + s²) / 2s; 0 for no sag.</summary>
+	private static double RadiusOfSag(double half, double sag) =>
+		sag == 0.0 ? 0.0 : Math.CopySign((half * half + sag * sag) / (2.0 * Math.Abs(sag)), sag);
+
+	/// <summary>Where the vertex of surface <paramref name="surface"/> (1 the left, 2 the right) sits on the axis in the part frame: ∓<see cref="Thickness"/> / 2.</summary>
+	public double VertexX(int surface) => (surface == 1 ? -1 : 1) * Math.Max(1, Thickness) / 2.0;
+
+	/// <summary>Where surface <paramref name="surface"/> meets the rim, on the axis in the part frame: its vertex plus its sag at the half diameter, the radii as fitted.</summary>
+	public double RimX(int surface)
+	{
+		(double r1, double r2) = FitRadii(Diameter, Thickness, R1, R2);
+		return VertexX(surface) + SurfaceSag(surface == 1 ? r1 : r2, Math.Max(2, Diameter) / 2.0);
+	}
+
+	/// <summary>
+	/// Moves the vertex of surface <paramref name="surface"/> to <paramref name="x"/> on the axis (part frame), the surface's
+	/// rim and the other surface held (2026-10-26, Jeroen's proposal, a handle on each vertex): the sag at the rim changes and
+	/// with it the radius; pulled outward the surface bulges, pushed through the rim plane it is flat (within half a pixel),
+	/// then concave, a hemisphere at most either way. The centre thickness follows, a whole pixel of at least 1, and the
+	/// part's position moves to the new centre, rounded to a pixel. <paramref name="rim"/> and <paramref name="other"/> are
+	/// where the rim and the other vertex are (a drag captures them as it starts, so the position's rounding never creeps
+	/// into them).
+	/// </summary>
+	public void SetVertex(int surface, double x, double rim, double other)
+	{
+		double half = Math.Max(2, Diameter) / 2.0;
+		int side = surface == 1 ? -1 : 1;
+		int thickness = Math.Max(1, (int)Math.Round(side * (x - other)));
+		x = other + side * thickness;
+		double sag = Math.Clamp(side * (x - rim), -half, half);
+		if (Math.Abs(sag) < 0.5)
+		{
+			sag = 0.0;
+		}
+		// the sagitta: surface 1 bulging left is R1 > 0, surface 2 bulging right is R2 < 0
+		double radius = RadiusOfSag(half, -side * sag);
+		bool thicker = thickness > Thickness;
+		if (thicker)
+		{
+			Thickness = thickness;
+		}
+		if (surface == 1)
+		{
+			R1 = radius;
+		}
+		else
+		{
+			R2 = radius;
+		}
+		if (!thicker)
+		{
+			Thickness = thickness;
+		}
+		(double cx, double cy) = ToCanvas((x + other) / 2.0, 0.0);
+		X = (int)Math.Round(cx);
+		Y = (int)Math.Round(cy);
+	}
+
+	/// <summary>Moves a vertex as <see cref="SetVertex(int, double, double, double)"/> does, the rim and the other vertex where they are now (a keyboard step).</summary>
+	public void SetVertex(int surface, double x) => SetVertex(surface, x, RimX(surface), VertexX(surface == 1 ? 2 : 1));
 
 	/// <summary>A radius of at least <paramref name="half"/> in magnitude, its sign kept; a non-finite or zero one is flat.</summary>
 	private static double GuardRadius(double radius, double half) =>

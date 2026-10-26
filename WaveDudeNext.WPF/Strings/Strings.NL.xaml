@@ -204,6 +204,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipMarkerFormat">{0}: slepen om te verplaatsen; met toetsenbordfocus verplaatsen de pijltoetsen één pixel, tien met Shift</s:String>
 	<s:String x:Key="TipAngleMarkerFormat">{0}: slepen om het raster te draaien (Shift klikt vast op 15 graden); met toetsenbordfocus draaien de pijltoetsen het één graad, tien met Shift</s:String>
 	<s:String x:Key="TipGripFormat">{0}: slepen om de grootte te wijzigen; met toetsenbordfocus verplaatsen de pijltoetsen de greep één pixel, tien met Shift</s:String>
+	<s:String x:Key="TipSurfaceFormat">{0}, oppervlak {1}: langs de as slepen om het te krommen, naar buiten bolt het, naar binnen wordt het vlak en dan hol; de rand blijft. Met toetsenbordfocus verplaatsen de pijltoetsen het één pixel, tien met Shift</s:String>
 	<s:String x:Key="TipPointFormat">{0}, punt {1}: slepen om te verplaatsen; met toetsenbordfocus verplaatsen de pijltoetsen één pixel, tien met Shift</s:String>
 	<s:String x:Key="TipNodeFormat">{0}, knooppunt {1}: slepen om het met zijn grepen te verplaatsen; met toetsenbordfocus verplaatsen de pijltoetsen één pixel, tien met Shift</s:String>
 	<s:String x:Key="TipInHandleFormat">{0}, knooppunt {1}, ingaande greep: slepen vormt het segment dat hier aankomt; een glad knooppunt draait de uitgaande greep mee. Met toetsenbordfocus verplaatsen de pijltoetsen één pixel, tien met Shift</s:String>

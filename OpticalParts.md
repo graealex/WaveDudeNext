@@ -81,7 +81,16 @@ left surface) and `R2` −300 (R1 > 0 and R2 < 0 bulge outward, 0 is flat), `Ref
 x'₂ = t/2 + s₂(y'), the sag s(y') = R − sign(R)·√(R² − y'²). The diameter and the centre thickness are the bulk: a radius
 too curved for them is raised to the smallest that fits (`FitRadii`), so the lens fills its diameter and the edge is
 never negative (a diameter of 2000 with radii of 300 had given a tiny lens). The form shows the edge thickness, and a
-"Concave" box flips both radii. A curved mirror is the same shape with `Mirror` on.
+"Concave" box flips both radii. A curved mirror is the same shape with `Mirror` on. On the pictures the size grip
+stretches the lens as a rectangle's grip does: across, the diameter with the profile held; along, the whole profile
+with its sags and edge, so a thinner lens is the same lens squashed; diagonally, the lens as a whole; the arcs are
+refitted as circles through the stretched rim and vertex, and nothing stops the grip (`SetExtents`; 2026-10-26, Jeroen's
+report: a grip dragged a little inward had the radii fitted flat and the lens was a rectangle, and held sags made a
+stretched lens a slab). A handle on each surface's vertex sets its radius
+(`SetVertex`, Jeroen's proposal): dragged along the axis with the rim and the other surface held, the sag at the rim
+gives the radius by the sagitta, outward bulging, through the rim plane flat, then concave, a hemisphere at most; the
+centre thickness follows and the position moves to the new centre. A drag holds the rim and the other vertex as it
+found them (`MarkerThumb.DragAnchors`), so the position's rounding never creeps into them.
 
 **Shapes** (`ShapePart`: `Mirror`, `RefractiveIndex` 1.50, `Coating`, `Absorption`, `AbsorptionRamp` 40, over an
 outline each kind generates). One class per shape, not a shape mode inside one class (the user's point, 2026-10-18: a
@@ -167,9 +176,10 @@ the check's small canvas, +6 % in a wide one).
   the canvas, named "<stem> n".
 - **Pictures**: a handle at the centre and a rotation lever; while selected, the outline as painted in the accent
   colour, a size grip (a rectangle's or ellipse's corner, the lens's thickness and diameter, a GRIN lens, Bragg stack or
-  zone plate corner, a polygon's first vertex, the second end of a triangle's base), a handle per outline point
-  (2026-10-19) and per fibre node with its two Bézier handles on dotted lines (2026-10-22); otherwise the shape shows
-  through the glowing outline. Arrows nudge, Escape during a drag puts things back.
+  zone plate corner, a polygon's first vertex, the second end of a triangle's base), a lens's two vertex handles for
+  the radii (2026-10-26), a handle per outline point (2026-10-19) and per fibre node with its two Bézier handles on
+  dotted lines (2026-10-22); otherwise the shape shows through the glowing outline. Arrows nudge, Escape during a drag
+  puts things back.
 - **Examples**: `Wave_Dude_Examples/logical_elements_example.wdproj` (Jeroen's, 2026-10-22: XOR and AND gates cascaded
   with pulsed sources and probes).
 

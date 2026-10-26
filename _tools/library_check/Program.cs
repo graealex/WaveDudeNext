@@ -2518,6 +2518,36 @@ internal static class Program
 		lens.R2 = -300;
 		lens.Normalize();
 		Check(Math.Abs(lens.R1 - 25010) < 1e-9 && Math.Abs(lens.R2 + 25010) < 1e-9 && Math.Abs(lens.EdgeThickness) < 1e-9, "the user's case: a 2000 × 40 lens gets radii of 25010 and fills its diameter");
+		// the size grip stretches the lens (2026-10-26): across with the profile held, along with the whole profile scaled, so a
+		// diagonal pull scales the lens as a whole; nothing stops it
+		var gripped = new LensPart { Diameter = 100, Thickness = 20, R1 = 130, R2 = -130 };
+		gripped.SetExtents(400, 20);
+		Check(Math.Abs(gripped.R1 - 2005) < 1e-9 && Math.Abs(gripped.R2 + 2005) < 1e-9 && gripped.Diameter == 400 && gripped.Thickness == 20 && Math.Abs(gripped.EdgeThickness) < 1e-9,
+			$"dragged wider alone the sags of 10 stay and the radii follow the diameter ({gripped.R1}), the thickness and the edge as they were");
+		gripped = new LensPart { Diameter = 100, Thickness = 20, R1 = 130, R2 = -130 };
+		gripped.SetExtents(100, 60);
+		Check(Math.Abs(gripped.R1 - 3400.0 / 60.0) < 1e-9 && gripped.Thickness == 60 && gripped.Diameter == 100 && Math.Abs(gripped.EdgeThickness) < 1e-9,
+			$"dragged thicker alone the whole profile scales: sags of 30, R {gripped.R1}, the edge still zero");
+		gripped = new LensPart { Diameter = 100, Thickness = 20, R1 = 130, R2 = -130 };
+		gripped.SetExtents(200, 40);
+		Check(Math.Abs(gripped.R1 - 260) < 1e-9 && Math.Abs(gripped.R2 + 260) < 1e-9, $"pulled out diagonally the lens scales as a whole: the radii doubled to {gripped.R1}");
+		gripped.SetExtents(200, 4);
+		Check(gripped.Thickness == 4 && Math.Abs(gripped.R1 - (10000 + 4) / 4.0) < 1e-9 && Math.Abs(gripped.EdgeThickness) < 1e-9, $"squashed to 4 thick it is the same lens squashed, sags of 2, R {gripped.R1}, never a slab");
+		gripped.SetExtents(100, 400);
+		Check(gripped.R1 == 50 && gripped.R2 == -50 && gripped.Thickness == 400, "stretched thicker than its surfaces can take at that diameter, they are hemispheres on a slab");
+		// a surface handle: the vertex moves on the axis, the rim and the other surface stay; the position follows the centre
+		var shaped = new LensPart { X = 500, Y = 300, Diameter = 100, Thickness = 20, R1 = 0, R2 = 0 };
+		shaped.SetVertex(1, -30.0);
+		Check(Math.Abs(shaped.R1 - 72.5) < 1e-9 && shaped.R2 == 0 && shaped.Thickness == 40 && shaped.X == 490 && Math.Abs(shaped.ToCanvas(shaped.RimX(1), 0).X - 490) < 1e-9 && Math.Abs(shaped.ToCanvas(shaped.VertexX(2), 0).X - 510) < 1e-9,
+			$"the left vertex pulled 20 px out of a flat slab: R1 {shaped.R1} (the sagitta of 20 at 50), 40 thick, the centre at {shaped.X}, the rim and the other vertex where they were");
+		shaped.SetVertex(1, 0.0);
+		Check(shaped.R1 == 0 && shaped.Thickness == 20 && shaped.X == 500, "pushed back to the rim plane it is flat again, the slab as before");
+		shaped.SetVertex(1, 5.0);
+		Check(Math.Abs(shaped.R1 + 2725.0 / 30.0) < 1e-9 && shaped.Thickness == 5 && shaped.X == 508 && Math.Abs(shaped.EdgeThickness - 20) < 1e-9, $"pushed 15 px past the rim plane it is concave, R1 {shaped.R1} (the sagitta of 15), 5 thick at the centre, the edge still 20");
+		shaped.SetVertex(2, 1000.0);
+		Check(shaped.R2 == -50 && shaped.Thickness > 500, $"the right vertex pulled far out stops at a hemisphere, R2 {shaped.R2}");
+		shaped.SetVertex(2, -2000.0);
+		Check(shaped.Thickness == 1, "pushed through the other surface it stops a pixel short of it");
 		lens.Diameter = 100;
 		lens.Thickness = 40;
 		lens.R1 = 300;

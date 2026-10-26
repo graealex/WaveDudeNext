@@ -367,6 +367,12 @@ public sealed class SceneOverlay : Panel
 			{
 				AddThumb(part, MarkerRole.PartGrip, GripStyle, part.Name, "PartGrip:" + part.Name, "TipGripFormat");
 			}
+			if (part is LensPart)
+			{
+				// a handle on each surface's vertex, which sets its radius (2026-10-26, Jeroen's proposal)
+				AddThumb(part, MarkerRole.PartSurface, HandleStyle, part.Name, $"PartSurface:{part.Name}:1", "TipSurfaceFormat", 1);
+				AddThumb(part, MarkerRole.PartSurface, HandleStyle, part.Name, $"PartSurface:{part.Name}:2", "TipSurfaceFormat", 2);
+			}
 			if (PointsOf(part) is { } points)
 			{
 				// the list and its points: a point added, removed or moved rebuilds or re-arranges
@@ -588,8 +594,14 @@ public sealed class SceneOverlay : Panel
 	/// <summary>Whether a handle is shown for the current item alone: a rotation handle, a grip, a point, node or Bézier handle.</summary>
 	private static bool IsDetail(MarkerRole role) => role is MarkerRole.SourceAngle or MarkerRole.PartAngle || HasCanvasPosition(role);
 
-	/// <summary>Whether a handle sits on a continuous canvas position of its own (<see cref="CanvasOf"/>): a grip, a point, node or Bézier handle.</summary>
-	private static bool HasCanvasPosition(MarkerRole role) => role is MarkerRole.PartGrip or MarkerRole.PartPoint or MarkerRole.FiberIn or MarkerRole.FiberOut;
+	/// <summary>Whether a handle sits on a continuous canvas position of its own (<see cref="CanvasOf"/>): a grip, a point, node, Bézier handle or lens vertex.</summary>
+	private static bool HasCanvasPosition(MarkerRole role) => role is MarkerRole.PartGrip or MarkerRole.PartPoint or MarkerRole.PartSurface or MarkerRole.FiberIn or MarkerRole.FiberOut;
+
+	/// <summary>What a drag of a handle holds still (<see cref="MarkerThumb.DragAnchors"/>): a lens vertex's rim and the other vertex, in canvas pixels; null for the other handles.</summary>
+	private static (double X, double Y)[]? AnchorsOf(MarkerThumb thumb) =>
+		thumb is { Item: LensPart lens, Role: MarkerRole.PartSurface }
+			? [lens.ToCanvas(lens.RimX(thumb.Index), 0.0), lens.ToCanvas(lens.VertexX(thumb.Index == 1 ? 2 : 1), 0.0)]
+			: null;
 
 	/// <summary>
 	/// Where a part's size grip sits in the part frame: the corner of a rectangle or an ellipse's box, lens (thickness, diameter), GRIN lens,
@@ -627,8 +639,8 @@ public sealed class SceneOverlay : Panel
 				ellipse.Width = Math.Max(1, ellipse.Linked ? Math.Max(along, across) : across);
 				break;
 			case LensPart lens:
-				lens.Thickness = Math.Max(1, along);
-				lens.Diameter = Math.Max(2, across);
+				// stretched like a rectangle: across the diameter, along the whole profile, the arcs refitted (2026-10-26)
+				lens.SetExtents(across, along);
 				break;
 			case PolygonPart polygon:
 				// the vertex stays on its ray; its distance is the circumradius
@@ -655,6 +667,7 @@ public sealed class SceneOverlay : Panel
 	private static (double X, double Y)? CanvasOf(MarkerThumb thumb) => (thumb.Item, thumb.Role) switch
 	{
 		(OpticalPart part, MarkerRole.PartGrip) when GripOf(part) is { } grip => part.ToCanvas(grip.X, grip.Y),
+		(LensPart lens, MarkerRole.PartSurface) => lens.ToCanvas(lens.VertexX(thumb.Index), 0.0),
 		(OpticalPart part, MarkerRole.PartPoint) when PointsOf(part) is { } points && thumb.Index >= 0 && thumb.Index < points.Count => part.ToCanvas(points[thumb.Index].X, points[thumb.Index].Y),
 		(FiberPart fiber, MarkerRole.PartPoint) when NodeOf(thumb) is { } node => fiber.ToCanvas(node.X, node.Y),
 		(FiberPart fiber, MarkerRole.FiberIn) when NodeOf(thumb) is { } node => fiber.ToCanvas(node.In.X, node.In.Y),
@@ -745,6 +758,18 @@ public sealed class SceneOverlay : Panel
 				break;
 			case (OpticalPart part, MarkerRole.PartGrip):
 				SetGrip(part, x, y);
+				break;
+			case (LensPart lens, MarkerRole.PartSurface):
+				// along the axis: the mouse's place in the part frame, its x alone; the rim and the other vertex as the drag found them
+				(double axisX, _) = lens.ToFrame(x, y);
+				if (thumb.DragAnchors is [var rim, var other])
+				{
+					lens.SetVertex(thumb.Index, axisX, lens.ToFrame(rim.X, rim.Y).X, lens.ToFrame(other.X, other.Y).X);
+				}
+				else
+				{
+					lens.SetVertex(thumb.Index, axisX);
+				}
 				break;
 			case (FiberPart fiber, MarkerRole.PartPoint):
 				// a node moves with its handles, which are offsets from it
@@ -1172,6 +1197,7 @@ public sealed class SceneOverlay : Panel
 			thumb.GrabOffsetX = mouseX - handle.X;
 			thumb.GrabOffsetY = mouseY - handle.Y;
 			thumb.MirrorLength = MirrorLengthOf(thumb);
+			thumb.DragAnchors = AnchorsOf(thumb);
 		}
 		if (MovesWhole(thumb.Role) && SelectedItems is { } set)
 		{
@@ -1328,6 +1354,9 @@ public sealed class SceneOverlay : Panel
 			return;
 		}
 		thumb.MirrorLength = MirrorLengthOf(thumb);
+		// held from the first step while the handle keeps the focus, as a drag holds them (recomputed each step, the
+		// position's rounding let the other surface creep)
+		thumb.DragAnchors ??= AnchorsOf(thumb);
 		(int x, int y) = PointOf(thumb);
 		SetPoint(thumb, x + dx, y + dy);
 		e.Handled = true;
