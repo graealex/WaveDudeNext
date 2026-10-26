@@ -1017,12 +1017,19 @@ public sealed class SceneOverlay : Panel
 	private ProjectClipboard.Clip? DroppableClip(IDataObject data) =>
 		Project != null && _dragged.Clip(data) is { HasItems: true } clip ? clip : null;
 
-	/// <inheritdoc/>
+	/// <summary>
+	/// Claims a drag only when it carries droppable objects; anything else, a file above all, is left unhandled for the
+	/// window, which opens a dropped file and refuses other data (2026-10-26, the user's report: handling every drag here
+	/// had refused a project file over the pictures since 2026-10-23).
+	/// </summary>
 	protected override void OnDragOver(DragEventArgs e)
 	{
 		base.OnDragOver(e);
-		e.Effects = DroppableClip(e.Data) != null ? DragDropEffects.Copy : DragDropEffects.None;
-		e.Handled = true;
+		if (DroppableClip(e.Data) != null)
+		{
+			e.Effects = DragDropEffects.Copy;
+			e.Handled = true;
+		}
 	}
 
 	/// <summary>
@@ -1034,12 +1041,13 @@ public sealed class SceneOverlay : Panel
 	protected override void OnDrop(DragEventArgs e)
 	{
 		base.OnDrop(e);
-		e.Handled = true;
-		// taken, not kept: the paste makes the clip's objects the project's
+		// taken, not kept: the paste makes the clip's objects the project's; a drag without them (a file) stays unhandled
+		// for the window
 		if (Project is not { } project || DroppableClip(e.Data) is not { } clip)
 		{
 			return;
 		}
+		e.Handled = true;
 		_dragged.Clear();
 		(double x, double y) = ToCanvasExact(e.GetPosition(this));
 		int canvasX = (int)Math.Floor(x);

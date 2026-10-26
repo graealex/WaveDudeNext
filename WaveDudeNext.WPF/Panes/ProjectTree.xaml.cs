@@ -378,13 +378,18 @@ public partial class ProjectTree : UserControl
 		}
 	}
 
+	/// <summary>
+	/// The tree claims a drag only when it takes it (an own row to reorder, project objects to paste); anything else, a
+	/// file above all, is left unhandled for the window, which opens a dropped file and refuses other data (2026-10-26,
+	/// the user's report: handling every drag here had refused a project file over the tree since 2026-10-23).
+	/// </summary>
 	private void OnDragOver(object sender, DragEventArgs e)
 	{
-		e.Effects = DragDropEffects.None;
-		e.Handled = true;
 		ClearAdorner();
 		if (_dragItem is { } item)
 		{
+			e.Handled = true;
+			e.Effects = DragDropEffects.None;
 			if (FindDropTarget(item, e.GetPosition(tree)) is { } target)
 			{
 				e.Effects = DragDropEffects.Move;
@@ -394,6 +399,7 @@ public partial class ProjectTree : UserControl
 		}
 		if (!_dragging && _dragged.Clip(e.Data) is { } clip && FindPasteTarget(clip, e.GetPosition(tree)) is { } paste)
 		{
+			e.Handled = true;
 			e.Effects = DragDropEffects.Copy;
 			ShowAdorner(paste.Row, paste.Header, paste.Placement);
 		}
@@ -403,23 +409,19 @@ public partial class ProjectTree : UserControl
 
 	private void OnDrop(object sender, DragEventArgs e)
 	{
-		e.Handled = true;
 		ClearAdorner();
-		if (Project is not { } project)
-		{
-			return;
-		}
 		if (_dragItem is { } item)
 		{
-			if (FindDropTarget(item, e.GetPosition(tree)) is not { } target)
+			e.Handled = true;
+			if (Project is not { } own || FindDropTarget(item, e.GetPosition(tree)) is not { } target)
 			{
 				return;
 			}
 			bool moved = item switch
 			{
-				Source source => project.Move(source, target.Index),
-				OpticalPart part => project.Move(part, target.Index),
-				Probe probe => project.Move(probe, target.Index),
+				Source source => own.Move(source, target.Index),
+				OpticalPart part => own.Move(part, target.Index),
+				Probe probe => own.Move(probe, target.Index),
 				_ => false,
 			};
 			if (moved)
@@ -428,11 +430,13 @@ public partial class ProjectTree : UserControl
 			}
 			return;
 		}
-		// taken, not kept: the paste makes the clip's objects the project's
-		if (_dragging || _dragged.Take(e.Data) is not { } clip || FindPasteTarget(clip, e.GetPosition(tree)) is not { } paste)
+		// taken, not kept: the paste makes the clip's objects the project's. A drag the tree does not take (a file) stays
+		// unhandled for the window
+		if (_dragging || Project is not { } project || _dragged.Take(e.Data) is not { } clip || FindPasteTarget(clip, e.GetPosition(tree)) is not { } paste)
 		{
 			return;
 		}
+		e.Handled = true;
 		IReadOnlyList<object> pasted = ProjectClipboard.Paste(project, clip, paste.Current, paste.Before);
 		if (pasted.Count == 0)
 		{

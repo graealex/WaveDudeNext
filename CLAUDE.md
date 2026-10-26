@@ -207,7 +207,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   tree pastes, and a picture of this window or another pastes and moves the objects as a group onto the drop pixel
   (`PlaceAt`, held inside the canvas), so a drag from the tree to the picture duplicates. `ObjectsData` reads a drag or
   the clipboard and parses each text once; the window reads the clipboard once per change of Windows' clipboard
-  sequence number.
+  sequence number. The tree and the pictures claim a drag only when they take it; a file dropped anywhere is the window's,
+  which opens it (2026-10-26, Jeroen's report: for three days a file over the tree or a picture was refused).
 - **Icons** (2026-10-22/23): a menu entry gets one through the attached `MenuIcon.Glyph` (a code point of Segoe Fluent
   Icons that Segoe MDL2 Assets has too, for Windows 10; the `IconGlyphText` style, greyscale) or `MenuIcon.Drawing`, the
   name of an `Icon<Name>` (and `Icon<Name>Fill`) `StreamGeometry` in `Themes/Controls.xaml`; both make an `IconView`,
