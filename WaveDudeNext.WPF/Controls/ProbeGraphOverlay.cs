@@ -530,6 +530,13 @@ public sealed class ProbeGraphOverlay : Panel
 		{
 			return;
 		}
+		if (e.Key == Key.Delete)
+		{
+			// Del on a handle removes its item, or the selection it belongs to, as Del on a tree row does (2026-10-26, the user's request)
+			Commands.ProjectCommands.Remove.Execute(thumb.Item, thumb);
+			e.Handled = true;
+			return;
+		}
 		int step = (Keyboard.Modifiers & ModifierKeys.Shift) != 0 ? KeyStepFast : KeyStep;
 		(int dx, int dy) = e.Key switch
 		{

@@ -179,8 +179,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   the rest and lost on a blue scheme and to colour-blind eyes; the keyboard focus keeps the accent); a probe's handles and line appear only on the picture of
   the layer it measures (2026-10-18), sources on both; graph boxes lie over every handle and dot, the selected
   item is drawn last among its kind, except the handles themselves (Panel.ZIndex breaks the Tab cycle, 2026-10-18);
-  arrows nudge, selection syncs with the tree, a click on
-  empty space deselects. **Group selection** (2026-10-19): one shared `SelectedItems` list on the window beside the
+  arrows nudge, Del on a handle or a graph box removes its item or the selection it belongs to as the tree's Del does
+  (2026-10-26), selection syncs with the tree, a click on empty space deselects. **Group selection** (2026-10-19): one shared `SelectedItems` list on the window beside the
   current `SelectedItem` (the properties pane shows the current one); in the tree Ctrl+click, Insert or Ctrl+Space
   toggles a row, Shift+click or Shift+arrows selects the range from the anchor, Ctrl+A everything, the row's context
   menu has both; on the pictures a drag on empty space is a marquee (Shift adds, Ctrl toggles), Ctrl+click on a handle
