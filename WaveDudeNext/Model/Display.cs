@@ -174,8 +174,8 @@ public sealed class DisplayLayer : ObservableObject
 	/// <summary>Default <see cref="Brightness"/>.</summary>
 	public const double DefaultBrightness = 30.0;
 
-	/// <summary>Default <see cref="OverlayGain"/>: the edge picture as computed.</summary>
-	public const double DefaultOverlayGain = 1.0;
+	/// <summary>Default <see cref="OverlayGain"/>: three times the edge picture as computed (2026-10-26, the user's choice: at 1 many objects were hard to see).</summary>
+	public const double DefaultOverlayGain = 3.0;
 
 	/// <summary>Largest <see cref="OverlayGain"/>, the author's control's maximum.</summary>
 	public const double MaxOverlayGain = 5.0;
