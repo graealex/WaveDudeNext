@@ -166,14 +166,17 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<!-- the handles of the sources, parts and probes on the pictures: a ring for a source, a ring with an inner ring for a
 		     part (a lens-shaped glyph read as squashed, 2026-10-18), a square for a probe point, each with four crosshair ticks
 		     outside it and a gap around the exact pixel; every stroke is drawn twice, a dark halo first, so the glyph reads on
-		     any picture. The selected item's handle shows the selection yellow, the focused handle the accent fill. Glyphs are 20 x 20 with the point
-		     at (10, 10); the tree's 16 px icons (Themes/Controls.xaml) are drawn after them -->
-		<StreamGeometry x:Key="SourceGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
-		<StreamGeometry x:Key="ProbeGlyph">M4.5,4.5 L15.5,4.5 L15.5,15.5 L4.5,15.5 Z M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
-		<StreamGeometry x:Key="PartGlyph">M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M7.5,10 A2.5,2.5 0 1 1 12.5,10 A2.5,2.5 0 1 1 7.5,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10</StreamGeometry>
+		     any picture. The selected item's handle shows the selection yellow, the focused handle the accent fill. Every thumb is odd-sized
+		     with its point at the centre pixel (the 21 x 21 glyphs at (10.5, 10.5)), the shapes inside odd too, because the point marks a
+		     pixel's centre and the window's layout rounding (2026-10-23) rounds the thumb and each shape to whole pixels: a 20 px thumb
+		     put its origin on a half pixel, and the 3 px dot, its 5 px halo and the crosshair came out half a pixel apart
+		     (2026-10-26, Jeroen's report). The tree's 16 px icons (Themes/Controls.xaml) are drawn after them -->
+		<StreamGeometry x:Key="SourceGlyph">M4.5,10.5 A6,6 0 1 1 16.5,10.5 A6,6 0 1 1 4.5,10.5 M10.5,0.5 L10.5,3 M10.5,18 L10.5,20.5 M0.5,10.5 L3,10.5 M18,10.5 L20.5,10.5</StreamGeometry>
+		<StreamGeometry x:Key="ProbeGlyph">M5,5 L16,5 L16,16 L5,16 Z M10.5,0.5 L10.5,3 M10.5,18 L10.5,20.5 M0.5,10.5 L3,10.5 M18,10.5 L20.5,10.5</StreamGeometry>
+		<StreamGeometry x:Key="PartGlyph">M4.5,10.5 A6,6 0 1 1 16.5,10.5 A6,6 0 1 1 4.5,10.5 M8,10.5 A2.5,2.5 0 1 1 13,10.5 A2.5,2.5 0 1 1 8,10.5 M10.5,0.5 L10.5,3 M10.5,18 L10.5,20.5 M0.5,10.5 L3,10.5 M18,10.5 L20.5,10.5</StreamGeometry>
 		<Style x:Key="MarkerBase" TargetType="{x:Type controls:MarkerThumb}">
-			<Setter Property="Width" Value="20" />
-			<Setter Property="Height" Value="20" />
+			<Setter Property="Width" Value="21" />
+			<Setter Property="Height" Value="21" />
 			<Setter Property="Cursor" Value="SizeAll" />
 			<Setter Property="FocusVisualStyle" Value="{x:Null}" />
 			<Setter Property="Foreground" Value="{DynamicResource PictureHandle}" />
@@ -199,7 +202,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Setter.Value>
 					<ControlTemplate TargetType="{x:Type controls:MarkerThumb}">
 						<Grid Background="Transparent">
-							<Ellipse Width="12" Height="12" Fill="{TemplateBinding Background}" />
+							<Ellipse Width="13" Height="13" Fill="{TemplateBinding Background}" />
 							<Path Data="{StaticResource SourceGlyph}" Stroke="Black" StrokeThickness="{TemplateBinding HaloThickness}" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.75" />
 							<Path Data="{StaticResource SourceGlyph}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding StrokeThickness}" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
 							<Ellipse Width="5" Height="5" Fill="Black" Opacity="0.75" />
@@ -214,7 +217,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Setter.Value>
 					<ControlTemplate TargetType="{x:Type controls:MarkerThumb}">
 						<Grid Background="Transparent">
-							<Ellipse Width="12" Height="12" Fill="{TemplateBinding Background}" />
+							<Ellipse Width="13" Height="13" Fill="{TemplateBinding Background}" />
 							<Path Data="{StaticResource PartGlyph}" Stroke="Black" StrokeThickness="{TemplateBinding HaloThickness}" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Opacity="0.75" />
 							<Path Data="{StaticResource PartGlyph}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding StrokeThickness}" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
 						</Grid>
@@ -224,8 +227,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		</Style>
 		<!-- a part's size grip: a small filled square on the outline's corner; the point handles: a small ring -->
 		<Style x:Key="PartGripMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
-			<Setter Property="Width" Value="14" />
-			<Setter Property="Height" Value="14" />
+			<Setter Property="Width" Value="15" />
+			<Setter Property="Height" Value="15" />
 			<Setter Property="Cursor" Value="SizeNWSE" />
 			<Setter Property="Template">
 				<Setter.Value>
@@ -239,14 +242,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</Setter>
 		</Style>
 		<Style x:Key="PartPointMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
-			<Setter Property="Width" Value="14" />
-			<Setter Property="Height" Value="14" />
+			<Setter Property="Width" Value="15" />
+			<Setter Property="Height" Value="15" />
 			<Setter Property="Template">
 				<Setter.Value>
 					<ControlTemplate TargetType="{x:Type controls:MarkerThumb}">
 						<Grid Background="Transparent">
-							<Ellipse Width="10" Height="10" Fill="{TemplateBinding Background}" Stroke="Black" StrokeThickness="{TemplateBinding HaloThickness}" Opacity="0.75" />
-							<Ellipse Width="10" Height="10" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding StrokeThickness}" />
+							<Ellipse Width="11" Height="11" Fill="{TemplateBinding Background}" Stroke="Black" StrokeThickness="{TemplateBinding HaloThickness}" Opacity="0.75" />
+							<Ellipse Width="11" Height="11" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding StrokeThickness}" />
 						</Grid>
 					</ControlTemplate>
 				</Setter.Value>
@@ -254,28 +257,28 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		</Style>
 		<!-- a fibre node's Bézier handle: a small filled dot at the end of its dotted line from the node (2026-10-22) -->
 		<Style x:Key="FiberHandleMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
-			<Setter Property="Width" Value="12" />
-			<Setter Property="Height" Value="12" />
+			<Setter Property="Width" Value="13" />
+			<Setter Property="Height" Value="13" />
 			<Setter Property="Cursor" Value="Hand" />
 			<Setter Property="Template">
 				<Setter.Value>
 					<ControlTemplate TargetType="{x:Type controls:MarkerThumb}">
 						<Grid Background="Transparent">
-							<Ellipse Width="8" Height="8" Fill="Black" Opacity="0.75" />
-							<Ellipse Width="6" Height="6" Fill="{TemplateBinding BorderBrush}" />
+							<Ellipse Width="9" Height="9" Fill="Black" Opacity="0.75" />
+							<Ellipse Width="7" Height="7" Fill="{TemplateBinding BorderBrush}" />
 						</Grid>
 					</ControlTemplate>
 				</Setter.Value>
 			</Setter>
 		</Style>
-		<StreamGeometry x:Key="AngleGlyph">M15,10 A5,5 0 1 1 12.5,5.67 M12.5,5.67 L9.2,5.3 M12.5,5.67 L13,9</StreamGeometry>
+		<StreamGeometry x:Key="AngleGlyph">M15.5,10.5 A5,5 0 1 1 13,6.17 M13,6.17 L9.7,5.8 M13,6.17 L13.5,9.5</StreamGeometry>
 		<Style x:Key="AngleMarker" TargetType="{x:Type controls:MarkerThumb}" BasedOn="{StaticResource MarkerBase}">
 			<Setter Property="Cursor" Value="Hand" />
 			<Setter Property="Template">
 				<Setter.Value>
 					<ControlTemplate TargetType="{x:Type controls:MarkerThumb}">
 						<Grid Background="Transparent">
-							<Ellipse Width="14" Height="14" Fill="{TemplateBinding Background}" />
+							<Ellipse Width="15" Height="15" Fill="{TemplateBinding Background}" />
 							<Path Data="{StaticResource AngleGlyph}" Stroke="Black" StrokeThickness="{TemplateBinding HaloThickness}" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Opacity="0.75" />
 							<Path Data="{StaticResource AngleGlyph}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding StrokeThickness}" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
 						</Grid>

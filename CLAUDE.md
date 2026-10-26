@@ -214,8 +214,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   which the tree's rows and toolbar use directly (`PlusBadge` on the add buttons) and which draws in the inherited text
   colour, so a disabled row's icon greys with its name through one trigger on the row. Drawings are 16 px, 1 px strokes
   on half pixels, ink in rows and columns 0 to 14 (odd, so it centres like text); every tree row, toolbar button and
-  menu entry is 23 px, the menu bar's headers through their padding. The pictures' 20 px handle glyphs stay in
-  `PreviewPane.xaml`.
+  menu entry is 23 px, the menu bar's headers through their padding. The pictures' handle glyphs stay in
+  `PreviewPane.xaml`, odd-sized (21, 15, 13 px) with the point at the centre pixel (2026-10-26, Jeroen's report: at 20 px the
+  window's layout rounding put the dot, its halo and the crosshair half a pixel apart).
 - **Colour schemes are gradients** (2026-10-23, the user's design): the model holds the stops and no table; how many
   colours are taken is the renderer's (`ColorLut`): 255 at i/254 for 8-bit frames (the author's table, truncated as in
   his Python), and for 16-bit frames a table of the 65,536 half values per layer and brightness, the gradient at each
