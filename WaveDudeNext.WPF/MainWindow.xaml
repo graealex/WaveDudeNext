@@ -23,6 +23,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         xmlns:local="clr-namespace:WaveDudeNext.WPF"
         xmlns:controls="clr-namespace:WaveDudeNext.WPF.Controls"
         xmlns:docking="clr-namespace:WaveDudeNext.WPF.Docking"
+        xmlns:s="clr-namespace:System;assembly=mscorlib"
         xmlns:theming="clr-namespace:WaveDudeNext.WPF.Theming"
         xmlns:localization="clr-namespace:WaveDudeNext.WPF.Localization"
         xmlns:converters="clr-namespace:WaveDudeNext.WPF.Converters"
@@ -390,6 +391,22 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		</StatusBar>
 
 		<docking:DockHost x:Name="dockHost">
+			<!-- the arrangement of a first start (agreed 2026-10-09): a left column of a quarter of the width with the Project
+			     tree in its upper third and the Properties pane below it, the preview in the rest; Messages hidden. Loaded by
+			     the window when no saved layout applies, and by the designer (2026-10-26) -->
+			<docking:DockHost.DefaultLayout>
+				<docking:DockLayout>
+					<docking:DockLayout.Root>
+						<docking:SplitLayout Orientation="Horizontal">
+							<docking:SplitLayout Orientation="Vertical" Length="1">
+								<docking:GroupLayout Active="project" Length="1"><s:String>project</s:String></docking:GroupLayout>
+								<docking:GroupLayout Active="properties" Length="2"><s:String>properties</s:String></docking:GroupLayout>
+							</docking:SplitLayout>
+							<docking:DocumentLayout Length="3" />
+						</docking:SplitLayout>
+					</docking:DockLayout.Root>
+				</docking:DockLayout>
+			</docking:DockHost.DefaultLayout>
 			<docking:DockHost.Items>
 				<docking:DockItem x:Name="projectDock" Id="project" Title="{StaticResource PaneProject}" DefaultSide="Left">
 					<panes:ProjectTree x:Name="projectTree" Project="{Binding Project}" SelectedItems="{Binding SelectedItems}" SelectedItemChanged="OnTreeSelectionChanged" />

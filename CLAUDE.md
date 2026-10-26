@@ -49,6 +49,10 @@ harnesses run.
   dnSpy look (its sources are GPL: look, do not copy). Inside a `DataTemplate` reference the string keys directly
   (`{DynamicResource Hint.Type.Member}`): the `meta:Label`/`meta:Hint` extensions wrap a resource reference a template
   rejects for a string property and shows as text for an object one (2026-10-22, found on the fibre's node rows). An
+  The XAML designer never runs a window's constructor: what the preview must show lives in XAML, as the dock host's
+  default arrangement does (`DockHost.DefaultLayout` in `MainWindow.xaml`, the one source for the first start and the
+  designer, which then shows every hidden pane at its default side, Messages at the bottom, 2026-10-26; nested types
+  cannot be XML names, so the layout nodes are top-level classes). An
   implicit style never reaches a class derived from `Window`, so every window names the theme's
   (`Style="{StaticResource {x:Type Window}}"`, 2026-10-23: without its layout rounding the pictures sat at fractional
   pixels and WPF resampled them; its Display text formatting had never applied either).

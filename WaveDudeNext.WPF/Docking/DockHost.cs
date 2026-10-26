@@ -15,6 +15,7 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -88,6 +89,39 @@ public sealed class DockHost : Grid
 		});
 		AddHandler(PreviewMouseDownEvent, new MouseButtonEventHandler(OnPreviewMouseDown), true);
 		AddHandler(PreviewGotKeyboardFocusEvent, new KeyboardFocusChangedEventHandler(OnPreviewGotKeyboardFocus), true);
+		Loaded += OnLoaded;
+		Rebuild();
+	}
+
+	/// <summary>
+	/// The arrangement of a first start, set in the window's XAML; the window loads it when no saved layout applies, and
+	/// the XAML designer shows it (2026-10-26, the user's request: the designer never runs the window's constructor, so
+	/// its preview had shown the document area alone, and the items docked one by one at their default sides looked
+	/// nothing like the app). Null leaves the host empty until the window shows the items.
+	/// </summary>
+	public DockLayout? DefaultLayout { get; set; }
+
+	/// <summary>
+	/// In the XAML designer, loads <see cref="DefaultLayout"/>, then shows every item it leaves hidden at its default side
+	/// (the user's choice, 2026-10-26: the designer shows every pane, Messages at the bottom, where the app's first start
+	/// hides it). At run time nothing happens here.
+	/// </summary>
+	private void OnLoaded(object sender, RoutedEventArgs e)
+	{
+		if (!DesignerProperties.GetIsInDesignMode(this))
+		{
+			return;
+		}
+		if (DefaultLayout != null)
+		{
+			LoadLayout(DefaultLayout);
+		}
+		// from the model alone, never through Show: that captures the sizes of a visual tree the designer has arranged at
+		// some provisional size, and the left column came out squashed (2026-10-26)
+		foreach (DockItem item in Items.Where(item => item.Group == null).ToList())
+		{
+			InsertRelative(NewGroup(item), _root, item.DefaultSide, EdgeShare);
+		}
 		Rebuild();
 	}
 
@@ -529,29 +563,29 @@ public sealed class DockHost : Grid
 
 	// ---- persistence ----
 
-	private DockLayout.NodeLayout Export(DockNode node) => node switch
+	private NodeLayout Export(DockNode node) => node switch
 	{
-		DockSplitNode split => new DockLayout.SplitLayout
+		DockSplitNode split => new SplitLayout
 		{
 			Length = split.Length,
 			Orientation = split.Orientation,
 			Children = split.Children.Select(Export).ToList(),
 		},
-		DockGroup group => new DockLayout.GroupLayout
+		DockGroup group => new GroupLayout
 		{
 			Length = group.Length,
 			Active = group.ActiveItem?.Id,
 			Items = group.Items.Select(i => i.Id).ToList(),
 		},
-		_ => new DockLayout.DocumentLayout { Length = node.Length },
+		_ => new DocumentLayout { Length = node.Length },
 	};
 
-	private DockNode? Import(DockLayout.NodeLayout layout, HashSet<DockItem> assigned)
+	private DockNode? Import(NodeLayout layout, HashSet<DockItem> assigned)
 	{
 		double length = layout.Length > 0 ? layout.Length : 1;
 		switch (layout)
 		{
-			case DockLayout.DocumentLayout:
+			case DocumentLayout:
 				if (!assigned.Add(DocumentMarker))
 				{
 					return null; // a second document node is not allowed
@@ -559,7 +593,7 @@ public sealed class DockHost : Grid
 				_document.Length = length;
 				return _document;
 
-			case DockLayout.GroupLayout groupLayout:
+			case GroupLayout groupLayout:
 			{
 				var group = new DockGroup { Length = length };
 				foreach (string id in groupLayout.Items)
@@ -580,10 +614,10 @@ public sealed class DockHost : Grid
 				return group;
 			}
 
-			case DockLayout.SplitLayout splitLayout:
+			case SplitLayout splitLayout:
 			{
 				var split = new DockSplitNode(splitLayout.Orientation) { Length = length };
-				foreach (DockLayout.NodeLayout childLayout in splitLayout.Children)
+				foreach (NodeLayout childLayout in splitLayout.Children)
 				{
 					DockNode? child = Import(childLayout, assigned);
 					if (child != null)

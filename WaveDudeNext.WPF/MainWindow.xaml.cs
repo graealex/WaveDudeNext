@@ -75,7 +75,7 @@ public partial class MainWindow : Window
 		Project = new Project();
 		InitializeComponent();
 
-		if (!TryLoadLayout() && !dockHost.LoadLayout(DefaultLayout()))
+		if (!TryLoadLayout() && (dockHost.DefaultLayout == null || !dockHost.LoadLayout(dockHost.DefaultLayout)))
 		{
 			// Messages stays hidden until asked for (View > Panes, status bar double-click)
 			dockHost.Show(projectDock);
@@ -581,32 +581,6 @@ public partial class MainWindow : Window
 			Logger.Warn(ex, "Could not save the user settings");
 		}
 	}
-
-	/// <summary>
-	/// The arrangement of a first start (agreed 2026-10-09): a left column of a quarter of the width with the
-	/// Project tree in its upper third and the Properties pane below it, the preview in the rest; Messages hidden.
-	/// </summary>
-	private DockLayout DefaultLayout() => new()
-	{
-		Root = new DockLayout.SplitLayout
-		{
-			Orientation = Orientation.Horizontal,
-			Children =
-			{
-				new DockLayout.SplitLayout
-				{
-					Orientation = Orientation.Vertical,
-					Length = 1,
-					Children =
-					{
-						new DockLayout.GroupLayout { Items = { projectDock.Id }, Active = projectDock.Id, Length = 1 },
-						new DockLayout.GroupLayout { Items = { propertiesDock.Id }, Active = propertiesDock.Id, Length = 2 },
-					},
-				},
-				new DockLayout.DocumentLayout { Length = 3 },
-			},
-		},
-	};
 
 	private bool TryLoadLayout()
 	{

@@ -17,6 +17,7 @@
 
 using System.IO;
 using System.Windows.Controls;
+using System.Windows.Markup;
 using System.Xml;
 using System.Xml.Serialization;
 using NLog;
@@ -26,7 +27,8 @@ namespace WaveDudeNext.WPF.Docking;
 /// <summary>
 /// Serializable snapshot of a <see cref="DockHost"/> layout tree. Items are referenced by
 /// <see cref="DockItem.Id"/>; unknown ids are ignored on load. Persisted with
-/// <see cref="XmlSerializer"/>.
+/// <see cref="XmlSerializer"/>; a host's default arrangement is written in XAML (the node classes are top-level, as an XML
+/// name cannot hold a nested type's "+"; children and item ids are content, 2026-10-26).
 /// </summary>
 [XmlRoot("DockLayout")]
 public sealed class DockLayout
@@ -71,34 +73,40 @@ public sealed class DockLayout
 			return null;
 		}
 	}
+}
 
-	public abstract class NodeLayout
-	{
-		[XmlAttribute]
-		public double Length { get; set; } = 1.0;
-	}
+/// <summary>A node of a <see cref="DockLayout"/>: a split, a group or the document area; <see cref="Length"/> is its share in the parent split.</summary>
+public abstract class NodeLayout
+{
+	[XmlAttribute]
+	public double Length { get; set; } = 1.0;
+}
 
-	public sealed class SplitLayout : NodeLayout
-	{
-		[XmlAttribute]
-		public Orientation Orientation { get; set; }
+/// <summary>A split of a <see cref="DockLayout"/>, its children in content order.</summary>
+[ContentProperty(nameof(Children))]
+public sealed class SplitLayout : NodeLayout
+{
+	[XmlAttribute]
+	public Orientation Orientation { get; set; }
 
-		[XmlElement("Split", typeof(SplitLayout))]
-		[XmlElement("Group", typeof(GroupLayout))]
-		[XmlElement("Document", typeof(DocumentLayout))]
-		public List<NodeLayout> Children { get; set; } = new();
-	}
+	[XmlElement("Split", typeof(SplitLayout))]
+	[XmlElement("Group", typeof(GroupLayout))]
+	[XmlElement("Document", typeof(DocumentLayout))]
+	public List<NodeLayout> Children { get; set; } = new();
+}
 
-	public sealed class GroupLayout : NodeLayout
-	{
-		[XmlAttribute]
-		public string? Active { get; set; }
+/// <summary>A tabbed group of a <see cref="DockLayout"/>: the item ids as content, the active one named.</summary>
+[ContentProperty(nameof(Items))]
+public sealed class GroupLayout : NodeLayout
+{
+	[XmlAttribute]
+	public string? Active { get; set; }
 
-		[XmlElement("Item")]
-		public List<string> Items { get; set; } = new();
-	}
+	[XmlElement("Item")]
+	public List<string> Items { get; set; } = new();
+}
 
-	public sealed class DocumentLayout : NodeLayout
-	{
-	}
+/// <summary>The document area of a <see cref="DockLayout"/>.</summary>
+public sealed class DocumentLayout : NodeLayout
+{
 }
