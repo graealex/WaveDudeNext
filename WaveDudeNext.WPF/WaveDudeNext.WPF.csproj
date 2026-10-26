@@ -10,8 +10,11 @@
     <StartupObject>WaveDudeNext.WPF.Program</StartupObject>
     <!-- executable icon (Explorer, taskbar); the window icon is the same file as a resource -->
     <ApplicationIcon>App.ico</ApplicationIcon>
-    <!-- read by About and the file properties; the license text is LICENSE.md, the header of every source file names it -->
-    <Authors>Alexander Graef</Authors>
+    <!-- read by About and the file properties; the license text is LICENSE.md, the header of every source file names it.
+         Authors and Company are the product's name (2026-10-26, the user's rule): .NET puts the company into folder names,
+         and the author's name is nobody's business on a user's disk; the Copyright line names him -->
+    <Authors>WaveDudeNext</Authors>
+    <Company>WaveDudeNext</Company>
     <Copyright>Copyright (C) 2026 Alexander Graef</Copyright>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <!-- the .editorconfig code-style rules are build warnings too: a file without the license header (IDE0073) -->
@@ -32,21 +35,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WaveDudeNext\WaveDudeNext.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Properties\Settings.Designer.cs">
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
   </ItemGroup>
 
 </Project>

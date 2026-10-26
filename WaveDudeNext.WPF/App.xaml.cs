@@ -15,7 +15,6 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
-using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -28,7 +27,6 @@ using NLog.Config;
 using NLog.Targets;
 using WaveDudeNext.WPF.Localization;
 using WaveDudeNext.WPF.Logging;
-using WaveDudeNext.WPF.Properties;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
 using WaveDudeNext.WPF.Rendering;
@@ -172,34 +170,6 @@ public partial class App : Application
 		}
 	}
 
-	/// <summary>
-	/// Makes the user settings usable: carries them over from the previous version on the
-	/// first start after an update, and resets them when <c>user.config</c> is corrupt.
-	/// </summary>
-	private static void PrepareSettings()
-	{
-		try
-		{
-			if (Settings.Default.UpgradeRequired)
-			{
-				Settings.Default.Upgrade();
-				Settings.Default.UpgradeRequired = false;
-				Settings.Default.Save();
-				Logger.Info("User settings upgraded from the previous version");
-			}
-		}
-		catch (ConfigurationErrorsException ex)
-		{
-			string? file = (ex.InnerException as ConfigurationErrorsException)?.Filename ?? ex.Filename;
-			Logger.Error(ex, "User settings file '{Path}' is unreadable; resetting to defaults", file);
-			if (file != null && File.Exists(file))
-			{
-				File.Delete(file);
-			}
-			Settings.Default.Reload();
-		}
-	}
-
 	/// <inheritdoc/>
 	protected override void OnStartup(StartupEventArgs e)
 	{
@@ -230,7 +200,6 @@ public partial class App : Application
 			FileAssociation.Register(ColorSchemeStore.XmlExtension, FileAssociation.SchemeProgId, FileAssociation.SchemeDescription, executable);
 		}
 
-		PrepareSettings();
 		FrameCache.Sweep();
 		ColorSchemeCatalog.Instance.Load();
 		ThemeController.Instance.Current = Settings.Default.Theme;

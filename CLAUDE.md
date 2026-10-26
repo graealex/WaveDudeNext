@@ -81,8 +81,11 @@ harnesses run.
   `file_header_template` (its warranty sentence ends in a full stop: Roslyn cuts the value at `;`). LICENSE.md is
   the FSF's GPL-3.0 Markdown verbatim, nothing else (GitHub's detector rejects additions); the About dialog shows
   it as a document built by `Build/LicenseDocument.targets`.
-- The library is compiled optimised in every configuration (flip it locally to step through engine code). Each exe
-  path has its own `user.config` under `%LOCALAPPDATA%\WaveDudeNext.WPF`. Close Visual Studio before renaming a
+- The library is compiled optimised in every configuration (flip it locally to step through engine code). The user
+  settings are one sparse XML file, `%LOCALAPPDATA%\WaveDudeNext\Settings.xml` (`Settings.cs`, `XmlSerializer`, 2026-10-26, the
+  user's choice: .NET's `ApplicationSettingsBase` kept a `user.config` per exe path and version under a folder named after
+  the assembly's company, his name by default; Authors and Company are now the product's name, nothing personal in folder
+  names). Folders under `%LOCALAPPDATA%\Alexander_Graef` and `%LOCALAPPDATA%\WaveDudeNext.WPF` are leftovers of that. Close Visual Studio before renaming a
   project folder.
 
 ## Architecture

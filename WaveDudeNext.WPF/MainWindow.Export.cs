@@ -26,7 +26,6 @@ using WaveDudeNext.Probes;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
 using WaveDudeNext.WPF.Dialogs;
-using WaveDudeNext.WPF.Properties;
 using WaveDudeNext.WPF.Rendering;
 
 namespace WaveDudeNext.WPF;

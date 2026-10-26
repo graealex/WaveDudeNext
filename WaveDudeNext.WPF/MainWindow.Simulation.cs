@@ -22,7 +22,6 @@ using System.Windows.Threading;
 using WaveDudeNext.Engine;
 using WaveDudeNext.Model;
 using WaveDudeNext.Runs;
-using WaveDudeNext.WPF.Properties;
 using WaveDudeNext.WPF.Rendering;
 
 namespace WaveDudeNext.WPF;

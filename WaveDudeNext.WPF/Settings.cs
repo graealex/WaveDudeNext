@@ -1,0 +1,288 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+//
+// This file is part of WaveDude Next, a 2D wave simulator.
+//
+// Based on the work of
+//   Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+//     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+//   0x23 (Diffraction Limited), author of WaveSimulator2D
+//     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+//
+// WaveDude Next is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+// <https://www.gnu.org/licenses/>.
+
+using System.ComponentModel;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Xml;
+using System.Xml.Serialization;
+using NLog;
+using WaveDudeNext.WPF.Docking;
+using WaveDudeNext.WPF.Theming;
+
+namespace WaveDudeNext.WPF;
+
+/// <summary>
+/// The user settings: one XML file per user, <c>%LocalAppData%\WaveDudeNext\Settings.xml</c>, beside the colour
+/// schemes and the frame cache, written by <see cref="XmlSerializer"/> sparsely (a value at its default is left out).
+/// Replaces <c>ApplicationSettingsBase</c> (2026-10-26, the user's choice): that kept a <c>user.config</c> per exe
+/// path and per version under a folder named after the assembly's company, the author's name by default, so a build
+/// and a publish never shared their settings and the upgrade step had nothing to carry over. Every member is for the
+/// UI thread; a change raises <see cref="PropertyChanged"/>, and nothing is written until <see cref="Save"/>.
+/// </summary>
+[XmlRoot("Settings")]
+public sealed class Settings : INotifyPropertyChanged
+{
+	private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
+	private static readonly XmlSerializer Serializer = new(typeof(Settings));
+
+	/// <summary>The settings file.</summary>
+	public static string FilePath { get; } = Path.Combine(App.LocalAppDataDirectory, "Settings.xml");
+
+	/// <summary>This user's settings, read from <see cref="FilePath"/> at first use; the defaults when the file is missing or unreadable.</summary>
+	public static Settings Default { get; } = Load();
+
+	/// <inheritdoc/>
+	public event PropertyChangedEventHandler? PropertyChanged;
+
+	private double _windowWidth = 1280;
+
+	/// <summary>Width of the main window in device-independent pixels.</summary>
+	[XmlAttribute, DefaultValue(1280.0)]
+	public double WindowWidth
+	{
+		get => _windowWidth;
+		set => Set(ref _windowWidth, value);
+	}
+
+	private double _windowHeight = 800;
+
+	/// <summary>Height of the main window in device-independent pixels.</summary>
+	[XmlAttribute, DefaultValue(800.0)]
+	public double WindowHeight
+	{
+		get => _windowHeight;
+		set => Set(ref _windowHeight, value);
+	}
+
+	private double _windowLeft = double.NaN;
+
+	/// <summary>Left edge of the main window in device-independent pixels; NaN lets Windows place it.</summary>
+	[XmlAttribute, DefaultValue(double.NaN)]
+	public double WindowLeft
+	{
+		get => _windowLeft;
+		set => Set(ref _windowLeft, value);
+	}
+
+	private double _windowTop = double.NaN;
+
+	/// <summary>Top edge of the main window in device-independent pixels; NaN lets Windows place it.</summary>
+	[XmlAttribute, DefaultValue(double.NaN)]
+	public double WindowTop
+	{
+		get => _windowTop;
+		set => Set(ref _windowTop, value);
+	}
+
+	private WindowState _windowState = WindowState.Normal;
+
+	/// <summary>State of the main window; never saved as minimized.</summary>
+	[XmlAttribute, DefaultValue(WindowState.Normal)]
+	public WindowState WindowState
+	{
+		get => _windowState;
+		set => Set(ref _windowState, value);
+	}
+
+	private DockLayout? _layout = null;
+
+	/// <summary>The dock panes' arrangement at the last close; null for a first start.</summary>
+	[XmlElement("Layout")]
+	public DockLayout? Layout
+	{
+		get => _layout;
+		set => Set(ref _layout, value);
+	}
+
+	private AppTheme _theme = AppTheme.System;
+
+	/// <summary>The colour theme.</summary>
+	[XmlAttribute, DefaultValue(AppTheme.System)]
+	public AppTheme Theme
+	{
+		get => _theme;
+		set => Set(ref _theme, value);
+	}
+
+	private string _language = "";
+
+	/// <summary>The string table's language code; empty for the system's.</summary>
+	[XmlAttribute, DefaultValue("")]
+	public string Language
+	{
+		get => _language;
+		set => Set(ref _language, value);
+	}
+
+	private List<string> _recentFiles = [];
+
+	/// <summary>The recently opened project files, newest first; a fresh list on every change, so the bound menu sees it.</summary>
+	[XmlElement("RecentFile")]
+	public List<string> RecentFiles
+	{
+		get => _recentFiles;
+		set => Set(ref _recentFiles, value);
+	}
+
+	private Orientation _previewOrientation = Orientation.Vertical;
+
+	/// <summary>Whether the preview's pictures sit side by side or one above the other.</summary>
+	[XmlAttribute, DefaultValue(Orientation.Vertical)]
+	public Orientation PreviewOrientation
+	{
+		get => _previewOrientation;
+		set => Set(ref _previewOrientation, value);
+	}
+
+	private bool _autoRerun = true;
+
+	/// <summary>Whether a simulation edit re-runs the simulation after a moment of quiet.</summary>
+	[XmlAttribute, DefaultValue(true)]
+	public bool AutoRerun
+	{
+		get => _autoRerun;
+		set => Set(ref _autoRerun, value);
+	}
+
+	private bool _useGpu = true;
+
+	/// <summary>Whether runs use the OpenCL engine, falling back to the CPU.</summary>
+	[XmlAttribute, DefaultValue(true)]
+	public bool UseGpu
+	{
+		get => _useGpu;
+		set => Set(ref _useGpu, value);
+	}
+
+	private int _frameMemoryPercent = 0;
+
+	/// <summary>The RAM cache's bound as a percentage of the physical memory; 0 or less for automatic.</summary>
+	[XmlAttribute, DefaultValue(0)]
+	public int FrameMemoryPercent
+	{
+		get => _frameMemoryPercent;
+		set => Set(ref _frameMemoryPercent, value);
+	}
+
+	private int _previewResolution = 1;
+
+	/// <summary>The preview's resolution divisor: 1, 2 or 4.</summary>
+	[XmlAttribute, DefaultValue(1)]
+	public int PreviewResolution
+	{
+		get => _previewResolution;
+		set => Set(ref _previewResolution, value);
+	}
+
+	private int _previewFrames = 1;
+
+	/// <summary>The preview's frame divisor: every 1st, 2nd or 4th frame.</summary>
+	[XmlAttribute, DefaultValue(1)]
+	public int PreviewFrames
+	{
+		get => _previewFrames;
+		set => Set(ref _previewFrames, value);
+	}
+
+	private int _previewSampleBytes = 1;
+
+	/// <summary>Bytes per preview sample: 1 for palette indices, 2 for halves.</summary>
+	[XmlAttribute, DefaultValue(1)]
+	public int PreviewSampleBytes
+	{
+		get => _previewSampleBytes;
+		set => Set(ref _previewSampleBytes, value);
+	}
+
+	private int _previewDitherBits = 0;
+
+	/// <summary>Preview dithering: 0 for off, else the bits per channel the colours are reduced from (10, 12, 14 or 16).</summary>
+	[XmlAttribute, DefaultValue(0)]
+	public int PreviewDitherBits
+	{
+		get => _previewDitherBits;
+		set => Set(ref _previewDitherBits, value);
+	}
+
+	private string _lastExportFolder = "";
+
+	/// <summary>The folder of the last export; empty for none.</summary>
+	[XmlAttribute, DefaultValue("")]
+	public string LastExportFolder
+	{
+		get => _lastExportFolder;
+		set => Set(ref _lastExportFolder, value);
+	}
+
+	private int _exportFilterIndex = 0;
+
+	/// <summary>The index of the export format chosen last in the dialog's filter list.</summary>
+	[XmlAttribute, DefaultValue(0)]
+	public int ExportFilterIndex
+	{
+		get => _exportFilterIndex;
+		set => Set(ref _exportFilterIndex, value);
+	}
+
+	/// <summary>Writes the settings to <see cref="FilePath"/>, creating the folder; file errors are the caller's.</summary>
+	public void Save()
+	{
+		Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+		using var writer = XmlWriter.Create(FilePath, new XmlWriterSettings
+		{
+			Indent = true,
+			IndentChars = "\t",
+			Encoding = new UTF8Encoding(false),
+		});
+		Serializer.Serialize(writer, this, new XmlSerializerNamespaces([XmlQualifiedName.Empty]));
+	}
+
+	private static Settings Load()
+	{
+		if (!File.Exists(FilePath))
+		{
+			Logger.Debug("No settings file at '{Path}', using the defaults", FilePath);
+			return new Settings();
+		}
+		try
+		{
+			using var reader = XmlReader.Create(FilePath);
+			if (Serializer.Deserialize(reader) is Settings settings)
+			{
+				return settings;
+			}
+		}
+		catch (Exception ex) when (ex is InvalidOperationException or XmlException or IOException or UnauthorizedAccessException)
+		{
+			Logger.Error(ex, "The settings file '{Path}' is unreadable, using the defaults", FilePath);
+		}
+		return new Settings();
+	}
+
+	private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
+	{
+		if (!EqualityComparer<T>.Default.Equals(field, value))
+		{
+			field = value;
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+		}
+	}
+}

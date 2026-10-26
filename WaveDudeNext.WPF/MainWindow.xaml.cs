@@ -16,8 +16,6 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.Configuration;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -32,7 +30,6 @@ using WaveDudeNext.Rendering;
 using WaveDudeNext.WPF.Dialogs;
 using WaveDudeNext.WPF.Docking;
 using WaveDudeNext.WPF.Localization;
-using WaveDudeNext.WPF.Properties;
 using WaveDudeNext.WPF.Theming;
 
 namespace WaveDudeNext.WPF;
@@ -315,11 +312,11 @@ public partial class MainWindow : Window
 	{
 		JumpList.AddToRecentCategory(fileName);
 
-		// a fresh collection so the bound menu sees the change (StringCollection does not notify)
-		var recent = new StringCollection { fileName };
-		foreach (string? entry in Settings.Default.RecentFiles ?? [])
+		// a fresh list so the bound menu sees the change
+		var recent = new List<string> { fileName };
+		foreach (string entry in Settings.Default.RecentFiles)
 		{
-			if (entry != null && !string.Equals(entry, fileName, StringComparison.OrdinalIgnoreCase) && recent.Count < RecentFileCount)
+			if (!string.Equals(entry, fileName, StringComparison.OrdinalIgnoreCase) && recent.Count < RecentFileCount)
 			{
 				recent.Add(entry);
 			}
@@ -559,10 +556,10 @@ public partial class MainWindow : Window
 	protected override void OnClosed(EventArgs e)
 	{
 		base.OnClosed(e);
-		if (Settings.Default.MainWindow_State == WindowState.Minimized)
+		if (Settings.Default.WindowState == WindowState.Minimized)
 		{
 			// never start minimized
-			Settings.Default.MainWindow_State = WindowState.Normal;
+			Settings.Default.WindowState = WindowState.Normal;
 		}
 		SaveSettings();
 	}
@@ -574,10 +571,10 @@ public partial class MainWindow : Window
 			Settings.Default.Save();
 			Logger.Debug("User settings saved");
 		}
-		catch (Exception ex) when (ex is ConfigurationErrorsException or IOException or UnauthorizedAccessException)
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
 		{
 			// Losing window placement or the recent list is not worth interrupting the user. The file errors: two
-			// instances closing at once replace the same user.config, and the second one finds it gone (2026-10-19)
+			// instances closing at once write the same file, and the second one finds it open (2026-10-19)
 			Logger.Warn(ex, "Could not save the user settings");
 		}
 	}
