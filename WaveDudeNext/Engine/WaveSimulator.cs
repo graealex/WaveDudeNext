@@ -87,6 +87,9 @@ namespace WaveDudeNext.Engine;
 /// </remarks>
 public sealed class WaveSimulator : IWaveEngine, IDisposable
 {
+	/// <summary>The engine's log: the grid of every build, at Debug.</summary>
+	private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+
 	/// <summary>
 	/// Copies the scene's c² and damping maps into the padded grid, derives the sub-step count (4th order
 	/// only, and only when the scene's highest c² needs it) and the matching per-sub-step damping and c²
@@ -167,6 +170,9 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 		}
 
 		_timeDecay = options.TimeDecay;
+		// the same facts the OpenCL engine logs when its kernels are built (2026-10-27)
+		Logger.Debug("CPU engine built: grid {Width} × {Height} (canvas {CanvasWidth} × {CanvasHeight}, rim {Rim}, {Edges}), stride {Stride}, {Stencil}, {Threads} threads",
+			_width, _height, _canvasWidth, _canvasHeight, _rim, _openEdges ? "open" : "reflective", _stride, StencilText(_use4thOrderLaplacian, _subSteps), Environment.ProcessorCount);
 		SetEmitters(emitters);
 	}
 
@@ -301,6 +307,10 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 
 	/// <summary>Engine label for the UI/result: "CPU (n threads)" with the logical processor count.</summary>
 	public string Description => "CPU (" + Environment.ProcessorCount.ToString(CultureInfo.InvariantCulture) + " threads)";
+
+	/// <summary>The stencil for the log, both engines alike: "9-point stencil", or "4th-order stencil, 3 sub-steps".</summary>
+	internal static string StencilText(bool fourthOrder, int subSteps) =>
+		fourthOrder ? "4th-order stencil, " + subSteps.ToString(CultureInfo.InvariantCulture) + (subSteps == 1 ? " sub-step" : " sub-steps") : "9-point stencil";
 
 	/// <summary>Elapsed simulation time in steps (one per <see cref="AdvanceOneStep"/>).</summary>
 	public double Time => _time;

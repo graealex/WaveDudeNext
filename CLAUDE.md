@@ -65,7 +65,13 @@ harnesses run.
 - **C# style**: modern and concise, expression-bodied accessors, no `this.`, no `IDisposable` on interfaces,
   `out` not `ref`, tabs, Allman; `///` docs state threading, units and coordinate systems. `grep -E`, not `-P`.
 - **Log decisions at Debug** (scratch requests, stale marks, postponed re-runs, export steps). Info and up reach
-  the status bar; Trace only in Debug builds. Log messages are not localised.
+  the status bar; Trace only in Debug builds. Log messages are not localised, and their numbers are invariant (NLog's
+  DefaultCultureInfo, 2026-10-27, the user's rule: a report's reader or tool must not trip over a decimal comma). **The log must let a report be
+  diagnosed** (2026-10-27, the user's rule after Jeroen's log named the property edited but not the value, nor the
+  grid): every engine logs its grid, canvas, rim, edges, stride, sub-steps and work groups when built; a GPU device's
+  facts (versions, units, clock, memory, limits) once per process; the scratch request names the newest edit with its
+  value (after the debounce, so a typed number shows as typed); every change at Trace as old → new
+  (`PropertyValueChangedEventArgs` from `SetProperty`, carried by `ProjectChange.Values`, `library_check` proves it).
 - **Do not resurrect**: a probe signal lane, timeline tracks, zoom and pan of the axis, thumbnails, a run progress
   bar, the scratch budget and its "not computed" note, a GPU JPEG front end, a Direct3D display path, a bent
   rotation lever. **Do not change**: the readout showing both frame and step (undecided).
@@ -119,7 +125,7 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   1 % back from the earlier linear ramp to a tenth at -64, 0.09 % from the quadratic one, 0.03 % at -128; the measuring
   method is in `library_check`); a version-1 file loads as
   Reflective, a version-2 file without a damping edge with none (its default then; files are version 3 since 2026-10-22), an
-  import as Reflective with his band; one driver thread at a time, no locking; captures
+  import as Reflective with his band; one driver thread at a time, no locking; the kernels over the grid and the captures run in explicit 32 × 8 work groups over a global size rounded up to whole groups (2026-10-27, Jeroen's report: left to the driver, the group had to divide the grid, and a prime width, 1789 for a 1725 px canvas with the rim, got groups one cell wide, 13–19× slower on the RTX 2080; every candidate shape from 16 × 16 to 256 × 1 measured the same); captures
   deliver planes in the spec's `FrameShape` (halves or palette index bytes, the GPU converting on the card);
   `Reset`, `SetEmitters`, `SetProbes`. Numerics are Jeroen's (dx = dt = 1, leapfrog, 9-point or 4th-order
   Laplacian, soft sources, EMA intensity; a scene pixel with red 0 is a mirror, n = 1000, his V0.30 rule,
@@ -295,7 +301,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, ranges, XOR gate, zone plate, gate port follower, history, clipboard).
+`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 38, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness

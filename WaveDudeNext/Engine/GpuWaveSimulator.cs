@@ -70,7 +70,9 @@ namespace WaveDudeNext.Engine;
 /// The field lives in two ping-pong buffers (<see cref="_field"/>) that take turns as "current field" and
 /// "previous field"; every kernel that reads the field exists twice (index 0/1) with the buffers bound in
 /// opposite order, so a step merely picks the kernel for <see cref="_current"/> instead of re-binding
-/// arguments. Kernel launches are asynchronous; uploads and read-backs are blocking. Every OpenCL handle
+/// arguments. The kernels over the grid and the captures run in explicit work groups, the global size rounded up
+/// to whole groups (see <see cref="WorkGroup2D"/> for why). Kernel launches are asynchronous; uploads and
+/// read-backs are blocking. Every OpenCL handle
 /// created here is registered in <see cref="_scene"/> (the simulation program, kernels and buffers) or
 /// <see cref="_probes"/> (everything <see cref="SetProbes"/> creates) and released by <see cref="Dispose"/>,
 /// by the constructor when building fails, or — for the probe set — when probes are installed again. The
@@ -108,6 +110,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		{
 			try
 			{
+				DescribeOnce(devices, device);
 				return new GpuWaveSimulator(device, scene, options, emitters);
 			}
 			catch (Exception ex)
@@ -147,7 +150,6 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		{
 			throw new InvalidOperationException("the scene is too large for this GPU");
 		}
-		_grid2D = new[] { new IntPtr(_width), new IntPtr(_height) };
 		_grid1D = new[] { new IntPtr(Math.Max(1, _sourceCount)) };
 		_hostField = new float[_cells];
 		_hostIntensity = _track ? new float[_cells] : null;
@@ -238,6 +240,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 			_stagingIntensity = _track ? CreateBuffer((long)_canvasWidth * _canvasHeight * 2, _scene) : IntPtr.Zero;
 			_captureHalfKernel = CreateKernel(_scene, _scene.Program, "capture_half");
 			_captureIndexKernel = CreateKernel(_scene, _scene.Program, "capture_index");
+			_captureLocal = WorkGroup2D(_captureHalfKernel, _captureIndexKernel);
 			foreach (IntPtr kernel in new[] { _captureHalfKernel, _captureIndexKernel })
 			{
 				// the canvas, which the captures cover, and where it starts in the grid
@@ -252,7 +255,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		{
 			// the shape's geometry, set once per shape (every capture of a run shares one)
 			_captureShape = shape;
-			_captureGrid = [new IntPtr(shape.Width), new IntPtr(shape.Height)];
+			_captureGrid = RoundUp([shape.Width, shape.Height], _captureLocal);
 			foreach (IntPtr kernel in new[] { _captureHalfKernel, _captureIndexKernel })
 			{
 				SetInt(kernel, 5U, shape.Divisor);
@@ -288,7 +291,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		{
 			SetInt(kernel, 9U, intensity && shape.IntensityRoot ? 1 : 0);
 		}
-		Enqueue(kernel, _captureGrid!, "capture");
+		Enqueue(kernel, _captureGrid!, _captureLocal, "capture");
 		OpenClApi.Check(OpenClApi.clEnqueueReadBufferPtr(_queue, staging, 0U, IntPtr.Zero, new IntPtr(plane.Length), FrameSnapshot.AddressOf(plane), 0U, IntPtr.Zero, out IntPtr evt), "clEnqueueReadBuffer (capture)");
 		snapshot.Events[snapshot.EventCount++] = evt;
 	}
@@ -439,7 +442,13 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 				SetFloat(edges, 6U, c2Mult);
 			}
 		}
-		_edgeGrid1D = [new IntPtr(_width + 2 + _height)];
+		_stepLocal = WorkGroup2D(_stepKernel[0], _stepKernel[1]);
+		_grid2D = RoundUp([_width, _height], _stepLocal);
+		_edgeLocal = _openEdges ? WorkGroup1D(_edgeKernel[0], _edgeKernel[1]) : null;
+		_edgeGrid1D = RoundUp([_width + 2 + _height], _edgeLocal);
+		// what a report needs to say (2026-10-27, after a log that could not show the grid): the grid the kernels run over, and how
+		Logger.Debug("OpenCL kernels built on {Device}: grid {Width} × {Height} (canvas {CanvasWidth} × {CanvasHeight}, rim {Rim}, {Edges}), stride {Stride}, work groups {Groups}, {Stencil}",
+			_device.Name, _width, _height, _canvasWidth, _canvasHeight, _rim, _openEdges ? "open" : "reflective", _stride, GroupText(_stepLocal), WaveSimulator.StencilText(use4thOrderLaplacian, _subSteps));
 		if (_sourceCount > 0)
 		{
 			IntPtr indexBuffer = CreateBuffer(indices, _scene);
@@ -929,10 +938,119 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 		OpenClApi.Check(OpenClApi.clSetKernelArgFloat(kernel, index, new IntPtr(4), ref value), "clSetKernelArg");
 	}
 
-	/// <summary>Enqueues <paramref name="kernel"/> with the given global work size; <paramref name="what"/> names the launch in the error message.</summary>
-	private void Enqueue(IntPtr kernel, IntPtr[] globalSize, string what)
+	/// <summary>Enqueues <paramref name="kernel"/> with the given global work size, the work-group size left to the driver (the small 1D kernels); <paramref name="what"/> names the launch in the error message.</summary>
+	private void Enqueue(IntPtr kernel, IntPtr[] globalSize, string what) => Enqueue(kernel, globalSize, null, what);
+
+	/// <summary>Enqueues <paramref name="kernel"/> with the given global work size, in groups of <paramref name="localSize"/> (null: the driver's choice); <paramref name="what"/> names the launch in the error message.</summary>
+	private void Enqueue(IntPtr kernel, IntPtr[] globalSize, IntPtr[]? localSize, string what)
 	{
-		OpenClApi.Check(OpenClApi.clEnqueueNDRangeKernel(_queue, kernel, (uint)globalSize.Length, null, globalSize, null, 0U, IntPtr.Zero, IntPtr.Zero), "clEnqueueNDRangeKernel (" + what + ")");
+		OpenClApi.Check(OpenClApi.clEnqueueNDRangeKernel(_queue, kernel, (uint)globalSize.Length, null, globalSize, localSize, 0U, IntPtr.Zero, IntPtr.Zero), "clEnqueueNDRangeKernel (" + what + ")");
+	}
+
+	/// <summary>
+	/// The work-group size for the kernels over the grid (<c>wave_step</c>, the captures): 32 × 8 work items, a row
+	/// segment of 32 cells (128 bytes, what a warp or wavefront reads in one go) by 8 rows, so the stencil's
+	/// neighbours above and below come from the group's own cache lines; shrunk to what the kernels can run with on
+	/// this device (CL_KERNEL_WORK_GROUP_SIZE, which allows for the registers they use) and to the device's extents
+	/// per dimension, the rows halved first. Null, leaving the choice to the driver, when a query fails. Left to the
+	/// driver, the group has to divide the global size exactly, and a grid of prime width (1789 cells: a 1725 px
+	/// canvas with the 32 px rim, 2026-10-26) got groups one cell wide, each warp reading a column of scattered
+	/// addresses in place of a row: 13 to 19 times slower on an RTX 2080. With an explicit group the global size is
+	/// rounded up to whole groups (<see cref="RoundUp"/>) and the kernels' own bounds checks drop the surplus work
+	/// items.
+	/// </summary>
+	private IntPtr[]? WorkGroup2D(params IntPtr[] kernels) => FitGroup([32, 8], kernels);
+
+	/// <summary>The work-group size for a kernel over a list (<c>open_edges</c>): 64 work items, shrunk as <see cref="WorkGroup2D"/> shrinks; null when a query fails.</summary>
+	private IntPtr[]? WorkGroup1D(params IntPtr[] kernels) => FitGroup([64], kernels);
+
+	/// <summary><paramref name="preferred"/> shrunk to the limit of every kernel in <paramref name="kernels"/> and to the device's extents, the last dimension halved first; null when a query fails.</summary>
+	private IntPtr[]? FitGroup(int[] preferred, IntPtr[] kernels)
+	{
+		ulong limit = ulong.MaxValue;
+		foreach (IntPtr kernel in kernels)
+		{
+			ulong own = OpenClApi.KernelWorkGroupLimit(kernel, _device.DeviceId);
+			if (own == 0UL)
+			{
+				return null;
+			}
+			limit = Math.Min(limit, own);
+		}
+		ulong[] extents = OpenClApi.DeviceSizes(_device.DeviceId, OpenClApi.DeviceMaxWorkItemSizes);
+		if (extents.Length < preferred.Length)
+		{
+			return null;
+		}
+		int[] size = (int[])preferred.Clone();
+		for (int axis = 0; axis < size.Length; axis++)
+		{
+			while (size[axis] > 1 && (ulong)size[axis] > extents[axis])
+			{
+				size[axis] /= 2;
+			}
+		}
+		for (int axis = size.Length - 1; axis >= 0 && Product(size) > limit;)
+		{
+			if (size[axis] > 1)
+			{
+				size[axis] /= 2;
+			}
+			else
+			{
+				axis--;
+			}
+		}
+		return [.. size.Select(s => new IntPtr(s))];
+
+		static ulong Product(int[] size)
+		{
+			ulong product = 1UL;
+			foreach (int s in size)
+			{
+				product *= (ulong)s;
+			}
+			return product;
+		}
+	}
+
+	/// <summary>A work-group size for the log: "32 × 8", or "the driver's" when the choice is left to the driver.</summary>
+	private static string GroupText(IntPtr[]? local) => local == null ? "the driver's" : string.Join(" × ", local.Select(v => v.ToInt64().ToString(CultureInfo.InvariantCulture)));
+
+	/// <summary>
+	/// Logs, before a device first builds an engine in this process (2026-10-27, the user's wish: a report should say
+	/// which card, driver and limits were at work, and which cards there were): the candidates in the order tried, once,
+	/// then the device's versions, compute units, clock, memory, the largest buffer, the work-group limit and extents,
+	/// and whether its square root is correctly rounded. Before the build, so a build that fails has its device on record.
+	/// </summary>
+	private static void DescribeOnce(List<GpuDeviceInfo> candidates, GpuDeviceInfo device)
+	{
+		lock (_described)
+		{
+			if (_described.Add("*"))
+			{
+				Logger.Debug("GPUs through OpenCL, the first that works is used: {Devices}", string.Join("; ", candidates.Select(d => d.Name + (d.Discrete ? " (discrete)" : " (integrated)"))));
+			}
+			if (!_described.Add(device.Name + "|" + device.DriverVersion))
+			{
+				return;
+			}
+		}
+		Logger.Debug("GPU in use: {Name} ({Vendor}, {Kind}), {Version}, driver {Driver}, {Units} compute units at {Clock} MHz, {Memory:0.0} GB, largest buffer {Allocation:0.0} GB, work groups up to {MaxGroup} ({Extents}), {Sqrt}",
+			device.Name, device.Vendor, device.Discrete ? "discrete" : "integrated", device.Version, device.DriverVersion, device.ComputeUnits, device.ClockMhz, device.GlobalMemory / 1073741824.0, device.MaxAllocation / 1073741824.0,
+			device.MaxWorkGroupSize, string.Join(" × ", device.MaxWorkItemSizes), device.CorrectlyRoundedSqrt ? "correctly rounded sqrt" : "no correctly rounded sqrt");
+	}
+
+	/// <summary>The global work size for <paramref name="items"/> work items per dimension: rounded up to whole groups of <paramref name="local"/>, or as given when the driver chooses the group.</summary>
+	private static IntPtr[] RoundUp(int[] items, IntPtr[]? local)
+	{
+		var global = new IntPtr[items.Length];
+		for (int axis = 0; axis < items.Length; axis++)
+		{
+			int group = local == null ? 1 : (int)local[axis];
+			global[axis] = new IntPtr((items[axis] + group - 1) / group * group);
+		}
+		return global;
 	}
 
 	/// <summary>Blocking device-to-host copy of <paramref name="target"/>.Length floats from <paramref name="buffer"/>; resets the clFinish counter since the read drains the queue.</summary>
@@ -947,6 +1065,9 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 
 	/// <summary>The card this engine runs on.</summary>
 	public GpuDeviceInfo Device => _device;
+
+	/// <summary>The work-group size <c>wave_step</c> runs with (see <see cref="WorkGroup2D"/>); (0, 0) when the driver chooses.</summary>
+	public (int Width, int Height) WorkGroup => _stepLocal == null ? (0, 0) : ((int)_stepLocal[0], (int)_stepLocal[1]);
 
 	/// <summary>Scene width in cells (canvas pixels), excluding the padding.</summary>
 	public int Width => _canvasWidth;
@@ -1001,10 +1122,10 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 			{
 				SetInt(_stepKernel[current], 8U, subStep == _subSteps && _track ? 1 : 0);
 			}
-			Enqueue(_stepKernel[current], _grid2D, "step");
+			Enqueue(_stepKernel[current], _grid2D, _stepLocal, "step");
 			if (_openEdges)
 			{
-				Enqueue(_edgeKernel[current], _edgeGrid1D, "edges");
+				Enqueue(_edgeKernel[current], _edgeGrid1D, _edgeLocal, "edges");
 			}
 			current = 1 - current;
 		}
@@ -1503,8 +1624,13 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	/// <summary>The probe program (<see cref="ProbeKernelSource"/>), built on the first <see cref="SetProbes"/> and kept for the engine's life; its kernels and buffers live in <see cref="_probes"/>.</summary>
 	private IntPtr _probeProgram;
 
-	/// <summary>The device the context lives on; needed again to build the probe program.</summary>
+	/// <summary>The engine's log: the device once per process and the grid of every build, both at Debug.</summary>
 	private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+
+	/// <summary>The devices described in the log so far, by name and driver version (<see cref="DescribeOnce"/>); locked on itself, as engines are built on several threads.</summary>
+	private static readonly HashSet<string> _described = [];
+
+	/// <summary>The device the context lives on; needed again to build the probe program.</summary>
 	private readonly GpuDeviceInfo _device;
 	private readonly int _rim;
 	private readonly int _canvasWidth;
@@ -1617,8 +1743,17 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	/// <summary>Index (0/1) of the field buffer holding the newest field; flips after every sub-step.</summary>
 	private int _current;
 
-	/// <summary>Global work size of <c>wave_step</c>: <see cref="_width"/> × <see cref="_height"/> work items, one per interior cell.</summary>
-	private readonly IntPtr[] _grid2D;
+	/// <summary>Global work size of <c>wave_step</c>: <see cref="_width"/> × <see cref="_height"/> work items, one per interior cell, rounded up to whole groups of <see cref="_stepLocal"/>; set in <see cref="Build"/>.</summary>
+	private IntPtr[] _grid2D = [new IntPtr(1), new IntPtr(1)];
+
+	/// <summary>Work-group size of <c>wave_step</c> (<see cref="WorkGroup2D"/>); null leaves it to the driver.</summary>
+	private IntPtr[]? _stepLocal;
+
+	/// <summary>Work-group size of <c>open_edges</c> (<see cref="WorkGroup1D"/>); null leaves it to the driver.</summary>
+	private IntPtr[]? _edgeLocal;
+
+	/// <summary>Work-group size of the capture kernels (<see cref="WorkGroup2D"/>); null leaves it to the driver.</summary>
+	private IntPtr[]? _captureLocal;
 
 	/// <summary>Global work size of <c>apply_sources</c>: max(1, <see cref="_sourceCount"/>).</summary>
 	private readonly IntPtr[] _grid1D;

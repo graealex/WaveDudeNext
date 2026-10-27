@@ -18,6 +18,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using WaveDudeNext.Rendering;
 
 namespace WaveDudeNext.Model;
@@ -25,8 +26,25 @@ namespace WaveDudeNext.Model;
 /// <summary>What changed in a watched project: the object and the property, or a list when items were added or removed.</summary>
 /// <param name="Item">The object that changed (a <see cref="Scene"/>, <see cref="Source"/>, …) or the collection.</param>
 /// <param name="Property">The property name, or null for a collection change.</param>
-public sealed record ProjectChange(object Item, string? Property)
+/// <param name="Values">The value before and after when the edit went through <see cref="ObservableObject.SetProperty{T}"/>; null for a derived property or a list.</param>
+public sealed record ProjectChange(object Item, string? Property, PropertyValueChangedEventArgs? Values = null)
 {
+	/// <summary>The value before the edit as the log shows it (<see cref="Format"/>); "" without <see cref="Values"/>.</summary>
+	public string OldValueText => Values == null ? "" : Format(Values.OldValue);
+
+	/// <summary>The value set as the log shows it (<see cref="Format"/>); "" without <see cref="Values"/>.</summary>
+	public string NewValueText => Values == null ? "" : Format(Values.NewValue);
+
+	/// <summary>A value as the log shows it: numbers and enums invariant, a string in quotes, a byte array by its length, null as "null", anything else by its text.</summary>
+	public static string Format(object? value) => value switch
+	{
+		null => "null",
+		string text => "'" + text + "'",
+		byte[] bytes => "byte[" + bytes.Length.ToString(CultureInfo.InvariantCulture) + "]",
+		IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+		_ => value.ToString() ?? "",
+	};
+
 	/// <summary>
 	/// Whether the change alters the frames a run computes: the scene, the solver settings, the seed, a source or an
 	/// optical part (painted into the scene). Display settings, probes (see <see cref="AffectsProbes"/>) and the
@@ -93,7 +111,7 @@ public sealed class ProjectWatcher : IDisposable
 		{
 			Resubscribe();
 		}
-		Changed?.Invoke(this, new ProjectChange(_project, e.PropertyName));
+		Changed?.Invoke(this, new ProjectChange(_project, e.PropertyName, e as PropertyValueChangedEventArgs));
 	}
 
 	private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -105,7 +123,7 @@ public sealed class ProjectWatcher : IDisposable
 		}
 		if (sender != null)
 		{
-			Changed?.Invoke(this, new ProjectChange(sender, e.PropertyName));
+			Changed?.Invoke(this, new ProjectChange(sender, e.PropertyName, e as PropertyValueChangedEventArgs));
 		}
 	}
 

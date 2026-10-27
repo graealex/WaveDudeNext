@@ -32,7 +32,8 @@ public abstract class ObservableObject : INotifyPropertyChanged
 
 	/// <summary>
 	/// Stores <paramref name="value"/> in <paramref name="field"/> and raises
-	/// <see cref="PropertyChanged"/> when it differs; returns whether it did.
+	/// <see cref="PropertyChanged"/> when it differs, with the value before and after
+	/// (<see cref="PropertyValueChangedEventArgs"/>); returns whether it did.
 	/// </summary>
 	protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
 	{
@@ -40,8 +41,9 @@ public abstract class ObservableObject : INotifyPropertyChanged
 		{
 			return false;
 		}
+		T old = field;
 		field = value;
-		OnPropertyChanged(name);
+		PropertyChanged?.Invoke(this, new PropertyValueChangedEventArgs(name, old, value));
 		return true;
 	}
 
@@ -59,4 +61,22 @@ public abstract class ObservableObject : INotifyPropertyChanged
 		copy.PropertyChanged = null;
 		return copy;
 	}
+}
+
+/// <summary>
+/// The arguments <see cref="ObservableObject.SetProperty{T}"/> raises: the value before and after the edit, so a
+/// watcher can log "old → new" without a shadow copy of the model (2026-10-27, the user's wish after a report whose
+/// log named the property edited but not the value). A derived property's notification
+/// (<see cref="ObservableObject.OnPropertyChanged"/>) carries the plain arguments.
+/// </summary>
+/// <param name="propertyName">The property that changed.</param>
+/// <param name="oldValue">Its value before the edit.</param>
+/// <param name="newValue">The value set.</param>
+public sealed class PropertyValueChangedEventArgs(string? propertyName, object? oldValue, object? newValue) : PropertyChangedEventArgs(propertyName)
+{
+	/// <summary>The value before the edit.</summary>
+	public object? OldValue { get; } = oldValue;
+
+	/// <summary>The value set.</summary>
+	public object? NewValue { get; } = newValue;
 }

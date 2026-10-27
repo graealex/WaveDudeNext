@@ -74,6 +74,10 @@ internal static class OpenClApi
 	[DllImport("OpenCL", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
 	internal static extern IntPtr clCreateKernel(IntPtr program, string kernelName, ref int errcode);
 
+	/// <summary>clGetKernelWorkGroupInfo: raw bytes of a kernel's property on one device, such as <see cref="KernelWorkGroupSize"/>. Wrapped by <see cref="KernelWorkGroupLimit"/>.</summary>
+	[DllImport("OpenCL", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
+	internal static extern int clGetKernelWorkGroupInfo(IntPtr kernel, IntPtr device, uint paramName, IntPtr paramSize, byte[]? paramValue, ref IntPtr sizeRet);
+
 	/// <summary>clSetKernelArg for a buffer argument (cl_mem handle; <paramref name="argSize"/> is the pointer size).</summary>
 	[DllImport("OpenCL", CharSet = CharSet.Ansi, EntryPoint = "clSetKernelArg", ExactSpelling = true, SetLastError = true)]
 	internal static extern int clSetKernelArgMem(IntPtr kernel, uint argIndex, IntPtr argSize, ref IntPtr argValue);
@@ -116,7 +120,7 @@ internal static class OpenClApi
 	[DllImport("OpenCL", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
 	internal static extern int clReleaseEvent(IntPtr evt);
 
-	/// <summary>clEnqueueNDRangeKernel: launches the kernel over a <paramref name="workDim"/>-dimensional range; <paramref name="localSize"/> null lets the driver pick the work-group size.</summary>
+	/// <summary>clEnqueueNDRangeKernel: launches the kernel over a <paramref name="workDim"/>-dimensional range; <paramref name="localSize"/> null lets the driver pick the work-group size, which then has to divide <paramref name="globalSize"/> exactly.</summary>
 	[DllImport("OpenCL", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
 	internal static extern int clEnqueueNDRangeKernel(IntPtr queue, IntPtr kernel, uint workDim, IntPtr[]? globalOffset, IntPtr[] globalSize, IntPtr[]? localSize, uint numEvents, IntPtr waitList, IntPtr evt);
 
@@ -296,6 +300,34 @@ internal static class OpenClApi
 		return 0UL;
 	}
 
+	/// <summary>The <c>size_t</c> values of a device property such as <see cref="DeviceMaxWorkItemSizes"/>; empty when the query fails.</summary>
+	internal static ulong[] DeviceSizes(IntPtr device, uint paramName)
+	{
+		byte[]? bytes = DeviceInfoBytes(device, paramName);
+		if (bytes == null)
+		{
+			return [];
+		}
+		var sizes = new ulong[bytes.Length / IntPtr.Size];
+		for (int i = 0; i < sizes.Length; i++)
+		{
+			sizes[i] = IntPtr.Size == 8 ? BitConverter.ToUInt64(bytes, i * 8) : BitConverter.ToUInt32(bytes, i * 4);
+		}
+		return sizes;
+	}
+
+	/// <summary>The largest work-group <paramref name="kernel"/> can run with on <paramref name="device"/> (CL_KERNEL_WORK_GROUP_SIZE, which allows for the registers it uses); 0 when the query fails.</summary>
+	internal static ulong KernelWorkGroupLimit(IntPtr kernel, IntPtr device)
+	{
+		byte[] value = new byte[IntPtr.Size];
+		IntPtr ignored = IntPtr.Zero;
+		if (clGetKernelWorkGroupInfo(kernel, device, KernelWorkGroupSize, new IntPtr(value.Length), value, ref ignored) != 0)
+		{
+			return 0UL;
+		}
+		return IntPtr.Size == 8 ? BitConverter.ToUInt64(value, 0) : BitConverter.ToUInt32(value, 0);
+	}
+
 	/// <summary>The compiler log for a program on a device (CL_PROGRAM_BUILD_LOG, trimmed); empty if unavailable or if the query throws.</summary>
 	internal static string BuildLog(IntPtr program, IntPtr device)
 	{
@@ -342,6 +374,12 @@ internal static class OpenClApi
 	/// <summary>CL_DEVICE_MAX_COMPUTE_UNITS (0x1002), cl_uint.</summary>
 	internal const uint DeviceMaxComputeUnits = 0x1002U;
 
+	/// <summary>CL_DEVICE_MAX_WORK_GROUP_SIZE (0x1004), size_t: the largest work-group of the device.</summary>
+	internal const uint DeviceMaxWorkGroupSize = 0x1004U;
+
+	/// <summary>CL_DEVICE_MAX_WORK_ITEM_SIZES (0x1005), size_t[]: the largest work-group extent in each dimension.</summary>
+	internal const uint DeviceMaxWorkItemSizes = 0x1005U;
+
 	/// <summary>CL_DEVICE_MAX_CLOCK_FREQUENCY (0x100C), cl_uint in MHz.</summary>
 	internal const uint DeviceMaxClockFrequency = 0x100CU;
 
@@ -357,6 +395,12 @@ internal static class OpenClApi
 	/// <summary>CL_DEVICE_VENDOR (0x102C), string.</summary>
 	internal const uint DeviceVendor = 0x102CU;
 
+	/// <summary>CL_DRIVER_VERSION (0x102D), string: the driver's version as the vendor writes it.</summary>
+	internal const uint DriverVersion = 0x102DU;
+
+	/// <summary>CL_DEVICE_VERSION (0x102F), string: "OpenCL &lt;major&gt;.&lt;minor&gt; &lt;vendor text&gt;".</summary>
+	internal const uint DeviceVersion = 0x102FU;
+
 	/// <summary>CL_DEVICE_HOST_UNIFIED_MEMORY (0x1035), cl_bool: non-zero for devices sharing host memory (integrated GPUs).</summary>
 	internal const uint DeviceHostUnifiedMemory = 0x1035U;
 
@@ -368,4 +412,7 @@ internal static class OpenClApi
 
 	/// <summary>CL_PROGRAM_BUILD_LOG (0x1183), string.</summary>
 	internal const uint ProgramBuildLog = 0x1183U;
+
+	/// <summary>CL_KERNEL_WORK_GROUP_SIZE (0x11B0), size_t: the largest work-group a kernel can run with on a device.</summary>
+	internal const uint KernelWorkGroupSize = 0x11B0U;
 }

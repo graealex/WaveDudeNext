@@ -128,6 +128,10 @@ public partial class App : Application
 		// decision lines without anyone opening the Messages pane
 		config.AddRule(LogLevel.Debug, LogLevel.Fatal, fileTarget);
 #endif
+		// every number in every entry with a decimal point, whatever the Windows culture (2026-10-27, the user's rule: a
+		// report's reader, or a tool summarising the log, must not trip over "7,6 s"); the message templates and the
+		// layouts format through this culture when the call names none
+		config.DefaultCultureInfo = CultureInfo.InvariantCulture;
 		LogManager.Configuration = config;
 
 #if DEBUG

@@ -95,6 +95,12 @@ public sealed class GpuDeviceInfo
 			// Mask the sign bit so an odd 64-bit value cannot turn into a negative size.
 			GlobalMemory = (long)(OpenClApi.DeviceNumber(id, OpenClApi.DeviceGlobalMemSize) & 0x7FFFFFFFFFFFFFFFUL),
 			MaxAllocation = (long)(OpenClApi.DeviceNumber(id, OpenClApi.DeviceMaxMemAllocSize) & 0x7FFFFFFFFFFFFFFFUL),
+			Version = OpenClApi.DeviceString(id, OpenClApi.DeviceVersion),
+			DriverVersion = OpenClApi.DeviceString(id, OpenClApi.DriverVersion),
+			ComputeUnits = (int)computeUnits,
+			ClockMhz = (int)clockMhz,
+			MaxWorkGroupSize = (long)OpenClApi.DeviceNumber(id, OpenClApi.DeviceMaxWorkGroupSize),
+			MaxWorkItemSizes = OpenClApi.DeviceSizes(id, OpenClApi.DeviceMaxWorkItemSizes),
 		};
 	}
 
@@ -128,4 +134,22 @@ public sealed class GpuDeviceInfo
 
 	/// <summary>CL_DEVICE_MAX_MEM_ALLOC_SIZE in bytes: the largest single buffer the device allows.</summary>
 	public long MaxAllocation { get; private init; }
+
+	/// <summary>CL_DEVICE_VERSION ("OpenCL 3.0 CUDA"), or "" when the query fails.</summary>
+	public string Version { get; private init; } = "";
+
+	/// <summary>CL_DRIVER_VERSION as the vendor writes it ("566.03"), or "" when the query fails.</summary>
+	public string DriverVersion { get; private init; } = "";
+
+	/// <summary>CL_DEVICE_MAX_COMPUTE_UNITS, 0 when the query fails.</summary>
+	public int ComputeUnits { get; private init; }
+
+	/// <summary>CL_DEVICE_MAX_CLOCK_FREQUENCY in MHz, 0 when the query fails.</summary>
+	public int ClockMhz { get; private init; }
+
+	/// <summary>CL_DEVICE_MAX_WORK_GROUP_SIZE: the largest work-group of the device (a kernel's own limit may be lower), 0 when the query fails.</summary>
+	public long MaxWorkGroupSize { get; private init; }
+
+	/// <summary>CL_DEVICE_MAX_WORK_ITEM_SIZES: the largest work-group extent per dimension; empty when the query fails.</summary>
+	public ulong[] MaxWorkItemSizes { get; private init; } = [];
 }

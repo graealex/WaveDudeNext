@@ -77,6 +77,9 @@ public partial class MainWindow
 	private DispatcherTimer? _scratchTimer;
 	private DispatcherTimer? _rerunTimer;
 	private (RunSpec Spec, int Frame)? _scratchRequested;
+
+	/// <summary>The newest simulation or probe edit, named with its value on the next scratch request's log line (2026-10-27); null once named.</summary>
+	private ProjectChange? _lastChange;
 	private (string Path, DateTime Written, ScenePixels Pixels)? _imageCache;
 	private (byte[] Data, ScenePixels Pixels)? _embeddedCache;
 	private (ScenePixels? Source, int PartsVersion, int Width, int Height, double Background, ScenePixels? Composed)? _composedCache;
@@ -169,6 +172,11 @@ public partial class MainWindow
 
 	private void OnProjectChanged(object? sender, ProjectChange change)
 	{
+		if (Logger.IsTraceEnabled)
+		{
+			// every change with its value before and after (2026-10-27); Trace, so a Release build pays nothing for it
+			Logger.Trace("Changed ({Item}.{Property}){Values}", change.Item, change.Property ?? "list", change.Values == null ? "" : ": " + change.OldValueText + " → " + change.NewValueText);
+		}
 		IsDirty = true;
 		ScheduleRecord();
 		bool sceneReplaced = change.Item is Project && change.Property == nameof(Project.Scene);
@@ -192,6 +200,7 @@ public partial class MainWindow
 				Logger.Debug("Probes edited ({Item}.{Property}): the run's recordings are stale", change.Item, change.Property);
 				IsProbesStale = true;
 			}
+			_lastChange = change;
 			ScheduleScratch();
 			return;
 		}
@@ -199,6 +208,7 @@ public partial class MainWindow
 		{
 			return;
 		}
+		_lastChange = change;
 		if (Run != null && !IsRunStale)
 		{
 			if (unrecorded)
@@ -351,8 +361,11 @@ public partial class MainWindow
 			_pausedForScratch = run;
 		}
 		int frame = Math.Clamp(PreviewPosition, 0, Math.Max(0, spec.FrameCount - 1));
-		Logger.Debug("Preview frame {Frame} requested from scratch ({Reason})", frame,
-			Run == null ? "no run" : IsRunStale ? "the run is stale" : IsProbesStale ? "the probes changed" : "the run has not got there yet");
+		// the newest edit with its value (2026-10-27): after the debounce, so a typed number shows as typed, not keystroke by keystroke
+		string edit = _lastChange == null ? "" : ": " + _lastChange.Item + "." + (_lastChange.Property ?? "list") + (_lastChange.Values == null ? "" : " = " + _lastChange.NewValueText);
+		_lastChange = null;
+		Logger.Debug("Preview frame {Frame} requested from scratch ({Reason}{Edit})", frame,
+			Run == null ? "no run" : IsRunStale ? "the run is stale" : IsProbesStale ? "the probes changed" : "the run has not got there yet", edit);
 		_scratchRequested = (spec, frame);
 		_scratch.Request(spec, frame);
 		SetScratchBusy(frame);

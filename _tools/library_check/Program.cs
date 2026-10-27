@@ -270,6 +270,7 @@ internal static class Program
 		CheckHistory();
 		CheckClipboard();
 		CheckOpenEdges(W, H);
+		CheckWorkGroups();
 		CheckFrameStore(scene);
 		CheckPreviewQuality(scene, W, H);
 		CheckRenderer();
@@ -503,9 +504,11 @@ internal static class Program
 		project.AddSource().X = 12;
 		history.Record();
 		List<object> changed = [];
+		List<ProjectChange> changes = [];
 		using (var watcher = new ProjectWatcher(project))
 		{
 			watcher.Changed += (_, change) => changed.Add(change.Item);
+			watcher.Changed += (_, change) => changes.Add(change);
 			history.Undo();
 			int seen = changed.Count;
 			history.Redo();
@@ -514,6 +517,12 @@ internal static class Program
 			project.Scene.Width += 1;
 			Check(seen > 0 && changed.Skip(afterRedo).Contains(project.Sources[0]) && changed.Skip(afterRedo).Contains(project.Scene),
 				$"a step written back reaches the watcher ({seen} changes), and the restored source and scene are watched");
+			// a change carries the value before and after (2026-10-27), for the log
+			ProjectChange width = changes.Last(c => c.Item == project.Scene && c.Property == nameof(Scene.Width));
+			Check(width.Values is { OldValue: int before, NewValue: int after } && after == before + 1 && width.NewValueText == after.ToString() && width.OldValueText == before.ToString()
+				&& ProjectChange.Format(1.5) == "1.5" && ProjectChange.Format("a") == "'a'" && ProjectChange.Format(SourceMode.Pulsed) == "Pulsed" && ProjectChange.Format(null) == "null" && ProjectChange.Format(new byte[3]) == "byte[3]"
+				&& changes.Last(c => c.Property == nameof(Source.X)).Values is { OldValue: int, NewValue: 13 },
+				"a change carries the value before and after (" + width.OldValueText + " → " + width.NewValueText + "), formatted invariant");
 		}
 	}
 
@@ -1219,6 +1228,70 @@ internal static class Program
 	}
 
 	/// <summary>Max |u| over the canvas columns <paramref name="x0"/>..<paramref name="x1"/> of a padded field.</summary>
+	/// <summary>
+	/// The GPU on a grid prime in both dimensions (a 103 × 67 canvas with a rim of 32: 167 × 131). With the work-group
+	/// size left to the driver it had to divide the global size, so it was one cell wide there (2026-10-26, Jeroen's
+	/// 1725 px canvas: 13 to 19 times slower); the kernels now run in explicit groups over a global size rounded up to
+	/// whole groups, and the surplus work items must change nothing: the field with the open ring, and both capture
+	/// formats, agree with the CPU.
+	/// </summary>
+	private static void CheckWorkGroups()
+	{
+		Console.WriteLine("--- work groups on a prime grid");
+		const int cw = 103, ch = 67, rim = 32;
+		SceneData scene = SceneData.Empty(cw, ch, -rim, 1.0, true);
+		Check(scene.Width == 167 && scene.Height == 131 && scene.Rim == rim && scene.OpenEdges, "a 103 × 67 canvas with a rim of 32 is a 167 × 131 grid, prime in both dimensions, open");
+		// a second source at the canvas's last cell: the work item at the corner, beside the rounded-up surplus
+		List<Emitter> emitters = [Make(cw / 2, ch / 2, 120, 1.0), Make(cw - 1, ch - 1, 200, 0.7)];
+		var options = new EngineOptions(1.0, 1.0, true, false, 10.0, 1.0);
+		var cpu = new WaveSimulator(scene, options, emitters);
+		Run(cpu, 200);
+		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, emitters, out string problems);
+		if (gpu == null)
+		{
+			Console.WriteLine("  skip GPU: " + problems);
+			return;
+		}
+		using (gpu)
+		{
+			Check(gpu.WorkGroup.Width >= 32 && gpu.WorkGroup.Height >= 1, $"wave_step runs in groups of {gpu.WorkGroup.Width} × {gpu.WorkGroup.Height}, not in the driver's divisors of 167");
+			Run(gpu, 200);
+			float tolerance = 2e-3f * Math.Max(1f, MaxAbs(cpu.FieldData));
+			float diff = MaxDiff(cpu.FieldData, gpu.FieldData);
+			Check(diff < tolerance, "the GPU agrees with the CPU on the prime grid, rim and open ring included (max diff " + diff + ")");
+			// the captures at the canvas's own prime size, in both formats, against the CPU's conversion of the same field
+			FrameShape full = FrameShape.Full(cw, ch);
+			FrameShape index = full with { Format = FrameFormat.Index, FieldBrightness = 30f, IntensityBrightness = 5f };
+			int origin = (rim + 1) * cpu.Stride + rim + 1;
+			var halves = new FrameSnapshot(full, true);
+			var indices = new FrameSnapshot(index, true);
+			gpu.CaptureFrame(halves, true);
+			gpu.CaptureFrame(indices, true);
+			gpu.AwaitFrame(halves);
+			gpu.AwaitFrame(indices);
+			var halfBytes = new byte[full.PlaneBytes];
+			FrameConversion.Convert(cpu.FieldData, origin, cpu.Stride, full, false, halfBytes);
+			float worst = 0f;
+			ReadOnlySpan<Half> expected = MemoryMarshal.Cast<byte, Half>(halfBytes);
+			for (int i = 0; i < cw * ch; i++)
+			{
+				worst = Math.Max(worst, Math.Abs((float)expected[i] - (float)halves.Field[i]));
+			}
+			Check(worst < tolerance, "the 16-bit capture of the prime canvas matches the CPU's conversion (worst " + worst + ")");
+			var indexField = new byte[index.PlaneBytes];
+			var indexInten = new byte[index.PlaneBytes];
+			FrameConversion.Convert(cpu.FieldData, origin, cpu.Stride, index, false, indexField);
+			FrameConversion.Convert(cpu.IntensityData!, origin, cpu.Stride, index, true, indexInten);
+			int fieldOff = 0, intenOff = 0;
+			for (int i = 0; i < cw * ch; i++)
+			{
+				fieldOff += Math.Abs(indexField[i] - indices.FieldBytes[i]) > 1 ? 1 : 0;
+				intenOff += Math.Abs(indexInten[i] - indices.IntensityBytes![i]) > 1 ? 1 : 0;
+			}
+			Check(fieldOff == 0 && intenOff == 0, "the 8-bit capture of the prime canvas is within a palette step of the CPU's, field and intensity (" + fieldOff + " / " + intenOff + " cells off)");
+		}
+	}
+
 	private static float MaxAbsColumns(float[] padded, int W, int H, int x0, int x1)
 	{
 		int stride = W + 2;
