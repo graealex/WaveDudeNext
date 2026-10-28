@@ -89,6 +89,15 @@ try {
 	Check "the run made for the export stays in the preview (100 frames)" ((Frame) -like "* / 99") (Frame)
 	Check "and is reported completed" ((RunStatus) -like "Completed*") (RunStatus)
 
+	# File > Export last (Ctrl+E, 2026-10-28): the last export again, to the same folder, without the question about a folder with files in it
+	$before = (Get-Item (Join-Path $field "tiny_field_0099.png")).LastWriteTimeUtc
+	Step "F10" 0x79 150; Step "Down" $VK_DOWN 150
+	for ($i = 0; $i -lt 6; $i++) { Step "Down" $VK_DOWN 80 }
+	Check "'Export last' sits below Export in the File menu" ((PopupFocusedId) -eq "MenuExportLast") (PopupFocusedId)
+	Step "Enter" $VK_RETURN 200
+	Check "Export last rewrites the 100 PNGs without asking about the folder" (WaitFor { (Pngs $field) -eq 100 -and (Get-Item (Join-Path $field "tiny_field_0099.png")).LastWriteTimeUtc -gt $before } 60000) ("{0} files, status '{1}'" -f (Pngs $field), (ExportStatus))
+	Check "and ends" (WaitFor { (ExportStatus) -eq "" } 10000) (ExportStatus)
+
 	# an edit: the title gets its asterisk and the run goes stale
 	FocusOn "Source:Source 1"
 	Step "Right" $VK_RIGHT 300
@@ -101,8 +110,8 @@ try {
 	FocusOn "Source:Source 1"
 	Step "Apps" $VK_APPS 300
 	Check "the Apps key opens the picture's context menu with the export entries" (WaitFor { PopupItemVisible "Export both..." } 3000)
-	# opened by keyboard, no entry is highlighted yet: Down walks Field, Intensity, Both
-	for ($i = 0; $i -lt 4 -and (PopupFocusedId) -ne "ContextExportBoth"; $i++) { Step "Down" $VK_DOWN 120 }
+	# opened by keyboard, no entry is highlighted yet: Down walks Brightness, Auto brightness, This frame, Field, Intensity, Both
+	for ($i = 0; $i -lt 8 -and (PopupFocusedId) -ne "ContextExportBoth"; $i++) { Step "Down" $VK_DOWN 120 }
 	Check "Down reaches 'Export both...'" ((PopupFocusedId) -eq "ContextExportBoth") (PopupFocusedId)
 	Step "Enter" $VK_RETURN 200
 	$intensity = Join-Path $out "tiny_intensity"
@@ -114,8 +123,8 @@ try {
 	# the still: the context menu's first entry writes the shown frame (frame 0, step 0) as one file, from the run
 	FocusOn "Source:Source 1"
 	Step "Apps" $VK_APPS 300
-	for ($i = 0; $i -lt 2 -and (PopupFocusedId) -ne "ContextExportFrame"; $i++) { Step "Down" $VK_DOWN 120 }
-	Check "'Export this frame...' is the context menu's first entry" ((PopupFocusedId) -eq "ContextExportFrame") (PopupFocusedId)
+	for ($i = 0; $i -lt 4 -and (PopupFocusedId) -ne "ContextExportFrame"; $i++) { Step "Down" $VK_DOWN 120 }
+	Check "'Export this frame...' is the context menu's first export entry, after the two brightness entries" ((PopupFocusedId) -eq "ContextExportFrame") (PopupFocusedId)
 	Step "Enter" $VK_RETURN 200
 	$still = Join-Path $out "tiny_field_0000.png"
 	Check "the shown frame lands as tiny_field_0000.png (the frame number, padded like a sequence's files)" (WaitFor { Test-Path $still } 20000) ((Find "StatusMessage").Current.Name)

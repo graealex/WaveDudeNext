@@ -149,6 +149,7 @@ public partial class MainWindow
 		_imageCache = null;
 		_embeddedCache = null;
 		_composedCache = null;
+		ForgetExportPaths();
 		// the new project's own schemes and scene image; the pane does not exist yet when the constructor sets the first project
 		Dispatcher.InvokeAsync(() =>
 		{

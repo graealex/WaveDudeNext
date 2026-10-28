@@ -218,6 +218,7 @@ public partial class MainWindow : Window
 			Project = loaded;
 			Filename = fileName;
 			_suggestedFileName = null;
+			RestoreExportPaths();
 			Logger.Info("Opened '{Path}'", fileName);
 			RememberRecent(fileName);
 			projectTree.SelectRoot();

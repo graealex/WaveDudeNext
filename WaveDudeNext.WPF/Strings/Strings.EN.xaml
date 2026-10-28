@@ -38,6 +38,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileExportBoth">Export _both...</s:String>
 	<s:String x:Key="MenuFileExportFieldFrame">Export field f_rame...</s:String>
 	<s:String x:Key="MenuFileExportIntensityFrame">Export intensity fra_me...</s:String>
+	<s:String x:Key="MenuFileExportLast">Export _last</s:String>
 	<s:String x:Key="MenuExportThisFrame">Export _this frame...</s:String>
 	<s:String x:Key="MenuBrightness">_Brightness</s:String>
 	<s:String x:Key="MenuAutoBrightness">_Auto brightness</s:String>

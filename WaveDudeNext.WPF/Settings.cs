@@ -242,6 +242,20 @@ public sealed class Settings : INotifyPropertyChanged
 		set => Set(ref _exportFilterIndex, value);
 	}
 
+	private List<ExportHint> _exportHints = [];
+
+	/// <summary>
+	/// Where each project's last exports went, newest project first (2026-10-28, the user's choice: a path belongs to the
+	/// machine, so it lives here and not in a project file that may be shared): the export dialogs of a project start there
+	/// when it is opened again. A fresh list on every change.
+	/// </summary>
+	[XmlElement("ExportHint")]
+	public List<ExportHint> ExportHints
+	{
+		get => _exportHints;
+		set => Set(ref _exportHints, value);
+	}
+
 	/// <summary>Writes the settings to <see cref="FilePath"/>, creating the folder; file errors are the caller's.</summary>
 	public void Save()
 	{
@@ -285,4 +299,24 @@ public sealed class Settings : INotifyPropertyChanged
 			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 		}
 	}
+}
+
+/// <summary>Where a project's last exports went: an entry of <see cref="Settings.ExportHints"/>, an attribute each, the empty ones left out.</summary>
+public sealed class ExportHint
+{
+	/// <summary>The project file's full path, the key.</summary>
+	[XmlAttribute, DefaultValue("")]
+	public string Project { get; set; } = "";
+
+	/// <summary>The last export of the run's pictures, folder and file name; empty for none.</summary>
+	[XmlAttribute, DefaultValue("")]
+	public string Run { get; set; } = "";
+
+	/// <summary>The last still; empty for none.</summary>
+	[XmlAttribute, DefaultValue("")]
+	public string Still { get; set; } = "";
+
+	/// <summary>The last probe data file; empty for none.</summary>
+	[XmlAttribute, DefaultValue("")]
+	public string Probe { get; set; } = "";
 }

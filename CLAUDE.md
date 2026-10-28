@@ -257,7 +257,16 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   lattice came in disabled and ran black until 2026-10-16).
   **Languages**: four string tables, live switch; converter output needs the language as an extra binding input.
 - **Export**: field, intensity or both, a still of the shown frame, from the current run when fresh and full,
-  else a run is made first; in the dialog's order (2026-10-19) H.264 MP4 via Media Foundation (the only
+  else a run is made first. **The Save dialog starts where the session's last export of its kind went** (2026-10-28,
+  Jeroen's report, the user's rule: the first export after a project is opened starts in the project's folder under the
+  project's name as before, every one after it in the last one's folder; a run's export proposes the last name with the
+  layer suffix swapped, a still and probe data their own names; per kind and per project file, kept in the user settings
+  as `ExportHint` entries, 20 projects, restored when the project is opened, the user's choice over the project file: a
+  path belongs to the machine, not to a shared file, and an export must not dirty the project).
+  **Export last** (Ctrl+E, File menu below Export, 2026-10-28, the user's request): the session's last run export again,
+  the same layers, format and path, no dialog, an existing file or sequence folder replaced without a question; a still
+  does not count; disabled until the first run export since the project was opened. Shortcuts (the user's choice, GIMP's
+  pair): Ctrl+Shift+E, I, B the field, the intensity, both; Ctrl+Shift+F, G the two frames. In the dialog's order (2026-10-19) H.264 MP4 via Media Foundation (the only
   Windows-bound library piece besides WIC JPEG, which has an in-house fallback), MPEG-1, OpenDML AVI, QuickTime
   MOV with the Animation codec or the PNG codec (2026-10-19, each sample a PNG, for a lossless hand-over to Resolve,
   Premiere and Final Cut; both share `.mov`, so the dialog's filter decides the format and the extension follows it,
@@ -303,7 +312,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 `library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
-`ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 38, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
+`ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 41, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness
 sets the persisted settings it expects (split orientation, preview quality). Known flake: a second app start in one
 script sometimes comes up active; only the foreground guard fails then.

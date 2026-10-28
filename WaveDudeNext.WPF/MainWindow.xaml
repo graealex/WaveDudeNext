@@ -173,6 +173,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="{x:Static commands:ExportCommands.Both}" CanExecute="CanExport" Executed="OnExportBoth" />
 		<CommandBinding Command="{x:Static commands:ExportCommands.FieldFrame}" CanExecute="CanExport" Executed="OnExportFieldFrame" />
 		<CommandBinding Command="{x:Static commands:ExportCommands.IntensityFrame}" CanExecute="CanExport" Executed="OnExportIntensityFrame" />
+		<CommandBinding Command="{x:Static commands:ExportCommands.Last}" CanExecute="CanExportLast" Executed="OnExportLast" />
 		<CommandBinding Command="{x:Static commands:ExportCommands.ProbeCsv}" CanExecute="CanExportProbeCsv" Executed="OnExportProbeCsv" />
 		<CommandBinding Command="{x:Static commands:SimulationCommands.EnsureRun}" Executed="OnEnsureRun" />
 		<CommandBinding Command="{x:Static commands:SimulationCommands.SetFrameMemory}" Executed="OnSetFrameMemory" />
@@ -232,14 +233,16 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Separator />
 				<!-- export of the current run's frames (the export range, the display settings as they are); the same entries sit on the pictures' context menus -->
 				<MenuItem Header="{DynamicResource MenuFileExport}" AutomationProperties.AutomationId="MenuExport" controls:MenuIcon.Glyph="&#xEDE1;">
-					<MenuItem Command="{x:Static commands:ExportCommands.Field}" Header="{DynamicResource MenuFileExportField}" AutomationProperties.AutomationId="MenuExportField" controls:MenuIcon.Glyph="&#xEDE1;" />
-					<MenuItem Command="{x:Static commands:ExportCommands.Intensity}" Header="{DynamicResource MenuFileExportIntensity}" AutomationProperties.AutomationId="MenuExportIntensity" controls:MenuIcon.Glyph="&#xEDE1;" />
-					<MenuItem Command="{x:Static commands:ExportCommands.Both}" Header="{DynamicResource MenuFileExportBoth}" AutomationProperties.AutomationId="MenuExportBoth" controls:MenuIcon.Glyph="&#xEDE1;" />
+					<MenuItem Command="{x:Static commands:ExportCommands.Field}" Header="{DynamicResource MenuFileExportField}" InputGestureText="Ctrl+Shift+E" AutomationProperties.AutomationId="MenuExportField" controls:MenuIcon.Glyph="&#xEDE1;" />
+					<MenuItem Command="{x:Static commands:ExportCommands.Intensity}" Header="{DynamicResource MenuFileExportIntensity}" InputGestureText="Ctrl+Shift+I" AutomationProperties.AutomationId="MenuExportIntensity" controls:MenuIcon.Glyph="&#xEDE1;" />
+					<MenuItem Command="{x:Static commands:ExportCommands.Both}" Header="{DynamicResource MenuFileExportBoth}" InputGestureText="Ctrl+Shift+B" AutomationProperties.AutomationId="MenuExportBoth" controls:MenuIcon.Glyph="&#xEDE1;" />
 					<Separator />
 					<!-- the frame the preview shows, from the same run, as one image -->
-					<MenuItem Command="{x:Static commands:ExportCommands.FieldFrame}" Header="{DynamicResource MenuFileExportFieldFrame}" AutomationProperties.AutomationId="MenuExportFieldFrame" controls:MenuIcon.Glyph="&#xEB9F;" />
-					<MenuItem Command="{x:Static commands:ExportCommands.IntensityFrame}" Header="{DynamicResource MenuFileExportIntensityFrame}" AutomationProperties.AutomationId="MenuExportIntensityFrame" controls:MenuIcon.Glyph="&#xEB9F;" />
+					<MenuItem Command="{x:Static commands:ExportCommands.FieldFrame}" Header="{DynamicResource MenuFileExportFieldFrame}" InputGestureText="Ctrl+Shift+F" AutomationProperties.AutomationId="MenuExportFieldFrame" controls:MenuIcon.Glyph="&#xEB9F;" />
+					<MenuItem Command="{x:Static commands:ExportCommands.IntensityFrame}" Header="{DynamicResource MenuFileExportIntensityFrame}" InputGestureText="Ctrl+Shift+G" AutomationProperties.AutomationId="MenuExportIntensityFrame" controls:MenuIcon.Glyph="&#xEB9F;" />
 				</MenuItem>
+				<!-- the session's last run export again, the same layers, format and path, nothing asked (2026-10-28, the user's request) -->
+				<MenuItem Command="{x:Static commands:ExportCommands.Last}" Header="{DynamicResource MenuFileExportLast}" InputGestureText="Ctrl+E" AutomationProperties.AutomationId="MenuExportLast" controls:MenuIcon.Glyph="&#xE8EE;" />
 				<Separator />
 				<MenuItem Command="ApplicationCommands.Close" Header="{DynamicResource MenuFileClose}" controls:MenuIcon.Glyph="&#xE711;" />
 				<Separator />

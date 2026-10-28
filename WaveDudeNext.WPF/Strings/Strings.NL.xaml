@@ -38,6 +38,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileExportBoth">_Beide exporteren...</s:String>
 	<s:String x:Key="MenuFileExportFieldFrame">Veld_beeld exporteren...</s:String>
 	<s:String x:Key="MenuFileExportIntensityFrame">Intensiteitsbeel_d exporteren...</s:String>
+	<s:String x:Key="MenuFileExportLast">Laatste export _herhalen</s:String>
 	<s:String x:Key="MenuExportThisFrame">_Dit beeld exporteren...</s:String>
 	<s:String x:Key="MenuBrightness">_Helderheid</s:String>
 	<s:String x:Key="MenuAutoBrightness">_Automatische helderheid</s:String>
