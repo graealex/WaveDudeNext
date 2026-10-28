@@ -90,7 +90,10 @@ stretched lens a slab). A handle on each surface's vertex sets its radius
 (`SetVertex`, Jeroen's proposal): dragged along the axis with the rim and the other surface held, the sag at the rim
 gives the radius by the sagitta, outward bulging, through the rim plane flat, then concave, a hemisphere at most; the
 centre thickness follows and the position moves to the new centre. A drag holds the rim and the other vertex as it
-found them (`MarkerThumb.DragAnchors`), so the position's rounding never creeps into them.
+found them (`MarkerThumb.DragAnchors`), so the position's rounding never creeps into them. A radius a grip or a vertex
+handle sets is rounded to a hundredth of a pixel (`RadiusOfSag`; 2026-10-28, Jeroen's report: sixteen decimals in the
+box and the file), R1 towards +∞ and R2 towards −∞, so a convex surface gets a hair flatter and a concave one a hair
+deeper, never the other way, and the rounding never brings on the refit of a lens whose surfaces meet at the rim.
 
 **Shapes** (`ShapePart`: `Mirror`, `RefractiveIndex` 1.50, `Coating`, `Absorption`, `AbsorptionRamp` 40, over an
 outline each kind generates). One class per shape, not a shape mode inside one class (the user's point, 2026-10-18: a

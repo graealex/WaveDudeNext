@@ -2599,8 +2599,8 @@ internal static class Program
 			$"dragged wider alone the sags of 10 stay and the radii follow the diameter ({gripped.R1}), the thickness and the edge as they were");
 		gripped = new LensPart { Diameter = 100, Thickness = 20, R1 = 130, R2 = -130 };
 		gripped.SetExtents(100, 60);
-		Check(Math.Abs(gripped.R1 - 3400.0 / 60.0) < 1e-9 && gripped.Thickness == 60 && gripped.Diameter == 100 && Math.Abs(gripped.EdgeThickness) < 1e-9,
-			$"dragged thicker alone the whole profile scales: sags of 30, R {gripped.R1}, the edge still zero");
+		Check(gripped.R1 == 56.67 && gripped.R2 == -56.67 && gripped.Thickness == 60 && gripped.Diameter == 100 && gripped.EdgeThickness >= 0.0 && gripped.EdgeThickness < 0.01,
+			$"dragged thicker alone the whole profile scales: sags of 30, R 3400 / 60 to a hundredth, {gripped.R1}, the edge still zero within a hundredth ({gripped.EdgeThickness})");
 		gripped = new LensPart { Diameter = 100, Thickness = 20, R1 = 130, R2 = -130 };
 		gripped.SetExtents(200, 40);
 		Check(Math.Abs(gripped.R1 - 260) < 1e-9 && Math.Abs(gripped.R2 + 260) < 1e-9, $"pulled out diagonally the lens scales as a whole: the radii doubled to {gripped.R1}");
@@ -2608,6 +2608,13 @@ internal static class Program
 		Check(gripped.Thickness == 4 && Math.Abs(gripped.R1 - (10000 + 4) / 4.0) < 1e-9 && Math.Abs(gripped.EdgeThickness) < 1e-9, $"squashed to 4 thick it is the same lens squashed, sags of 2, R {gripped.R1}, never a slab");
 		gripped.SetExtents(100, 400);
 		Check(gripped.R1 == 50 && gripped.R2 == -50 && gripped.Thickness == 400, "stretched thicker than its surfaces can take at that diameter, they are hemispheres on a slab");
+		// a dragged radius is rounded to a hundredth of a pixel away from the lens (2026-10-28, Jeroen's report: sixteen decimals
+		// in the box): 3725 / 70 = 53.214... becomes 53.22, not 53.21, whose deeper sags would have had the surfaces refitted
+		gripped = new LensPart { Diameter = 100, Thickness = 20, R1 = 130, R2 = -130 };
+		gripped.SetExtents(100, 70);
+		gripped.Normalize();
+		Check(gripped.R1 == 53.22 && gripped.R2 == -53.22 && gripped.EdgeThickness >= 0.0 && gripped.EdgeThickness < 0.05,
+			$"a dragged radius is rounded to a hundredth of a pixel on the flatter side, 3725 / 70 giving {gripped.R1}, which Normalize keeps since the surfaces still fit (the edge a few hundredths, {gripped.EdgeThickness}: so curved a surface moves its rim by twice the rounding)");
 		// a surface handle: the vertex moves on the axis, the rim and the other surface stay; the position follows the centre
 		var shaped = new LensPart { X = 500, Y = 300, Diameter = 100, Thickness = 20, R1 = 0, R2 = 0 };
 		shaped.SetVertex(1, -30.0);
@@ -2616,11 +2623,16 @@ internal static class Program
 		shaped.SetVertex(1, 0.0);
 		Check(shaped.R1 == 0 && shaped.Thickness == 20 && shaped.X == 500, "pushed back to the rim plane it is flat again, the slab as before");
 		shaped.SetVertex(1, 5.0);
-		Check(Math.Abs(shaped.R1 + 2725.0 / 30.0) < 1e-9 && shaped.Thickness == 5 && shaped.X == 508 && Math.Abs(shaped.EdgeThickness - 20) < 1e-9, $"pushed 15 px past the rim plane it is concave, R1 {shaped.R1} (the sagitta of 15), 5 thick at the centre, the edge still 20");
+		Check(shaped.R1 == -90.83 && shaped.Thickness == 5 && shaped.X == 508 && shaped.EdgeThickness >= 20.0 && shaped.EdgeThickness < 20.01, $"pushed 15 px past the rim plane it is concave, R1 {shaped.R1} (the sagitta of 15, 2725 / 30, to a hundredth towards the deeper side), 5 thick at the centre, the edge still 20 within a hundredth");
 		shaped.SetVertex(2, 1000.0);
 		Check(shaped.R2 == -50 && shaped.Thickness > 500, $"the right vertex pulled far out stops at a hemisphere, R2 {shaped.R2}");
 		shaped.SetVertex(2, -2000.0);
 		Check(shaped.Thickness == 1, "pushed through the other surface it stops a pixel short of it");
+		// the rim a drag captured lies where the rotation and the position's rounding left it, a fraction of a pixel off, and the
+		// radius through it has sixteen decimals before the rounding (29.7 of sag at 50 gives 56.9375...)
+		shaped = new LensPart { X = 500, Y = 300, Diameter = 100, Thickness = 20, R1 = 0, R2 = 0 };
+		shaped.SetVertex(1, -30.0, -0.3, 10.0);
+		Check(shaped.R1 == 56.94 && shaped.Thickness == 40, $"a vertex dragged against a rim a fraction of a pixel off gets a radius of two decimals, {shaped.R1}, rounded up");
 		lens.Diameter = 100;
 		lens.Thickness = 40;
 		lens.R1 = 300;

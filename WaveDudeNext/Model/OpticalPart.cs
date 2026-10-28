@@ -533,8 +533,8 @@ public sealed class LensPart : OpticalPart
 	/// the lens across, the profile along the axis held; the thickness stretches the whole profile along the axis, the sags
 	/// and the edge with it, so a thinner lens is the same lens squashed and never a slab; pulled out diagonally the lens
 	/// scales as a whole, its shape kept. The surfaces are refitted as circles through the stretched rim and vertex (a sag
-	/// beyond the half diameter is a hemisphere's). Nothing stops the grip but a thickness of 1. Typed values are fitted as
-	/// before.
+	/// beyond the half diameter is a hemisphere's), the radii to a hundredth of a pixel (<see cref="RadiusOfSag"/>). Nothing
+	/// stops the grip but a thickness of 1. Typed values are fitted as before.
 	/// </summary>
 	/// <param name="diameter">The diameter asked for, in pixels.</param>
 	/// <param name="thickness">The centre thickness asked for, in pixels.</param>
@@ -557,14 +557,27 @@ public sealed class LensPart : OpticalPart
 			Thickness = Math.Max(1, thickness);
 		}
 		Diameter = Math.Max(2, diameter);
-		R1 = RadiusOfSag(grown, sag1);
-		R2 = RadiusOfSag(grown, sag2);
+		R1 = RadiusOfSag(1, grown, sag1);
+		R2 = RadiusOfSag(2, grown, sag2);
 		Thickness = Math.Max(1, thickness);
 	}
 
-	/// <summary>The radius, signed as <paramref name="sag"/> is, whose surface has that sag at <paramref name="half"/> from the axis: the sagitta (h² + s²) / 2s; 0 for no sag.</summary>
-	private static double RadiusOfSag(double half, double sag) =>
-		sag == 0.0 ? 0.0 : Math.CopySign((half * half + sag * sag) / (2.0 * Math.Abs(sag)), sag);
+	/// <summary>
+	/// The radius, signed as <paramref name="sag"/> is, whose surface <paramref name="surface"/> (1 or 2) has that sag at
+	/// <paramref name="half"/> from the axis: the sagitta (h² + s²) / 2s; 0 for no sag. Rounded to a hundredth of a pixel
+	/// (2026-10-28, Jeroen's report: a dragged vertex or grip left sixteen decimals in the box and the file), surface 1's
+	/// towards +∞ and surface 2's towards −∞, which makes a convex surface a hair flatter and a concave one a hair deeper, never
+	/// the other way, so the rounding never brings on the refit of <see cref="FitRadii"/> for a lens whose surfaces meet at the rim.
+	/// </summary>
+	private static double RadiusOfSag(int surface, double half, double sag)
+	{
+		if (sag == 0.0)
+		{
+			return 0.0;
+		}
+		double hundredths = Math.CopySign((half * half + sag * sag) / (2.0 * Math.Abs(sag)), sag) * 100.0;
+		return (surface == 1 ? Math.Ceiling(hundredths) : Math.Floor(hundredths)) / 100.0;
+	}
 
 	/// <summary>Where the vertex of surface <paramref name="surface"/> (1 the left, 2 the right) sits on the axis in the part frame: ∓<see cref="Thickness"/> / 2.</summary>
 	public double VertexX(int surface) => (surface == 1 ? -1 : 1) * Math.Max(1, Thickness) / 2.0;
@@ -597,7 +610,7 @@ public sealed class LensPart : OpticalPart
 			sag = 0.0;
 		}
 		// the sagitta: surface 1 bulging left is R1 > 0, surface 2 bulging right is R2 < 0
-		double radius = RadiusOfSag(half, -side * sag);
+		double radius = RadiusOfSag(surface, half, -side * sag);
 		bool thicker = thickness > Thickness;
 		if (thicker)
 		{
