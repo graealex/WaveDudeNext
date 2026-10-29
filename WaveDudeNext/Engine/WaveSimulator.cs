@@ -676,9 +676,10 @@ public sealed class WaveSimulator : IWaveEngine, IDisposable
 
 	/// <summary>
 	/// Amplitude envelope (0..1) of a pulsed source: the source is "off" for <paramref name="offWidth"/> cycles
-	/// of its own frequency, then "on" for <see cref="Emitter.OnWidthCycles"/> cycles, repeating (off
-	/// precedes on so that, at the start of a run, every source is silent for its own off-width before its first
-	/// pulse, rather than every source firing simultaneously at t = 0; a non-positive period yields 1). Within
+	/// of its own frequency, then "on" for <see cref="Emitter.OnWidthCycles"/> cycles, repeating (off precedes on
+	/// within the cycle; whether a run starts in the off span or at the first burst is <see cref="ComputePulsePosition"/>'s
+	/// business: an element without a randomised off-width fires at step 0, one with it stays silent for its
+	/// off-width first; a non-positive period yields 1). Within
 	/// the "on" span the amplitude is shaped by the pulse shape: Gaussian tapers smoothly to (about) 0 at both
 	/// ends of the "on" span (a bell centred in the on-window with σ = on-width/6), and SmoothedSquare rises and
 	/// falls quickly (an atan-smoothed square wave, avoiding a hard on/off step that would ring the field).
