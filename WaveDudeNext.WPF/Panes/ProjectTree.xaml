@@ -372,6 +372,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 											<MultiBinding Converter="{StaticResource LensIcon}">
 												<Binding Path="R1" />
 												<Binding Path="R2" />
+												<Binding Path="Diameter" />
 											</MultiBinding>
 										</controls:IconView.Drawing>
 									</controls:IconView>

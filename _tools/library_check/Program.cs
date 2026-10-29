@@ -2714,6 +2714,14 @@ internal static class Program
 		Check(LensPart.MirrorName("Lens 1", false) == "Lens 1" && LensPart.MirrorName("Mirror 1", true) == "Mirror 1", "MirrorName: a name that already matches the flag is as given");
 		Check(LensPart.MirrorName("Lensing stage", true) == "Lensing stage" && LensPart.MirrorName("Objective", true) == "Objective" && LensPart.MirrorName("lens 2", true) == "lens 2",
 			"MirrorName: whole words in the user's case only; other names are as given");
+		// a surface's shape for the row icon (2026-10-29, the user's report: Example 1's mirror of radii 14401 on 104 px showed as
+		// biconvex): flat for 0 or a sag at the rim under half a pixel, else by the sign; the threshold on 104 px lies at R = 2704.25
+		Check(LensPart.ShapeOf(14401, 104) == SurfaceShape.Flat && LensPart.ShapeOf(-14401, 104) == SurfaceShape.Flat && LensPart.ShapeOf(0, 200) == SurfaceShape.Flat,
+			"ShapeOf: a sag under half a pixel is flat, as is a radius of 0");
+		Check(LensPart.ShapeOf(300, 200) == SurfaceShape.Convex && LensPart.ShapeOf(-300, 200) == SurfaceShape.Concave && LensPart.ShapeOf(10, 200) == SurfaceShape.Convex,
+			"ShapeOf: a sag of a pixel or more goes by the sign, a radius under the half diameter too");
+		Check(LensPart.ShapeOf(2704, 104) == SurfaceShape.Convex && LensPart.ShapeOf(2705, 104) == SurfaceShape.Flat,
+			"ShapeOf: the half-pixel threshold on 104 px lies between R 2704 and 2705");
 		lens.Diameter = 100;
 		lens.Thickness = 40;
 		lens.R1 = 300;

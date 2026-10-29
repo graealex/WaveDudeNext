@@ -22,20 +22,19 @@ using WaveDudeNext.Model;
 namespace WaveDudeNext.WPF.Converters;
 
 /// <summary>
-/// The icon drawing of a lens or mirror by its radii (2026-10-29, the user's design): <c>Lens</c> followed by the shape of each
-/// surface, <c>Convex</c>, <c>Flat</c> or <c>Concave</c>, the name of the theme's <c>IconLens{left}{right}</c> geometry. The
-/// inputs are <see cref="LensPart.R1"/> and <see cref="LensPart.R2"/>, signed as the model signs them: R1 above 0 and R2 below
-/// 0 bulge outward, 0 is flat; the fit never changes a sign. The biconvex profile stands in until both arrive (the kind's own
-/// symbol, <c>Lens</c>, is the Add part menu's lens-and-mirror pair, which a row never shows).
+/// The icon drawing of a lens or mirror by its profile (2026-10-29, the user's design): <c>Lens</c> followed by the shape of
+/// each surface as <see cref="LensPart.ShapeOf"/> reads it, <c>Convex</c>, <c>Flat</c> or <c>Concave</c>, the name of the
+/// theme's <c>IconLens{left}{right}</c> geometry. The inputs are <see cref="LensPart.R1"/>, <see cref="LensPart.R2"/> and
+/// <see cref="LensPart.Diameter"/>: R1 above 0 and R2 below 0 bow outward, and a surface whose sag at the rim is under half a
+/// pixel is flat whatever its sign (the user's report: Example 1's mirror of radii 14401 on 104 px showed as biconvex). The
+/// biconvex profile stands in until all three arrive (the kind's own symbol, <c>Lens</c>, is the Add part menu's
+/// lens-and-mirror pair, which a row never shows).
 /// </summary>
 public sealed class LensIconConverter : IMultiValueConverter
 {
 	/// <inheritdoc/>
 	public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture) =>
-		values is [double r1, double r2] ? "Lens" + Shape(r1) + Shape(-r2) : "LensConvexConvex";
-
-	/// <summary>The surface's shape for a radius signed so that positive bulges outward.</summary>
-	private static string Shape(double outward) => outward > 0.0 ? "Convex" : outward < 0.0 ? "Concave" : "Flat";
+		values is [double r1, double r2, int diameter] ? "Lens" + LensPart.ShapeOf(r1, diameter) + LensPart.ShapeOf(-r2, diameter) : "LensConvexConvex";
 
 	/// <inheritdoc/>
 	public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>

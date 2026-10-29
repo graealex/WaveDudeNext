@@ -231,7 +231,9 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   which the tree's rows and toolbar use directly (`PlusBadge` on the add buttons) and which draws in the inherited text
   colour, so a disabled row's icon greys with its name through one trigger on the row. A lens row's icon is its own
   profile (2026-10-29, the user's design): nine `IconLens<Left><Right>` drawings, each surface convex, flat or concave by
-  its radius's sign, chosen by `LensIconConverter` from R1 and R2 in a template scoped to the row's icon, so it follows an
+  its sag at the rim (`LensPart.ShapeOf`: flat under half a pixel, 2026-10-29, the user's report: Example 1's mirror of radii
+  14401 on 104 px showed as biconvex), chosen by `LensIconConverter` from R1, R2 and the diameter in a template scoped to
+  the row's icon, so it follows an
   edit; the Part menu's `IconLens` is the lens-and-mirror pair the user drew, a biconvex lens beside a concave mirror with a
   flat back, which no row shows. The Mirror box renames the part, Lens to Mirror and back
   (`LensPart.MirrorName`, run by the box's command and never by the setter, so a loaded or undone name stays). Drawings are 16 px, 1 px strokes

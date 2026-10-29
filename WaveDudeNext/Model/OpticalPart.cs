@@ -349,6 +349,17 @@ public abstract class CoatedPart : OpticalPart
 	}
 }
 
+/// <summary>The shape of one surface of a <see cref="LensPart"/> as it reads: bowing outward, flat, or bowing inward (<see cref="LensPart.ShapeOf"/>).</summary>
+public enum SurfaceShape
+{
+	/// <summary>No bow worth a pixel: a radius of 0, or a sag at the rim under half a pixel.</summary>
+	Flat,
+	/// <summary>Bowing outward, away from the lens.</summary>
+	Convex,
+	/// <summary>Bowing inward, into the lens.</summary>
+	Concave,
+}
+
 /// <summary>
 /// A lens, or a curved or flat mirror when <see cref="Mirror"/> is set: the strip of <see cref="Diameter"/> across
 /// the axis between two spherical surfaces of radii <see cref="R1"/> (left, facing -x') and <see cref="R2"/>
@@ -584,6 +595,16 @@ public sealed class LensPart : CoatedPart
 			return Math.Max(1, Thickness) - Math.CopySign(Sag(r1, half), r1) + Math.CopySign(Sag(r2, half), r2);
 		}
 	}
+
+	/// <summary>
+	/// The shape of a surface whose radius, signed so that positive bows outward, is <paramref name="outward"/> on a lens of
+	/// <paramref name="diameter"/>: flat for 0 or when its sag at the rim is under half a pixel (the rule of
+	/// <see cref="SetVertex(int, double, double, double)"/>; 2026-10-29, the user's report: Example 1's mirror of radii 14401
+	/// on 104 px, a sag of a tenth of a pixel, showed as biconvex), else convex or concave by the sign. R1 is signed so; R2
+	/// bows outward when negative, so it is passed negated.
+	/// </summary>
+	public static SurfaceShape ShapeOf(double outward, int diameter) =>
+		!double.IsFinite(outward) || Sag(outward, Math.Max(2, diameter) / 2.0) < 0.5 ? SurfaceShape.Flat : outward > 0.0 ? SurfaceShape.Convex : SurfaceShape.Concave;
 
 	/// <summary>How far a surface of radius <paramref name="radius"/> bows out beyond its vertex at <paramref name="half"/> (half the diameter) from the axis, in pixels; 0 for a flat surface.</summary>
 	public static double Sag(double radius, double half)

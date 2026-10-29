@@ -113,7 +113,8 @@ too curved for them is raised to the smallest that fits (`FitRadii`), so the len
 never negative (a diameter of 2000 with radii of 300 had given a tiny lens). The form shows the edge thickness, and a
 "Concave" box flips both radii. A curved mirror is the same shape with `Mirror` on; ticking the box renames the part, Lens to Mirror and back
 (`LensPart.MirrorName`, applied by the box's command, 2026-10-29, the user's design), and the tree row's icon is the
-part's own profile, each surface convex, flat or concave by its radius's sign. On the pictures the size grip
+part's own profile, each surface convex, flat or concave by its sag at the rim (`ShapeOf`: flat under half a pixel, so
+Example 1's mirror of radii 14401 on 104 px reads flat, the user's report of 2026-10-29). On the pictures the size grip
 stretches the lens as a rectangle's grip does: across, the diameter with the profile held; along, the whole profile
 with its sags and edge, so a thinner lens is the same lens squashed; diagonally, the lens as a whole; the arcs are
 refitted as circles through the stretched rim and vertex, and nothing stops the grip (`SetExtents`; 2026-10-26, Jeroen's
