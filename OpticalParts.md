@@ -81,7 +81,9 @@ left surface) and `R2` −300 (R1 > 0 and R2 < 0 bulge outward, 0 is flat), `Ref
 x'₂ = t/2 + s₂(y'), the sag s(y') = R − sign(R)·√(R² − y'²). The diameter and the centre thickness are the bulk: a radius
 too curved for them is raised to the smallest that fits (`FitRadii`), so the lens fills its diameter and the edge is
 never negative (a diameter of 2000 with radii of 300 had given a tiny lens). The form shows the edge thickness, and a
-"Concave" box flips both radii. A curved mirror is the same shape with `Mirror` on. On the pictures the size grip
+"Concave" box flips both radii. A curved mirror is the same shape with `Mirror` on; ticking the box renames the part, Lens to Mirror and back
+(`LensPart.MirrorName`, applied by the box's command, 2026-10-29, the user's design), and the tree row's icon is the
+part's own profile, each surface convex, flat or concave by its radius's sign. On the pictures the size grip
 stretches the lens as a rectangle's grip does: across, the diameter with the profile held; along, the whole profile
 with its sags and edge, so a thinner lens is the same lens squashed; diagonally, the lens as a whole; the arcs are
 refitted as circles through the stretched rim and vertex, and nothing stops the grip (`SetExtents`; 2026-10-26, Jeroen's

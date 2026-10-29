@@ -130,7 +130,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuProjectAddSource">Add _source</s:String>
 	<s:String x:Key="MenuProjectAddProbe">Add _probe</s:String>
 	<s:String x:Key="MenuProjectAddPart">Add p_art</s:String>
-	<s:String x:Key="MenuAddLens">_Lens or mirror</s:String>
+	<s:String x:Key="MenuAddLens">_Lens/Mirror</s:String>
 	<s:String x:Key="MenuAddPolygon">_Polygon</s:String>
 	<s:String x:Key="MenuAddRectangle">_Rectangle</s:String>
 	<s:String x:Key="MenuAddEllipse">_Ellipse</s:String>

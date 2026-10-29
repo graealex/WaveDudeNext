@@ -2633,6 +2633,11 @@ internal static class Program
 		shaped = new LensPart { X = 500, Y = 300, Diameter = 100, Thickness = 20, R1 = 0, R2 = 0 };
 		shaped.SetVertex(1, -30.0, -0.3, 10.0);
 		Check(shaped.R1 == 56.94 && shaped.Thickness == 40, $"a vertex dragged against a rim a fraction of a pixel off gets a radius of two decimals, {shaped.R1}, rounded up");
+		// the name follows the Mirror box (2026-10-29, the user's design): the word Lens becomes Mirror and back, whole words only, other names untouched
+		Check(LensPart.MirrorName("Lens 1", true) == "Mirror 1" && LensPart.MirrorName("Mirror 1", false) == "Lens 1", "MirrorName: Lens 1 ticked is Mirror 1, unticked Lens 1 again");
+		Check(LensPart.MirrorName("Lens 1", false) == "Lens 1" && LensPart.MirrorName("Mirror 1", true) == "Mirror 1", "MirrorName: a name that already matches the flag is as given");
+		Check(LensPart.MirrorName("Lensing stage", true) == "Lensing stage" && LensPart.MirrorName("Objective", true) == "Objective" && LensPart.MirrorName("lens 2", true) == "lens 2",
+			"MirrorName: whole words in the user's case only; other names are as given");
 		lens.Diameter = 100;
 		lens.Thickness = 40;
 		lens.R1 = 300;

@@ -16,14 +16,31 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.Windows.Controls;
+using System.Windows.Input;
+using WaveDudeNext.Model;
+using WaveDudeNext.WPF.Commands;
 
 namespace WaveDudeNext.WPF.Views;
 
-/// <summary>Editor for a <see cref="WaveDudeNext.Model.LensPart"/>: a lens or a curved or flat mirror.</summary>
+/// <summary>Editor for a <see cref="LensPart"/>: a lens or a curved or flat mirror.</summary>
 public partial class LensPartView : UserControl
 {
 	public LensPartView()
 	{
 		InitializeComponent();
+	}
+
+	/// <summary>
+	/// <see cref="PartCommands.MirrorToggled"/>: the Mirror box was ticked or unticked by the user, its binding has set the
+	/// flag, and the name follows it, Lens becoming Mirror and back (<see cref="LensPart.MirrorName"/>; 2026-10-29, the user's
+	/// design). Here and not in the setter, so a loaded, pasted or undone name stays what it was; the flag and the name land
+	/// in one undo step.
+	/// </summary>
+	private void OnMirrorToggled(object sender, ExecutedRoutedEventArgs e)
+	{
+		if (e.Parameter is LensPart lens)
+		{
+			lens.Name = LensPart.MirrorName(lens.Name, lens.Mirror);
+		}
 	}
 }

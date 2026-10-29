@@ -24,7 +24,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns:converters="clr-namespace:WaveDudeNext.WPF.Converters"
              xmlns:meta="clr-namespace:WaveDudeNext.WPF.Markup"
              xmlns:views="clr-namespace:WaveDudeNext.WPF.Views"
-             xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext">
+             xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext"
+             xmlns:commands="clr-namespace:WaveDudeNext.WPF.Commands">
+
+	<!-- the Mirror box's command: the name follows the flag (2026-10-29, the user's design) -->
+	<UserControl.CommandBindings>
+		<CommandBinding Command="{x:Static commands:PartCommands.MirrorToggled}" Executed="OnMirrorToggled" />
+	</UserControl.CommandBindings>
 
 	<UserControl.Resources>
 		<converters:LensEdgeConverter x:Key="EdgeThickness" />
@@ -44,8 +50,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionMaterial}" />
 			<controls:FormPanel>
+				<!-- the box toggles the flag through its binding, then its command renames the part to match (Lens 1 to Mirror 1 and back) -->
 				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:LensPart.Mirror}"
-				          IsChecked="{Binding Mirror}" ToolTip="{meta:Hint model:LensPart.Mirror}" AutomationProperties.AutomationId="PartMirror" />
+				          IsChecked="{Binding Mirror}" ToolTip="{meta:Hint model:LensPart.Mirror}" AutomationProperties.AutomationId="PartMirror"
+				          Command="{x:Static commands:PartCommands.MirrorToggled}" CommandParameter="{Binding}" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:LensPart.RefractiveIndex}" />
 				<controls:NumberBox Style="{StaticResource GlassOnly}" Text="{Binding RefractiveIndex}" Minimum="1" Maximum="2.55" Increment="0.01"

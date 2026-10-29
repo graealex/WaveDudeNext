@@ -34,6 +34,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<converters:TreeIdConverter x:Key="TreeId" />
 		<converters:IsTypeConverter x:Key="IsType" />
 		<converters:PartIconConverter x:Key="PartIcon" />
+		<converters:LensIconConverter x:Key="LensIcon" />
 
 		<StreamGeometry x:Key="PlusGeometry">M4,0 L4,8 M0,4 L8,4</StreamGeometry>
 		<StreamGeometry x:Key="MinusGeometry">M0,4 L8,4</StreamGeometry>
@@ -360,7 +361,26 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"
 						          IsChecked="{Binding Enabled}" ToolTip="{DynamicResource TipPartEnabled}"
 						          AutomationProperties.Name="{DynamicResource TipPartEnabled}" AutomationProperties.AutomationId="{Binding Name, StringFormat='Enabled:{0}'}" />
-						<controls:IconView DockPanel.Dock="Left" Drawing="{Binding Converter={StaticResource PartIcon}}" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<!-- the kind's icon; a lens's follows its radii (2026-10-29, the user's design): the lens template reads them and refreshes
+						     with them, the other kinds take the kind's drawing; the two templates are scoped here so the rows' templates by
+						     type stay untouched -->
+						<ContentControl DockPanel.Dock="Left" Content="{Binding}" Focusable="False" IsTabStop="False" Margin="0,0,4,0" VerticalAlignment="Center">
+							<ContentControl.Resources>
+								<DataTemplate DataType="{x:Type model:LensPart}">
+									<controls:IconView>
+										<controls:IconView.Drawing>
+											<MultiBinding Converter="{StaticResource LensIcon}">
+												<Binding Path="R1" />
+												<Binding Path="R2" />
+											</MultiBinding>
+										</controls:IconView.Drawing>
+									</controls:IconView>
+								</DataTemplate>
+								<DataTemplate DataType="{x:Type model:OpticalPart}">
+									<controls:IconView Drawing="{Binding Converter={StaticResource PartIcon}}" />
+								</DataTemplate>
+							</ContentControl.Resources>
+						</ContentControl>
 						<TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
 					</DockPanel>
 				</DataTemplate>

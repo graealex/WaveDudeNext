@@ -128,7 +128,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuProjectAddSource">_Bron toevoegen</s:String>
 	<s:String x:Key="MenuProjectAddProbe">_Sonde toevoegen</s:String>
 	<s:String x:Key="MenuProjectAddPart">_Onderdeel toevoegen</s:String>
-	<s:String x:Key="MenuAddLens">_Lens of spiegel</s:String>
+	<s:String x:Key="MenuAddLens">_Lens/Spiegel</s:String>
 	<s:String x:Key="MenuAddPolygon">_Polygoon</s:String>
 	<s:String x:Key="MenuAddRectangle">_Rechthoek</s:String>
 	<s:String x:Key="MenuAddEllipse">_Ellips</s:String>

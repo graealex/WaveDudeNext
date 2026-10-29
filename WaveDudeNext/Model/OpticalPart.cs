@@ -19,6 +19,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 using WaveDudeNext.Parts;
 
@@ -286,6 +287,18 @@ public sealed class LensPart : OpticalPart
 		get => _mirror;
 		set => SetProperty(ref _mirror, value);
 	}
+
+	/// <summary>
+	/// <paramref name="name"/> with the word Lens replaced by Mirror when <paramref name="mirror"/> is set and Mirror by Lens
+	/// when not, so "Lens 1" ticked as a mirror reads "Mirror 1" and unticked "Lens 1" again (2026-10-29, the user's design); a
+	/// name with neither word is as given. The English stems, whatever the language, as <see cref="NameStem"/> is. The window
+	/// applies it when the user ticks the box, not the setter, so a loaded, pasted or undone name stays what it was.
+	/// </summary>
+	public static string MirrorName(string name, bool mirror) =>
+		mirror ? WordLens.Replace(name, "Mirror") : WordMirror.Replace(name, "Lens");
+
+	private static readonly Regex WordLens = new(@"\bLens\b", RegexOptions.CultureInvariant);
+	private static readonly Regex WordMirror = new(@"\bMirror\b", RegexOptions.CultureInvariant);
 
 	/// <summary>Refractive index of the glass, 1.00 to 2.55 in steps of 0.01; not used by a mirror.</summary>
 	[XmlAttribute]

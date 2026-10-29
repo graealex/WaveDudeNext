@@ -19,7 +19,7 @@ using System.Windows.Input;
 
 namespace WaveDudeNext.WPF.Commands;
 
-/// <summary>Commands of the part editors, bound on the views themselves: the point list of an outline (<c>Views/PartPointsView</c>) and the node list of a fibre's path (<c>Views/FiberPathView</c>, 2026-10-22), nothing else since the chain toggle replaced the Square and Circle buttons (2026-10-20).</summary>
+/// <summary>Commands of the part editors, bound on the views themselves: the point list of an outline (<c>Views/PartPointsView</c>), the node list of a fibre's path (<c>Views/FiberPathView</c>, 2026-10-22) and the lens's Mirror box (<c>Views/LensPartView</c>, 2026-10-29).</summary>
 public static class PartCommands
 {
 	/// <summary>Appends a point after the last one.</summary>
@@ -27,4 +27,11 @@ public static class PartCommands
 
 	/// <summary>Removes the point given as parameter.</summary>
 	public static readonly RoutedUICommand RemovePoint = new("Remove point", nameof(RemovePoint), typeof(PartCommands));
+
+	/// <summary>
+	/// The lens's Mirror box was ticked or unticked by the user (the box's own command, run after its binding has set the
+	/// flag): the part's name follows, Lens becoming Mirror and back (<see cref="Model.LensPart.MirrorName"/>, 2026-10-29,
+	/// the user's design). The parameter is the <see cref="Model.LensPart"/>.
+	/// </summary>
+	public static readonly RoutedUICommand MirrorToggled = new("Mirror toggled", nameof(MirrorToggled), typeof(PartCommands));
 }

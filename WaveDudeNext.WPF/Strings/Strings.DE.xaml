@@ -128,7 +128,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuProjectAddSource">_Quelle hinzufügen</s:String>
 	<s:String x:Key="MenuProjectAddProbe">_Sonde hinzufügen</s:String>
 	<s:String x:Key="MenuProjectAddPart">_Bauteil hinzufügen</s:String>
-	<s:String x:Key="MenuAddLens">_Linse oder Spiegel</s:String>
+	<s:String x:Key="MenuAddLens">_Linse/Spiegel</s:String>
 	<s:String x:Key="MenuAddPolygon">_Polygon</s:String>
 	<s:String x:Key="MenuAddRectangle">_Rechteck</s:String>
 	<s:String x:Key="MenuAddEllipse">_Ellipse</s:String>
