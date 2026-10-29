@@ -25,13 +25,14 @@ namespace WaveDudeNext.WPF.Converters;
 /// The icon drawing of a lens or mirror by its radii (2026-10-29, the user's design): <c>Lens</c> followed by the shape of each
 /// surface, <c>Convex</c>, <c>Flat</c> or <c>Concave</c>, the name of the theme's <c>IconLens{left}{right}</c> geometry. The
 /// inputs are <see cref="LensPart.R1"/> and <see cref="LensPart.R2"/>, signed as the model signs them: R1 above 0 and R2 below
-/// 0 bulge outward, 0 is flat; the fit never changes a sign. The kind's own symbol, <c>Lens</c>, stands in until both arrive.
+/// 0 bulge outward, 0 is flat; the fit never changes a sign. The biconvex profile stands in until both arrive (the kind's own
+/// symbol, <c>Lens</c>, is the Add part menu's lens-and-mirror pair, which a row never shows).
 /// </summary>
 public sealed class LensIconConverter : IMultiValueConverter
 {
 	/// <inheritdoc/>
 	public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture) =>
-		values is [double r1, double r2] ? "Lens" + Shape(r1) + Shape(-r2) : "Lens";
+		values is [double r1, double r2] ? "Lens" + Shape(r1) + Shape(-r2) : "LensConvexConvex";
 
 	/// <summary>The surface's shape for a radius signed so that positive bulges outward.</summary>
 	private static string Shape(double outward) => outward > 0.0 ? "Convex" : outward < 0.0 ? "Concave" : "Flat";

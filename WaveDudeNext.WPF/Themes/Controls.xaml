@@ -261,20 +261,23 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 	<!-- the app's own menu icons (controls:MenuIcon.Drawing, 2026-10-23) for entries the icon font has no glyph for: 16 px
 	     line drawings, stroked at 1 px on half pixels so the lines are crisp at 100 %, a Fill geometry for the solid parts -->
-	<!-- a lens or mirror: the kind's symbol is biconvex; a part's row shows its own profile, each surface convex, flat or concave by
-	     its radius (2026-10-29, the user's design): a convex surface bows out from a rim 1.5 px off the centre, a flat one is a
-	     line 2.5 px off, a concave one bows in from a rim 4.5 px off, so a biconcave lens is thick at the rim and thin in the
-	     middle; the rims are joined along the top and the bottom -->
-	<StreamGeometry x:Key="IconLens">M6.5,1.5 C2,4.5 2,11.5 6.5,14.5 L9.5,14.5 C14,11.5 14,4.5 9.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensConvexConvex">M6.5,1.5 C2,4.5 2,11.5 6.5,14.5 L9.5,14.5 C14,11.5 14,4.5 9.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensConvexFlat">M6.5,1.5 C2,4.5 2,11.5 6.5,14.5 L10.5,14.5 L10.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensConvexConcave">M6.5,1.5 C2,4.5 2,11.5 6.5,14.5 L12.5,14.5 C10.5,11.5 10.5,4.5 12.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensFlatConvex">M5.5,1.5 L5.5,14.5 L9.5,14.5 C14,11.5 14,4.5 9.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensFlatFlat">M5.5,1.5 L5.5,14.5 L10.5,14.5 L10.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensFlatConcave">M5.5,1.5 L5.5,14.5 L12.5,14.5 C10.5,11.5 10.5,4.5 12.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensConcaveConvex">M3.5,1.5 C5.5,4.5 5.5,11.5 3.5,14.5 L9.5,14.5 C14,11.5 14,4.5 9.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensConcaveFlat">M3.5,1.5 C5.5,4.5 5.5,11.5 3.5,14.5 L10.5,14.5 L10.5,1.5 Z</StreamGeometry>
-	<StreamGeometry x:Key="IconLensConcaveConcave">M3.5,1.5 C5.5,4.5 5.5,11.5 3.5,14.5 L12.5,14.5 C10.5,11.5 10.5,4.5 12.5,1.5 Z</StreamGeometry>
+	<!-- the kind's symbol in the Add part menu (2026-10-29, the user's design): a biconvex lens and, to its right, a concave
+	     mirror, a flat back and a hollow front, thick at the ends -->
+	<StreamGeometry x:Key="IconLens">M4,1.5 C7.5,4.5 7.5,11.5 4,14.5 C0.5,11.5 0.5,4.5 4,1.5 Z M13.5,1.5 V14.5 H10.5 C12.5,11.5 12.5,4.5 10.5,1.5 Z</StreamGeometry>
+	<!-- a part's row shows its own profile, each surface convex, flat or concave by its radius (2026-10-29, the user's design),
+	     the shapes about 5 to 7 px wide around x = 8: the biconvex lens is the pointed one of old, its arcs meeting at the ends;
+	     a flat surface against a convex one makes a D; the meniscus is a crescent of even thickness; a concave surface bows in
+	     from a rim set out, so a biconcave lens is thick at the rim and thin in the middle; the rims are joined along the top
+	     and the bottom -->
+	<StreamGeometry x:Key="IconLensConvexConvex">M8,1.5 C4.5,4.5 4.5,11.5 8,14.5 C11.5,11.5 11.5,4.5 8,1.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconLensConvexFlat">M10.5,1.5 C3.5,4.5 3.5,11.5 10.5,14.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconLensConvexConcave">M8,1.5 C3.5,4.5 3.5,11.5 8,14.5 L11,14.5 C7.5,11.5 7.5,4.5 11,1.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconLensFlatConvex">M5.5,1.5 V14.5 C12.5,11.5 12.5,4.5 5.5,1.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconLensFlatFlat">M5.5,1.5 V14.5 H10.5 V1.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconLensFlatConcave">M5.5,1.5 V14.5 H11.5 C9,11.5 9,4.5 11.5,1.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconLensConcaveConvex">M5,1.5 C8.5,4.5 8.5,11.5 5,14.5 L8,14.5 C12.5,11.5 12.5,4.5 8,1.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconLensConcaveFlat">M4.5,1.5 C7,4.5 7,11.5 4.5,14.5 H10.5 V1.5 Z</StreamGeometry>
+	<StreamGeometry x:Key="IconLensConcaveConcave">M4.5,1.5 C6.5,4.5 6.5,11.5 4.5,14.5 L11.5,14.5 C9.5,11.5 9.5,4.5 11.5,1.5 Z</StreamGeometry>
 	<!-- an S-bent fibre -->
 	<StreamGeometry x:Key="IconFiber">M1,13.5 C7,13.5 9,5.5 15,5.5 M1,10.5 C7,10.5 9,2.5 15,2.5</StreamGeometry>
 	<!-- alternating layers -->
