@@ -275,6 +275,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="SectionField">Champ</s:String>
 	<s:String x:Key="SectionIntensity">Intensité</s:String>
 	<s:String x:Key="SectionVideo">Export vidéo</s:String>
+	<s:String x:Key="SectionPreview">Aperçu</s:String>
 	<s:String x:Key="SectionExportRange">Export</s:String>
 	<s:String x:Key="SectionPosition">Position</s:String>
 	<s:String x:Key="SectionWave">Onde</s:String>
@@ -378,6 +379,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.Display.ProbeGraphsInExport">Dessiner les cadres de graphe des sondes sur les images et vidéos exportées.</s:String>
 	<s:String x:Key="Label.Display.ProbeMarkersInExport">Marqueurs des sondes dans l'export</s:String>
 	<s:String x:Key="Hint.Display.ProbeMarkersInExport">Dessiner les positions des sondes (croix, la ligne d'une sonde linéaire, le numéro) sur les images et vidéos exportées.</s:String>
+	<s:String x:Key="Label.Display.HandlesInPreview">Poignées dans l'aperçu</s:String>
+	<s:String x:Key="Hint.Display.HandlesInPreview">Afficher les poignées, les lignes, les points émetteurs et les leviers de toutes les sources, pièces et sondes sur les images de l'aperçu. Un objet sélectionné montre les siens dans tous les cas.</s:String>
+	<s:String x:Key="Label.Display.LabelsInPreview">Étiquettes dans l'aperçu</s:String>
+	<s:String x:Key="Hint.Display.LabelsInPreview">Afficher les noms à côté des poignées sur les images de l'aperçu. Un objet sélectionné montre le sien dans tous les cas.</s:String>
 	<s:String x:Key="Label.Display.SourceMarkersInExport">Marqueurs des sources dans l'export</s:String>
 	<s:String x:Key="Hint.Display.SourceMarkersInExport">Dessiner les sources actives (le marqueur, les points émetteurs d'une source composée, le nom) sur les images et vidéos exportées.</s:String>
 	<s:String x:Key="Label.DisplayLayer.ColorScheme">Palette de couleurs</s:String>

@@ -275,6 +275,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="SectionField">Veld</s:String>
 	<s:String x:Key="SectionIntensity">Intensiteit</s:String>
 	<s:String x:Key="SectionVideo">Video-export</s:String>
+	<s:String x:Key="SectionPreview">Voorbeeld</s:String>
 	<s:String x:Key="SectionExportRange">Export</s:String>
 	<s:String x:Key="SectionPosition">Positie</s:String>
 	<s:String x:Key="SectionWave">Golf</s:String>
@@ -378,6 +379,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.Display.ProbeGraphsInExport">De grafiekvakken van de sondes over geëxporteerde beelden en video's tekenen.</s:String>
 	<s:String x:Key="Label.Display.ProbeMarkersInExport">Sondemarkeringen in de export</s:String>
 	<s:String x:Key="Hint.Display.ProbeMarkersInExport">De posities van de sondes (kruisen, de lijn van een lijnsonde, het nummer) over geëxporteerde beelden en video's tekenen.</s:String>
+	<s:String x:Key="Label.Display.HandlesInPreview">Grepen in het voorbeeld</s:String>
+	<s:String x:Key="Hint.Display.HandlesInPreview">De grepen, lijnen, emitterpunten en hefbomen van alle bronnen, onderdelen en sondes over de voorbeeldbeelden tonen. Een geselecteerd object toont de zijne hoe dan ook.</s:String>
+	<s:String x:Key="Label.Display.LabelsInPreview">Labels in het voorbeeld</s:String>
+	<s:String x:Key="Hint.Display.LabelsInPreview">De namen naast de grepen over de voorbeeldbeelden tonen. Een geselecteerd object toont de zijne hoe dan ook.</s:String>
 	<s:String x:Key="Label.Display.SourceMarkersInExport">Bronmarkeringen in de export</s:String>
 	<s:String x:Key="Hint.Display.SourceMarkersInExport">De ingeschakelde bronnen (de markering, de emitterpunten van een samengestelde bron, de naam) over geëxporteerde beelden en video's tekenen.</s:String>
 	<s:String x:Key="Label.DisplayLayer.ColorScheme">Kleurenschema</s:String>

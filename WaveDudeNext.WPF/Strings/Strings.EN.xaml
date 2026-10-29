@@ -277,6 +277,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="SectionField">Field</s:String>
 	<s:String x:Key="SectionIntensity">Intensity</s:String>
 	<s:String x:Key="SectionVideo">Video export</s:String>
+	<s:String x:Key="SectionPreview">Preview</s:String>
 	<s:String x:Key="SectionExportRange">Export</s:String>
 	<s:String x:Key="SectionPosition">Position</s:String>
 	<s:String x:Key="SectionWave">Wave</s:String>
@@ -380,6 +381,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.Display.ProbeGraphsInExport">Draw the probes' graph boxes over exported frames and videos.</s:String>
 	<s:String x:Key="Label.Display.ProbeMarkersInExport">Probe markers in the export</s:String>
 	<s:String x:Key="Hint.Display.ProbeMarkersInExport">Draw the probes' positions (crosses, the line of a line probe, the number) over exported frames and videos.</s:String>
+	<s:String x:Key="Label.Display.HandlesInPreview">Handles in the preview</s:String>
+	<s:String x:Key="Hint.Display.HandlesInPreview">Show the handles, lines, emitter dots and levers of every source, part and probe over the preview pictures. A selected object shows its own either way.</s:String>
+	<s:String x:Key="Label.Display.LabelsInPreview">Labels in the preview</s:String>
+	<s:String x:Key="Hint.Display.LabelsInPreview">Show the names beside the handles over the preview pictures. A selected object shows its own either way.</s:String>
 	<s:String x:Key="Label.Display.SourceMarkersInExport">Source markers in the export</s:String>
 	<s:String x:Key="Hint.Display.SourceMarkersInExport">Draw the enabled sources (the marker, a composite source's emitter dots, the name) over exported frames and videos.</s:String>
 	<s:String x:Key="Label.DisplayLayer.ColorScheme">Colour scheme</s:String>

@@ -40,6 +40,8 @@ public sealed class Display : ObservableObject
 	private bool _probeGraphsInExport = true;
 	private bool _probeMarkersInExport = true;
 	private bool _sourceMarkersInExport;
+	private bool _handlesInPreview = true;
+	private bool _labelsInPreview = true;
 
 	/// <summary>Rendering of the wave field.</summary>
 	[XmlElement]
@@ -144,6 +146,34 @@ public sealed class Display : ObservableObject
 	{
 		get => _sourceMarkersInExport;
 		set => SetProperty(ref _sourceMarkersInExport, value);
+	}
+
+	/// <summary>
+	/// Whether the preview pictures show the handles of every source, part and probe, with their lines, emitter dots and
+	/// levers (2026-10-29, the user's request; on by default). Off, a selected object still shows its own, so the tree is
+	/// where objects are picked; the probes' graph boxes are not affected.
+	/// </summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Preview")]
+	[DisplayName("Handles in the preview")]
+	[Description("Show the handles, lines, emitter dots and levers of every source, part and probe over the preview pictures. A selected object shows its own either way.")]
+	public bool HandlesInPreview
+	{
+		get => _handlesInPreview;
+		set => SetProperty(ref _handlesInPreview, value);
+	}
+
+	/// <summary>Whether the preview pictures show the names beside the handles (2026-10-29, the user's request; on by default). Off, a selected object still shows its own.</summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Preview")]
+	[DisplayName("Labels in the preview")]
+	[Description("Show the names beside the handles over the preview pictures. A selected object shows its own either way.")]
+	public bool LabelsInPreview
+	{
+		get => _labelsInPreview;
+		set => SetProperty(ref _labelsInPreview, value);
 	}
 
 	/// <summary>Tells <see cref="XmlSerializer"/> to leave all-default video settings out of the file.</summary>

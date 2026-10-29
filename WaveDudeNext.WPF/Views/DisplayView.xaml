@@ -33,6 +33,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionIntensity}" />
 			<local:DisplayLayerView DataContext="{Binding Intensity}" Kind="Intensity" />
 
+			<!-- what the preview pictures draw over the frames (2026-10-29, the user's request): a selected object shows its own either way -->
+			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionPreview}" />
+			<controls:FormPanel>
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Display.HandlesInPreview}"
+				          IsChecked="{Binding HandlesInPreview}" ToolTip="{meta:Hint model:Display.HandlesInPreview}" AutomationProperties.AutomationId="DisplayHandlesInPreview" />
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Display.LabelsInPreview}"
+				          IsChecked="{Binding LabelsInPreview}" ToolTip="{meta:Hint model:Display.LabelsInPreview}" AutomationProperties.AutomationId="DisplayLabelsInPreview" />
+			</controls:FormPanel>
+
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionExportRange}" />
 			<controls:FormPanel>
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Display.ExportFrom}" />

@@ -117,6 +117,14 @@ public sealed class SceneOverlay : Panel
 	public static readonly DependencyProperty AccentBrushProperty = DependencyProperty.Register(
 		nameof(AccentBrush), typeof(Brush), typeof(SceneOverlay), new FrameworkPropertyMetadata(Brushes.DodgerBlue, FrameworkPropertyMetadataOptions.AffectsRender));
 
+	/// <summary>Identifies the <see cref="HandlesInPreview"/> property.</summary>
+	public static readonly DependencyProperty HandlesInPreviewProperty = DependencyProperty.Register(
+		nameof(HandlesInPreview), typeof(bool), typeof(SceneOverlay), new PropertyMetadata(true, (d, _) => ((SceneOverlay)d).UpdateSelection()));
+
+	/// <summary>Identifies the <see cref="LabelsInPreview"/> property.</summary>
+	public static readonly DependencyProperty LabelsInPreviewProperty = DependencyProperty.Register(
+		nameof(LabelsInPreview), typeof(bool), typeof(SceneOverlay), new PropertyMetadata(true, (d, _) => ((SceneOverlay)d).UpdateSelection()));
+
 	/// <summary>Pixels a focused handle moves per arrow key, and with Shift.</summary>
 	private const int KeyStep = 1;
 	private const int KeyStepFast = 10;
@@ -212,6 +220,24 @@ public sealed class SceneOverlay : Panel
 	}
 
 	private void OnSelectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateSelection();
+
+	/// <summary>
+	/// Whether the handles, lines, emitter dots and levers are shown for every item (<see cref="Display.HandlesInPreview"/>);
+	/// off, a selected item still shows its own (2026-10-29, the user's design), and the others are collapsed, out of the Tab
+	/// cycle too, so the tree is where they are picked.
+	/// </summary>
+	public bool HandlesInPreview
+	{
+		get => (bool)GetValue(HandlesInPreviewProperty);
+		set => SetValue(HandlesInPreviewProperty, value);
+	}
+
+	/// <summary>Whether the names beside the handles are drawn for every item (<see cref="Display.LabelsInPreview"/>); off, a selected item still shows its own.</summary>
+	public bool LabelsInPreview
+	{
+		get => (bool)GetValue(LabelsInPreviewProperty);
+		set => SetValue(LabelsInPreviewProperty, value);
+	}
 
 	/// <summary>Whether <paramref name="item"/> is the current item or one of the selected ones.</summary>
 	private bool IsSelected(object item) => ReferenceEquals(item, SelectedItem) || (SelectedItems?.Contains(item) ?? false);
@@ -507,11 +533,11 @@ public sealed class SceneOverlay : Panel
 		foreach (MarkerThumb thumb in Children)
 		{
 			thumb.IsSelectedMarker = IsSelected(thumb.Item);
-			if (IsDetail(thumb.Role))
-			{
-				// the rotation handle, grip, point, node and Bézier handles only while their source or part is the current item (the user's rule, 2026-10-14); collapsed, they are out of the Tab cycle too
-				thumb.Visibility = ReferenceEquals(thumb.Item, selected) ? Visibility.Visible : Visibility.Collapsed;
-			}
+			// handles hidden by Display (2026-10-29, the user's design) except a selected item's, which shows them either way; the
+			// rotation handle, grip, point, node and Bézier handles only while their source or part is the current item (the
+			// user's rule, 2026-10-14); collapsed, they are out of the Tab cycle too
+			bool shown = HandlesInPreview || thumb.IsSelectedMarker;
+			thumb.Visibility = shown && (!IsDetail(thumb.Role) || ReferenceEquals(thumb.Item, selected)) ? Visibility.Visible : Visibility.Collapsed;
 		}
 		InvalidateVisual();
 	}
@@ -884,11 +910,11 @@ public sealed class SceneOverlay : Panel
 		dc.PushClip(new RectangleGeometry(PictureRect(RenderSize)));
 		foreach (Probe probe in SelectedLast(project.Probes, selected))
 		{
-			if (probe.Kind != ProbeKind.Line || !Shows(probe))
+			bool isSelected = IsSelected(probe);
+			if (probe.Kind != ProbeKind.Line || !Shows(probe) || (!HandlesInPreview && !isSelected))
 			{
 				continue;
 			}
-			bool isSelected = IsSelected(probe);
 			Point a = ToView(probe.AX, probe.AY);
 			Point b = ToView(probe.BX, probe.BY);
 			// a dark line under the dashed light one, so the line reads on any picture
@@ -897,11 +923,11 @@ public sealed class SceneOverlay : Panel
 		}
 		foreach (Source source in SelectedLast(project.Sources, selected))
 		{
-			if (source.Array == null)
+			bool isSelected = IsSelected(source);
+			if (source.Array == null || (!HandlesInPreview && !isSelected))
 			{
 				continue;
 			}
-			bool isSelected = IsSelected(source);
 			Brush dots = isSelected ? AccentBrush : LineBrush;
 			var halo = new Pen(HaloBrush, 1.5);
 			if (ReferenceEquals(source, selected))
@@ -986,7 +1012,8 @@ public sealed class SceneOverlay : Panel
 		dc.Pop();
 		foreach (MarkerThumb thumb in Children.OfType<MarkerThumb>().OrderBy(thumb => thumb.IsSelectedMarker))
 		{
-			if (thumb.Role is MarkerRole.ProbeB || IsDetail(thumb.Role))
+			// the name beside the main handle; hidden by Display except a selected item's (2026-10-29, the user's design)
+			if (thumb.Role is MarkerRole.ProbeB || IsDetail(thumb.Role) || (!LabelsInPreview && !thumb.IsSelectedMarker))
 			{
 				continue;
 			}

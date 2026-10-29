@@ -275,6 +275,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="SectionField">Feld</s:String>
 	<s:String x:Key="SectionIntensity">Intensität</s:String>
 	<s:String x:Key="SectionVideo">Videoexport</s:String>
+	<s:String x:Key="SectionPreview">Vorschau</s:String>
 	<s:String x:Key="SectionExportRange">Export</s:String>
 	<s:String x:Key="SectionPosition">Position</s:String>
 	<s:String x:Key="SectionWave">Welle</s:String>
@@ -378,6 +379,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.Display.ProbeGraphsInExport">Die Graphkästen der Sonden in exportierte Bilder und Videos zeichnen.</s:String>
 	<s:String x:Key="Label.Display.ProbeMarkersInExport">Sondenmarkierungen im Export</s:String>
 	<s:String x:Key="Hint.Display.ProbeMarkersInExport">Die Positionen der Sonden (Kreuze, die Linie einer Liniensonde, die Nummer) in exportierte Bilder und Videos zeichnen.</s:String>
+	<s:String x:Key="Label.Display.HandlesInPreview">Griffe in der Vorschau</s:String>
+	<s:String x:Key="Hint.Display.HandlesInPreview">Die Griffe, Linien, Emitterpunkte und Hebel aller Quellen, Bauteile und Sonden über den Vorschaubildern zeigen. Ein ausgewähltes Objekt zeigt seine in jedem Fall.</s:String>
+	<s:String x:Key="Label.Display.LabelsInPreview">Beschriftungen in der Vorschau</s:String>
+	<s:String x:Key="Hint.Display.LabelsInPreview">Die Namen neben den Griffen über den Vorschaubildern zeigen. Ein ausgewähltes Objekt zeigt seinen in jedem Fall.</s:String>
 	<s:String x:Key="Label.Display.SourceMarkersInExport">Quellenmarkierungen im Export</s:String>
 	<s:String x:Key="Hint.Display.SourceMarkersInExport">Die aktiven Quellen (die Markierung, die Emitterpunkte einer zusammengesetzten Quelle, den Namen) in exportierte Bilder und Videos zeichnen.</s:String>
 	<s:String x:Key="Label.DisplayLayer.ColorScheme">Farbschema</s:String>
