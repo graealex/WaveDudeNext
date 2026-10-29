@@ -39,6 +39,18 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:GrinLensPart.Coating}" />
 				<controls:NumberBox Text="{Binding Coating}" Minimum="0" Maximum="50" ToolTip="{meta:Hint model:GrinLensPart.Coating}" AutomationProperties.AutomationId="PartCoating" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:CoatedPart.CoatingProfile}" />
+				<ComboBox Style="{StaticResource EnumComboBox}" ItemsSource="{meta:EnumValues model:CoatingProfile}" SelectedItem="{Binding CoatingProfile}"
+				          ToolTip="{meta:Hint model:CoatedPart.CoatingProfile}" AutomationProperties.AutomationId="PartCoatingProfile" />
+
+				<!-- the faces by their outward normal: the end faces across the axis are front and back, the long sides the sides -->
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.FrontCoated}"
+				          IsChecked="{Binding FrontCoated}" ToolTip="{meta:Hint model:CoatedPart.FrontCoated}" AutomationProperties.AutomationId="PartFrontCoated" />
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.BackCoated}"
+				          IsChecked="{Binding BackCoated}" ToolTip="{meta:Hint model:CoatedPart.BackCoated}" AutomationProperties.AutomationId="PartBackCoated" />
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.SidesCoated}"
+				          IsChecked="{Binding SidesCoated}" ToolTip="{meta:Hint model:CoatedPart.SidesCoated}" AutomationProperties.AutomationId="PartSidesCoated" />
 			</controls:FormPanel>
 
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionShape}" />

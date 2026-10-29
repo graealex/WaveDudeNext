@@ -29,6 +29,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileNew">_New Project</s:String>
 	<s:String x:Key="MenuFileOpen">_Open Project...</s:String>
 	<s:String x:Key="MenuFileRecent">_Recent Projects</s:String>
+	<s:String x:Key="MenuFileExamples">Exam_ples</s:String>
 	<s:String x:Key="MenuFileSave">_Save</s:String>
 	<s:String x:Key="MenuFileSaveAs">Save _As...</s:String>
 	<s:String x:Key="MenuFileClose">_Close Project</s:String>
@@ -599,7 +600,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.LensPart.RefractiveIndex">Refractive index</s:String>
 	<s:String x:Key="Hint.LensPart.RefractiveIndex">Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.</s:String>
 	<s:String x:Key="Label.LensPart.Coating">AR coating</s:String>
-	<s:String x:Key="Hint.LensPart.Coating">Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.</s:String>
+	<s:String x:Key="Hint.LensPart.Coating">Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.</s:String>
 	<s:String x:Key="Label.LensPart.Absorption">Absorption</s:String>
 	<s:String x:Key="Hint.LensPart.Absorption">How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.</s:String>
 	<s:String x:Key="Label.LensPart.AbsorptionRamp">Absorption ramp</s:String>
@@ -619,7 +620,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.ShapePart.RefractiveIndex">Refractive index</s:String>
 	<s:String x:Key="Hint.ShapePart.RefractiveIndex">Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.</s:String>
 	<s:String x:Key="Label.ShapePart.Coating">AR coating</s:String>
-	<s:String x:Key="Hint.ShapePart.Coating">Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.</s:String>
+	<s:String x:Key="Hint.ShapePart.Coating">Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.</s:String>
+	<s:String x:Key="Label.CoatedPart.CoatingProfile">Coating profile</s:String>
+	<s:String x:Key="Hint.CoatedPart.CoatingProfile">How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.</s:String>
+	<s:String x:Key="Label.CoatedPart.FrontCoated">Coat the front</s:String>
+	<s:String x:Key="Hint.CoatedPart.FrontCoated">Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.</s:String>
+	<s:String x:Key="Label.CoatedPart.BackCoated">Coat the back</s:String>
+	<s:String x:Key="Hint.CoatedPart.BackCoated">Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.</s:String>
+	<s:String x:Key="Label.CoatedPart.SidesCoated">Coat the sides</s:String>
+	<s:String x:Key="Hint.CoatedPart.SidesCoated">Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.</s:String>
 	<s:String x:Key="Label.ShapePart.Absorption">Absorption</s:String>
 	<s:String x:Key="Hint.ShapePart.Absorption">How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.</s:String>
 	<s:String x:Key="Label.ShapePart.AbsorptionRamp">Absorption ramp</s:String>
@@ -659,7 +668,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.FiberPart.CladdingThickness">Cladding thickness</s:String>
 	<s:String x:Key="Hint.FiberPart.CladdingThickness">Thickness of the cladding around the core in pixels; 0 for a bare core.</s:String>
 	<s:String x:Key="Label.FiberPart.Coating">AR coating</s:String>
-	<s:String x:Key="Hint.FiberPart.Coating">Thickness in pixels of the anti-reflection band just inside the outer boundary, with the index √n; 0 for none.</s:String>
+	<s:String x:Key="Hint.FiberPart.Coating">Thickness in pixels of the anti-reflection band just inside the outer boundary and the end faces; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.</s:String>
+	<s:String x:Key="Label.FiberPart.Absorption">Cladding absorption</s:String>
+	<s:String x:Key="Hint.FiberPart.Absorption">Peak absorption of the cladding's absorbing band, 0 (not at all) to 255, as the scene image's blue channel: a hump in the outer part of the cladding, rising over the band width from nothing, peaking, and falling to nothing at the outer edge, so the guided wave's tail stays untouched and stray light is absorbed from either side. Nothing on a bare core.</s:String>
+	<s:String x:Key="Label.FiberPart.AbsorptionRamp">Absorption band</s:String>
+	<s:String x:Key="Hint.FiberPart.AbsorptionRamp">Half the absorbing band's width in pixels: the absorption rises over this many pixels to its peak and falls over as many to the outer edge. A band wider than the cladding is squeezed into it.</s:String>
 	<s:String x:Key="Label.FiberPart.Ends">Ends</s:String>
 	<s:String x:Key="Hint.FiberPart.Ends">How the two ends are cut: flat, straight across the path like a cleaved fibre, or rounded with the outer radius. The AR coating follows a flat end face.</s:String>
 	<s:String x:Key="Label.FiberPart.Nodes">Nodes</s:String>
@@ -699,7 +712,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.GrinLensPart.EdgeIndex">Edge index</s:String>
 	<s:String x:Key="Hint.GrinLensPart.EdgeIndex">Refractive index at the edge, 1.00 to 2.55 in steps of 0.01. The profile between the axis and the edge is parabolic.</s:String>
 	<s:String x:Key="Label.GrinLensPart.Coating">AR coating</s:String>
-	<s:String x:Key="Hint.GrinLensPart.Coating">Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none.</s:String>
+	<s:String x:Key="Hint.GrinLensPart.Coating">Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.</s:String>
 	<s:String x:Key="Label.LogicGatePart.DesignFrequency">Design frequency</s:String>
 	<s:String x:Key="Hint.LogicGatePart.DesignFrequency">The source frequency the gate is designed for, on the same scale as a source's frequency: the frequency of the sources that drive it. The wavelength, and from it the core width, the coupler and the phase section, follow from it, so the gate works at this frequency only.</s:String>
 	<s:String x:Key="Label.LogicGatePart.Coating">AR coating</s:String>
@@ -740,6 +753,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.LogicGatePart.PortSpacing">Distance between the two inputs, and between the two outputs, in pixels. A value below what the design needs to keep the arms apart is raised to it, and the box shows the spacing used.</s:String>
 	<s:String x:Key="Enum.FiberEnds.Flat">Flat</s:String>
 	<s:String x:Key="Enum.FiberEnds.Round">Round</s:String>
+	<s:String x:Key="Enum.CoatingProfile.Layer">Layer</s:String>
+	<s:String x:Key="Enum.CoatingProfile.Graded">Graded</s:String>
 	<s:String x:Key="Enum.TriangleType.Equilateral">Equilateral</s:String>
 	<s:String x:Key="Enum.TriangleType.RightIsosceles">Right isosceles (45°)</s:String>
 	<s:String x:Key="Enum.TriangleType.ThirtySixtyNinety">30-60-90</s:String>

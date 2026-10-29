@@ -23,7 +23,7 @@ namespace WaveDudeNext.Parts;
 /// The geometry of one <see cref="OpticalPart"/> as the painter sees it: a point of the canvas is mapped into the
 /// part's frame (the centre at the canvas point (X, Y), the top-left corner of pixel (X, Y), so a part of even size
 /// covers whole pixels; x' along the axis turned by the angle, counter-clockwise on the screen, y' across) and classified by <see cref="Depth"/>, how far inside the outline it lies, and
-/// <see cref="BodyIndex"/>, the refractive index there. <see cref="IndexAt"/> combines both with the coating band.
+/// <see cref="BodyIndex"/>, the refractive index there. <see cref="IndexAt(double, double, double)"/> combines both with the coating band.
 /// Immutable once built from a part; any thread.
 /// </summary>
 public abstract class PartShape
@@ -41,6 +41,62 @@ public abstract class PartShape
 		double radians = part.Angle * Math.PI / 180.0;
 		_cos = Math.Cos(radians);
 		_sin = Math.Sin(radians);
+		if (part is CoatedPart coated)
+		{
+			_profile = Enum.IsDefined(coated.CoatingProfile) ? coated.CoatingProfile : CoatedPart.DefaultCoatingProfile;
+			_frontCoated = coated.FrontCoated;
+			_backCoated = coated.BackCoated;
+			_sidesCoated = coated.SidesCoated;
+		}
+		else
+		{
+			// a fibre, a gate: their bands are their own designs, a layer on every face they coat
+			_profile = CoatingProfile.Layer;
+			_frontCoated = _backCoated = _sidesCoated = true;
+		}
+	}
+
+	private readonly CoatingProfile _profile;
+	private readonly bool _frontCoated;
+	private readonly bool _backCoated;
+	private readonly bool _sidesCoated;
+
+	/// <summary>cos 45°: the bound on the outward normal's x' component that makes a face a front or a back.</summary>
+	protected const double Cos45 = 0.70710678118654752;
+
+	/// <summary>A face of the outline by its outward normal in the part frame (<see cref="CoatedPart"/>): within 45° of −x' the front, of +x' the back, else a side.</summary>
+	protected enum Face
+	{
+		/// <summary>Turned toward a source on the left (−x').</summary>
+		Front,
+		/// <summary>Turned away from it (+x').</summary>
+		Back,
+		/// <summary>Neither: a lens's rim, a slab's narrow ends.</summary>
+		Sides,
+	}
+
+	/// <summary>
+	/// The face nearest the point (x', y') of the part frame. Asked only inside the band of a part that leaves a face
+	/// bare, so a shape without faces to tell apart answers <see cref="Face.Front"/>.
+	/// </summary>
+	protected virtual Face FaceAt(double x, double y) => Face.Front;
+
+	/// <summary>Whether the band at (x', y') is painted: the flag of the nearest face, without the search when every face is coated.</summary>
+	private bool Coated(double x, double y) =>
+		_frontCoated && _backCoated && _sidesCoated || FaceAt(x, y) switch { Face.Front => _frontCoated, Face.Back => _backCoated, _ => _sidesCoated };
+
+	/// <summary>
+	/// The share of the index step a graded band has reached at <paramref name="t"/>, the depth inside the outline over the
+	/// band's thickness: a raised cosine, (1 − cos πt) / 2. Measured 2026-10-29 with a plane pulse on a deep slab against a
+	/// mirror's reflection (the table is under "Coatings" in OpticalParts.md): of linear, smooth-step, quintic and raised
+	/// cosine bands the linear one is best at half a wavelength, the raised cosine best or tied at one and within a few
+	/// tenths of a percent of the best at two, where the linear ramp reflects three to four times as much.
+	/// </summary>
+	/// <param name="t">Depth over thickness; clamped to 0..1.</param>
+	public static double GradedProfile(double t)
+	{
+		t = Math.Clamp(t, 0.0, 1.0);
+		return (1.0 - Math.Cos(Math.PI * t)) / 2.0;
 	}
 
 	/// <summary>
@@ -146,12 +202,19 @@ public abstract class PartShape
 		return (x0, y0, x1, y1);
 	}
 
+	/// <summary>The index at a canvas point as <see cref="IndexAt(double, double, double)"/> gives it over a medium of index 1.</summary>
+	public double? IndexAt(double canvasX, double canvasY) => IndexAt(canvasX, canvasY, 1.0);
+
 	/// <summary>
 	/// The refractive index the part gives the canvas point (<paramref name="canvasX"/>, <paramref name="canvasY"/>)
-	/// (continuous coordinates, pixel (x, y) spanning [x, x + 1)): null outside the outline, √n rounded to 0.01 in the
-	/// coating band, else the body index; 0 inside a mirror.
+	/// (continuous coordinates, pixel (x, y) spanning [x, x + 1)): null outside the outline; in the coating band of a
+	/// coated face, √n rounded to 0.01 for a layer, or for a graded band the index risen from <paramref name="outside"/>
+	/// toward the body's by <see cref="GradedProfile"/> of the depth over the thickness; else the body index; 0 inside a mirror.
 	/// </summary>
-	public double? IndexAt(double canvasX, double canvasY)
+	/// <param name="canvasX">Canvas x, continuous.</param>
+	/// <param name="canvasY">Canvas y, continuous.</param>
+	/// <param name="outside">The index the pixel had before the part, the medium a graded band rises from.</param>
+	public double? IndexAt(double canvasX, double canvasY, double outside)
 	{
 		(double x, double y) = ToFrame(canvasX, canvasY);
 		double depth = Depth(x, y);
@@ -164,7 +227,11 @@ public abstract class PartShape
 			return 0.0;
 		}
 		double index = BodyIndex(x, y);
-		return Coating > 0 && depth < Coating ? Math.Round(Math.Sqrt(index), 2) : index;
+		if (Coating <= 0 || depth >= Coating || !Coated(x, y))
+		{
+			return index;
+		}
+		return _profile == CoatingProfile.Graded ? outside + (index - outside) * GradedProfile(depth / Coating) : Math.Round(Math.Sqrt(index), 2);
 	}
 
 	/// <summary>A refractive index within the part range.</summary>
@@ -253,6 +320,15 @@ public abstract class PartShape
 		protected override double Depth(double x, double y) =>
 			Math.Min(Math.Min(SurfaceDepth(x, y, _vertex1, _r1, -1), SurfaceDepth(x, y, _vertex2, _r2, +1)), _half - Math.Abs(y));
 
+		/// <summary>The nearest of the three: the first surface is the front, the second the back, the rim the sides.</summary>
+		protected override Face FaceAt(double x, double y)
+		{
+			double first = SurfaceDepth(x, y, _vertex1, _r1, -1);
+			double second = SurfaceDepth(x, y, _vertex2, _r2, +1);
+			double rim = _half - Math.Abs(y);
+			return first <= second && first <= rim ? Face.Front : second <= rim ? Face.Back : Face.Sides;
+		}
+
 		/// <summary>
 		/// How far inside one surface (x', y') lies: the surface has its vertex at <paramref name="vertex"/> on the axis,
 		/// the lens interior on the side opposite to <paramref name="side"/> (-1 for the first surface, whose interior is
@@ -284,6 +360,7 @@ public abstract class PartShape
 	private sealed class VertexShape : PartShape
 	{
 		private readonly (double X, double Y)[] _vertices;
+		private readonly Face[] _faces;
 		private readonly double _index;
 		private readonly double _extent;
 
@@ -296,6 +373,45 @@ public abstract class PartShape
 			Absorption = shape.Mirror ? 0 : GuardAbsorption(shape.Absorption);
 			AbsorptionRamp = GuardAbsorptionRamp(shape.AbsorptionRamp);
 			_extent = _vertices.Max(v => Math.Sqrt(v.X * v.X + v.Y * v.Y));
+			// each edge's face by its outward normal: the normal that points out of the polygon at the edge's midpoint
+			_faces = new Face[_vertices.Length];
+			for (int i = 0, j = _vertices.Length - 1; i < _vertices.Length; j = i++)
+			{
+				(double ax, double ay) = _vertices[j];
+				(double bx, double by) = _vertices[i];
+				double dx = bx - ax;
+				double dy = by - ay;
+				double length = Math.Sqrt(dx * dx + dy * dy);
+				if (length == 0.0)
+				{
+					_faces[i] = Face.Sides;
+					continue;
+				}
+				double nx = dy / length;
+				double ny = -dx / length;
+				if (PolygonDepth(_vertices, (ax + bx) / 2.0 + nx * 0.01, (ay + by) / 2.0 + ny * 0.01) > 0.0)
+				{
+					nx = -nx;
+				}
+				_faces[i] = nx < -Cos45 ? Face.Front : nx > Cos45 ? Face.Back : Face.Sides;
+			}
+		}
+
+		/// <summary>The face of the edge nearest the point.</summary>
+		protected override Face FaceAt(double x, double y)
+		{
+			int nearest = 0;
+			double best = double.PositiveInfinity;
+			for (int i = 0, j = _vertices.Length - 1; i < _vertices.Length; j = i++)
+			{
+				double distance = SegmentDistance(_vertices[j].X, _vertices[j].Y, _vertices[i].X, _vertices[i].Y, x, y);
+				if (distance < best)
+				{
+					best = distance;
+					nearest = i;
+				}
+			}
+			return _faces[nearest];
 		}
 
 		public override bool IsMirror { get; }
@@ -358,6 +474,9 @@ public abstract class PartShape
 			_claddingIndex = fiber.CladdingThickness > 0 ? GuardIndex(fiber.CladdingIndex) : _coreIndex;
 			HasInnerEdges = fiber.CladdingThickness > 0;
 			Coating = GuardCoating(fiber.Coating);
+			// the cladding's absorbing band: a hump of 2 × ramp at the outer part of the cladding, squeezed into a thinner one; nothing on a bare core
+			Absorption = fiber.CladdingThickness > 0 ? GuardAbsorption(fiber.Absorption) : 0;
+			_band = Math.Min(GuardAbsorptionRamp(fiber.AbsorptionRamp), Math.Max(0, fiber.CladdingThickness) / 2.0);
 			_extent = _path.Max(v => Math.Sqrt(v.X * v.X + v.Y * v.Y)) + _outerRadius;
 			// the chords a flat face cuts: every chord is a capsule, and one starting within the outer radius of an
 			// end (twice that, for a bend) reaches past the face with its round cap
@@ -413,6 +532,50 @@ public abstract class PartShape
 
 		public override bool IsMirror => false;
 		protected override int Coating { get; }
+		private readonly double _band;
+		public override int Absorption { get; }
+		public override int AbsorptionRamp => Math.Max(1, (int)Math.Ceiling(_band));
+
+		/// <summary>
+		/// The share of the peak absorption at a canvas point: by the distance r from the path, nothing within the core and
+		/// the inner cladding, rising as the quadratic profile over the band's half-width from the band's inner edge at
+		/// outer radius − 2 × band to the peak, and falling the same way to nothing at the outer edge; the depth given by
+		/// the painter is not used, so the band runs up to an end face and stops there instead of wrapping it.
+		/// </summary>
+		public override double AbsorptionShareAt(double canvasX, double canvasY, double depth, double ramp)
+		{
+			if (_band <= 0.0)
+			{
+				return 0.0;
+			}
+			(double x, double y) = ToFrame(canvasX, canvasY);
+			double r = PathDistance(x, y);
+			double inner = _outerRadius - 2.0 * _band;
+			if (r <= inner || r >= _outerRadius)
+			{
+				return 0.0;
+			}
+			double t = (r - inner) / _band;
+			return AbsorptionProfile(t <= 1.0 ? t : 2.0 - t);
+		}
+
+		/// <summary>
+		/// The start face is the front, the end face the back, the tube the sides: with flat ends, whichever of the three
+		/// the point is nearest to inside; with round ends, the caps before the start and beyond the end.
+		/// </summary>
+		protected override Face FaceAt(double x, double y)
+		{
+			int last = _path.Length - 1;
+			double startDepth = (x - _path[0].X) * _startTangent.X + (y - _path[0].Y) * _startTangent.Y;
+			double endDepth = (_path[last].X - x) * _endTangent.X + (_path[last].Y - y) * _endTangent.Y;
+			if (!_flat)
+			{
+				return startDepth < 0.0 ? Face.Front : endDepth < 0.0 ? Face.Back : Face.Sides;
+			}
+			double side = _outerRadius - PathDistance(x, y);
+			return startDepth <= endDepth && startDepth <= side ? Face.Front : endDepth <= side ? Face.Back : Face.Sides;
+		}
+
 		/// <summary>The core's edge steps inside the outline, so the painter samples every pixel of the tube (without this the core edge came out unsmoothed, 2026-10-22).</summary>
 		public override bool HasInnerEdges { get; }
 		protected override double Extent => _extent;
@@ -558,6 +721,10 @@ public abstract class PartShape
 		protected override int Coating { get; }
 		protected override double Extent => Math.Sqrt(_halfLength * _halfLength + _halfDiameter * _halfDiameter);
 		protected override double Depth(double x, double y) => Math.Min(_halfLength - Math.Abs(x), _halfDiameter - Math.Abs(y));
+
+		/// <summary>The end faces across the axis are the front (−x') and the back, the long sides the sides.</summary>
+		protected override Face FaceAt(double x, double y) =>
+			_halfLength - Math.Abs(x) <= _halfDiameter - Math.Abs(y) ? (x < 0.0 ? Face.Front : Face.Back) : Face.Sides;
 
 		/// <summary>n(y') = n_c − (n_c − n_e)·(y' / (D/2))².</summary>
 		protected override double BodyIndex(double x, double y)

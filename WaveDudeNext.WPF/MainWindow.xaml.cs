@@ -217,7 +217,7 @@ public partial class MainWindow : Window
 			DiscardRun();
 			Project = loaded;
 			Filename = fileName;
-			_suggestedFileName = null;
+			SuggestedFileName = null;
 			RestoreExportPaths();
 			Logger.Info("Opened '{Path}'", fileName);
 			RememberRecent(fileName);
@@ -247,7 +247,7 @@ public partial class MainWindow : Window
 			Project = imported;
 			Filename = null;
 			SyncSceneImage("imported");
-			_suggestedFileName = LegacyProject.SuggestedFileName(fileName, projectName);
+			SuggestedFileName = LegacyProject.SuggestedFileName(fileName, projectName);
 			foreach (string note in notes)
 			{
 				Logger.Warn(note);
@@ -262,8 +262,19 @@ public partial class MainWindow : Window
 		}
 	}
 
-	/// <summary>The file name Save As proposes for an unsaved imported project; null otherwise.</summary>
-	private string? _suggestedFileName;
+	public static readonly DependencyProperty SuggestedFileNameProperty = DependencyProperty.Register(
+		nameof(SuggestedFileName), typeof(string), typeof(MainWindow), new PropertyMetadata(null));
+
+	/// <summary>
+	/// The file name of an unsaved project that came from somewhere, an import or a shipped example: the title shows it
+	/// (2026-10-29, the user's request: an opened example read as nothing, then "Untitled*") and Save As proposes it; null
+	/// for a new project.
+	/// </summary>
+	public string? SuggestedFileName
+	{
+		get => (string?)GetValue(SuggestedFileNameProperty);
+		set => SetValue(SuggestedFileNameProperty, value);
+	}
 
 	/// <summary>A scheme file (double-clicked, or given on the command line) is added to the open project's own schemes and selected.</summary>
 	private void ImportScheme(string fileName)
@@ -368,7 +379,7 @@ public partial class MainWindow : Window
 			Filter = (string)FindResource("SaveFileDialogFilter"),
 			DefaultExt = ProjectExtension,
 			AddExtension = true,
-			FileName = _suggestedFileName ?? "",
+			FileName = SuggestedFileName ?? "",
 		};
 		return dialog.ShowDialog(this) == true && SaveFile(dialog.FileName);
 	}
@@ -413,7 +424,7 @@ public partial class MainWindow : Window
 		DiscardRun();
 		Project = new Project();
 		Filename = null;
-		_suggestedFileName = null;
+		SuggestedFileName = null;
 		projectTree.SelectRoot();
 	}
 
@@ -439,6 +450,37 @@ public partial class MainWindow : Window
 		}
 	}
 
+	/// <summary>
+	/// File > Examples > one of the shipped examples (2026-10-29): the embedded project becomes the open project, unsaved
+	/// and without a file, its own file name suggested when it is saved; a failure leaves the previous project open.
+	/// </summary>
+	private void OnFileOpenExample(object sender, ExecutedRoutedEventArgs e)
+	{
+		if (e.Parameter is not ExampleEntry example || !ConfirmDiscard())
+		{
+			return;
+		}
+		try
+		{
+			Project loaded;
+			using (Stream stream = Examples.Open(example))
+			{
+				loaded = Project.Load(stream);
+			}
+			DiscardRun();
+			Project = loaded;
+			Filename = null;
+			SuggestedFileName = example.FileName;
+			Logger.Info("Opened the example '{Title}' ({Resource})", example.Title, example.Resource);
+			projectTree.SelectRoot();
+		}
+		catch (Exception ex)
+		{
+			Logger.Error(ex, "Error while opening the example '{Resource}'", example.Resource);
+			ShowError(string.Format((string)FindResource("OpenError"), example.FileName), ex);
+		}
+	}
+
 	private void OnFileSave(object sender, ExecutedRoutedEventArgs e)
 	{
 		if (Filename == null)
@@ -458,7 +500,7 @@ public partial class MainWindow : Window
 			Filter = (string)FindResource("SaveFileDialogFilter"),
 			DefaultExt = ProjectExtension,
 			AddExtension = true,
-			FileName = Filename ?? _suggestedFileName ?? "",
+			FileName = Filename ?? SuggestedFileName ?? "",
 		};
 		if (dialog.ShowDialog(this) == true)
 		{
@@ -480,7 +522,7 @@ public partial class MainWindow : Window
 		DiscardRun();
 		Project = new Project();
 		Filename = null;
-		_suggestedFileName = null;
+		SuggestedFileName = null;
 		projectTree.SelectRoot();
 	}
 

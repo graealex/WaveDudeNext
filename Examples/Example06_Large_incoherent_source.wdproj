@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Version="3" Seed="1529591424">
+	<Description>Featuring a large (900+ composite) source that creates both spatially- as well as temporally incoherent wave emission</Description>
+	<Scene Width="2500" Height="1500" DampingEdge="-64" />
+	<Simulation Steps="10000" />
+	<Display>
+		<Field ColorScheme="Default field" Brightness="50" BlackLevel="-0.05" />
+		<Intensity ColorScheme="Hot orange" Brightness="50" />
+		<Video Quality="70" />
+	</Display>
+	<Source Name="Source 1" X="1221" Y="707" Frequency="150" Mode="Pulsed" PulseWidth="8" OffWidth="1000">
+		<Array SizeX="31" SizeY="31" SpacingX="6" SpacingY="6" RandomFrequency="30" RandomPhase="180" RandomOffWidth="998" RandomPosition="3" />
+	</Source>
+	<Probe Name="Probe 1" Layer="Intensity" Measurement="IntegratedValue" Kind="Line" AX="1521" AY="700" BX="2427" BY="700" BoxSize="Large" BoxX="1847" BoxY="346" StartAfter="1250" />
+	<Probe Name="Probe 2" Layer="Intensity" Measurement="IntegratedValue" Kind="Line" AX="639" AY="462" BX="644" BY="984" BoxSize="ExtraLarge" BoxX="280" BoxY="29" />
+</Project>

@@ -26,6 +26,13 @@
     <Resource Include="App.png" />
   </ItemGroup>
 
+  <!-- the shipped examples (2026-10-29, the user's request): the repository's Examples folder, embedded so the single file
+       carries them; File > Examples lists them in file order (Examples.cs). Linked into an Examples folder of the project,
+       so Solution Explorer shows them there and not among the sources -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Examples\*.wdproj" Link="Examples\%(Filename)%(Extension)" LogicalName="Examples/%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- LICENSE.md becomes the embedded FlowDocument "License.xaml" that Help > About shows -->
   <Import Project="Build\LicenseDocument.targets" />
 

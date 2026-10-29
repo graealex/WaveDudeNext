@@ -22,10 +22,11 @@ using System.Windows.Data;
 namespace WaveDudeNext.WPF.Converters;
 
 /// <summary>
-/// Builds the window title from the application name, the open file and the dirty flag: the non-empty
-/// parts joined with " - ", an asterisk after the file for unsaved edits, and "Untitled*" when an unsaved
-/// project has no file yet (the word is looked up in the current language's strings on every conversion;
-/// the window refreshes the binding on a language switch).
+/// Builds the window title from the application name, the open file, the dirty flag and the suggested file name:
+/// the non-empty parts joined with " - ", the suggested name standing in for a missing file (an unsaved import or a
+/// shipped example, 2026-10-29), "Untitled" when an unsaved project has no name at all (the word is looked up in the
+/// current language's strings on every conversion; the window refreshes the binding on a language switch), and an
+/// asterisk after it for unsaved edits.
 /// </summary>
 public sealed class TitleConverter : IMultiValueConverter
 {
@@ -35,15 +36,21 @@ public sealed class TitleConverter : IMultiValueConverter
 		string title = values.Length > 0 ? values[0]?.ToString() ?? "" : "";
 		string file = values.Length > 1 ? values[1]?.ToString() ?? "" : "";
 		bool dirty = values.Length > 2 && values[2] is true;
+		if (file.Length == 0 && values.Length > 3)
+		{
+			// an unsaved project that came from somewhere, a shipped example or an import, is named after its file (2026-10-29, the user's request)
+			file = values[3]?.ToString() ?? "";
+		}
+		if (file.Length == 0)
+		{
+			// a new project reads "Untitled" from the start (2026-10-29, the user's point: the bar was empty until an edit turned it into "Untitled*")
+			file = Application.Current?.TryFindResource("Untitled") as string ?? "Untitled";
+		}
 		if (dirty)
 		{
-			if (file.Length == 0)
-			{
-				file = Application.Current?.TryFindResource("Untitled") as string ?? "Untitled";
-			}
 			file += "*";
 		}
-		return file.Length == 0 ? title : title + " - " + file;
+		return title + " - " + file;
 	}
 
 	/// <inheritdoc/>

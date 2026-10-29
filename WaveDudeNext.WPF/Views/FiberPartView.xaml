@@ -46,8 +46,27 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.CladdingThickness}" />
 				<controls:NumberBox Text="{Binding CladdingThickness}" Minimum="0" ToolTip="{meta:Hint model:FiberPart.CladdingThickness}" AutomationProperties.AutomationId="PartCladdingThickness" />
 
+				<!-- the cladding's absorbing band, a hump in its outer part (2026-10-29) -->
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.Absorption}" />
+				<controls:NumberBox Text="{Binding Absorption}" Minimum="0" Maximum="255" Increment="5" ToolTip="{meta:Hint model:FiberPart.Absorption}" AutomationProperties.AutomationId="PartAbsorption" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.AbsorptionRamp}" />
+				<controls:NumberBox Text="{Binding AbsorptionRamp}" Minimum="1" Maximum="400" ToolTip="{meta:Hint model:FiberPart.AbsorptionRamp}" AutomationProperties.AutomationId="PartAbsorptionRamp" />
+
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:FiberPart.Coating}" />
 				<controls:NumberBox Text="{Binding Coating}" Minimum="0" Maximum="50" ToolTip="{meta:Hint model:FiberPart.Coating}" AutomationProperties.AutomationId="PartCoating" />
+
+				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:CoatedPart.CoatingProfile}" />
+				<ComboBox Style="{StaticResource EnumComboBox}" ItemsSource="{meta:EnumValues model:CoatingProfile}" SelectedItem="{Binding CoatingProfile}"
+				          ToolTip="{meta:Hint model:CoatedPart.CoatingProfile}" AutomationProperties.AutomationId="PartCoatingProfile" />
+
+				<!-- the faces: the start face is the front, the end face the back, the tube the sides (2026-10-29) -->
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.FrontCoated}"
+				          IsChecked="{Binding FrontCoated}" ToolTip="{meta:Hint model:CoatedPart.FrontCoated}" AutomationProperties.AutomationId="PartFrontCoated" />
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.BackCoated}"
+				          IsChecked="{Binding BackCoated}" ToolTip="{meta:Hint model:CoatedPart.BackCoated}" AutomationProperties.AutomationId="PartBackCoated" />
+				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.SidesCoated}"
+				          IsChecked="{Binding SidesCoated}" ToolTip="{meta:Hint model:CoatedPart.SidesCoated}" AutomationProperties.AutomationId="PartSidesCoated" />
 			</controls:FormPanel>
 
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionShape}" />

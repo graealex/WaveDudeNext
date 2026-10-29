@@ -299,8 +299,21 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   triangle, outline), a fibre on a Bézier path, a Bragg reflector, a GRIN lens, the XOR, AND and OR gates under
   `LogicGatePart` and a zone plate (both Jeroen's, 2026-10-21/22). Painted into the scene pixels, red the index (red 0 a
   mirror), blue for absorbers, green never; a part edit is a simulation edit. The menus of kinds share `PartMenuEntries`
-  (`ProjectTree.xaml`), added by `ProjectTree.MenuEntries`, not as an `ItemsSource`.
+  (`ProjectTree.xaml`), added by `ProjectTree.MenuEntries`, not as an `ItemsSource`. **Coatings** (2026-10-29, the user's
+  request, so Jeroen's drawn scenes become parts): a lens, a shape, the GRIN lens and the fibre are `CoatedPart`s, the AR
+  band a `Layer` at √n or `Graded`, a raised cosine from the pixel's index to the body (measured against linear, smooth-step
+  and quintic in `OpticalParts.md`), on the faces `FrontCoated`, `BackCoated`, `SidesCoated` choose, classed by the outward
+  normal in the part frame (within 45° of −x' front, of +x' back, else a side; a fibre's start face, end face and tube); a
+  cavity's inner faces can stay bare. A fibre's cladding can absorb (`Absorption`, `AbsorptionRamp`: a hump in its outer
+  part, a mode stripper, Jeroen's strips along his fibres).
 - File types `.wdproj` / `.wdscheme` are registered per user at start-up; unsaved edits ask on close.
+- **Examples** (2026-10-29, the user's request): File > Examples lists the project files of the repository's `Examples`
+  folder, embedded in the app (`EmbeddedResource` in the WPF project, `Examples.cs`), in file order with the two-digit
+  number leading each name; one opens as an unsaved project named after its file in the title (`SuggestedFileName`, which
+  Save As proposes; an import is named the same way). The set is 23 files
+  curated from Jeroen's examples (the Classic ones through the importer, open edges with a rim, his drawn scenes rebuilt
+  from parts: the ball lens, the spherical mirror, the test glass, the fibres); the UI harnesses count the File menu's
+  entries, so a new entry moves their Down presses.
 
 ## Numbers (workstation: 10-core Xeon without AVX2, RTX 2080, 64 GB)
 
@@ -319,10 +332,15 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 `library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
-`ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 41, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
+`ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 44, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness
 sets the persisted settings it expects (split orientation, preview quality). Known flake: a second app start in one
 script sometimes comes up active; only the foreground guard fails then.
+**Manual figures** (2026-10-27): `Screenshots.ps1` on `Common.ps1` writes `Assets/*.svg` (the PNG inlined, numbered
+badges at UI Automation rectangles) and `Assets/Legend.md` (what each number marks): the window, the menus, the tree,
+the preview and the timeline from `C:\Work\Examples_WDN\Example14_wave_in_2_boxes.wdproj` at a scratch frame, the
+properties form of every object kind from `figures.wdproj` beside the harnesses (one of each kind, made with the
+library's adders); dark theme, English, 100 %, the user's 1314 × 1126 arrangement, his settings put back afterwards.
 
 ## People, name, license
 

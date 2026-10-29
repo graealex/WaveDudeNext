@@ -29,6 +29,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileNew">_Nouveau projet</s:String>
 	<s:String x:Key="MenuFileOpen">_Ouvrir un projet...</s:String>
 	<s:String x:Key="MenuFileRecent">Projets _récents</s:String>
+	<s:String x:Key="MenuFileExamples">Exem_ples</s:String>
 	<s:String x:Key="MenuFileSave">_Enregistrer</s:String>
 	<s:String x:Key="MenuFileSaveAs">Enregistrer _sous...</s:String>
 	<s:String x:Key="MenuFileClose">_Fermer le projet</s:String>
@@ -597,7 +598,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.LensPart.RefractiveIndex">Indice de réfraction</s:String>
 	<s:String x:Key="Hint.LensPart.RefractiveIndex">Indice de réfraction du verre, de 1,00 à 2,55 par pas de 0,01.</s:String>
 	<s:String x:Key="Label.LensPart.Coating">Traitement antireflet</s:String>
-	<s:String x:Key="Hint.LensPart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur du contour, d'indice √n ; 0 pour aucune. Une couche quart d'onde fait λ / (4 √n) pixels, λ étant la longueur d'onde affichée dans le formulaire de la source.</s:String>
+	<s:String x:Key="Hint.LensPart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur du contour ; 0 pour aucune. Une couche quart d'onde fait λ / (4 √n) pixels, λ étant la longueur d'onde affichée dans le formulaire de la source ; une bande graduelle est d'autant meilleure qu'elle est épaisse, à partir d'une longueur d'onde.</s:String>
 	<s:String x:Key="Label.LensPart.Absorption">Absorption</s:String>
 	<s:String x:Key="Hint.LensPart.Absorption">Force avec laquelle le composant absorbe les ondes, de 0 (pas du tout) à 255, comme le canal bleu de l'image de la scène. Elle croît depuis zéro au contour le long de la rampe d'absorption, pour qu'une onde entre dans le composant au lieu d'être réfléchie. Un miroir l'ignore.</s:String>
 	<s:String x:Key="Label.LensPart.AbsorptionRamp">Rampe d'absorption</s:String>
@@ -617,7 +618,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.ShapePart.RefractiveIndex">Indice de réfraction</s:String>
 	<s:String x:Key="Hint.ShapePart.RefractiveIndex">Indice de réfraction du verre, de 1,00 à 2,55 par pas de 0,01.</s:String>
 	<s:String x:Key="Label.ShapePart.Coating">Traitement antireflet</s:String>
-	<s:String x:Key="Hint.ShapePart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur du contour, d'indice √n ; 0 pour aucune. Une couche quart d'onde fait λ / (4 √n) pixels, λ étant la longueur d'onde affichée dans le formulaire de la source.</s:String>
+	<s:String x:Key="Hint.ShapePart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur du contour ; 0 pour aucune. Une couche quart d'onde fait λ / (4 √n) pixels, λ étant la longueur d'onde affichée dans le formulaire de la source ; une bande graduelle est d'autant meilleure qu'elle est épaisse, à partir d'une longueur d'onde.</s:String>
+	<s:String x:Key="Label.CoatedPart.CoatingProfile">Profil du traitement</s:String>
+	<s:String x:Key="Hint.CoatedPart.CoatingProfile">Comment l'indice varie dans la bande : une couche d'indice √n, l'idée du quart d'onde, ou une montée graduelle du milieu extérieur vers le verre. Une bande graduelle réfléchit moins qu'une couche dès qu'elle fait une longueur d'onde ou plus, à toute longueur d'onde ; une couche seulement à celle pour laquelle elle est taillée.</s:String>
+	<s:String x:Key="Label.CoatedPart.FrontCoated">Traiter l'avant</s:String>
+	<s:String x:Key="Hint.CoatedPart.FrontCoated">Mettre la bande sur l'avant : les faces tournées vers une source à gauche, la première surface d'une lentille. Décocher les laisse nues, comme les faces internes d'une cavité.</s:String>
+	<s:String x:Key="Label.CoatedPart.BackCoated">Traiter l'arrière</s:String>
+	<s:String x:Key="Hint.CoatedPart.BackCoated">Mettre la bande sur l'arrière : les faces tournées à l'opposé d'une source à gauche, la seconde surface d'une lentille. Décocher les laisse nues.</s:String>
+	<s:String x:Key="Label.CoatedPart.SidesCoated">Traiter les côtés</s:String>
+	<s:String x:Key="Hint.CoatedPart.SidesCoated">Mettre la bande sur les côtés : les faces qui ne sont ni avant ni arrière, le bord d'une lentille, les bouts étroits d'une lame. Décocher les laisse nues.</s:String>
 	<s:String x:Key="Label.ShapePart.Absorption">Absorption</s:String>
 	<s:String x:Key="Hint.ShapePart.Absorption">Force avec laquelle le composant absorbe les ondes, de 0 (pas du tout) à 255, comme le canal bleu de l'image de la scène. Elle croît depuis zéro au contour le long de la rampe d'absorption, pour qu'une onde entre dans le composant au lieu d'être réfléchie. Un miroir l'ignore.</s:String>
 	<s:String x:Key="Label.ShapePart.AbsorptionRamp">Rampe d'absorption</s:String>
@@ -657,7 +666,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.FiberPart.CladdingThickness">Épaisseur de la gaine</s:String>
 	<s:String x:Key="Hint.FiberPart.CladdingThickness">Épaisseur de la gaine autour du cœur en pixels ; 0 pour un cœur nu.</s:String>
 	<s:String x:Key="Label.FiberPart.Coating">Traitement antireflet</s:String>
-	<s:String x:Key="Hint.FiberPart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur de la limite extérieure, d'indice √n ; 0 pour aucune.</s:String>
+	<s:String x:Key="Hint.FiberPart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur de la limite extérieure et des faces d'extrémité ; 0 pour aucune. Une couche quart d'onde fait λ / (4 √n) pixels, λ étant la longueur d'onde affichée dans le formulaire de la source ; une bande graduelle est d'autant meilleure qu'elle est épaisse, à partir d'une longueur d'onde.</s:String>
+	<s:String x:Key="Label.FiberPart.Absorption">Absorption de la gaine</s:String>
+	<s:String x:Key="Hint.FiberPart.Absorption">Absorption maximale de la bande absorbante de la gaine, 0 (aucune) à 255, comme le canal bleu de l'image de scène : une bosse dans la partie extérieure de la gaine, montant de rien sur la largeur de bande, culminant, puis retombant à rien au bord extérieur, de sorte que la queue de l'onde guidée reste intacte et que la lumière parasite est absorbée des deux côtés. Rien sur un cœur nu.</s:String>
+	<s:String x:Key="Label.FiberPart.AbsorptionRamp">Bande d'absorption</s:String>
+	<s:String x:Key="Hint.FiberPart.AbsorptionRamp">La demi-largeur de la bande absorbante en pixels : l'absorption monte sur autant de pixels jusqu'à son maximum et redescend sur autant jusqu'au bord extérieur. Une bande plus large que la gaine y est comprimée.</s:String>
 	<s:String x:Key="Label.FiberPart.Ends">Extrémités</s:String>
 	<s:String x:Key="Hint.FiberPart.Ends">Comment les deux extrémités sont coupées : à plat, droit en travers du trajet comme une fibre clivée, ou arrondies au rayon extérieur. Le traitement antireflet suit une face plate.</s:String>
 	<s:String x:Key="Label.FiberPart.Nodes">Nœuds</s:String>
@@ -697,7 +710,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.GrinLensPart.EdgeIndex">Indice au bord</s:String>
 	<s:String x:Key="Hint.GrinLensPart.EdgeIndex">Indice de réfraction au bord, de 1,00 à 2,55 par pas de 0,01. Le profil entre l'axe et le bord est parabolique.</s:String>
 	<s:String x:Key="Label.GrinLensPart.Coating">Traitement antireflet</s:String>
-	<s:String x:Key="Hint.GrinLensPart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur du contour, d'indice √n ; 0 pour aucune.</s:String>
+	<s:String x:Key="Hint.GrinLensPart.Coating">Épaisseur en pixels de la bande antireflet juste à l'intérieur du contour ; 0 pour aucune. Une couche quart d'onde fait λ / (4 √n) pixels, λ étant la longueur d'onde affichée dans le formulaire de la source ; une bande graduelle est d'autant meilleure qu'elle est épaisse, à partir d'une longueur d'onde.</s:String>
 	<s:String x:Key="Label.LogicGatePart.DesignFrequency">Fréquence de conception</s:String>
 	<s:String x:Key="Hint.LogicGatePart.DesignFrequency">La fréquence de source pour laquelle la porte est conçue, sur la même échelle que la fréquence d'une source : celle des sources qui l'alimentent. La longueur d'onde, et d'elle la largeur des cœurs, le coupleur et la section de phase, en découlent ; la porte ne fonctionne donc qu'à cette fréquence.</s:String>
 	<s:String x:Key="Label.LogicGatePart.Coating">Traitement antireflet</s:String>
@@ -738,6 +751,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.LogicGatePart.PortSpacing">Distance entre les deux entrées, et entre les deux sorties, en pixels. Une valeur inférieure à ce que la conception exige pour garder les bras séparés y est relevée, et la case affiche l'écart utilisé.</s:String>
 	<s:String x:Key="Enum.FiberEnds.Flat">Plates</s:String>
 	<s:String x:Key="Enum.FiberEnds.Round">Arrondies</s:String>
+	<s:String x:Key="Enum.CoatingProfile.Layer">Couche</s:String>
+	<s:String x:Key="Enum.CoatingProfile.Graded">Graduel</s:String>
 	<s:String x:Key="Enum.TriangleType.Equilateral">Équilatéral</s:String>
 	<s:String x:Key="Enum.TriangleType.RightIsosceles">Rectangle isocèle (45°)</s:String>
 	<s:String x:Key="Enum.TriangleType.ThirtySixtyNinety">30-60-90</s:String>

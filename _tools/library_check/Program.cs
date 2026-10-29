@@ -2556,6 +2556,82 @@ internal static class Program
 		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
 		Check(RedAt(painted, 100, 60) == 150 && RedAt(painted, 100, 60 + 47) == 122 && RedAt(painted, 100, 60 - 47) == 122 && RedAt(painted, 100 - 18, 60) == 122 && RedAt(painted, 100 - 14, 60) == 150,
 			"a 5 px coating: red 122 = round(100 √1.5) just inside the flat edges and the curved surfaces, 150 in the body");
+		// the graded profile (2026-10-29): along the axis the index rises from the canvas's 1.00 at the first surface (x = 80)
+		// to 1.50 as a raised cosine over the 5 px band: 1.25 exactly at mid-depth (pixel 82), the body from pixel 85 on
+		lens.CoatingProfile = CoatingProfile.Graded;
+		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
+		int[] ramp = Enumerable.Range(80, 8).Select(x => RedAt(painted, x, 60)).ToArray();
+		Check(ramp[0] <= 103 && ramp[2] == 125 && ramp[5] == 150 && ramp[7] == 150 && ramp.Zip(ramp.Skip(1)).All(pair => pair.First <= pair.Second),
+			$"a graded 5 px band rises from red 100 to 150 as a raised cosine: 125 at mid-depth, the body from the band's end, never falling ({string.Join(" ", ramp)})");
+		Check(RedAt(painted, 100 + 17, 60) == 125 && RedAt(painted, 100, 60 + 47) == 125, "the graded band is the same on the second surface and the rim");
+		lens.CoatingProfile = CoatingProfile.Layer;
+		// the faces: the first surface is the front, the second the back, the rim the sides
+		lens.FrontCoated = false;
+		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 100 - 18, 60) == 150 && RedAt(painted, 100 + 17, 60) == 122 && RedAt(painted, 100, 60 + 47) == 122 && RedAt(painted, 100, 60 - 47) == 122,
+			"the front left bare: 150 just inside the first surface, the band on the second surface and both rims");
+		lens.FrontCoated = true;
+		lens.SidesCoated = false;
+		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 100 - 18, 60) == 122 && RedAt(painted, 100 + 17, 60) == 122 && RedAt(painted, 100, 60 + 47) == 150 && RedAt(painted, 100, 60 - 47) == 150,
+			"the sides left bare: the band on both surfaces, 150 just inside both rims");
+		lens.SidesCoated = true;
+		{
+			// a slab along the beam, 40 along and 60 across at (100, 60), index 2.25 so the layer is 1.50 (red 150) against the body's 225;
+			// it spans x 80..119 and y 30..89 and the 4 px band lies just inside each face
+			var slabProject = new Project();
+			slabProject.Scene.Width = W;
+			slabProject.Scene.Height = H;
+			var slab = slabProject.AddPart<RectanglePart>();
+			slab.X = 100;
+			slab.Y = 60;
+			slab.Length = 40;
+			slab.Width = 60;
+			slab.RefractiveIndex = 2.25;
+			slab.Coating = 4;
+			slab.FrontCoated = false;
+			slab.SidesCoated = false;
+			ScenePixels slabPainted = PartPainter.Paint(null, W, H, 1.0, slabProject.Parts)!;
+			Check(RedAt(slabPainted, 82, 60) == 225 && RedAt(slabPainted, 117, 60) == 150 && RedAt(slabPainted, 100, 32) == 225 && RedAt(slabPainted, 100, 87) == 225,
+				"a slab with only its back coated: bare at the front and the long sides, √2.25 = 1.50 inside the back face");
+			slab.FrontCoated = true;
+			slab.BackCoated = false;
+			slab.SidesCoated = true;
+			slabPainted = PartPainter.Paint(null, W, H, 1.0, slabProject.Parts)!;
+			Check(RedAt(slabPainted, 82, 60) == 150 && RedAt(slabPainted, 117, 60) == 225 && RedAt(slabPainted, 100, 32) == 150 && RedAt(slabPainted, 100, 87) == 150,
+				"front and sides coated, the back bare");
+			// the faces turn with the part: at 90° (counter-clockwise on the screen) the front lies at y = 80, facing down, the back at y = 40
+			slab.Angle = 90;
+			slabPainted = PartPainter.Paint(null, W, H, 1.0, slabProject.Parts)!;
+			Check(RedAt(slabPainted, 100, 78) == 150 && RedAt(slabPainted, 100, 42) == 225 && RedAt(slabPainted, 72, 60) == 150 && RedAt(slabPainted, 127, 60) == 150,
+				"turned by 90° the bare back faces up: 225 just inside y = 40, the band inside y = 80 and both long sides");
+			slab.Angle = 0;
+			// a circle: the arcs within 45° of the axis are front and back, the top and bottom arcs the sides
+			var disc = slabProject.AddPart<EllipsePart>();
+			disc.X = 100;
+			disc.Y = 60;
+			disc.Length = 60;
+			disc.Width = 60;
+			disc.RefractiveIndex = 2.25;
+			disc.Coating = 4;
+			disc.SidesCoated = false;
+			slab.Enabled = false;
+			slabPainted = PartPainter.Paint(null, W, H, 1.0, slabProject.Parts)!;
+			Check(RedAt(slabPainted, 72, 60) == 150 && RedAt(slabPainted, 127, 60) == 150 && RedAt(slabPainted, 100, 32) == 225 && RedAt(slabPainted, 100, 87) == 225,
+				"a circle with its sides bare: the band at the leftmost and rightmost points, none at the top and bottom");
+			// the profile and the bare faces persist as attributes, coated faces and the layer as the defaults
+			slab.CoatingProfile = CoatingProfile.Graded;
+			using var stream = new MemoryStream();
+			slabProject.Save(stream);
+			stream.Position = 0;
+			Project loadedProject = Project.Load(stream);
+			string coatingXml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+			var loadedSlab = (RectanglePart)loadedProject.Parts[0];
+			var loadedDisc = (EllipsePart)loadedProject.Parts[1];
+			Check(loadedSlab.CoatingProfile == CoatingProfile.Graded && !loadedSlab.BackCoated && loadedSlab.FrontCoated && loadedSlab.SidesCoated && !loadedDisc.SidesCoated
+				&& loadedDisc.CoatingProfile == CoatingProfile.Layer && coatingXml.Contains("CoatingProfile=\"Graded\"") && coatingXml.Contains("BackCoated=\"false\"") && !coatingXml.Contains("FrontCoated=") && !coatingXml.Contains("CoatingProfile=\"Layer\""),
+				"the coating profile and a bare face round-trip through the file; the defaults are not written");
+		}
 		lens.Coating = 0;
 		lens.Mirror = true;
 		painted = PartPainter.Paint(image, W, H, 1.0, project.Parts)!;
@@ -2785,6 +2861,51 @@ internal static class Program
 		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
 		Check(RedAt(painted, 177, 60) == 122 && RedAt(painted, 176, 60) == 150 && RedAt(painted, 80, 60 + 18) == 120 && RedAt(painted, 80, 60 + 16) == 145,
 			"the AR coating lies along the sides (√1.45 = 1.20) and on the flat end face (√1.5 = 1.22)");
+		// the fibre's faces (2026-10-29): the start face is the front, the end face the back, the tube the sides; a shorter
+		// fibre at x = 100 so both faces lie on the canvas, 40..160
+		static int BlueAt(ScenePixels pixels, int x, int y) => pixels.Bgra[y * pixels.StrideBytes + x * 4];
+		fiber.X = 100;
+		fiber.Nodes[0].X = -60;
+		fiber.Nodes[1].X = 60;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 42, 60) == 122 && RedAt(painted, 157, 60) == 122 && RedAt(painted, 100, 60 + 18) == 120, "the 3 px layer on both end faces and along the tube");
+		fiber.FrontCoated = false;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 42, 60) == 150 && RedAt(painted, 157, 60) == 122 && RedAt(painted, 100, 60 + 18) == 120, "the start face left bare, the end face and the tube coated");
+		fiber.FrontCoated = true;
+		fiber.BackCoated = false;
+		fiber.SidesCoated = false;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 42, 60) == 122 && RedAt(painted, 157, 60) == 150 && RedAt(painted, 100, 60 + 18) == 145, "the end face and the tube left bare, the start face coated");
+		// a graded 10 px band on the end face alone: the core's index falls to the canvas's 1.00 at the face as a raised cosine
+		fiber.FrontCoated = false;
+		fiber.BackCoated = true;
+		fiber.Coating = 10;
+		fiber.CoatingProfile = CoatingProfile.Graded;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(RedAt(painted, 145, 60) == 150 && RedAt(painted, 155, 60) == 121 && RedAt(painted, 159, 60) <= 103 && RedAt(painted, 42, 60) == 150,
+			$"a graded end taper: 150 before the band, 121 at mid-depth of the band, near 100 at the face, the start face bare ({RedAt(painted, 155, 60)}, {RedAt(painted, 159, 60)})");
+		fiber.Coating = 0;
+		fiber.CoatingProfile = CoatingProfile.Layer;
+		fiber.FrontCoated = true;
+		fiber.SidesCoated = true;
+		// the cladding's absorbing band (2026-10-29): with a half-width of 5 in a 10 px cladding the hump fills the cladding, nothing in
+		// the core, the peak 15 px from the path, nothing at the outer edge, the band running up to the end face and not beyond it;
+		// pixel centres lie at r = 12.5, 14.5, 15.5 and 18.5: shares 0.25, 0.81, 0.81 and 0.09 of 200
+		fiber.Absorption = 200;
+		fiber.AbsorptionRamp = 5;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(BlueAt(painted, 100, 69) == 0 && BlueAt(painted, 100, 72) == 50 && BlueAt(painted, 100, 74) == 162 && BlueAt(painted, 100, 75) == 162 && BlueAt(painted, 100, 78) == 18 && BlueAt(painted, 100, 80) == 0,
+			$"the cladding's absorbing hump: 0 in the core, 50 half-way up, 162 either side of the peak 15 px out, 18 near the outer edge, 0 beyond it ({BlueAt(painted, 100, 72)}, {BlueAt(painted, 100, 75)}, {BlueAt(painted, 100, 78)})");
+		Check(BlueAt(painted, 158, 75) == 162 && BlueAt(painted, 162, 75) == 0 && BlueAt(painted, 158, 60) == 0, "the band runs to the end face and stops there; the core stays clear");
+		fiber.CladdingThickness = 0;
+		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;
+		Check(BlueAt(painted, 100, 75) == 0 && BlueAt(painted, 100, 65) == 0, "a bare core absorbs nothing");
+		fiber.CladdingThickness = 10;
+		fiber.Absorption = 0;
+		fiber.X = 80;
+		fiber.Nodes[0].X = -100;
+		fiber.Nodes[1].X = 100;
 		fiber.Coating = 0;
 		fiber.Ends = FiberEnds.Round;
 		painted = PartPainter.Paint(null, W, H, 1.0, project.Parts)!;

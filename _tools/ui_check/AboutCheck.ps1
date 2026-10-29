@@ -130,7 +130,7 @@ try {
 	DKey $VK_ESCAPE 300
 	$gone = WaitFor { (Dialog) -eq $null } 3000 100
 	Check "Esc closes the dialog" $gone
-	Check "the main window is still there" ($win.Current.Name -eq "WaveDude Next") $win.Current.Name
+	Check "the main window is still there" ($win.Current.Name -like "WaveDude Next - *") $win.Current.Name
 	Check "app never became the foreground window" ((Foreground) -ne "APP") (Foreground)
 }
 finally {

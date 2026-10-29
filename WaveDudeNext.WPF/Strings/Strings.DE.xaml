@@ -29,6 +29,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileNew">_Neues Projekt</s:String>
 	<s:String x:Key="MenuFileOpen">Projekt _öffnen...</s:String>
 	<s:String x:Key="MenuFileRecent">_Zuletzt geöffnet</s:String>
+	<s:String x:Key="MenuFileExamples">Beis_piele</s:String>
 	<s:String x:Key="MenuFileSave">_Speichern</s:String>
 	<s:String x:Key="MenuFileSaveAs">Speichern _unter...</s:String>
 	<s:String x:Key="MenuFileClose">Projekt s_chließen</s:String>
@@ -597,7 +598,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.LensPart.RefractiveIndex">Brechungsindex</s:String>
 	<s:String x:Key="Hint.LensPart.RefractiveIndex">Brechungsindex des Glases, 1,00 bis 2,55 in Schritten von 0,01.</s:String>
 	<s:String x:Key="Label.LensPart.Coating">Entspiegelung</s:String>
-	<s:String x:Key="Hint.LensPart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb des Umrisses mit dem Index √n; 0 für keines. Eine λ/4-Schicht ist λ / (4 √n) Pixel dick, λ die Wellenlänge aus dem Quellenformular.</s:String>
+	<s:String x:Key="Hint.LensPart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb des Umrisses; 0 für keines. Eine λ/4-Schicht ist λ / (4 √n) Pixel dick, λ die Wellenlänge aus dem Quellenformular; ein graduelles Band ist ab einer Wellenlänge umso besser, je dicker es ist.</s:String>
 	<s:String x:Key="Label.LensPart.Absorption">Absorption</s:String>
 	<s:String x:Key="Hint.LensPart.Absorption">Wie stark das Bauteil Wellen absorbiert, 0 (gar nicht) bis 255, wie der Blaukanal des Szenenbilds. Sie steigt über die Absorptionsrampe vom Umriss an von null an, damit eine Welle in das Bauteil eindringt statt reflektiert zu werden. Ein Spiegel ignoriert sie.</s:String>
 	<s:String x:Key="Label.LensPart.AbsorptionRamp">Absorptionsrampe</s:String>
@@ -617,7 +618,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.ShapePart.RefractiveIndex">Brechungsindex</s:String>
 	<s:String x:Key="Hint.ShapePart.RefractiveIndex">Brechungsindex des Glases, 1,00 bis 2,55 in Schritten von 0,01.</s:String>
 	<s:String x:Key="Label.ShapePart.Coating">Entspiegelung</s:String>
-	<s:String x:Key="Hint.ShapePart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb des Umrisses mit dem Index √n; 0 für keines. Eine λ/4-Schicht ist λ / (4 √n) Pixel dick, λ die Wellenlänge aus dem Quellenformular.</s:String>
+	<s:String x:Key="Hint.ShapePart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb des Umrisses; 0 für keines. Eine λ/4-Schicht ist λ / (4 √n) Pixel dick, λ die Wellenlänge aus dem Quellenformular; ein graduelles Band ist ab einer Wellenlänge umso besser, je dicker es ist.</s:String>
+	<s:String x:Key="Label.CoatedPart.CoatingProfile">Profil der Entspiegelung</s:String>
+	<s:String x:Key="Hint.CoatedPart.CoatingProfile">Wie der Index durch das Band verläuft: eine Schicht mit √n, die λ/4-Idee, oder ein gradueller Anstieg vom Medium außen zum Glas. Ein graduelles Band reflektiert ab einer Wellenlänge Dicke weniger als eine Schicht, bei jeder Wellenlänge; eine Schicht nur bei der, für die sie bemessen ist.</s:String>
+	<s:String x:Key="Label.CoatedPart.FrontCoated">Vorderseite entspiegeln</s:String>
+	<s:String x:Key="Hint.CoatedPart.FrontCoated">Das Band auf die Vorderseite legen: die Flächen, die einer Quelle links zugewandt sind, die erste Fläche einer Linse. Abwählen lässt sie blank, wie die Innenflächen eines Resonators.</s:String>
+	<s:String x:Key="Label.CoatedPart.BackCoated">Rückseite entspiegeln</s:String>
+	<s:String x:Key="Hint.CoatedPart.BackCoated">Das Band auf die Rückseite legen: die Flächen, die von einer Quelle links abgewandt sind, die zweite Fläche einer Linse. Abwählen lässt sie blank.</s:String>
+	<s:String x:Key="Label.CoatedPart.SidesCoated">Seiten entspiegeln</s:String>
+	<s:String x:Key="Hint.CoatedPart.SidesCoated">Das Band auf die Seiten legen: die Flächen, die weder vorn noch hinten sind, der Rand einer Linse, die schmalen Enden einer Platte. Abwählen lässt sie blank.</s:String>
 	<s:String x:Key="Label.ShapePart.Absorption">Absorption</s:String>
 	<s:String x:Key="Hint.ShapePart.Absorption">Wie stark das Bauteil Wellen absorbiert, 0 (gar nicht) bis 255, wie der Blaukanal des Szenenbilds. Sie steigt über die Absorptionsrampe vom Umriss an von null an, damit eine Welle in das Bauteil eindringt statt reflektiert zu werden. Ein Spiegel ignoriert sie.</s:String>
 	<s:String x:Key="Label.ShapePart.AbsorptionRamp">Absorptionsrampe</s:String>
@@ -657,7 +666,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.FiberPart.CladdingThickness">Manteldicke</s:String>
 	<s:String x:Key="Hint.FiberPart.CladdingThickness">Dicke des Mantels um den Kern in Pixeln; 0 für einen blanken Kern.</s:String>
 	<s:String x:Key="Label.FiberPart.Coating">Entspiegelung</s:String>
-	<s:String x:Key="Hint.FiberPart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb der Außengrenze mit dem Index √n; 0 für keines.</s:String>
+	<s:String x:Key="Hint.FiberPart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb der Außengrenze und der Endflächen; 0 für keines. Eine λ/4-Schicht ist λ / (4 √n) Pixel dick, λ die Wellenlänge aus dem Quellenformular; ein graduelles Band ist ab einer Wellenlänge umso besser, je dicker es ist.</s:String>
+	<s:String x:Key="Label.FiberPart.Absorption">Absorption des Mantels</s:String>
+	<s:String x:Key="Hint.FiberPart.Absorption">Spitzenabsorption des absorbierenden Bands im Mantel, 0 (keine) bis 255, als Blaukanal des Szenenbilds: ein Buckel im äußeren Teil des Mantels, der über die Bandbreite von nichts ansteigt, seinen Gipfel erreicht und zur Außenkante wieder auf nichts abfällt, sodass der Ausläufer der geführten Welle unberührt bleibt und Streulicht von beiden Seiten geschluckt wird. Nichts bei einem nackten Kern.</s:String>
+	<s:String x:Key="Label.FiberPart.AbsorptionRamp">Absorptionsband</s:String>
+	<s:String x:Key="Hint.FiberPart.AbsorptionRamp">Die halbe Breite des absorbierenden Bands in Pixeln: die Absorption steigt über so viele Pixel zum Gipfel an und fällt über ebenso viele zur Außenkante ab. Ein Band breiter als der Mantel wird in ihn gestaucht.</s:String>
 	<s:String x:Key="Label.FiberPart.Ends">Enden</s:String>
 	<s:String x:Key="Hint.FiberPart.Ends">Wie die beiden Enden geschnitten sind: flach, gerade quer zum Pfad wie eine gebrochene Faser, oder mit dem Außenradius gerundet. Die AR-Beschichtung folgt einer flachen Endfläche.</s:String>
 	<s:String x:Key="Label.FiberPart.Nodes">Knoten</s:String>
@@ -697,7 +710,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.GrinLensPart.EdgeIndex">Index am Rand</s:String>
 	<s:String x:Key="Hint.GrinLensPart.EdgeIndex">Brechungsindex am Rand, 1,00 bis 2,55 in Schritten von 0,01. Das Profil zwischen Achse und Rand ist parabolisch.</s:String>
 	<s:String x:Key="Label.GrinLensPart.Coating">Entspiegelung</s:String>
-	<s:String x:Key="Hint.GrinLensPart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb des Umrisses mit dem Index √n; 0 für keines.</s:String>
+	<s:String x:Key="Hint.GrinLensPart.Coating">Dicke in Pixeln des entspiegelnden Bands direkt innerhalb des Umrisses; 0 für keines. Eine λ/4-Schicht ist λ / (4 √n) Pixel dick, λ die Wellenlänge aus dem Quellenformular; ein graduelles Band ist ab einer Wellenlänge umso besser, je dicker es ist.</s:String>
 	<s:String x:Key="Label.LogicGatePart.DesignFrequency">Entwurfsfrequenz</s:String>
 	<s:String x:Key="Hint.LogicGatePart.DesignFrequency">Die Quellfrequenz, für die das Gatter entworfen ist, auf derselben Skala wie die Frequenz einer Quelle: die Frequenz der speisenden Quellen. Die Wellenlänge und daraus Kernbreite, Koppler und Phasenabschnitt folgen daraus, das Gatter arbeitet also nur bei dieser Frequenz.</s:String>
 	<s:String x:Key="Label.LogicGatePart.Coating">Entspiegelung</s:String>
@@ -738,6 +751,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.LogicGatePart.PortSpacing">Abstand zwischen den beiden Eingängen und zwischen den beiden Ausgängen in Pixeln. Ein Wert unter dem, was der Entwurf braucht, um die Arme getrennt zu halten, wird darauf angehoben, und das Feld zeigt den verwendeten Abstand.</s:String>
 	<s:String x:Key="Enum.FiberEnds.Flat">Flach</s:String>
 	<s:String x:Key="Enum.FiberEnds.Round">Rund</s:String>
+	<s:String x:Key="Enum.CoatingProfile.Layer">Schicht</s:String>
+	<s:String x:Key="Enum.CoatingProfile.Graded">Graduell</s:String>
 	<s:String x:Key="Enum.TriangleType.Equilateral">Gleichseitig</s:String>
 	<s:String x:Key="Enum.TriangleType.RightIsosceles">Rechtwinklig-gleichschenklig (45°)</s:String>
 	<s:String x:Key="Enum.TriangleType.ThirtySixtyNinety">30-60-90</s:String>

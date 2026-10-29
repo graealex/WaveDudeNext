@@ -51,9 +51,17 @@ checked.
   pixels. A part whose index is not painted (`PaintsIndex` false, the zone plate) writes blue alone.
 - **The angle** is in degrees, counter-clockwise on the screen, 0 pointing the part's axis x' along +x (the composite
   source's convention); y' is across. Shapes face a source on the left (-x').
-- **The AR coating** is a band of `Coating` pixels just inside the outline with the index √n (rounded to 0.01), the
-  quarter-wave idea without a tie to a wavelength; a quarter-wave band is λ / (4 √n) pixels thick, λ the wavelength the
-  source form shows. Mirrors and Bragg reflectors ignore it.
+- **The AR coating** (`CoatedPart`: lens, shapes, GRIN lens) is a band of `Coating` pixels just inside the outline: with
+  `CoatingProfile` `Layer` at the index √n (rounded to 0.01), the quarter-wave idea without a tie to a wavelength, a
+  quarter-wave band being λ / (4 √n) pixels thick, λ the wavelength the source form shows; with `Graded` (2026-10-29, the
+  user's request, after Jeroen's drawn scenes, whose glass faces ramp) the index rises from the medium outside, the index
+  the pixel had before the part, to the body as a raised cosine of the depth over the thickness
+  (`PartShape.GradedProfile`, measured under Coatings). `FrontCoated`, `BackCoated` and `SidesCoated` choose the faces,
+  classed by their outward normal in the part frame: within 45° of −x' the front, of +x' the back, else a side (a lens's
+  first surface, second surface and rim; a rectangle's four faces when its length runs along the beam); inside the band
+  the nearest face decides, so a cavity's inner faces can stay bare. The fibre is a `CoatedPart` too (its start face the
+  front, its end face the back, the tube the sides). Mirrors and Bragg reflectors ignore it; the gates' bands are their
+  own measured design, a layer on the ends they coat.
 
 ## Absorption
 
@@ -70,14 +78,36 @@ absorption 255 every profile reflects a lot; over a 40 px ramp: linear 9 / 25 %,
 passes through 160 px. Quadratic was chosen (`PartShape.AbsorptionProfile`); 64 is the strength of the gates' absorbing
 cladding rim (`LogicGateDesign.Absorption`).
 
+## Coatings
+
+The graded band was measured the same way (2026-10-29): a plane pulse of six cycles, a column of emitters, on a deep
+slab whose face carries the band, the reflected pulse's peak amplitude in a box before the face against a mirror face's,
+for indices 2.55 and 1.50 at wavelengths of 10, 20 and 32 px with the 4th-order stencil. Amplitude as a share of the
+mirror's (the reflectance is its square); the band profiles in the order linear, smooth step, quintic, raised cosine:
+
+| face, n = 2.55 | λ 10 px | λ 20 px | λ 32 px |
+|---|---|---|---|
+| bare (theory 43.7 %) | 54 % | 46 % | 45 % |
+| quarter-wave layer at √n, rounded to whole pixels (2, 3, 5) | 25 % | 8.8 % | 7.4 % |
+| graded, ½ λ thick | 10.4 / 12.5 / 13.9 / 12.2 % | 11.2 / 11.8 / 13.5 / 11.6 % | 10.9 / 11.2 / 12.8 / 11.3 % |
+| graded, 1 λ | 5.6 / 4.3 / 4.0 / 4.1 % | 6.1 / 4.1 / 4.4 / 4.1 % | 6.1 / 4.1 / 4.1 / 3.6 % |
+| graded, 2 λ | 2.8 / 1.5 / 0.6 / 1.0 % | 3.2 / 0.9 / 0.8 / 1.0 % | 3.2 / 1.1 / 0.5 / 0.7 % |
+
+For n = 1.50 (bare 20 to 22 %) the layer reflects 3.6 to 4.1 %, a ½ λ band 3.4 to 7.3 %, a 1 λ band 0.9 to 2.2 % and a
+2 λ band 0.3 to 1.2 %, the profiles ordered as above. The raised cosine, (1 − cos πt) / 2, was chosen
+(`PartShape.GradedProfile`): best or tied at one wavelength and within a few tenths of a percent of the quintic at two,
+where the linear ramp reflects three to four times as much; the linear ramp wins only at half a wavelength, by a percent.
+A layer beats every band only when the band is thinner than half a wavelength, and at λ = 10 px the rounding of its
+thickness to 2 px (1.6 is the quarter wave) costs it most. Jeroen's drawn scenes ramp linearly over 20 to 22 px.
+
 ## The kinds
 
 Every part has `Name`, `Enabled` (a disabled part is not painted), `X`, `Y` (its centre, ≥ 0) and `Angle` (−180, 180].
 Defaults and ranges are in the attributes beside each property; the figures below are the defaults.
 
 **Lens** (`LensPart`, `<Lens>`): `Diameter` 200 across the axis, `Thickness` 40 on the axis, signed radii `R1` 300 (the
-left surface) and `R2` −300 (R1 > 0 and R2 < 0 bulge outward, 0 is flat), `RefractiveIndex` 1.50, `Coating`,
-`Absorption`, `AbsorptionRamp` 40, `Mirror`. The strip |y'| ≤ D/2 between the surfaces x'₁ = −t/2 + s₁(y') and
+left surface) and `R2` −300 (R1 > 0 and R2 < 0 bulge outward, 0 is flat), `RefractiveIndex` 1.50, the coating of
+`CoatedPart`, `Absorption`, `AbsorptionRamp` 40, `Mirror`. The strip |y'| ≤ D/2 between the surfaces x'₁ = −t/2 + s₁(y') and
 x'₂ = t/2 + s₂(y'), the sag s(y') = R − sign(R)·√(R² − y'²). The diameter and the centre thickness are the bulk: a radius
 too curved for them is raised to the smallest that fits (`FitRadii`), so the lens fills its diameter and the edge is
 never negative (a diameter of 2000 with radii of 300 had given a tiny lens). The form shows the edge thickness, and a
@@ -97,8 +127,8 @@ handle sets is rounded to a hundredth of a pixel (`RadiusOfSag`; 2026-10-28, Jer
 box and the file), R1 towards +∞ and R2 towards −∞, so a convex surface gets a hair flatter and a concave one a hair
 deeper, never the other way, and the rounding never brings on the refit of a lens whose surfaces meet at the rim.
 
-**Shapes** (`ShapePart`: `Mirror`, `RefractiveIndex` 1.50, `Coating`, `Absorption`, `AbsorptionRamp` 40, over an
-outline each kind generates). One class per shape, not a shape mode inside one class (the user's point, 2026-10-18: a
+**Shapes** (`ShapePart`, a `CoatedPart`: `Mirror`, `RefractiveIndex` 1.50, the coating, `Absorption`, `AbsorptionRamp`
+40, over an outline each kind generates). One class per shape, not a shape mode inside one class (the user's point, 2026-10-18: a
 side length alone made every rectangle a square):
 - `PolygonPart` (`<Polygon>`): regular, `Sides` 6 (3..64) of `Side` 60 px, a face centred on -x'; for an odd count the
   first vertex lies on +x'.
@@ -112,7 +142,12 @@ side length alone made every rectangle a square):
 - `OutlinePart` (`<Outline>`): free `Points` relative to the centre before rotation; fewer than three paint nothing.
 
 **Fibre** (`FiberPart`, `<Fiber>`): `CoreIndex` 1.50, `CoreDiameter` 20, `CladdingIndex` 1.45, `CladdingThickness` 10
-(0 for a bare core), `Coating`, `Ends` Flat or Round. The path (2026-10-22, the user's request, replacing a polyline whose
+(0 for a bare core), the coating of `CoatedPart` (2026-10-29: the start face is the front, the end face the back, the
+tube the sides; a graded band on the back alone is the author's output taper), `Absorption` and `AbsorptionRamp`
+(2026-10-29, the user's request, after the author's fibre scene, whose fibres run between absorbing strips: the
+cladding's absorbing band, a hump in its outer part 2 × ramp wide that rises and falls by the quadratic profile, so the
+guided mode's tail in the inner cladding is untouched and stray light is eaten from either side without a damping step;
+nothing on a bare core; a mode stripper), `Ends` Flat or Round. The path (2026-10-22, the user's request, replacing a polyline whose
 joints were sharp bends) is cubic Bézier segments through `Nodes` (`<Node X Y InX InY OutX OutY Smooth>`, the handles
 offsets from the node, sparse); a new fibre gets two nodes at (−100, 0) and (100, 0) with handles a third of the way
 along. A smooth node (the default) lines its handles up when switched on (`AlignNode`; a node without handles is seeded
@@ -127,7 +162,8 @@ fibre across a Full HD canvas: 51 ms against 1.3 s without the grid), and supers
 typed; a quarter-wave layer is λ / (4 n).
 
 **GRIN lens** (`GrinLensPart`, `<GrinLens>`): a rectangle of `Length` 100 and `Diameter` 100 whose index falls from
-`CentreIndex` 1.80 to `EdgeIndex` 1.50 as n(y') = n_c − (n_c − n_e)·(2y'/D)²; `Coating`.
+`CentreIndex` 1.80 to `EdgeIndex` 1.50 as n(y') = n_c − (n_c − n_e)·(2y'/D)²; the coating of `CoatedPart`, its end
+faces the front and back, its long sides the sides.
 
 **Logic gates** (`LogicGatePart`: `XorGatePart`, `AndGatePart`, `OrGatePart`; `<XorGate>`, `<AndGate>`, `<OrGate>`;
 under "+ Part" > Optical logic). One 2 × 2 directional coupler, the combining half of a Mach-Zehnder (the user's

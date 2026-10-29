@@ -28,7 +28,8 @@ namespace WaveDudeNext.Parts;
 /// (damping, see <see cref="PaintAbsorption"/>). Green (image sources) is never touched. Parts are painted in list
 /// order, a later one's index over an earlier one's. Refractive parts are supersampled
 /// 4 × 4 per pixel and the sample indices averaged, a sample outside the part counting the pixel's existing index
-/// (red 0 as 1); a mirror part tests the pixel centre alone and writes red 0, since an averaged mirror edge would
+/// (red 0 as 1), which is also the medium a graded coating band rises from (<see cref="CoatedPart"/>); a mirror part
+/// tests the pixel centre alone and writes red 0, since an averaged mirror edge would
 /// clamp to glass. Only pixels near an edge (the outline, the coating band's inner edge, a Bragg layer) are
 /// supersampled: the shape's depth at the pixel centre is an exact distance, so a pixel farther than a sample's
 /// reach from every edge takes its centre's index in one go (2026-10-19, a drag of a part was sluggish).
@@ -149,25 +150,26 @@ public static class PartPainter
 				{
 					continue;   // every sample outside
 				}
+				int red = bgra[offset];
+				// red 0 is a mirror the engine reads as index 1000; averaging it in as glass of index 1 is the user's rule,
+				// and a graded band rises from the index the pixel had
+				double existing = red == 0 ? 1.0 : red / 100.0;
 				if (!innerEdges && depth > SampleReach && (coating == 0 || Math.Abs(depth - coating) > SampleReach))
 				{
 					// every sample inside, all in the body or all in the coating band: the centre's index stands for the pixel
-					if (shape.IndexAt(x + 0.5, y + 0.5) is { } whole)
+					if (shape.IndexAt(x + 0.5, y + 0.5, existing) is { } whole)
 					{
 						bgra[offset] = (byte)Math.Clamp((int)Math.Round(whole * 100.0), 1, 255);
 					}
 					continue;
 				}
-				int red = bgra[offset];
-				// red 0 is a mirror the engine reads as index 1000; averaging it in as glass of index 1 is the user's rule
-				double existing = red == 0 ? 1.0 : red / 100.0;
 				double sum = 0.0;
 				int inside = 0;
 				for (int sy = 0; sy < Supersample; sy++)
 				{
 					for (int sx = 0; sx < Supersample; sx++)
 					{
-						double? index = shape.IndexAt(x + half + sx * step, y + half + sy * step);
+						double? index = shape.IndexAt(x + half + sx * step, y + half + sy * step, existing);
 						if (index is { } n)
 						{
 							sum += n;

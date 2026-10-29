@@ -243,6 +243,113 @@ public sealed class PartPoint : ObservableObject
 }
 
 /// <summary>
+/// How the index runs through an anti-reflection band (2026-10-29, the user's request: the author's drawn scenes give
+/// a glass face a graded ramp, and the parts had only the layer).
+/// </summary>
+public enum CoatingProfile
+{
+	/// <summary>A band at the index √n throughout: a quarter-wave layer when it is λ / (4 √n) thick, the least reflecting then.</summary>
+	Layer,
+	/// <summary>
+	/// The index rises over the band from the medium outside to the glass as a raised cosine, (1 − cos πt) / 2 of the
+	/// depth over the thickness (<see cref="Parts.PartShape.GradedProfile"/>): broadband, and the thicker the better; the
+	/// figures are under "Coatings" in OpticalParts.md.
+	/// </summary>
+	Graded,
+}
+
+/// <summary>
+/// A refractive part with an anti-reflection band along its outline (a lens, a shape, a GRIN lens; 2026-10-29, the
+/// user's request): the band's <see cref="Coating"/> thickness, its <see cref="CoatingProfile"/>, and which faces carry
+/// it. A face is classed by its outward normal in the part frame: within 45° of −x', the side a source on the left
+/// meets, it is the front, within 45° of +x' the back, otherwise a side; so a lens's first surface, second surface and
+/// rim, and a rectangle's four faces when its length runs along the beam. Every face is coated by default.
+/// </summary>
+public abstract class CoatedPart : OpticalPart
+{
+	/// <summary>Default <see cref="CoatingProfile"/>.</summary>
+	public const CoatingProfile DefaultCoatingProfile = CoatingProfile.Layer;
+
+	private int _coating;
+	private CoatingProfile _coatingProfile = DefaultCoatingProfile;
+	private bool _frontCoated = true;
+	private bool _backCoated = true;
+	private bool _sidesCoated = true;
+
+	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) thick.</summary>
+	[XmlAttribute]
+	[DefaultValue(0)]
+	[Range(0, MaxCoating)]
+	[Category("Material")]
+	[DisplayName("AR coating")]
+	[Description("Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.")]
+	public int Coating
+	{
+		get => _coating;
+		set => SetProperty(ref _coating, value);
+	}
+
+	/// <summary>How the index runs through the band: a layer at √n, or a graded rise from the medium outside to the glass.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultCoatingProfile)]
+	[Category("Material")]
+	[DisplayName("Coating profile")]
+	[Description("How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.")]
+	public CoatingProfile CoatingProfile
+	{
+		get => _coatingProfile;
+		set => SetProperty(ref _coatingProfile, value);
+	}
+
+	/// <summary>Whether the front faces carry the band: those whose outward normal lies within 45° of −x', the side a source on the left meets.</summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Material")]
+	[DisplayName("Coat the front")]
+	[Description("Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.")]
+	public bool FrontCoated
+	{
+		get => _frontCoated;
+		set => SetProperty(ref _frontCoated, value);
+	}
+
+	/// <summary>Whether the back faces carry the band: those whose outward normal lies within 45° of +x'.</summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Material")]
+	[DisplayName("Coat the back")]
+	[Description("Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.")]
+	public bool BackCoated
+	{
+		get => _backCoated;
+		set => SetProperty(ref _backCoated, value);
+	}
+
+	/// <summary>Whether the other faces carry the band: a lens's rim, a slab's narrow ends.</summary>
+	[XmlAttribute]
+	[DefaultValue(true)]
+	[Category("Material")]
+	[DisplayName("Coat the sides")]
+	[Description("Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.")]
+	public bool SidesCoated
+	{
+		get => _sidesCoated;
+		set => SetProperty(ref _sidesCoated, value);
+	}
+
+	/// <inheritdoc/>
+	public override void Normalize()
+	{
+		base.Normalize();
+		Coating = Math.Clamp(Coating, 0, MaxCoating);
+		if (!Enum.IsDefined(CoatingProfile))
+		{
+			CoatingProfile = DefaultCoatingProfile;
+		}
+	}
+}
+
+/// <summary>
 /// A lens, or a curved or flat mirror when <see cref="Mirror"/> is set: the strip of <see cref="Diameter"/> across
 /// the axis between two spherical surfaces of radii <see cref="R1"/> (left, facing -x') and <see cref="R2"/>
 /// (right), <see cref="Thickness"/> apart on the axis. A radius is signed: R1 &gt; 0 and R2 &lt; 0 bulge outward
@@ -251,7 +358,7 @@ public sealed class PartPoint : ObservableObject
 /// diameter and the edge thickness is never negative (the user's point, 2026-10-18: a diameter of 2000 with the
 /// default radii gave a tiny lens, since the surfaces crossed long before the rim).
 /// </summary>
-public sealed class LensPart : OpticalPart
+public sealed class LensPart : CoatedPart
 {
 	/// <summary>Default <see cref="RefractiveIndex"/>.</summary>
 	public const double DefaultIndex = 1.5;
@@ -266,7 +373,6 @@ public sealed class LensPart : OpticalPart
 
 	private bool _mirror;
 	private double _refractiveIndex = DefaultIndex;
-	private int _coating;
 	private int _absorption;
 	private int _absorptionRamp = DefaultAbsorptionRamp;
 	private int _diameter = DefaultDiameter;
@@ -311,19 +417,6 @@ public sealed class LensPart : OpticalPart
 	{
 		get => _refractiveIndex;
 		set => SetProperty(ref _refractiveIndex, value);
-	}
-
-	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) thick.</summary>
-	[XmlAttribute]
-	[DefaultValue(0)]
-	[Range(0, MaxCoating)]
-	[Category("Material")]
-	[DisplayName("AR coating")]
-	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.")]
-	public int Coating
-	{
-		get => _coating;
-		set => SetProperty(ref _coating, value);
 	}
 
 	/// <summary>
@@ -658,7 +751,6 @@ public sealed class LensPart : OpticalPart
 	{
 		base.Normalize();
 		RefractiveIndex = NormalizeIndex(RefractiveIndex);
-		Coating = Math.Clamp(Coating, 0, MaxCoating);
 		Absorption = Math.Clamp(Absorption, 0, MaxAbsorption);
 		AbsorptionRamp = Math.Clamp(AbsorptionRamp, 1, MaxAbsorptionRamp);
 		Diameter = Math.Max(2, Diameter);
@@ -674,19 +766,18 @@ public sealed class LensPart : OpticalPart
 
 /// <summary>
 /// A part that is a plain shape of glass or mirror: the shared material (<see cref="Mirror"/>, <see cref="RefractiveIndex"/>,
-/// <see cref="Coating"/>, <see cref="Absorption"/> over <see cref="AbsorptionRamp"/>) over an outline each subclass
+/// the coating of <see cref="CoatedPart"/>, <see cref="Absorption"/> over <see cref="AbsorptionRamp"/>) over an outline each subclass
 /// generates (<see cref="Vertices"/>): a regular <see cref="PolygonPart"/>, a <see cref="RectanglePart"/>, an
 /// <see cref="EllipsePart"/>, a <see cref="TrianglePart"/>, a free <see cref="OutlinePart"/> (one class each, chosen when
 /// the part is added: the user's point, 2026-10-18, against a shape mode inside one class).
 /// </summary>
-public abstract class ShapePart : OpticalPart
+public abstract class ShapePart : CoatedPart
 {
 	/// <summary>Default <see cref="RefractiveIndex"/>.</summary>
 	public const double DefaultIndex = 1.5;
 
 	private bool _mirror;
 	private double _refractiveIndex = DefaultIndex;
-	private int _coating;
 	private int _absorption;
 	private int _absorptionRamp = DefaultAbsorptionRamp;
 
@@ -712,19 +803,6 @@ public abstract class ShapePart : OpticalPart
 	{
 		get => _refractiveIndex;
 		set => SetProperty(ref _refractiveIndex, value);
-	}
-
-	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none.</summary>
-	[XmlAttribute]
-	[DefaultValue(0)]
-	[Range(0, MaxCoating)]
-	[Category("Material")]
-	[DisplayName("AR coating")]
-	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none. A quarter-wave coating is λ / (4 √n) pixels thick, λ being the wavelength the source form shows.")]
-	public int Coating
-	{
-		get => _coating;
-		set => SetProperty(ref _coating, value);
 	}
 
 	/// <summary>
@@ -769,7 +847,6 @@ public abstract class ShapePart : OpticalPart
 	{
 		base.Normalize();
 		RefractiveIndex = NormalizeIndex(RefractiveIndex);
-		Coating = Math.Clamp(Coating, 0, MaxCoating);
 		Absorption = Math.Clamp(Absorption, 0, MaxAbsorption);
 		AbsorptionRamp = Math.Clamp(AbsorptionRamp, 1, MaxAbsorptionRamp);
 	}
@@ -1438,7 +1515,7 @@ public sealed class FiberNode : ObservableObject
 /// wrapped in a cladding of <see cref="CladdingThickness"/>; the ends cut <see cref="Ends"/>. The path is flattened
 /// into chords (<see cref="Flatten"/>) for painting and drawing. The angle rotates the whole path about the centre.
 /// </summary>
-public sealed class FiberPart : OpticalPart
+public sealed class FiberPart : CoatedPart
 {
 	/// <summary>Default <see cref="CoreIndex"/>.</summary>
 	public const double DefaultCoreIndex = 1.5;
@@ -1450,6 +1527,8 @@ public sealed class FiberPart : OpticalPart
 	public const int DefaultCladdingThickness = 10;
 	/// <summary>Default <see cref="Ends"/>.</summary>
 	public const FiberEnds DefaultEnds = FiberEnds.Flat;
+	/// <summary>Default <see cref="AbsorptionRamp"/>, half the absorbing band's width in pixels.</summary>
+	public const int DefaultAbsorptionBand = 10;
 	/// <summary>Half the default path length in pixels: the path runs from (-100, 0) to (100, 0).</summary>
 	public const int DefaultHalfLength = 100;
 	/// <summary>How far a flattened chord may leave the curve, in canvas pixels: far below the painter's quarter-pixel samples.</summary>
@@ -1459,7 +1538,8 @@ public sealed class FiberPart : OpticalPart
 	private int _coreDiameter = DefaultCoreDiameter;
 	private double _claddingIndex = DefaultCladdingIndex;
 	private int _claddingThickness = DefaultCladdingThickness;
-	private int _coating;
+	private int _absorption;
+	private int _absorptionRamp = DefaultAbsorptionBand;
 	private FiberEnds _ends = DefaultEnds;
 	private ObservableCollection<FiberNode> _nodes = [];
 	private HashSet<FiberNode> _watched = [];
@@ -1528,17 +1608,36 @@ public sealed class FiberPart : OpticalPart
 		set => SetProperty(ref _claddingThickness, value);
 	}
 
-	/// <summary>Thickness in pixels of the anti-reflection band just inside the outer boundary, with the index √n of the cladding (or the core when bare); 0 for none.</summary>
+	/// <summary>
+	/// Peak absorption of the cladding's absorbing band, 0 (none) to 255, painted into the blue channel (2026-10-29, the
+	/// user's request, after the author's fibre scene, whose fibres run between absorbing strips): a hump in the outer
+	/// part of the cladding, rising over <see cref="AbsorptionRamp"/> pixels from nothing, peaking, and falling back to
+	/// nothing at the outer edge, so the guided mode's tail in the inner cladding is untouched and stray light is
+	/// absorbed from either side without a damping step; a mode stripper. Nothing on a bare core.
+	/// </summary>
 	[XmlAttribute]
 	[DefaultValue(0)]
-	[Range(0, MaxCoating)]
+	[Range(0, MaxAbsorption)]
 	[Category("Cladding")]
-	[DisplayName("AR coating")]
-	[Description("Thickness in pixels of the anti-reflection band just inside the outer boundary, with the index √n; 0 for none.")]
-	public int Coating
+	[DisplayName("Cladding absorption")]
+	[Description("Peak absorption of the cladding's absorbing band, 0 (not at all) to 255, as the scene image's blue channel: a hump in the outer part of the cladding, rising over the band width from nothing, peaking, and falling to nothing at the outer edge, so the guided wave's tail stays untouched and stray light is absorbed from either side. Nothing on a bare core.")]
+	public int Absorption
 	{
-		get => _coating;
-		set => SetProperty(ref _coating, value);
+		get => _absorption;
+		set => SetProperty(ref _absorption, value);
+	}
+
+	/// <summary>Half the absorbing band's width in pixels: the absorption rises over this many pixels and falls over as many; a band wider than the cladding is squeezed into it.</summary>
+	[XmlAttribute]
+	[DefaultValue(DefaultAbsorptionBand)]
+	[Range(1, MaxAbsorptionRamp)]
+	[Category("Cladding")]
+	[DisplayName("Absorption band")]
+	[Description("Half the absorbing band's width in pixels: the absorption rises over this many pixels to its peak and falls over as many to the outer edge. A band wider than the cladding is squeezed into it.")]
+	public int AbsorptionRamp
+	{
+		get => _absorptionRamp;
+		set => SetProperty(ref _absorptionRamp, value);
 	}
 
 	/// <summary>How the two ends are cut: straight across the path, or rounded.</summary>
@@ -1833,7 +1932,8 @@ public sealed class FiberPart : OpticalPart
 		CladdingIndex = NormalizeIndex(CladdingIndex);
 		CoreDiameter = Math.Max(2, CoreDiameter);
 		CladdingThickness = Math.Max(0, CladdingThickness);
-		Coating = Math.Clamp(Coating, 0, MaxCoating);
+		Absorption = Math.Clamp(Absorption, 0, MaxAbsorption);
+		AbsorptionRamp = Math.Clamp(AbsorptionRamp, 1, MaxAbsorptionRamp);
 		if (!Enum.IsDefined(Ends))
 		{
 			Ends = DefaultEnds;
@@ -1998,7 +2098,7 @@ public sealed class BraggReflectorPart : OpticalPart
 /// index falls from <see cref="CentreIndex"/> on the axis to <see cref="EdgeIndex"/> at the edge as
 /// n(y') = n_c − (n_c − n_e)·(2y'/D)².
 /// </summary>
-public sealed class GrinLensPart : OpticalPart
+public sealed class GrinLensPart : CoatedPart
 {
 	/// <summary>Default <see cref="Length"/> in pixels.</summary>
 	public const int DefaultLength = 100;
@@ -2013,7 +2113,6 @@ public sealed class GrinLensPart : OpticalPart
 	private int _diameter = DefaultDiameter;
 	private double _centreIndex = DefaultCentreIndex;
 	private double _edgeIndex = DefaultEdgeIndex;
-	private int _coating;
 
 	/// <inheritdoc/>
 	public override string NameStem => "GRIN lens";
@@ -2068,19 +2167,6 @@ public sealed class GrinLensPart : OpticalPart
 		set => SetProperty(ref _edgeIndex, value);
 	}
 
-	/// <summary>Thickness in pixels of the anti-reflection band just inside the outline, with the index √n of the local index; 0 for none.</summary>
-	[XmlAttribute]
-	[DefaultValue(0)]
-	[Range(0, MaxCoating)]
-	[Category("Material")]
-	[DisplayName("AR coating")]
-	[Description("Thickness in pixels of the anti-reflection band just inside the outline, with the index √n; 0 for none.")]
-	public int Coating
-	{
-		get => _coating;
-		set => SetProperty(ref _coating, value);
-	}
-
 	/// <inheritdoc/>
 	public override double AxisReach => Length / 2.0;
 
@@ -2100,7 +2186,6 @@ public sealed class GrinLensPart : OpticalPart
 		Diameter = Math.Max(2, Diameter);
 		CentreIndex = NormalizeIndex(CentreIndex);
 		EdgeIndex = NormalizeIndex(EdgeIndex);
-		Coating = Math.Clamp(Coating, 0, MaxCoating);
 	}
 
 	/// <inheritdoc/>

@@ -29,6 +29,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuFileNew">_Nieuw project</s:String>
 	<s:String x:Key="MenuFileOpen">Project _openen...</s:String>
 	<s:String x:Key="MenuFileRecent">_Recente projecten</s:String>
+	<s:String x:Key="MenuFileExamples">_Voorbeelden</s:String>
 	<s:String x:Key="MenuFileSave">Op_slaan</s:String>
 	<s:String x:Key="MenuFileSaveAs">Opslaan _als...</s:String>
 	<s:String x:Key="MenuFileClose">Project s_luiten</s:String>
@@ -597,7 +598,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.LensPart.RefractiveIndex">Brekingsindex</s:String>
 	<s:String x:Key="Hint.LensPart.RefractiveIndex">Brekingsindex van het glas, 1,00 tot 2,55 in stappen van 0,01.</s:String>
 	<s:String x:Key="Label.LensPart.Coating">AR-coating</s:String>
-	<s:String x:Key="Hint.LensPart.Coating">Dikte in pixels van de antireflectieband net binnen de omtrek, met index √n; 0 voor geen. Een kwartgolfcoating is λ / (4 √n) pixels dik, λ de golflengte die het bronformulier toont.</s:String>
+	<s:String x:Key="Hint.LensPart.Coating">Dikte in pixels van de antireflectieband net binnen de omtrek; 0 voor geen. Een kwartgolflaag is λ / (4 √n) pixels dik, λ de golflengte die het bronformulier toont; een geleidelijke band is vanaf een golflengte beter naarmate hij dikker is.</s:String>
 	<s:String x:Key="Label.LensPart.Absorption">Absorptie</s:String>
 	<s:String x:Key="Hint.LensPart.Absorption">Hoe sterk het onderdeel golven absorbeert, 0 (helemaal niet) tot 255, zoals het blauwe kanaal van de scèneafbeelding. Ze stijgt vanaf nul bij de omtrek over de absorptiehelling, zodat een golf het onderdeel binnengaat in plaats van te worden teruggekaatst. Een spiegel negeert haar.</s:String>
 	<s:String x:Key="Label.LensPart.AbsorptionRamp">Absorptiehelling</s:String>
@@ -617,7 +618,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.ShapePart.RefractiveIndex">Brekingsindex</s:String>
 	<s:String x:Key="Hint.ShapePart.RefractiveIndex">Brekingsindex van het glas, 1,00 tot 2,55 in stappen van 0,01.</s:String>
 	<s:String x:Key="Label.ShapePart.Coating">AR-coating</s:String>
-	<s:String x:Key="Hint.ShapePart.Coating">Dikte in pixels van de antireflectieband net binnen de omtrek, met index √n; 0 voor geen. Een kwartgolfcoating is λ / (4 √n) pixels dik, λ de golflengte die het bronformulier toont.</s:String>
+	<s:String x:Key="Hint.ShapePart.Coating">Dikte in pixels van de antireflectieband net binnen de omtrek; 0 voor geen. Een kwartgolflaag is λ / (4 √n) pixels dik, λ de golflengte die het bronformulier toont; een geleidelijke band is vanaf een golflengte beter naarmate hij dikker is.</s:String>
+	<s:String x:Key="Label.CoatedPart.CoatingProfile">Coatingprofiel</s:String>
+	<s:String x:Key="Hint.CoatedPart.CoatingProfile">Hoe de index door de band loopt: een laag met √n, het kwartgolfidee, of een geleidelijke stijging van het medium buiten naar het glas. Een geleidelijke band reflecteert minder dan een laag zodra hij een golflengte of dikker is, bij elke golflengte; een laag alleen bij de golflengte waarvoor hij is gesneden.</s:String>
+	<s:String x:Key="Label.CoatedPart.FrontCoated">Voorkant coaten</s:String>
+	<s:String x:Key="Hint.CoatedPart.FrontCoated">De band op de voorkant leggen: de vlakken die naar een bron links zijn gekeerd, het eerste oppervlak van een lens. Uitschakelen laat ze kaal, zoals de binnenvlakken van een trilholte.</s:String>
+	<s:String x:Key="Label.CoatedPart.BackCoated">Achterkant coaten</s:String>
+	<s:String x:Key="Hint.CoatedPart.BackCoated">De band op de achterkant leggen: de vlakken die van een bron links zijn afgekeerd, het tweede oppervlak van een lens. Uitschakelen laat ze kaal.</s:String>
+	<s:String x:Key="Label.CoatedPart.SidesCoated">Zijkanten coaten</s:String>
+	<s:String x:Key="Hint.CoatedPart.SidesCoated">De band op de zijkanten leggen: de vlakken die voor- noch achterkant zijn, de rand van een lens, de smalle uiteinden van een plaat. Uitschakelen laat ze kaal.</s:String>
 	<s:String x:Key="Label.ShapePart.Absorption">Absorptie</s:String>
 	<s:String x:Key="Hint.ShapePart.Absorption">Hoe sterk het onderdeel golven absorbeert, 0 (helemaal niet) tot 255, zoals het blauwe kanaal van de scèneafbeelding. Ze stijgt vanaf nul bij de omtrek over de absorptiehelling, zodat een golf het onderdeel binnengaat in plaats van te worden teruggekaatst. Een spiegel negeert haar.</s:String>
 	<s:String x:Key="Label.ShapePart.AbsorptionRamp">Absorptiehelling</s:String>
@@ -657,7 +666,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.FiberPart.CladdingThickness">Manteldikte</s:String>
 	<s:String x:Key="Hint.FiberPart.CladdingThickness">Dikte van de mantel om de kern in pixels; 0 voor een kale kern.</s:String>
 	<s:String x:Key="Label.FiberPart.Coating">AR-coating</s:String>
-	<s:String x:Key="Hint.FiberPart.Coating">Dikte in pixels van de antireflectieband net binnen de buitenrand, met index √n; 0 voor geen.</s:String>
+	<s:String x:Key="Hint.FiberPart.Coating">Dikte in pixels van de antireflectieband net binnen de buitengrens en de eindvlakken; 0 voor geen. Een kwartgolflaag is λ / (4 √n) pixels dik, λ de golflengte die het bronformulier toont; een geleidelijke band is vanaf een golflengte beter naarmate hij dikker is.</s:String>
+	<s:String x:Key="Label.FiberPart.Absorption">Absorptie van de mantel</s:String>
+	<s:String x:Key="Hint.FiberPart.Absorption">Piekabsorptie van de absorberende band in de mantel, 0 (geen) tot 255, als het blauwe kanaal van de scèneafbeelding: een bult in het buitenste deel van de mantel, die over de bandbreedte vanaf niets stijgt, piekt en naar de buitenrand weer tot niets daalt, zodat de staart van de geleide golf onaangeroerd blijft en strooilicht van beide kanten wordt opgenomen. Niets bij een kale kern.</s:String>
+	<s:String x:Key="Label.FiberPart.AbsorptionRamp">Absorptieband</s:String>
+	<s:String x:Key="Hint.FiberPart.AbsorptionRamp">De halve breedte van de absorberende band in pixels: de absorptie stijgt over zoveel pixels naar haar piek en daalt over evenveel naar de buitenrand. Een band breder dan de mantel wordt erin samengedrukt.</s:String>
 	<s:String x:Key="Label.FiberPart.Ends">Uiteinden</s:String>
 	<s:String x:Key="Hint.FiberPart.Ends">Hoe de twee uiteinden zijn afgesneden: vlak, recht dwars op het pad zoals een gekliefde vezel, of afgerond met de buitenstraal. De AR-coating volgt een vlak eindvlak.</s:String>
 	<s:String x:Key="Label.FiberPart.Nodes">Knooppunten</s:String>
@@ -697,7 +710,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.GrinLensPart.EdgeIndex">Index aan de rand</s:String>
 	<s:String x:Key="Hint.GrinLensPart.EdgeIndex">Brekingsindex aan de rand, 1,00 tot 2,55 in stappen van 0,01. Het profiel tussen de as en de rand is parabolisch.</s:String>
 	<s:String x:Key="Label.GrinLensPart.Coating">AR-coating</s:String>
-	<s:String x:Key="Hint.GrinLensPart.Coating">Dikte in pixels van de antireflectieband net binnen de omtrek, met index √n; 0 voor geen.</s:String>
+	<s:String x:Key="Hint.GrinLensPart.Coating">Dikte in pixels van de antireflectieband net binnen de omtrek; 0 voor geen. Een kwartgolflaag is λ / (4 √n) pixels dik, λ de golflengte die het bronformulier toont; een geleidelijke band is vanaf een golflengte beter naarmate hij dikker is.</s:String>
 	<s:String x:Key="Label.LogicGatePart.DesignFrequency">Ontwerpfrequentie</s:String>
 	<s:String x:Key="Hint.LogicGatePart.DesignFrequency">De bronfrequentie waarvoor de poort is ontworpen, op dezelfde schaal als de frequentie van een bron: de frequentie van de bronnen die hem voeden. De golflengte, en daaruit de kernbreedte, de koppelaar en de fasesectie, volgen eruit, dus de poort werkt alleen bij deze frequentie.</s:String>
 	<s:String x:Key="Label.LogicGatePart.Coating">AR-coating</s:String>
@@ -738,6 +751,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.LogicGatePart.PortSpacing">Afstand tussen de twee ingangen, en tussen de twee uitgangen, in pixels. Een waarde onder wat het ontwerp nodig heeft om de armen gescheiden te houden, wordt daartoe verhoogd, en het vak toont de gebruikte afstand.</s:String>
 	<s:String x:Key="Enum.FiberEnds.Flat">Vlak</s:String>
 	<s:String x:Key="Enum.FiberEnds.Round">Rond</s:String>
+	<s:String x:Key="Enum.CoatingProfile.Layer">Laag</s:String>
+	<s:String x:Key="Enum.CoatingProfile.Graded">Geleidelijk</s:String>
 	<s:String x:Key="Enum.TriangleType.Equilateral">Gelijkzijdig</s:String>
 	<s:String x:Key="Enum.TriangleType.RightIsosceles">Rechthoekig-gelijkbenig (45°)</s:String>
 	<s:String x:Key="Enum.TriangleType.ThirtySixtyNinety">30-60-90</s:String>

@@ -56,6 +56,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<converters:RunStatusConverter x:Key="RunStatus" />
 
 		<RoutedUICommand x:Key="FileOpenRecent" />
+		<RoutedUICommand x:Key="FileOpenExample" />
 		<RoutedUICommand x:Key="ShowMessages" Text="Show messages" />
 		<RoutedUICommand x:Key="FileExit" Text="{StaticResource MenuFileExit}">
 			<RoutedUICommand.InputGestures>
@@ -75,6 +76,21 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</Setter>
 			<Setter Property="Command" Value="{StaticResource FileOpenRecent}" />
 			<Setter Property="CommandParameter" Value="{Binding}" />
+		</Style>
+
+		<!-- one entry per shipped example (2026-10-29): its number and title as plain text, click opens it as an unsaved project -->
+		<Style x:Key="ExampleMenuItemStyle" TargetType="{x:Type MenuItem}" BasedOn="{StaticResource {x:Type MenuItem}}">
+			<Setter Property="Header" Value="{Binding Header}" />
+			<Setter Property="HeaderTemplate">
+				<Setter.Value>
+					<DataTemplate>
+						<TextBlock Text="{Binding}" />
+					</DataTemplate>
+				</Setter.Value>
+			</Setter>
+			<Setter Property="Command" Value="{StaticResource FileOpenExample}" />
+			<Setter Property="CommandParameter" Value="{Binding}" />
+			<Setter Property="AutomationProperties.AutomationId" Value="{Binding AutomationId}" />
 		</Style>
 
 		<!-- one entry per registered pane: check mark follows IsShown, click toggles -->
@@ -149,6 +165,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Binding Source="{StaticResource Title}" />
 			<Binding Path="Filename" />
 			<Binding Path="IsDirty" />
+			<Binding Path="SuggestedFileName" />
 		</MultiBinding>
 	</Window.Title>
 
@@ -156,6 +173,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="ApplicationCommands.New" Executed="OnFileNew" />
 		<CommandBinding Command="ApplicationCommands.Open" Executed="OnFileOpen" />
 		<CommandBinding Command="{StaticResource FileOpenRecent}" Executed="OnFileOpen" />
+		<CommandBinding Command="{StaticResource FileOpenExample}" Executed="OnFileOpenExample" />
 		<CommandBinding Command="ApplicationCommands.Save" Executed="OnFileSave" />
 		<CommandBinding Command="ApplicationCommands.SaveAs" Executed="OnFileSaveAs" />
 		<CommandBinding Command="ApplicationCommands.Close" CanExecute="CanFileClose" Executed="OnFileClose" />
@@ -228,6 +246,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<MenuItem Header="{DynamicResource MenuFileRecent}"
 				          ItemsSource="{Binding RecentFiles, Source={x:Static p:Settings.Default}}"
 				          ItemContainerStyle="{StaticResource RecentFileMenuItemStyle}" controls:MenuIcon.Glyph="&#xE81C;" />
+				<!-- the shipped examples, embedded in the application (2026-10-29) -->
+				<MenuItem Header="{DynamicResource MenuFileExamples}" AutomationProperties.AutomationId="MenuExamples"
+				          ItemsSource="{x:Static local:Examples.All}"
+				          ItemContainerStyle="{StaticResource ExampleMenuItemStyle}" controls:MenuIcon.Glyph="&#xE8F1;" />
 				<Separator />
 				<MenuItem Command="ApplicationCommands.Save" Header="{DynamicResource MenuFileSave}" controls:MenuIcon.Glyph="&#xE74E;" />
 				<MenuItem Command="ApplicationCommands.SaveAs" Header="{DynamicResource MenuFileSaveAs}" InputGestureText="Ctrl+Shift+S" controls:MenuIcon.Glyph="&#xE792;" />

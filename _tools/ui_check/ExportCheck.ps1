@@ -74,9 +74,9 @@ Start-App $Exe (Join-Path $PSScriptRoot "tiny.wdproj")
 try {
 	Check "the title names the file, no asterisk" ($win.Current.Name -like "*tiny.wdproj") $win.Current.Name
 
-	# File > Export > Export field...: F10 focuses the menu bar, Down opens File on New; New, Open, Recent, Save, Save As, Export
+	# File > Export > Export field...: F10 focuses the menu bar, Down opens File on New; New, Open, Recent, Examples (2026-10-29), Save, Save As, Export
 	Step "F10" 0x79 150; Step "Down" $VK_DOWN 150
-	for ($i = 0; $i -lt 5; $i++) { Step "Down" $VK_DOWN 80 }
+	for ($i = 0; $i -lt 6; $i++) { Step "Down" $VK_DOWN 80 }
 	Step "Right" $VK_RIGHT 150
 	Check "File > Export opens on 'Export field...'" (MenuItemVisible "Export intensity...")
 	Step "Enter" $VK_RETURN 200
@@ -92,7 +92,7 @@ try {
 	# File > Export last (Ctrl+E, 2026-10-28): the last export again, to the same folder, without the question about a folder with files in it
 	$before = (Get-Item (Join-Path $field "tiny_field_0099.png")).LastWriteTimeUtc
 	Step "F10" 0x79 150; Step "Down" $VK_DOWN 150
-	for ($i = 0; $i -lt 6; $i++) { Step "Down" $VK_DOWN 80 }
+	for ($i = 0; $i -lt 7; $i++) { Step "Down" $VK_DOWN 80 }
 	Check "'Export last' sits below Export in the File menu" ((PopupFocusedId) -eq "MenuExportLast") (PopupFocusedId)
 	Step "Enter" $VK_RETURN 200
 	Check "Export last rewrites the 100 PNGs without asking about the folder" (WaitFor { (Pngs $field) -eq 100 -and (Get-Item (Join-Path $field "tiny_field_0099.png")).LastWriteTimeUtc -gt $before } 60000) ("{0} files, status '{1}'" -f (Pngs $field), (ExportStatus))
@@ -129,6 +129,17 @@ try {
 	$still = Join-Path $out "tiny_field_0000.png"
 	Check "the shown frame lands as tiny_field_0000.png (the frame number, padded like a sequence's files)" (WaitFor { Test-Path $still } 20000) ((Find "StatusMessage").Current.Name)
 	Check "and is a PNG, with the status bar reporting one frame" ((IsPng $still) -and (WaitFor { (Find "StatusMessage").Current.Name -like "Exported 1 frames to *tiny_field_0000.png*" } 5000)) ((Find "StatusMessage").Current.Name)
+
+	# File > Examples (2026-10-29): the shipped examples embedded in the app; New, Open, Recent, Examples; Right opens the list
+	# on the first one; Enter replaces the project (the edits are discarded through WAVEDUDE_DISCARD_EDITS) with an unsaved one
+	Step "F10" 0x79 150; Step "Down" $VK_DOWN 150
+	for ($i = 0; $i -lt 3; $i++) { Step "Down" $VK_DOWN 80 }
+	Check "'Examples' sits below Recent in the File menu" ((PopupFocusedId) -eq "MenuExamples") (PopupFocusedId)
+	Step "Right" $VK_RIGHT 300
+	Check "the list opens on the first example" ((PopupFocusedId) -eq "MenuExample01") (PopupFocusedId)
+	Check "whose entry reads '1. Simple source'" (PopupItemVisible "1. Simple source")
+	Step "Enter" $VK_RETURN 500
+	Check "the example replaces the project: frames 0 to 1249, its file name in the title (2026-10-29)" ((WaitFor { (Frame) -like "* / 1249" } 5000) -and ($win.Current.Name -like "*Example01_Simple_source.wdproj")) ("{0}; title '{1}'" -f (Frame), $win.Current.Name)
 	Check "the app never took the foreground" ((Foreground) -ne "APP") (Foreground)
 }
 finally {
@@ -141,7 +152,7 @@ finally {
 Start-App $Exe (Join-Path $PSScriptRoot "tiny_probes.wdproj")
 try {
 	Step "F10" 0x79 150; Step "Down" $VK_DOWN 150
-	for ($i = 0; $i -lt 5; $i++) { Step "Down" $VK_DOWN 80 }
+	for ($i = 0; $i -lt 6; $i++) { Step "Down" $VK_DOWN 80 }
 	Step "Right" $VK_RIGHT 150; Step "Enter" $VK_RETURN 200
 	$probes = Join-Path $out "tiny_probes_field"
 	Check "the probes project exports its field with the graph boxes drawn" (WaitFor { (Find "StatusMessage").Current.Name -like "Exported * frames to *tiny_probes_field*" } 60000) ((Find "StatusMessage").Current.Name)
@@ -157,7 +168,7 @@ $env:WAVEDUDE_EXPORT_PATH = Join-Path $out "{name}.mp4"
 Start-App $Exe (Join-Path $PSScriptRoot "tiny_probes.wdproj")
 try {
 	Step "F10" 0x79 150; Step "Down" $VK_DOWN 150
-	for ($i = 0; $i -lt 5; $i++) { Step "Down" $VK_DOWN 80 }
+	for ($i = 0; $i -lt 6; $i++) { Step "Down" $VK_DOWN 80 }
 	Step "Right" $VK_RIGHT 150; Step "Enter" $VK_RETURN 200
 	$mp4 = Join-Path $out "tiny_probes_field.mp4"
 	Check "the same export as an MP4 completes" (WaitFor { (Find "StatusMessage").Current.Name -like "Exported 50 frames to *tiny_probes_field.mp4*" } 60000) ((Find "StatusMessage").Current.Name)
@@ -175,7 +186,7 @@ $env:WAVEDUDE_EXPORT_PATH = Join-Path $out "{name}.jpg"
 Start-App $Exe (Join-Path $PSScriptRoot "tiny_probes.wdproj")
 try {
 	Step "F10" 0x79 150; Step "Down" $VK_DOWN 150
-	for ($i = 0; $i -lt 5; $i++) { Step "Down" $VK_DOWN 80 }
+	for ($i = 0; $i -lt 6; $i++) { Step "Down" $VK_DOWN 80 }
 	Step "Right" $VK_RIGHT 150; Step "Enter" $VK_RETURN 200
 	$jpgs = Join-Path $out "tiny_probes_field"
 	Check "the same export as a JPEG sequence completes" (WaitFor { (Find "StatusMessage").Current.Name -like "Exported 50 frames to *tiny_probes_field*" } 60000) ((Find "StatusMessage").Current.Name)

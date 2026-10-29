@@ -533,7 +533,7 @@ public partial class MainWindow
 	}
 
 	/// <summary>The project's name for a file: the project file's name, else "project".</summary>
-	private string ProjectName() => Path.GetFileNameWithoutExtension(Filename ?? _suggestedFileName ?? "project");
+	private string ProjectName() => Path.GetFileNameWithoutExtension(Filename ?? SuggestedFileName ?? "project");
 
 	/// <summary>
 	/// A completed run the export can read: the current one when it is fresh, finished or in progress, and
