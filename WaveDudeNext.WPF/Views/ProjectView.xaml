@@ -39,7 +39,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Project.Seed}" />
 				<DockPanel>
 					<Button DockPanel.Dock="Right" Margin="6,0,0,0" Content="{DynamicResource ButtonNewSeed}"
-					        Command="{x:Static local:ProjectView.Reseed}" />
+					        Command="{x:Static local:ProjectView.Reseed}" AutomationProperties.AutomationId="ProjectNewSeed" />
 					<controls:NumberBox Text="{Binding Seed}" ToolTip="{meta:Hint model:Project.Seed}" />
 				</DockPanel>
 

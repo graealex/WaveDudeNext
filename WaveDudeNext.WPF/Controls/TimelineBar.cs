@@ -584,6 +584,12 @@ public sealed class TimelineBarAutomationPeer : FrameworkElementAutomationPeer, 
 	/// <inheritdoc/>
 	protected override string GetClassNameCore() => nameof(TimelineBar);
 
+	/// <summary>
+	/// The in and out points in frames as "range &lt;in&gt;..&lt;out&gt;", for the harnesses (the range value carries the
+	/// playhead and the maximum).
+	/// </summary>
+	protected override string GetItemStatusCore() => $"range {Bar.RangeStart}..{Bar.RangeEnd}";
+
 	/// <inheritdoc/>
 	protected override bool IsContentElementCore() => true;
 
