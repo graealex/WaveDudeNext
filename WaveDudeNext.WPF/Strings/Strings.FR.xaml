@@ -268,6 +268,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TreeColorSchemes">Palettes de couleurs</s:String>
 
 	<s:String x:Key="SectionGeneral">Général</s:String>
+	<s:String x:Key="SectionDescription">Description</s:String>
+	<s:String x:Key="TipPartDescription">Affiche ou masque ce qu'est ce type de pièce</s:String>
 	<s:String x:Key="SectionCanvas">Toile</s:String>
 	<s:String x:Key="SectionImageSources">Sources issues de l'image</s:String>
 	<s:String x:Key="SectionRun">Exécution</s:String>
@@ -598,6 +600,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.PartPoint.X">X par rapport au centre du composant en pixels de la toile, avant rotation.</s:String>
 	<s:String x:Key="Label.PartPoint.Y">Y</s:String>
 	<s:String x:Key="Hint.PartPoint.Y">Y par rapport au centre du composant en pixels de la toile, avant rotation.</s:String>
+	<!-- ce qu'est chaque type de pièce (2026-10-29) : l'infobulle de l'entrée du menu Ajouter une pièce et le texte en haut du formulaire de la pièce -->
+	<s:String x:Key="Kind.LensPart">Une lentille ou un miroir : une bande du diamètre entre deux surfaces sphériques, chacune bombée, plate ou creuse selon le signe de son rayon, séparées de l'épaisseur au centre. En miroir, il réfléchit tout ; en lentille, elle réfracte selon son indice, avec un traitement antireflet et une absorption si on le souhaite.</s:String>
+	<s:String x:Key="Kind.FiberPart">Une fibre : un cœur d'indice plus élevé dans une gaine, le long d'un chemin lisse de segments de Bézier passant par ses nœuds, aux extrémités plates ou rondes. Une onde couplée dans le cœur est guidée le long du chemin ; la gaine peut absorber la lumière parasite à son bord.</s:String>
+	<s:String x:Key="Kind.BraggReflectorPart">Un réflecteur de Bragg : des paires de couches de deux indices empilées le long de l'axe. Il réfléchit fortement autour de la longueur d'onde à laquelle les épaisseurs des couches sont accordées, un quart d'onde chacune, et laisse passer les autres.</s:String>
+	<s:String x:Key="Kind.GrinLensPart">Une lentille à gradient d'indice : un rectangle dont l'indice décroît de l'axe au bord selon un profil parabolique, de sorte qu'il focalise comme une lentille à faces planes.</s:String>
+	<s:String x:Key="Kind.ZonePlatePart">Une plaque zonée : des zones de Fresnel taillées pour une fréquence de conception et une distance focale, une zone sur deux étant un bloc absorbant, la zone centrale ouverte ou, inversée, un bloc. Elle focalise par diffraction ; une monture optionnelle arrête la lumière qui passe hors du diamètre.</s:String>
+	<s:String x:Key="Kind.PolygonPart">Un polygone régulier de verre ou en miroir, par son nombre de côtés et la longueur du côté.</s:String>
+	<s:String x:Key="Kind.RectanglePart">Un rectangle de verre ou en miroir, par longueur et largeur ; lié, un carré. Un miroir plan est un rectangle long et étroit.</s:String>
+	<s:String x:Key="Kind.EllipsePart">Une ellipse de verre ou en miroir, par la longueur et la largeur de sa boîte ; liée, un cercle.</s:String>
+	<s:String x:Key="Kind.TrianglePart">Un triangle de verre ou en miroir : la base en travers de l'axe, le sommet le long de celui-ci, les angles à la base fixés par un préréglage ou à la main.</s:String>
+	<s:String x:Key="Kind.OutlinePart">Un contour libre de verre ou en miroir : une forme fermée passant par les points que vous placez et déplacez ; moins de trois ne peignent rien.</s:String>
+	<s:String x:Key="Kind.XorGatePart">Une porte XOR optique : deux guides d'onde d'entrée, une section de phase mettant l'entrée inférieure un quart de période en avance, et un coupleur dont la sortie supérieure porte leur différence. Elle s'allume quand une entrée est allumée, pas les deux, pour des entrées cohérentes à la fréquence de conception.</s:String>
+	<s:String x:Key="Kind.AndGatePart">Une porte AND optique : le même coupleur avec l'entrée inférieure un quart de période en retard, de sorte que la sortie supérieure porte la somme. Elle est la plus brillante avec les deux entrées, environ quatre fois une seule ; une porte linéaire passive n'a pas de AND plus vrai.</s:String>
+	<s:String x:Key="Kind.OrGatePart">Une porte OR optique : le même coupleur avec l'entrée inférieure un douzième de période en avance, de sorte que la sortie supérieure porte la moitié de la puissance de chaque entrée et des deux. Elle s'allume avec une entrée ou les deux.</s:String>
 	<s:String x:Key="Label.LensPart.Mirror">Miroir</s:String>
 	<s:String x:Key="Hint.LensPart.Mirror">Faire du composant un miroir au lieu d'une lentille. L'indice de réfraction, le traitement antireflet et l'absorption sont alors ignorés.</s:String>
 	<s:String x:Key="Label.LensPart.RefractiveIndex">Indice de réfraction</s:String>

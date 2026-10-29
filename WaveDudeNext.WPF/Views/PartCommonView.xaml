@@ -22,10 +22,34 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:WaveDudeNext.WPF.Controls"
              xmlns:meta="clr-namespace:WaveDudeNext.WPF.Markup"
-             xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext">
+             xmlns:model="clr-namespace:WaveDudeNext.Model;assembly=WaveDudeNext"
+             xmlns:converters="clr-namespace:WaveDudeNext.WPF.Converters"
+             xmlns:localization="clr-namespace:WaveDudeNext.WPF.Localization"
+             xmlns:p="clr-namespace:WaveDudeNext.WPF">
+
+	<UserControl.Resources>
+		<converters:KindDescriptionConverter x:Key="KindDescription" />
+		<BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+	</UserControl.Resources>
 
 	<!-- the members every part has: name, enabled, centre and angle; placed first in each kind's form -->
 	<StackPanel>
+		<!-- what this kind is (2026-10-29, the user's choice, beside the Add part menu's tooltips): the Kind.<Type> string under a
+		     header whose chevron turns while it is open; open or closed is one user setting for every kind -->
+		<ToggleButton Style="{StaticResource DescriptionToggle}" Content="{DynamicResource SectionDescription}" ToolTip="{DynamicResource TipPartDescription}"
+		              IsChecked="{Binding Source={x:Static p:Settings.Default}, Path=PartDescriptionExpanded, Mode=TwoWay}"
+		              AutomationProperties.Name="{DynamicResource TipPartDescription}" AutomationProperties.AutomationId="PartDescriptionToggle" />
+		<TextBlock Style="{StaticResource FormDescription}" AutomationProperties.AutomationId="PartDescription"
+		           Visibility="{Binding Source={x:Static p:Settings.Default}, Path=PartDescriptionExpanded, Converter={StaticResource BoolToVisibility}}">
+			<TextBlock.Text>
+				<MultiBinding Converter="{StaticResource KindDescription}">
+					<Binding />
+					<!-- the language, so the text is re-read on a switch -->
+					<Binding Path="Current" Source="{x:Static localization:LanguageController.Instance}" />
+				</MultiBinding>
+			</TextBlock.Text>
+		</TextBlock>
+
 		<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionGeneral}" />
 		<controls:FormPanel>
 			<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:OpticalPart.Name}" />

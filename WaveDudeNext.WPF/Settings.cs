@@ -242,6 +242,16 @@ public sealed class Settings : INotifyPropertyChanged
 		set => Set(ref _exportFilterIndex, value);
 	}
 
+	private bool _partDescriptionExpanded = true;
+
+	/// <summary>Whether the description at the top of a part's form is open (2026-10-29, the user's choice: one state for every kind, kept between sessions).</summary>
+	[XmlAttribute, DefaultValue(true)]
+	public bool PartDescriptionExpanded
+	{
+		get => _partDescriptionExpanded;
+		set => Set(ref _partDescriptionExpanded, value);
+	}
+
 	private List<ExportHint> _exportHints = [];
 
 	/// <summary>

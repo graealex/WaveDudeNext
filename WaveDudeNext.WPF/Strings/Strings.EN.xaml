@@ -270,6 +270,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TreeColorSchemes">Colour schemes</s:String>
 
 	<s:String x:Key="SectionGeneral">General</s:String>
+	<s:String x:Key="SectionDescription">Description</s:String>
+	<s:String x:Key="TipPartDescription">Show or hide what this kind of part is</s:String>
 	<s:String x:Key="SectionCanvas">Canvas</s:String>
 	<s:String x:Key="SectionImageSources">Sources from the image</s:String>
 	<s:String x:Key="SectionRun">Run</s:String>
@@ -600,6 +602,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.PartPoint.X">X relative to the part's centre in canvas pixels, before rotation.</s:String>
 	<s:String x:Key="Label.PartPoint.Y">Y</s:String>
 	<s:String x:Key="Hint.PartPoint.Y">Y relative to the part's centre in canvas pixels, before rotation.</s:String>
+	<!-- what each kind of part is (2026-10-29): the Add part entry's tooltip and the text at the top of the part's form -->
+	<s:String x:Key="Kind.LensPart">A lens or a mirror: a strip of the diameter between two spherical surfaces, each bulging outward, flat or hollow by the sign of its radius, the centre thickness apart. As a mirror it reflects everything; as a lens it refracts by its index, with an anti-reflection coating and absorption if wanted.</s:String>
+	<s:String x:Key="Kind.FiberPart">A fibre: a core of higher index inside a cladding, along a smooth path of Bézier segments through its nodes, with flat or round ends. A wave coupled into the core is guided along the path; the cladding can absorb stray light at its rim.</s:String>
+	<s:String x:Key="Kind.BraggReflectorPart">A Bragg reflector: pairs of layers of two indices stacked along the axis. It reflects strongly around the wavelength the layer thicknesses are tuned to, a quarter wave each, and passes others.</s:String>
+	<s:String x:Key="Kind.GrinLensPart">A gradient-index lens: a rectangle whose index falls from the axis to the edge in a parabolic profile, so it focuses like a lens with flat faces.</s:String>
+	<s:String x:Key="Kind.ZonePlatePart">A zone plate: Fresnel zones cut for a design frequency and a focal length, every second zone an absorbing block, the central zone open or, inverted, a block. It focuses by diffraction; an optional mount stops light passing outside the diameter.</s:String>
+	<s:String x:Key="Kind.PolygonPart">A regular polygon of glass or mirror, by its number of sides and the side length.</s:String>
+	<s:String x:Key="Kind.RectanglePart">A rectangle of glass or mirror, by length and width; linked, a square. A flat mirror is a long, narrow one.</s:String>
+	<s:String x:Key="Kind.EllipsePart">An ellipse of glass or mirror, by the length and width of its box; linked, a circle.</s:String>
+	<s:String x:Key="Kind.TrianglePart">A triangle of glass or mirror: the base across the axis, the apex along it, the base angles set by a preset or by hand.</s:String>
+	<s:String x:Key="Kind.OutlinePart">A free outline of glass or mirror: a closed shape through the points you place and drag; fewer than three paint nothing.</s:String>
+	<s:String x:Key="Kind.XorGatePart">An optical XOR gate: two input waveguides, a phase section putting the lower input a quarter period ahead, and a coupler whose upper output carries their difference. It lights when one input is lit, not both, for coherent inputs at the design frequency.</s:String>
+	<s:String x:Key="Kind.AndGatePart">An optical AND gate: the same coupler with the lower input a quarter period behind, so the upper output carries the sum. It is brightest with both inputs lit, about four times a single one; a passive linear gate has no truer AND.</s:String>
+	<s:String x:Key="Kind.OrGatePart">An optical OR gate: the same coupler with the lower input a twelfth of a period ahead, so the upper output carries half the power of either input and of both. It lights with one input or both.</s:String>
 	<s:String x:Key="Label.LensPart.Mirror">Mirror</s:String>
 	<s:String x:Key="Hint.LensPart.Mirror">Make the part a mirror instead of a lens. The refractive index, the coating and the absorption are ignored then.</s:String>
 	<s:String x:Key="Label.LensPart.RefractiveIndex">Refractive index</s:String>

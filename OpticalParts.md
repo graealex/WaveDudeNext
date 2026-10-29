@@ -211,7 +211,9 @@ the check's small canvas, +6 % in a wide one).
 
 - **Tree**: a "Parts" folder between Sources and Probes; rows like a source's (enabled box, name, move, remove).
 - **Menus**: the "+ Part" button and the Parts folder's plus open the menu of kinds (Space opens it on the menu itself,
-  the arrows walk it, Enter picks); a tree row's context menu has the same entries under "Add part". The entries are
+  the arrows walk it, Enter picks); a tree row's context menu has the same entries under "Add part". Each entry's tooltip is the kind's description
+  (the `Kind.<Type>` string, 2026-10-29, the user's choice), shown again at the top of the part's form under a header
+  whose chevron turns while it is open; open or closed is a user setting. The entries are
   written once (`PartMenuEntries`, an unshared `x:Array`) and added to each menu's items by `ProjectTree.MenuEntries`,
   as real children: as an `ItemsSource` they made a submenu opened by keyboard start on its last entry the first time
   (2026-10-22). Each entry passes its class to `ProjectCommands.AddPart`; `Project.AddPart(Type)` adds it centred on

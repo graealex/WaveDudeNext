@@ -304,7 +304,10 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   triangle, outline), a fibre on a Bézier path, a Bragg reflector, a GRIN lens, the XOR, AND and OR gates under
   `LogicGatePart` and a zone plate (both Jeroen's, 2026-10-21/22). Painted into the scene pixels, red the index (red 0 a
   mirror), blue for absorbers, green never; a part edit is a simulation edit. The menus of kinds share `PartMenuEntries`
-  (`ProjectTree.xaml`), added by `ProjectTree.MenuEntries`, not as an `ItemsSource`. **Coatings** (2026-10-29, the user's
+  (`ProjectTree.xaml`), added by `ProjectTree.MenuEntries`, not as an `ItemsSource`. **Each kind has a description**
+  (2026-10-29, the user's choice): the `Kind.<Type>` string in the four tables, the entry's tooltip in the menus and the
+  text at the top of the part's form (`PartCommonView`, through `KindDescriptionConverter` with the language as an input),
+  under a header whose chevron turns while it is open; open or closed is one user setting, `PartDescriptionExpanded`. **Coatings** (2026-10-29, the user's
   request, so Jeroen's drawn scenes become parts): a lens, a shape, the GRIN lens and the fibre are `CoatedPart`s, the AR
   band a `Layer` at √n or `Graded`, a raised cosine from the pixel's index to the body (measured against linear, smooth-step
   and quintic in `OpticalParts.md`), on the faces `FrontCoated`, `BackCoated`, `SidesCoated` choose, classed by the outward

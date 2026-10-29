@@ -268,6 +268,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TreeColorSchemes">Farbschemata</s:String>
 
 	<s:String x:Key="SectionGeneral">Allgemein</s:String>
+	<s:String x:Key="SectionDescription">Beschreibung</s:String>
+	<s:String x:Key="TipPartDescription">Zeigt oder verbirgt, was diese Art Bauteil ist</s:String>
 	<s:String x:Key="SectionCanvas">Leinwand</s:String>
 	<s:String x:Key="SectionImageSources">Quellen aus dem Bild</s:String>
 	<s:String x:Key="SectionRun">Lauf</s:String>
@@ -598,6 +600,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.PartPoint.X">X relativ zum Mittelpunkt des Bauteils in Leinwandpixeln, vor der Drehung.</s:String>
 	<s:String x:Key="Label.PartPoint.Y">Y</s:String>
 	<s:String x:Key="Hint.PartPoint.Y">Y relativ zum Mittelpunkt des Bauteils in Leinwandpixeln, vor der Drehung.</s:String>
+	<!-- was jede Art Bauteil ist (2026-10-29): der Tooltip des Eintrags im Bauteilmenü und der Text oben im Formular des Bauteils -->
+	<s:String x:Key="Kind.LensPart">Eine Linse oder ein Spiegel: ein Streifen des Durchmessers zwischen zwei Kugelflächen, jede nach dem Vorzeichen ihres Radius gewölbt, flach oder hohl, um die Mittendicke getrennt. Als Spiegel reflektiert er alles; als Linse bricht sie nach ihrem Index, auf Wunsch mit Entspiegelung und Absorption.</s:String>
+	<s:String x:Key="Kind.FiberPart">Eine Faser: ein Kern höheren Index in einem Mantel, entlang eines glatten Pfads aus Bézier-Segmenten durch ihre Knoten, mit flachen oder runden Enden. Eine in den Kern eingekoppelte Welle wird dem Pfad entlang geführt; der Mantel kann Streulicht an seinem Rand absorbieren.</s:String>
+	<s:String x:Key="Kind.BraggReflectorPart">Ein Bragg-Reflektor: Paare von Schichten zweier Indizes, entlang der Achse gestapelt. Er reflektiert stark um die Wellenlänge, auf die die Schichtdicken abgestimmt sind, je eine Viertelwelle, und lässt andere durch.</s:String>
+	<s:String x:Key="Kind.GrinLensPart">Eine Gradientenindex-Linse: ein Rechteck, dessen Index von der Achse zum Rand parabolisch abfällt, sodass es wie eine Linse mit ebenen Flächen fokussiert.</s:String>
+	<s:String x:Key="Kind.ZonePlatePart">Eine Zonenplatte: Fresnel-Zonen für eine Entwurfsfrequenz und eine Brennweite, jede zweite Zone ein absorbierender Block, die Mittelzone offen oder, invertiert, ein Block. Sie fokussiert durch Beugung; eine optionale Fassung hält Licht auf, das außen am Durchmesser vorbeiläuft.</s:String>
+	<s:String x:Key="Kind.PolygonPart">Ein regelmäßiges Vieleck aus Glas oder als Spiegel, nach Seitenzahl und Seitenlänge.</s:String>
+	<s:String x:Key="Kind.RectanglePart">Ein Rechteck aus Glas oder als Spiegel, nach Länge und Breite; verkettet ein Quadrat. Ein ebener Spiegel ist ein langes, schmales.</s:String>
+	<s:String x:Key="Kind.EllipsePart">Eine Ellipse aus Glas oder als Spiegel, nach Länge und Breite ihres Kastens; verkettet ein Kreis.</s:String>
+	<s:String x:Key="Kind.TrianglePart">Ein Dreieck aus Glas oder als Spiegel: die Basis quer zur Achse, die Spitze entlang ihr, die Basiswinkel nach Vorgabe oder von Hand.</s:String>
+	<s:String x:Key="Kind.OutlinePart">Ein freier Umriss aus Glas oder als Spiegel: eine geschlossene Form durch die Punkte, die Sie setzen und ziehen; weniger als drei malen nichts.</s:String>
+	<s:String x:Key="Kind.XorGatePart">Ein optisches XOR-Gatter: zwei Eingangswellenleiter, ein Phasenabschnitt, der den unteren Eingang eine Viertelperiode vorausgehen lässt, und ein Koppler, dessen oberer Ausgang ihre Differenz führt. Er leuchtet, wenn ein Eingang leuchtet, nicht beide, bei kohärenten Eingängen der Entwurfsfrequenz.</s:String>
+	<s:String x:Key="Kind.AndGatePart">Ein optisches AND-Gatter: derselbe Koppler mit dem unteren Eingang eine Viertelperiode zurück, sodass der obere Ausgang die Summe führt. Am hellsten mit beiden Eingängen, etwa viermal so hell wie mit einem; ein passives lineares Gatter hat kein echteres AND.</s:String>
+	<s:String x:Key="Kind.OrGatePart">Ein optisches OR-Gatter: derselbe Koppler mit dem unteren Eingang ein Zwölftel einer Periode voraus, sodass der obere Ausgang die halbe Leistung jedes Eingangs und beider führt. Er leuchtet mit einem Eingang oder beiden.</s:String>
 	<s:String x:Key="Label.LensPart.Mirror">Spiegel</s:String>
 	<s:String x:Key="Hint.LensPart.Mirror">Das Bauteil als Spiegel statt als Linse. Brechungsindex, Entspiegelung und Absorption werden dann ignoriert.</s:String>
 	<s:String x:Key="Label.LensPart.RefractiveIndex">Brechungsindex</s:String>

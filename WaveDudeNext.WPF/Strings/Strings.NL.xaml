@@ -268,6 +268,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TreeColorSchemes">Kleurenschema's</s:String>
 
 	<s:String x:Key="SectionGeneral">Algemeen</s:String>
+	<s:String x:Key="SectionDescription">Beschrijving</s:String>
+	<s:String x:Key="TipPartDescription">Toont of verbergt wat dit soort onderdeel is</s:String>
 	<s:String x:Key="SectionCanvas">Canvas</s:String>
 	<s:String x:Key="SectionImageSources">Bronnen uit de afbeelding</s:String>
 	<s:String x:Key="SectionRun">Run</s:String>
@@ -598,6 +600,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Hint.PartPoint.X">X ten opzichte van het middelpunt van het onderdeel in canvaspixels, vóór rotatie.</s:String>
 	<s:String x:Key="Label.PartPoint.Y">Y</s:String>
 	<s:String x:Key="Hint.PartPoint.Y">Y ten opzichte van het middelpunt van het onderdeel in canvaspixels, vóór rotatie.</s:String>
+	<!-- wat elk soort onderdeel is (2026-10-29): de tooltip van de ingang in het onderdeelmenu en de tekst bovenaan het formulier van het onderdeel -->
+	<s:String x:Key="Kind.LensPart">Een lens of een spiegel: een strook van de diameter tussen twee boloppervlakken, elk bol, vlak of hol naar het teken van zijn straal, de middendikte uit elkaar. Als spiegel kaatst hij alles terug; als lens breekt hij naar zijn index, desgewenst met een antireflectielaag en absorptie.</s:String>
+	<s:String x:Key="Kind.FiberPart">Een vezel: een kern met hogere index in een mantel, langs een glad pad van Bézier-segmenten door zijn knopen, met vlakke of ronde uiteinden. Een in de kern gekoppelde golf wordt langs het pad geleid; de mantel kan strooilicht aan zijn rand absorberen.</s:String>
+	<s:String x:Key="Kind.BraggReflectorPart">Een Bragg-reflector: paren lagen van twee indices, langs de as gestapeld. Hij kaatst sterk terug rond de golflengte waarop de laagdikten zijn afgestemd, elk een kwart golf, en laat andere door.</s:String>
+	<s:String x:Key="Kind.GrinLensPart">Een gradiëntindexlens: een rechthoek waarvan de index van de as naar de rand parabolisch afneemt, zodat hij focust als een lens met vlakke vlakken.</s:String>
+	<s:String x:Key="Kind.ZonePlatePart">Een zoneplaat: Fresnelzones gesneden voor een ontwerpfrequentie en een brandpuntsafstand, elke tweede zone een absorberend blok, de middelste zone open of, omgekeerd, een blok. Hij focust door buiging; een optionele vatting houdt licht tegen dat buiten de diameter passeert.</s:String>
+	<s:String x:Key="Kind.PolygonPart">Een regelmatige veelhoek van glas of als spiegel, naar het aantal zijden en de zijdelengte.</s:String>
+	<s:String x:Key="Kind.RectanglePart">Een rechthoek van glas of als spiegel, naar lengte en breedte; gekoppeld een vierkant. Een vlakke spiegel is een lange, smalle.</s:String>
+	<s:String x:Key="Kind.EllipsePart">Een ellips van glas of als spiegel, naar de lengte en breedte van zijn kader; gekoppeld een cirkel.</s:String>
+	<s:String x:Key="Kind.TrianglePart">Een driehoek van glas of als spiegel: de basis dwars op de as, de top erlangs, de basishoeken naar een voorinstelling of met de hand.</s:String>
+	<s:String x:Key="Kind.OutlinePart">Een vrije omtrek van glas of als spiegel: een gesloten vorm door de punten die u plaatst en sleept; minder dan drie tekenen niets.</s:String>
+	<s:String x:Key="Kind.XorGatePart">Een optische XOR-poort: twee ingangsgolfgeleiders, een fasesectie die de onderste ingang een kwart periode vooruit zet, en een koppelaar waarvan de bovenste uitgang hun verschil draagt. Hij licht op als één ingang brandt, niet beide, bij coherente ingangen op de ontwerpfrequentie.</s:String>
+	<s:String x:Key="Kind.AndGatePart">Een optische AND-poort: dezelfde koppelaar met de onderste ingang een kwart periode achter, zodat de bovenste uitgang de som draagt. Het helderst met beide ingangen, ongeveer viermaal één; een passieve lineaire poort heeft geen echtere AND.</s:String>
+	<s:String x:Key="Kind.OrGatePart">Een optische OR-poort: dezelfde koppelaar met de onderste ingang een twaalfde periode vooruit, zodat de bovenste uitgang de halve kracht van elke ingang en van beide draagt. Hij licht op met één ingang of beide.</s:String>
 	<s:String x:Key="Label.LensPart.Mirror">Spiegel</s:String>
 	<s:String x:Key="Hint.LensPart.Mirror">Het onderdeel een spiegel maken in plaats van een lens. De brekingsindex, de coating en de absorptie worden dan genegeerd.</s:String>
 	<s:String x:Key="Label.LensPart.RefractiveIndex">Brekingsindex</s:String>
