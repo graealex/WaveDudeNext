@@ -250,8 +250,10 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   `%LOCALAPPDATA%\WaveDudeNext\ColorSchemes`, project ones in the `.wdproj`; an in-house picker edits stops;
   renaming a project scheme repoints its layers. **The scene image** is embedded and follows its file on disk, the
   path being where it came from (2026-10-26, Jeroen's report: the scene form shows the image rows for an image scene
-  only, says "(not found)" beside a path whose file is gone, which changes nothing, and has an X beside Browse, which
-  drops the name, the path and the bytes and leaves a blank canvas of the image's size);
+  only, says "(not found)" beside a path whose file is gone, which changes nothing, and has three buttons beside the name,
+  2026-10-29, the user's design: "…" picks a file, a save glyph writes the embedded bytes to a file, an export that
+  changes nothing in the project, and the X drops the name, the path and the bytes and leaves a blank canvas of the
+  image's size);
   the "glowing edges" outline overlays the pictures. **Import** of Jeroen's `configuration.json` is key for key; a source whose position was
   never picked (`has_position` false) stays enabled at its x/y, since his program simulated it there (Example 11's
   lattice came in disabled and ran black until 2026-10-16).

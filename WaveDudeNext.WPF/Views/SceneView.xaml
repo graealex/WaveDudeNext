@@ -63,20 +63,34 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				          SelectedItem="{Binding Mode}" ToolTip="{meta:Hint model:Scene.Mode}" />
 
 				<TextBlock Style="{StaticResource ImageRowLabel}" Text="{meta:Label model:Scene.Image}" />
-				<!-- the name of the embedded image (or a legacy path), the picker that embeds a file, and the X that removes the image
-				     (2026-10-26, Jeroen's report: there was no way to drop one), leaving a blank canvas of the image's size; the X is
-				     the panes' close glyph in the button's text colour, so it greys with the button -->
-				<DockPanel Style="{StaticResource ImageRow}">
-					<Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="7,0" ToolTip="{DynamicResource TipRemoveSceneImage}"
+				<!-- the name of the embedded image (or a legacy path) and three buttons (2026-10-29, the user's design): "…" picks a file
+				     and embeds it, the save glyph (the File menu's) writes the embedded image to a file and changes nothing in the
+				     project, and the X removes the image (2026-10-26, Jeroen's report: there was no way to drop one), leaving a blank
+				     canvas of the image's size; the X is the panes' close glyph in the button's text colour, so it greys with the button -->
+				<!-- a grid in visual order, so Tab walks the name, then "…", save, X (a dock panel's right-docked buttons are declared
+				     right to left and tabbed that way, and a tab index sorts ahead of the whole window) -->
+				<Grid Style="{StaticResource ImageRow}">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="*" />
+						<ColumnDefinition Width="Auto" />
+						<ColumnDefinition Width="Auto" />
+						<ColumnDefinition Width="Auto" />
+					</Grid.ColumnDefinitions>
+					<TextBox Text="{Binding Image, UpdateSourceTrigger=PropertyChanged}" ToolTip="{meta:Hint model:Scene.Image}" />
+					<Button Grid.Column="1" Margin="4,0,0,0" Padding="8,0" Content="…" ToolTip="{DynamicResource TipBrowseSceneImage}"
+					        AutomationProperties.Name="{DynamicResource TipBrowseSceneImage}" Command="{x:Static commands:ProjectCommands.BrowseSceneImage}"
+					        AutomationProperties.AutomationId="SceneBrowse" />
+					<Button Grid.Column="2" Margin="4,0,0,0" Padding="5,0" ToolTip="{DynamicResource TipSaveSceneImage}"
+					        AutomationProperties.Name="{DynamicResource TipSaveSceneImage}" Command="{x:Static commands:ProjectCommands.SaveSceneImage}"
+					        AutomationProperties.AutomationId="SceneSaveImage">
+						<controls:IconView Glyph="&#xE74E;" />
+					</Button>
+					<Button Grid.Column="3" Margin="4,0,0,0" Padding="7,0" ToolTip="{DynamicResource TipRemoveSceneImage}"
 					        AutomationProperties.Name="{DynamicResource TipRemoveSceneImage}" Command="{x:Static commands:ProjectCommands.RemoveSceneImage}"
 					        AutomationProperties.AutomationId="SceneRemoveImage">
 						<Path Data="{StaticResource CloseGeometry}" Width="8" Height="8" Stretch="Uniform" Fill="{Binding (TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
 					</Button>
-					<Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="8,0" Content="{DynamicResource ButtonBrowse}"
-					        ToolTip="{DynamicResource TipBrowseSceneImage}" Command="{x:Static commands:ProjectCommands.BrowseSceneImage}"
-					        AutomationProperties.AutomationId="SceneBrowse" />
-					<TextBox Text="{Binding Image, UpdateSourceTrigger=PropertyChanged}" ToolTip="{meta:Hint model:Scene.Image}" />
-				</DockPanel>
+				</Grid>
 
 				<TextBlock Style="{StaticResource ImageRowLabel}" Text="{meta:Label model:Scene.ImagePath}" />
 				<!-- the path and, when the file is not on disk, a note (the window checks; the embedded image is what is simulated) -->

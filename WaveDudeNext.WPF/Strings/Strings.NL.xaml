@@ -332,7 +332,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ItemCountOne">1 item</s:String>
 	<s:String x:Key="ItemCountMany">{0} items</s:String>
 
-	<s:String x:Key="ButtonBrowse">Bladeren…</s:String>
+	<s:String x:Key="TipSaveSceneImage">Ingebedde afbeelding naar een bestand opslaan</s:String>
+	<s:String x:Key="SceneImageSaveFilterFormat">Afbeeldingsbestand (*{0})|*{0}|Alle bestanden (*.*)|*.*</s:String>
+	<s:String x:Key="SceneImageSaveError">De afbeelding kon niet naar '{0}' worden opgeslagen</s:String>
 	<s:String x:Key="TipBrowseSceneImage">Kies een afbeeldingsbestand; het wordt in het project ingebed</s:String>
 	<s:String x:Key="TipRemoveSceneImage">Laat de ingebedde afbeelding en het bestandspad vallen; het canvas houdt de grootte van de afbeelding</s:String>
 	<s:String x:Key="SceneImageNotFound">(niet gevonden)</s:String>

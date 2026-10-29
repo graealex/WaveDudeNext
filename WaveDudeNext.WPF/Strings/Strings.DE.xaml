@@ -332,7 +332,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ItemCountOne">1 Eintrag</s:String>
 	<s:String x:Key="ItemCountMany">{0} Einträge</s:String>
 
-	<s:String x:Key="ButtonBrowse">Durchsuchen…</s:String>
+	<s:String x:Key="TipSaveSceneImage">Eingebettetes Bild in eine Datei speichern</s:String>
+	<s:String x:Key="SceneImageSaveFilterFormat">Bilddatei (*{0})|*{0}|Alle Dateien (*.*)|*.*</s:String>
+	<s:String x:Key="SceneImageSaveError">Das Bild konnte nicht nach '{0}' gespeichert werden</s:String>
 	<s:String x:Key="TipBrowseSceneImage">Bilddatei wählen; sie wird in das Projekt eingebettet</s:String>
 	<s:String x:Key="TipRemoveSceneImage">Eingebettetes Bild und Dateipfad verwerfen; die Leinwand behält die Bildgröße</s:String>
 	<s:String x:Key="SceneImageNotFound">(nicht gefunden)</s:String>

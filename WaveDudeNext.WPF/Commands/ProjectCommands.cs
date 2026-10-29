@@ -62,6 +62,9 @@ public static class ProjectCommands
 	/// <summary>Picks an image file and embeds it as the scene image.</summary>
 	public static readonly RoutedUICommand BrowseSceneImage = new("Browse for a scene image", nameof(BrowseSceneImage), typeof(ProjectCommands));
 
+	/// <summary>Writes the embedded scene image to a file of the user's choice, the bytes as they were embedded (2026-10-29, the user's design); the project is not changed.</summary>
+	public static readonly RoutedUICommand SaveSceneImage = new("Save the scene image to a file", nameof(SaveSceneImage), typeof(ProjectCommands));
+
 	/// <summary>Drops the scene image: a blank canvas of the image's size remains (2026-10-26, Jeroen's report: there was no way).</summary>
 	public static readonly RoutedUICommand RemoveSceneImage = new("Remove the scene image", nameof(RemoveSceneImage), typeof(ProjectCommands));
 }

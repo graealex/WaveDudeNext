@@ -334,7 +334,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ItemCountOne">1 entry</s:String>
 	<s:String x:Key="ItemCountMany">{0} entries</s:String>
 
-	<s:String x:Key="ButtonBrowse">Browse…</s:String>
+	<s:String x:Key="TipSaveSceneImage">Save the embedded image to a file</s:String>
+	<s:String x:Key="SceneImageSaveFilterFormat">Image file (*{0})|*{0}|All files (*.*)|*.*</s:String>
+	<s:String x:Key="SceneImageSaveError">The image could not be saved to '{0}'</s:String>
 	<s:String x:Key="TipBrowseSceneImage">Pick an image file; it is embedded in the project</s:String>
 	<s:String x:Key="TipRemoveSceneImage">Drop the embedded image and its file path; the canvas keeps the image's size</s:String>
 	<s:String x:Key="SceneImageNotFound">(not found)</s:String>

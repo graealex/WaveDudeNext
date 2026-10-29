@@ -386,4 +386,63 @@ public partial class MainWindow
 		scene.RemoveImage();
 		Logger.Info("Scene image removed: a blank canvas of {Width}×{Height}", scene.Width, scene.Height);
 	}
+
+	private void CanSaveSceneImage(object sender, CanExecuteRoutedEventArgs e) => e.CanExecute = Project.Scene is { ImageData: not null };
+
+	/// <summary>
+	/// The save button between the picker and the X (2026-10-29, the user's design): writes the embedded bytes, the file as
+	/// it was embedded, to a file of the user's choice, proposed under the image's name in its folder when that exists, else
+	/// the project's. An export: the project, its path and the watcher stay as they are.
+	/// </summary>
+	private void OnSaveSceneImage(object sender, ExecutedRoutedEventArgs e)
+	{
+		Scene scene = Project.Scene;
+		if (scene.ImageData is not { } bytes)
+		{
+			return;
+		}
+		string extension = Path.GetExtension(scene.Image);
+		if (extension.Length == 0)
+		{
+			extension = ImageExtension(bytes);
+		}
+		string resolved = scene.ResolveImagePath(ProjectFolder);
+		string? folder = resolved.Length > 0 ? Path.GetDirectoryName(resolved) : null;
+		var dialog = new SaveFileDialog
+		{
+			Title = (string)FindResource("TipSaveSceneImage"),
+			// the embedded file's own type; an unknown one gets the picker's list
+			Filter = extension.Length > 0 ? string.Format((string)FindResource("SceneImageSaveFilterFormat"), extension) : (string)FindResource("SceneImageFilter"),
+			AddExtension = extension.Length > 0,
+			DefaultExt = extension,
+			FileName = scene.Image.Length > 0 ? scene.Image : ProjectName() + "_scene" + extension,
+			InitialDirectory = folder != null && Directory.Exists(folder) ? folder : ProjectFolder ?? "",
+		};
+		if (dialog.ShowDialog(this) != true)
+		{
+			Logger.Debug("Scene image save cancelled in the Save dialog");
+			return;
+		}
+		try
+		{
+			File.WriteAllBytes(dialog.FileName, bytes);
+			Logger.Info("Scene image saved: {Size} KB to {Path}", Math.Max(1, bytes.Length / 1024), dialog.FileName);
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			Logger.Error(ex, "The scene image could not be saved: {Message}", ex.Message);
+			ShowError(string.Format((string)FindResource("SceneImageSaveError"), dialog.FileName), ex);
+		}
+	}
+
+	/// <summary>The file extension of an image's bytes by their signature: PNG, JPEG, BMP, GIF or TIFF; "" when unknown.</summary>
+	private static string ImageExtension(byte[] bytes) => bytes switch
+	{
+		[0x89, 0x50, 0x4E, 0x47, ..] => ".png",
+		[0xFF, 0xD8, 0xFF, ..] => ".jpg",
+		[0x42, 0x4D, ..] => ".bmp",
+		[0x47, 0x49, 0x46, 0x38, ..] => ".gif",
+		[0x49, 0x49, 0x2A, 0x00, ..] or [0x4D, 0x4D, 0x00, 0x2A, ..] => ".tif",
+		_ => "",
+	};
 }

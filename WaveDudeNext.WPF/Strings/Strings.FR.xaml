@@ -332,7 +332,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="ItemCountOne">1 entrée</s:String>
 	<s:String x:Key="ItemCountMany">{0} entrées</s:String>
 
-	<s:String x:Key="ButtonBrowse">Parcourir…</s:String>
+	<s:String x:Key="TipSaveSceneImage">Enregistrer l'image intégrée dans un fichier</s:String>
+	<s:String x:Key="SceneImageSaveFilterFormat">Fichier image (*{0})|*{0}|Tous les fichiers (*.*)|*.*</s:String>
+	<s:String x:Key="SceneImageSaveError">L'image n'a pas pu être enregistrée dans '{0}'</s:String>
 	<s:String x:Key="TipBrowseSceneImage">Choisir un fichier image ; il est intégré au projet</s:String>
 	<s:String x:Key="TipRemoveSceneImage">Abandonne l'image intégrée et son chemin ; la toile garde la taille de l'image</s:String>
 	<s:String x:Key="SceneImageNotFound">(introuvable)</s:String>
