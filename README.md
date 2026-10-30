@@ -1,6 +1,6 @@
 # WaveDude Next
 
-![WaveDude Next](Assets/Screenshot1.png)
+![WaveDude Next](Assets/main-window.png)
 
 <!-- Anchor for the real text. Facts only, checked against the code on 2026-10-16. Rewrite freely. -->
 

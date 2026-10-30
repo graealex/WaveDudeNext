@@ -345,7 +345,8 @@ UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 
 sets the persisted settings it expects (split orientation, preview quality). Known flake: a second app start in one
 script sometimes comes up active; only the foreground guard fails then.
 **Manual figures** (2026-10-27): `Screenshots.ps1` on `Common.ps1` writes `Assets/*.svg` (the PNG inlined, numbered
-badges at UI Automation rectangles) and `Assets/Legend.md` (what each number marks): the window, the menus, the tree,
+badges at UI Automation rectangles), `Assets/Legend.md` (what each number marks) and `Assets/main-window.png` (the
+window without badges, the README's picture, 2026-10-30): the window, the menus, the tree,
 the preview and the timeline from `C:\Work\Examples_WDN\Example14_wave_in_2_boxes.wdproj` at a scratch frame, the
 properties form of every object kind from `figures.wdproj` beside the harnesses (one of each kind, made with the
 library's adders); dark theme, English, 100 %, the user's 1314 × 1126 arrangement, his settings put back afterwards.

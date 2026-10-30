@@ -40,13 +40,14 @@ The Project pane with the example project.
    Move down (Alt+Down); drag to reorder
 7. **Remove the selected object**  
    Remove (Del)
-8. **Row Project**
-9. **Row Scene**
-10. **Row Simulation**
-11. **Row Display**
-12. **Row Sources**
-13. **Add to this group**
-14. **Row Vertical source**
+8. **Project: the root row**
+9. **Scene**
+10. **Simulation**
+11. **Display**
+12. **Sources group**
+13. **Expand or collapse a group**
+14. **Add to this group**  
+   Add an item to this folder
 15. **Enabled**  
    Include the source in runs (Space on the row toggles it)
 16. **Move up**  
@@ -55,16 +56,9 @@ The Project pane with the example project.
    Move down (Alt+Down); drag to reorder
 18. **Remove**  
    Remove (Del)
-19. **Row Horizontal source**
-20. **Row Parts**
-21. **Row Mirror background**
-22. **Row left box**
-23. **Row Right box**
-24. **Row Connection**
-25. **Row Probes**
-26. **Row Log Intensity distribution over boxes**
-27. **Row Field amplitude diagonal left box**
-28. **Row Colour schemes**
+19. **Parts group**
+20. **Probes group**
+21. **Colour schemes group**
 
 ## The preview
 
@@ -201,6 +195,7 @@ The Simulation menu.
 The Help menu.
 
 1. **About WaveDude Next**
+2. **Manual**
 
 ## File > Export
 
@@ -220,29 +215,99 @@ The File > Export submenu.
 
 The File > Examples submenu: the shipped example projects.
 
-1. **1. Simple source**
-2. **2. Coherent source**
-3. **3. Directional pulsed source**
-4. **4. 3 frequencies**
-5. **5. Small incoherent source**
-6. **6. Large incoherent source**
-7. **7. Random emitter lattice**
-8. **8. Resonant wave in cavity**
-9. **9. Laplacian dispersion**
-10. **10. Beam expansion**
-11. **11. Zone plate**
-12. **12. Pulse splitter**
-13. **13. Bragg reflector**
-14. **14. Resonant roundabout**
-15. **15. Top up the tank**
-16. **16. Wave in 2 boxes**
-17. **17. Hanbury Brown Twiss**
-18. **18. XOR AND OR logic**
-19. **19. Sources with spherical mirror**
-20. **20. Test glass**
-21. **21. Ball lens**
-22. **22. Coherence and ball lens**
-23. **23. Fibers**
+1. **1. Source Mirror Probe**  
+   Simple omnidirectional pulsed source with a smoothed square intensity profile, reflecting of simple mirror surface. A probe measures the intensity profile near the surface.
+2. **2. Coherent source gaussian beam**  
+   Featuring a 21 x 7 composite source that emits a continuous gaussian beam
+3. **3. Directional pulsed source**  
+   Featuring a coherent pulsed assembly of sources that emits a directional stream of wave pulses.
+4. **4. 3 sources 3 frequencies**  
+   Geometric wave pattern resulting from 3 sources with different frequencies
+5. **5. Small incoherent source**  
+   Simulation features a small (5x5 composite) source using randomized "off"-time and source frequency.
+6. **6. Large incoherent source**  
+   Featuring a large (450+ composite) source that creates both spatially- as well as temporally incoherent wave emission. The probes show that even though the intensity variations are large for an incoherent source, they eventually average out over time. Probe 2 shows the 1/r relationship. where r= distance to the source.
+7. **7. Random emitter lattice**  
+   Collection of 800+ sources distributed over the full animation space and emitting short random wave pulses with a varying frequency.
+8. **8. Resonant wave in cavity**  
+   Wave energy released at the center of a cavity at almost the resonance frequency.
+9. **9. Laplacian dispersion**  
+   Visualization of dispersion (wavelength-dependent propagation speed) when using a third order Laplacian. To remove the dispersion, check the 4th order Laplacian checkbox under "Simulation".
+10. **10. Beam expansion**  
+   A beam expander using a GRIN lens and a large confocal lens.
+11. **11. Zone plate**  
+   One source and a zone plate
+12. **12. Pulse splitter**  
+   Short coherent pulse divided by a beam splitter
+13. **13. Bragg reflector**  
+   Demo of a Bragg reflector. The layer thickness of each layer should be 1/4 lambda divided by the refractive index of the specific layer. However, reflectivity is strongly angle dependent.
+14. **14. Resonant roundabout**  
+   Resonant roundabout with two sources and two exits. If you change the phase of one of the sources by 180 degrees, waves will take the other exit.
+15. **15. Top up the tank**  
+   Filling a tank with radiative energy
+16. **16. Wave in 2 boxes**  
+   Two boxes connected by a small pipe that allows for wave energy to flow from left to right (and back).
+17. **17. Hanbury Brown Twiss**  
+   Switch on the small source and the two telescopes will see highly correlated signals. Switch on the large source and the correlation disappears. This is a demonstration of the area of coherence as can be measured in the HBT experiment to measure the ratio between the diameter and the distance of a star.
+18. **18. XOR AND OR logic**  
+   3 logical wave gates chained together
+19. **19. Sources with spherical mirror**  
+   Wave pulse emitted from the center of the curvature of a mirror, reflecting and then returning to the point of emission. Featuring timed probes. Notice that this simulation runs extremely fast on the GPU, when no video export is selected.
+20. **20. Test glass**  
+   The simulation shows the interference pattern created between two high-refractive index surfaces in close proximity of each other under a small angle.
+21. **21. Ball lens**  
+   Continuous point source and high refractive index ball lens. Probe 2A-B features 1/r intensity decay from the source with some interference of some reflections superimposed on it.
+22. **22. Coherence and ball lens**  
+   A coherent and directional source directing its waves at a ball lens with a high refractive index. It demonstrates Gaussian beam and Airy disk profiles
+23. **23. Fibers**  
+   Simulation of 3 different fibers:
+- Top: single mode fiber
+- Middle: narrow multi-mode fiber
+- Bottom: wide multi-mode fiber
+Includes the use of two probes, an A-B (line) field probe and a single point intensity probe.
+24. **24. Fiber cross over**  
+   Two single-mode fibres side by side, their cores a dozen pixels apart: the evanescent field of one reaches into the other, so light launched into fibre A crosses over into fibre B and back along the length, a directional coupler. The probe along A shows the beating, the cross-fibre probe the field across both cores. Switch source A off and B on to launch from the other fibre.
+
+## The Add part menu
+
+![menu-add-part](menu-add-part.svg)
+
+The Add part menu of the project tree: the kinds of optical parts.
+
+1. **Lens/Mirror**  
+   A lens or a mirror: a strip of the diameter between two spherical surfaces, each bulging outward, flat or hollow by the sign of its radius, the centre thickness apart. As a mirror it reflects everything; as a lens it refracts by its index, with an anti-reflection coating and absorption if wanted.
+2. **Fibre**  
+   A fibre: a core of higher index inside a cladding, along a smooth path of Bézier segments through its nodes, with flat or round ends. A wave coupled into the core is guided along the path; the cladding can absorb stray light at its rim.
+3. **Bragg reflector**  
+   A Bragg reflector: pairs of layers of two indices stacked along the axis. It reflects strongly around the wavelength the layer thicknesses are tuned to, a quarter wave each, and passes others.
+4. **GRIN lens**  
+   A gradient-index lens: a rectangle whose index falls from the axis to the edge in a parabolic profile, so it focuses like a lens with flat faces.
+5. **Zone plate**  
+   A zone plate: Fresnel zones cut for a design frequency and a focal length, every second zone an absorbing block, the central zone open or, inverted, a block. It focuses by diffraction; an optional mount stops light passing outside the diameter.
+6. **Polygon**  
+   A regular polygon of glass or mirror, by its number of sides and the side length.
+7. **Rectangle**  
+   A rectangle of glass or mirror, by length and width; linked, a square. A flat mirror is a long, narrow one.
+8. **Ellipse**  
+   An ellipse of glass or mirror, by the length and width of its box; linked, a circle.
+9. **Triangle**  
+   A triangle of glass or mirror: the base across the axis, the apex along it, the base angles set by a preset or by hand.
+10. **Outline**  
+   A free outline of glass or mirror: a closed shape through the points you place and drag; fewer than three paint nothing.
+11. **Optical logic**
+
+## Add part > Optical logic
+
+![menu-add-part-logic](menu-add-part-logic.svg)
+
+The Optical logic submenu of the Add part menu: the gates.
+
+1. **XOR (Mach-Zehnder)**  
+   An optical XOR gate: two input waveguides, a phase section putting the lower input a quarter period ahead, and a coupler whose upper output carries their difference. It lights when one input is lit, not both, for coherent inputs at the design frequency.
+2. **AND**  
+   An optical AND gate: the same coupler with the lower input a quarter period behind, so the upper output carries the sum. It is brightest with both inputs lit, about four times a single one; a passive linear gate has no truer AND.
+3. **OR**  
+   An optical OR gate: the same coupler with the lower input a twelfth of a period ahead, so the upper output carries half the power of either input and of both. It lights with one input or both.
 
 ## Project
 
@@ -474,549 +539,575 @@ A composite (array) source, pulsed.
 
 ![properties-lens](properties-lens.svg)
 
-A lens or mirror.
+A lens or a mirror: a strip of the diameter between two spherical surfaces, each bulging outward, flat or hollow by the sign of its radius, the centre thickness apart. As a mirror it reflects everything; as a lens it refracts by its index, with an anti-reflection coating and absorption if wanted.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Mirror**  
+7. **Mirror**  
    Make the part a mirror instead of a lens. The refractive index, the coating and the absorption are ignored then.
-7. **Refractive index**  
+8. **Refractive index**  
    Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.
-8. **AR coating**  
+9. **AR coating**  
    Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
-9. **Coating profile**  
+10. **Coating profile**  
    How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
-10. **Coat the front**  
+11. **Coat the front**  
    Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
-11. **Coat the back**  
+12. **Coat the back**  
    Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
-12. **Coat the sides**  
+13. **Coat the sides**  
    Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
-13. **Absorption**  
+14. **Absorption**  
    How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.
-14. **Absorption ramp**  
+15. **Absorption ramp**  
    Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.
-15. **Diameter**  
+16. **Diameter**  
    Extent across the axis in pixels.
-16. **Concave (diverging)**  
+17. **Concave (diverging)**  
    Whether the lens diverges, its surfaces curving inward. Ticking it turns the lens around by flipping the sign of both radii; a flat surface stays flat.
-17. **R1**  
+18. **R1**  
    Radius of the first surface in pixels: positive bulges outward, negative is concave, 0 is flat. A radius too curved for the diameter and the centre thickness is raised to the smallest that fits.
-18. **R2**  
+19. **R2**  
    Radius of the second surface in pixels: negative bulges outward, positive is concave, 0 is flat. A radius too curved for the diameter and the centre thickness is raised to the smallest that fits.
-19. **Centre thickness**  
+20. **Centre thickness**  
    Distance between the two surfaces on the axis in pixels.
-20. **Edge thickness**  
+21. **Edge thickness**  
    Thickness at the rim: the centre thickness less what the convex surfaces take, plus what the concave ones add; 0 when the surfaces meet at the rim
 
 ## Polygon
 
 ![properties-polygon](properties-polygon.svg)
 
-A polygon.
+A regular polygon of glass or mirror, by its number of sides and the side length.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Mirror**  
+7. **Mirror**  
    Make the part a mirror instead of glass. The refractive index, the coating and the absorption are ignored then.
-7. **Refractive index**  
+8. **Refractive index**  
    Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.
-8. **AR coating**  
+9. **AR coating**  
    Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
-9. **Coating profile**  
+10. **Coating profile**  
    How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
-10. **Coat the front**  
+11. **Coat the front**  
    Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
-11. **Coat the back**  
+12. **Coat the back**  
    Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
-12. **Coat the sides**  
+13. **Coat the sides**  
    Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
-13. **Absorption**  
+14. **Absorption**  
    How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.
-14. **Absorption ramp**  
+15. **Absorption ramp**  
    Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.
-15. **Number of sides**  
+16. **Number of sides**  
    Number of sides, 3 to 64.
-16. **Side length**  
+17. **Side length**  
    Length of each side in pixels.
 
 ## Rectangle
 
 ![properties-rectangle](properties-rectangle.svg)
 
-A rectangle.
+A rectangle of glass or mirror, by length and width; linked, a square. A flat mirror is a long, narrow one.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Mirror**  
+7. **Mirror**  
    Make the part a mirror instead of glass. The refractive index, the coating and the absorption are ignored then.
-7. **Refractive index**  
+8. **Refractive index**  
    Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.
-8. **AR coating**  
+9. **AR coating**  
    Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
-9. **Coating profile**  
+10. **Coating profile**  
    How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
-10. **Coat the front**  
+11. **Coat the front**  
    Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
-11. **Coat the back**  
+12. **Coat the back**  
    Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
-12. **Coat the sides**  
+13. **Coat the sides**  
    Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
-13. **Absorption**  
+14. **Absorption**  
    How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.
-14. **Absorption ramp**  
+15. **Absorption ramp**  
    Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.
-15. **Length**  
+16. **Length**  
    Extent along the axis in pixels.
-16. **Width**  
+17. **Width**  
    Extent across the axis in pixels.
 
 ## Ellipse
 
 ![properties-ellipse](properties-ellipse.svg)
 
-An ellipse.
+An ellipse of glass or mirror, by the length and width of its box; linked, a circle.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Mirror**  
+7. **Mirror**  
    Make the part a mirror instead of glass. The refractive index, the coating and the absorption are ignored then.
-7. **Refractive index**  
+8. **Refractive index**  
    Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.
-8. **AR coating**  
+9. **AR coating**  
    Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
-9. **Coating profile**  
+10. **Coating profile**  
    How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
-10. **Coat the front**  
+11. **Coat the front**  
    Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
-11. **Coat the back**  
+12. **Coat the back**  
    Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
-12. **Coat the sides**  
+13. **Coat the sides**  
    Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
-13. **Absorption**  
+14. **Absorption**  
    How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.
-14. **Absorption ramp**  
+15. **Absorption ramp**  
    Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.
-15. **Length**  
+16. **Length**  
    Diameter along the axis in pixels.
-16. **Width**  
+17. **Width**  
    Diameter across the axis in pixels.
 
 ## Triangle
 
 ![properties-triangle](properties-triangle.svg)
 
-A triangle.
+A triangle of glass or mirror: the base across the axis, the apex along it, the base angles set by a preset or by hand.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Mirror**  
+7. **Mirror**  
    Make the part a mirror instead of glass. The refractive index, the coating and the absorption are ignored then.
-7. **Refractive index**  
+8. **Refractive index**  
    Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.
-8. **AR coating**  
+9. **AR coating**  
    Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
-9. **Coating profile**  
+10. **Coating profile**  
    How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
-10. **Coat the front**  
+11. **Coat the front**  
    Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
-11. **Coat the back**  
+12. **Coat the back**  
    Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
-12. **Coat the sides**  
+13. **Coat the sides**  
    Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
-13. **Absorption**  
+14. **Absorption**  
    How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.
-14. **Absorption ramp**  
+15. **Absorption ramp**  
    Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.
-15. **Type**  
+16. **Type**  
    Equilateral, right isosceles (the 45° prism), 30-60-90, isosceles with one typed angle, or custom with both typed.
-16. **Base**  
+17. **Base**  
    Length of the base in pixels; the base lies across the axis, toward a source on the left.
-17. **Angle A**  
+18. **Angle A**  
    Base angle at the first end of the base, in degrees. Typed for the isosceles and custom types; the presets fix it.
-18. **Angle B**  
+19. **Angle B**  
    Base angle at the second end of the base, in degrees. Typed for the custom type; the others fix it.
-19. **Apex angle**  
+20. **Apex angle**  
    The angle at the apex: 180° minus the two base angles
 
 ## Outline
 
 ![properties-outline](properties-outline.svg)
 
-An outline (free points).
+A free outline of glass or mirror: a closed shape through the points you place and drag; fewer than three paint nothing.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Mirror**  
+7. **Mirror**  
    Make the part a mirror instead of glass. The refractive index, the coating and the absorption are ignored then.
-7. **Refractive index**  
+8. **Refractive index**  
    Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.
-8. **AR coating**  
+9. **AR coating**  
    Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
-9. **Coating profile**  
+10. **Coating profile**  
    How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
-10. **Coat the front**  
+11. **Coat the front**  
    Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
-11. **Coat the back**  
+12. **Coat the back**  
    Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
-12. **Coat the sides**  
+13. **Coat the sides**  
    Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
-13. **Absorption**  
+14. **Absorption**  
    How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.
-14. **Absorption ramp**  
+15. **Absorption ramp**  
    Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.
-15. **X**
-16. **A point: X, Y, remove**  
+16. **X**
+17. **A point: X, Y, remove**  
    Remove this point
-17. **Add a point**  
+18. **Add a point**  
    Append a point after the last one
 
 ## Fibre
 
 ![properties-fibre](properties-fibre.svg)
 
-A fibre on a BÃ©zier path.
+A fibre: a core of higher index inside a cladding, along a smooth path of Bézier segments through its nodes, with flat or round ends. A wave coupled into the core is guided along the path; the cladding can absorb stray light at its rim.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Core index**  
+7. **Core index**  
    Refractive index of the core, 1.00 to 2.55 in steps of 0.01.
-7. **Core diameter**  
+8. **Core diameter**  
    Diameter of the core in pixels.
-8. **Cladding index**  
+9. **Cladding index**  
    Refractive index of the cladding, 1.00 to 2.55 in steps of 0.01. Below the core's index, the fibre guides.
-9. **Cladding thickness**  
+10. **Cladding thickness**  
    Thickness of the cladding around the core in pixels; 0 for a bare core.
-10. **Cladding absorption**  
+11. **Cladding absorption**  
    Peak absorption of the cladding's absorbing band, 0 (not at all) to 255, as the scene image's blue channel: a hump in the outer part of the cladding, rising over the band width from nothing, peaking, and falling to nothing at the outer edge, so the guided wave's tail stays untouched and stray light is absorbed from either side. Nothing on a bare core.
-11. **Absorption band**  
+12. **Absorption band**  
    Half the absorbing band's width in pixels: the absorption rises over this many pixels to its peak and falls over as many to the outer edge. A band wider than the cladding is squeezed into it.
-12. **AR coating**  
+13. **AR coating**  
    Thickness in pixels of the anti-reflection band just inside the outer boundary and the end faces; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
-13. **Coating profile**  
+14. **Coating profile**  
    How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
-14. **Coat the front**  
+15. **Coat the front**  
    Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
-15. **Coat the back**  
+16. **Coat the back**  
    Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
-16. **Coat the sides**  
+17. **Coat the sides**  
    Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
-17. **Ends**  
+18. **Ends**  
    How the two ends are cut: flat, straight across the path like a cleaved fibre, or rounded with the outer radius. The AR coating follows a flat end face.
-18. **Node**  
+19. **Node**  
    X relative to the part's centre in canvas pixels, before rotation.
-19. **In**  
+20. **In**  
    X of the in-handle relative to the node, in canvas pixels before rotation. It shapes the segment arriving from the previous node; zero makes that segment straight at this end.
-20. **Out**  
+21. **Out**  
    X of the out-handle relative to the node, in canvas pixels before rotation. It shapes the segment leaving to the next node; zero makes that segment straight at this end.
-21. **Node**  
+22. **Node**  
    X relative to the part's centre in canvas pixels, before rotation.
-22. **In**  
+23. **In**  
    X of the in-handle relative to the node, in canvas pixels before rotation. It shapes the segment arriving from the previous node; zero makes that segment straight at this end.
-23. **Out**  
+24. **Out**  
    X of the out-handle relative to the node, in canvas pixels before rotation. It shapes the segment leaving to the next node; zero makes that segment straight at this end.
-24. **Per node: smooth, remove**  
+25. **Per node: smooth, remove**  
    Remove this node
-25. **Add a node**  
+26. **Add a node**  
    Append a node beyond the last one, continuing the path
 
 ## Bragg reflector
 
 ![properties-bragg-reflector](properties-bragg-reflector.svg)
 
-A Bragg reflector.
+A Bragg reflector: pairs of layers of two indices stacked along the axis. It reflects strongly around the wavelength the layer thicknesses are tuned to, a quarter wave each, and passes others.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Layer pairs**  
+7. **Layer pairs**  
    Number of layer pairs, 1 to 200.
-7. **Thickness 1**  
+8. **Thickness 1**  
    Thickness of the first layer of each pair in pixels. A quarter-wave layer is λ / (4 n) pixels thick.
-8. **Index 1**  
+9. **Index 1**  
    Refractive index of the first layer of each pair, 1.00 to 2.55 in steps of 0.01.
-9. **Thickness 2**  
+10. **Thickness 2**  
    Thickness of the second layer of each pair in pixels. A quarter-wave layer is λ / (4 n) pixels thick.
-10. **Index 2**  
+11. **Index 2**  
    Refractive index of the second layer of each pair, 1.00 to 2.55 in steps of 0.01.
-11. **Width**  
+12. **Width**  
    Extent of the stack across the axis in pixels.
 
 ## GRIN lens
 
 ![properties-grin-lens](properties-grin-lens.svg)
 
-A GRIN lens.
+A gradient-index lens: a rectangle whose index falls from the axis to the edge in a parabolic profile, so it focuses like a lens with flat faces.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Centre index**  
+7. **Centre index**  
    Refractive index on the axis, 1.00 to 2.55 in steps of 0.01.
-7. **Edge index**  
+8. **Edge index**  
    Refractive index at the edge, 1.00 to 2.55 in steps of 0.01. The profile between the axis and the edge is parabolic.
-8. **AR coating**  
+9. **AR coating**  
    Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
-9. **Coating profile**  
+10. **Coating profile**  
    How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
-10. **Coat the front**  
+11. **Coat the front**  
    Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
-11. **Coat the back**  
+12. **Coat the back**  
    Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
-12. **Coat the sides**  
+13. **Coat the sides**  
    Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
-13. **Length**  
+14. **Length**  
    Extent along the axis in pixels.
-14. **Diameter**  
+15. **Diameter**  
    Extent across the axis in pixels.
 
 ## XOR gate
 
 ![properties-xor-gate](properties-xor-gate.svg)
 
-An XOR gate.
+An optical XOR gate: two input waveguides, a phase section putting the lower input a quarter period ahead, and a coupler whose upper output carries their difference. It lights when one input is lit, not both, for coherent inputs at the design frequency.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Design frequency**  
+7. **Design frequency**  
    The source frequency the gate is designed for, on the same scale as a source's frequency: the frequency of the sources that drive it. The wavelength, and from it the core width, the coupler and the phase section, follow from it, so the gate works at this frequency only.
-7. **Wavelength**  
+8. **Wavelength**  
    The wavelength the design frequency gives in a medium of index 1, with the simulation's source frequency scale
-8. **Core index**  
+9. **Core index**  
    Refractive index of the waveguide cores, 1.00 to 2.55 in steps of 0.01. It must be above the cladding's; the larger the difference, the narrower the cores and the tighter the bends.
-9. **Cladding index**  
+10. **Cladding index**  
    Refractive index of the cladding around the cores, 1.00 to 2.55 in steps of 0.01.
-10. **AR coating**  
+11. **AR coating**  
    Thickness in pixels of the anti-reflection band at the ends ticked below, with the index √n of the core and of the cladding; 0 for none. A quarter-wave band, the least reflecting, is λ / (4 √n) pixels thick; the form shows it for the core.
-11. **AR on input side**  
+12. **AR on input side**  
    Put the anti-reflection band on the input end. Switch it off where the gate takes its light from a gate before it, so the wave passes through the junction.
-12. **AR on output side**  
+13. **AR on output side**  
    Put the anti-reflection band on the output end. Switch it off where the gate hands its light to a gate after it, so the wave passes through the junction.
-13. **Quarter-wave coating**  
+14. **Quarter-wave coating**  
    The thickness of the least reflecting coating on the core, λ / (4 √n)
-14. **Port spacing**  
+15. **Port spacing**  
    Distance between the two inputs, and between the two outputs, in pixels. A value below what the design needs to keep the arms apart is raised to it, and the box shows the spacing used.
-15. **Upper output**  
+16. **Upper output**  
    Let the upper output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.
-16. **Lower output**  
+17. **Lower output**  
    Let the lower output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.
-17. **Core width**
-18. **Coupler gap**
-19. **Coupler length**
-20. **Total length**
-21. **Input A**
-22. **Input B**
-23. **Upper output**
-24. **Lower output**
+18. **Core width**
+19. **Coupler gap**
+20. **Coupler length**
+21. **Total length**
+22. **Input A**
+23. **Input B**
+24. **Upper output**
+25. **Lower output**
 
 ## AND gate
 
 ![properties-and-gate](properties-and-gate.svg)
 
-An AND gate.
+An optical AND gate: the same coupler with the lower input a quarter period behind, so the upper output carries the sum. It is brightest with both inputs lit, about four times a single one; a passive linear gate has no truer AND.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Design frequency**  
+7. **Design frequency**  
    The source frequency the gate is designed for, on the same scale as a source's frequency: the frequency of the sources that drive it. The wavelength, and from it the core width, the coupler and the phase section, follow from it, so the gate works at this frequency only.
-7. **Wavelength**  
+8. **Wavelength**  
    The wavelength the design frequency gives in a medium of index 1, with the simulation's source frequency scale
-8. **Core index**  
+9. **Core index**  
    Refractive index of the waveguide cores, 1.00 to 2.55 in steps of 0.01. It must be above the cladding's; the larger the difference, the narrower the cores and the tighter the bends.
-9. **Cladding index**  
+10. **Cladding index**  
    Refractive index of the cladding around the cores, 1.00 to 2.55 in steps of 0.01.
-10. **AR coating**  
+11. **AR coating**  
    Thickness in pixels of the anti-reflection band at the ends ticked below, with the index √n of the core and of the cladding; 0 for none. A quarter-wave band, the least reflecting, is λ / (4 √n) pixels thick; the form shows it for the core.
-11. **AR on input side**  
+12. **AR on input side**  
    Put the anti-reflection band on the input end. Switch it off where the gate takes its light from a gate before it, so the wave passes through the junction.
-12. **AR on output side**  
+13. **AR on output side**  
    Put the anti-reflection band on the output end. Switch it off where the gate hands its light to a gate after it, so the wave passes through the junction.
-13. **Quarter-wave coating**  
+14. **Quarter-wave coating**  
    The thickness of the least reflecting coating on the core, λ / (4 √n)
-14. **Port spacing**  
+15. **Port spacing**  
    Distance between the two inputs, and between the two outputs, in pixels. A value below what the design needs to keep the arms apart is raised to it, and the box shows the spacing used.
-15. **Upper output**  
+16. **Upper output**  
    Let the upper output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.
-16. **Lower output**  
+17. **Lower output**  
    Let the lower output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.
-17. **Core width**
-18. **Coupler gap**
-19. **Coupler length**
-20. **Total length**
-21. **Input A**
-22. **Input B**
-23. **Upper output**
-24. **Lower output**
+18. **Core width**
+19. **Coupler gap**
+20. **Coupler length**
+21. **Total length**
+22. **Input A**
+23. **Input B**
+24. **Upper output**
+25. **Lower output**
 
 ## OR gate
 
 ![properties-or-gate](properties-or-gate.svg)
 
-An OR gate.
+An optical OR gate: the same coupler with the lower input a twelfth of a period ahead, so the upper output carries half the power of either input and of both. It lights with one input or both.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Design frequency**  
+7. **Design frequency**  
    The source frequency the gate is designed for, on the same scale as a source's frequency: the frequency of the sources that drive it. The wavelength, and from it the core width, the coupler and the phase section, follow from it, so the gate works at this frequency only.
-7. **Wavelength**  
+8. **Wavelength**  
    The wavelength the design frequency gives in a medium of index 1, with the simulation's source frequency scale
-8. **Core index**  
+9. **Core index**  
    Refractive index of the waveguide cores, 1.00 to 2.55 in steps of 0.01. It must be above the cladding's; the larger the difference, the narrower the cores and the tighter the bends.
-9. **Cladding index**  
+10. **Cladding index**  
    Refractive index of the cladding around the cores, 1.00 to 2.55 in steps of 0.01.
-10. **AR coating**  
+11. **AR coating**  
    Thickness in pixels of the anti-reflection band at the ends ticked below, with the index √n of the core and of the cladding; 0 for none. A quarter-wave band, the least reflecting, is λ / (4 √n) pixels thick; the form shows it for the core.
-11. **AR on input side**  
+12. **AR on input side**  
    Put the anti-reflection band on the input end. Switch it off where the gate takes its light from a gate before it, so the wave passes through the junction.
-12. **AR on output side**  
+13. **AR on output side**  
    Put the anti-reflection band on the output end. Switch it off where the gate hands its light to a gate after it, so the wave passes through the junction.
-13. **Quarter-wave coating**  
+14. **Quarter-wave coating**  
    The thickness of the least reflecting coating on the core, λ / (4 √n)
-14. **Port spacing**  
+15. **Port spacing**  
    Distance between the two inputs, and between the two outputs, in pixels. A value below what the design needs to keep the arms apart is raised to it, and the box shows the spacing used.
-15. **Upper output**  
+16. **Upper output**  
    Let the upper output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.
-16. **Lower output**  
+17. **Lower output**  
    Let the lower output's light leave the gate. Switched off, an absorber with a soft rise takes it in the last stretch of the arm.
-17. **Core width**
-18. **Coupler gap**
-19. **Coupler length**
-20. **Total length**
-21. **Input A**
-22. **Input B**
-23. **Upper output**
-24. **Lower output**
+18. **Core width**
+19. **Coupler gap**
+20. **Coupler length**
+21. **Total length**
+22. **Input A**
+23. **Input B**
+24. **Upper output**
+25. **Lower output**
 
 ## Zone plate
 
 ![properties-zone-plate](properties-zone-plate.svg)
 
-A zone plate.
+A zone plate: Fresnel zones cut for a design frequency and a focal length, every second zone an absorbing block, the central zone open or, inverted, a block. It focuses by diffraction; an optional mount stops light passing outside the diameter.
 
-1. **Name**  
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
    Name shown in the project tree and on the canvas.
-2. **Enabled**  
+3. **Enabled**  
    Paint the part into the scene; a disabled part has no effect on a run.
-3. **X**  
+4. **X**  
    X of the part's centre in canvas pixels.
-4. **Y**  
+5. **Y**  
    Y of the part's centre in canvas pixels.
-5. **Angle**  
+6. **Angle**  
    Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
-6. **Target frequency**  
+7. **Target frequency**  
    The source frequency the plate is designed for, on the same scale as a source's frequency. The zones follow from the wavelength it gives, so the plate focuses this frequency at the focal length; other frequencies focus elsewhere.
-7. **Wavelength**  
+8. **Wavelength**  
    The wavelength the design frequency gives in a medium of index 1, with the simulation's source frequency scale
-8. **Focal length**  
+9. **Focal length**  
    Distance in pixels from the plate to its focus, for a plane wave arriving along the axis.
-9. **Inverse**  
+10. **Inverse**  
    Exchange the zones: the central zone becomes a block, the first ring open, and so on. The focus stays where it is.
-10. **Diameter**  
+11. **Diameter**  
    Extent across the axis in pixels; the zones fill it.
-11. **Thickness**  
+12. **Thickness**  
    Extent along the axis in pixels: the depth of the blocks. It should leave room for the anti-reflection rise on both faces.
-12. **Anti-reflection**  
+13. **Anti-reflection**  
    Depth in pixels over which a block's absorption rises from nothing at its faces to its full strength, so the blocks reflect little; at most half the thickness takes effect.
-13. **Mount**  
+14. **Mount**  
    Surround the plate with an absorbing mount, so no light passes outside its diameter. Without it, that light meets the focused light on the axis and moves the focus further out, the more so the fewer zones the plate has.
-14. **Mount width**  
+15. **Mount width**  
    Width in pixels of the absorbing mount on either side, beyond the diameter.
-15. **Number of zones**
-16. **Outermost zone**
+16. **Number of zones**
+17. **Outermost zone**
 
 ## Probe
 

@@ -8,26 +8,19 @@
   <g><title>Move the selected object up</title><circle cx="238" cy="28" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="238" y="28" dy=".36em" fill="#000">5</text></g>
   <g><title>Move the selected object down</title><circle cx="258" cy="28" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="258" y="28" dy=".36em" fill="#000">6</text></g>
   <g><title>Remove the selected object</title><circle cx="278" cy="28" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="278" y="28" dy=".36em" fill="#000">7</text></g>
-  <g><title>Row Project</title><circle cx="-12" cy="64" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="64" dy=".36em" fill="#000">8</text></g>
-  <g><title>Row Scene</title><circle cx="-12" cy="86" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="86" dy=".36em" fill="#000">9</text></g>
-  <g><title>Row Simulation</title><circle cx="-12" cy="110" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="110" dy=".36em" fill="#000">10</text></g>
-  <g><title>Row Display</title><circle cx="-12" cy="132" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="132" dy=".36em" fill="#000">11</text></g>
-  <g><title>Row Sources</title><circle cx="-12" cy="156" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="156" dy=".36em" fill="#000">12</text></g>
-  <g><title>Add to this group</title><circle cx="27" cy="156" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="27" y="156" dy=".36em" fill="#000">13</text></g>
-  <g><title>Row Vertical source</title><circle cx="-12" cy="178" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="178" dy=".36em" fill="#000">14</text></g>
+  <g><title>Project: the root row</title><circle cx="-12" cy="64" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="64" dy=".36em" fill="#000">8</text></g>
+  <g><title>Scene</title><circle cx="-12" cy="86" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="86" dy=".36em" fill="#000">9</text></g>
+  <g><title>Simulation</title><circle cx="-12" cy="110" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="110" dy=".36em" fill="#000">10</text></g>
+  <g><title>Display</title><circle cx="-12" cy="132" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="132" dy=".36em" fill="#000">11</text></g>
+  <g><title>Sources group</title><circle cx="-12" cy="156" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="156" dy=".36em" fill="#000">12</text></g>
+  <g><title>Expand or collapse a group</title><circle cx="27" cy="156" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="27" y="156" dy=".36em" fill="#000">13</text></g>
+  <g><title>Add to this group</title><circle cx="390" cy="155" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="390" y="155" dy=".36em" fill="#000">14</text></g>
   <g><title>Enabled</title><circle cx="64" cy="178" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="64" y="178" dy=".36em" fill="#000">15</text></g>
   <g><title>Move up</title><circle cx="350" cy="178" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="350" y="178" dy=".36em" fill="#000">16</text></g>
   <g><title>Move down</title><circle cx="370" cy="178" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="370" y="178" dy=".36em" fill="#000">17</text></g>
   <g><title>Remove</title><circle cx="390" cy="178" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="390" y="178" dy=".36em" fill="#000">18</text></g>
-  <g><title>Row Horizontal source</title><circle cx="-12" cy="202" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="202" dy=".36em" fill="#000">19</text></g>
-  <g><title>Row Parts</title><circle cx="-12" cy="224" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="224" dy=".36em" fill="#000">20</text></g>
-  <g><title>Row Mirror background</title><circle cx="-12" cy="248" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="248" dy=".36em" fill="#000">21</text></g>
-  <g><title>Row left box</title><circle cx="-12" cy="270" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="270" dy=".36em" fill="#000">22</text></g>
-  <g><title>Row Right box</title><circle cx="-12" cy="294" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="294" dy=".36em" fill="#000">23</text></g>
-  <g><title>Row Connection</title><circle cx="-12" cy="316" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="316" dy=".36em" fill="#000">24</text></g>
-  <g><title>Row Probes</title><circle cx="-12" cy="340" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="340" dy=".36em" fill="#000">25</text></g>
-  <g><title>Row Log Intensity distribution over boxes</title><circle cx="-12" cy="362" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="362" dy=".36em" fill="#000">26</text></g>
-  <g><title>Row Field amplitude diagonal left box</title><circle cx="-12" cy="386" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="386" dy=".36em" fill="#000">27</text></g>
-  <g><title>Row Colour schemes</title><circle cx="-12" cy="408" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="408" dy=".36em" fill="#000">28</text></g>
+  <g><title>Parts group</title><circle cx="-12" cy="224" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="224" dy=".36em" fill="#000">19</text></g>
+  <g><title>Probes group</title><circle cx="-12" cy="340" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="340" dy=".36em" fill="#000">20</text></g>
+  <g><title>Colour schemes group</title><circle cx="-12" cy="408" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="408" dy=".36em" fill="#000">21</text></g>
   </g>
 </svg>
