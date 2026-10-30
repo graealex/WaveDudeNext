@@ -137,9 +137,9 @@ try {
 	Check "'Examples' sits below Recent in the File menu" ((PopupFocusedId) -eq "MenuExamples") (PopupFocusedId)
 	Step "Right" $VK_RIGHT 300
 	Check "the list opens on the first example" ((PopupFocusedId) -eq "MenuExample01") (PopupFocusedId)
-	Check "whose entry reads '1. Simple source'" (PopupItemVisible "1. Simple source")
+	Check "whose entry reads '1. Source Mirror Probe'" (PopupItemVisible "1. Source Mirror Probe")
 	Step "Enter" $VK_RETURN 500
-	Check "the example replaces the project: frames 0 to 1249, its file name in the title (2026-10-29)" ((WaitFor { (Frame) -like "* / 1249" } 5000) -and ($win.Current.Name -like "*Example01_Simple_source.wdproj")) ("{0}; title '{1}'" -f (Frame), $win.Current.Name)
+	Check "the example replaces the project: frames 0 to 1249, its file name in the title (2026-10-29)" ((WaitFor { (Frame) -like "* / 1249" } 5000) -and ($win.Current.Name -like "*Example01_Source_Mirror_Probe.wdproj")) ("{0}; title '{1}'" -f (Frame), $win.Current.Name)
 	Check "the app never took the foreground" ((Foreground) -ne "APP") (Foreground)
 }
 finally {

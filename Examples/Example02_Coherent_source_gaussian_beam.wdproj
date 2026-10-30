@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Version="3" Seed="1798021273">
-	<Description>Featuring a 21 x 7 composite source that emits a continuous gaussian wave beam</Description>
+	<Description>Featuring a 21 x 7 composite source that emits a continuous gaussian beam</Description>
 	<Scene DampingEdge="-64" />
 	<Display>
 		<Field ColorScheme="Default field" Brightness="6" BlackLevel="-0.05" />

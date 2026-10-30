@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Version="3" Seed="314604207">
-	<Description>Resonant roundabout with two sources and two exits. If you change the phase of one of the sources, waves will take the other exit.</Description>
+	<Description>Resonant roundabout with two sources and two exits. If you change the phase of one of the sources by 180 degrees, waves will take the other exit.</Description>
 	<Scene Width="1080" DampingEdge="31" />
 	<Simulation Steps="5000" TimeDecay="1" />
 	<Display>

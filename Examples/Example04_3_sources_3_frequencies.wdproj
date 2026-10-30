@@ -10,5 +10,5 @@
 	<Source Name="Source 1" X="525" Y="440" Frequency="95" />
 	<Source Name="Source 2" X="525" Y="500" />
 	<Source Name="Source 3" X="525" Y="560" Frequency="97" />
-	<Probe Name="Probe 1" Layer="Intensity" Measurement="Value" Kind="Line" AX="1024" AY="156" BX="1024" BY="851" BoxX="680" BoxY="880" />
+	<Probe Name="Probe 1" Layer="Intensity" Measurement="Value" Kind="Line" AX="1024" AY="156" BX="1024" BY="851" BoxSize="Large" BoxX="34" BoxY="774" />
 </Project>
