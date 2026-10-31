@@ -21,6 +21,7 @@ using System.Diagnostics;
 using System.Numerics.Tensors;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Xml;
 using System.Xml.Serialization;
 using NLog;
 using WaveDudeNext.Engine;
@@ -269,6 +270,7 @@ internal static class Program
 		CheckRanges();
 		CheckHistory();
 		CheckClipboard();
+		CheckProjectSchema();
 		CheckOpenEdges(W, H);
 		CheckWorkGroups();
 		CheckFrameStore(scene);
@@ -459,6 +461,105 @@ internal static class Program
 				failures.Add($"{where}, threw {e.GetType().Name}: {e.Message}");
 			}
 		}
+	}
+
+	/// <summary>
+	/// The project file's DTD (<see cref="ProjectSchema"/>, 2026-10-31): built from the serializer attributes, it accepts what
+	/// Save writes for a project with every kind of object and for every example, and such a file loads back; it reports a
+	/// misspelt attribute, a value outside an enumeration and an element out of the written order, which the loader takes
+	/// anyway. Validated by .NET's own DTD validator (DtdProcessing.Parse with ValidationType.DTD), which the app never runs.
+	/// </summary>
+	private static void CheckProjectSchema()
+	{
+		string subset = ProjectSchema.InternalSubset;
+		Check(subset.Contains("<!ELEMENT Project (Description?, Scene?, Simulation?, Display?, Source*, (Lens|") && subset.Contains("<!ATTLIST Project Version CDATA #REQUIRED>"),
+			"the DTD declares the root's children in the written order and its version as required");
+		Check(subset.Contains("<!ATTLIST Source Mode (Continuous|Pulsed) #IMPLIED>") && subset.Contains("<!ATTLIST Source Enabled (true|false) #IMPLIED>"), "an enum attribute lists its members, a bool its two values");
+		Check(subset.Contains("<!ELEMENT Fiber (Node*)>") && subset.Contains("<!ELEMENT Outline (Point*)>") && subset.Contains("<!ELEMENT ImageData (#PCDATA)>"), "child elements and text elements are declared");
+		Check(subset.Contains("<!-- ") == ProjectSchema.Comments, "comments in the DTD follow the Comments constant");
+		Check(!ProjectSchema.Comments || System.Text.RegularExpressions.Regex.IsMatch(subset, @"<!-- [^\r\n]*Default 1920\. Range \d+ to \d+\. -->\r?\n\t<!ATTLIST Scene Width CDATA #IMPLIED>"),
+			"an attribute's comment names its description, default and range on the line before it");
+
+		var project = new Project { Description = "Every kind of object" };
+		project.Scene.ImageData = [1, 2, 3];
+		Source source = project.AddSource();
+		source.Array = new SourceArray();
+		Probe probe = project.AddProbe();
+		probe.Kind = ProbeKind.Line;
+		probe.BoxSize = ProbeBoxSize.Custom;
+		project.AddColorScheme();
+		foreach (Type kind in typeof(OpticalPart).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(OpticalPart)) && !t.IsAbstract).OrderBy(t => t.Name))
+		{
+			project.AddPart(kind);
+		}
+		string xml = SaveToText(project);
+		string newLine = Environment.NewLine;
+		Check(xml.StartsWith("<?xml version=\"1.0\" encoding=\"utf-8\"?>" + newLine + "<!DOCTYPE Project [" + newLine + "\t<!") && xml.Contains(newLine + "]>" + newLine + "<Project Version=\"3\""),
+			"the file holds the declaration, the DTD and then the root");
+		List<string> errors = ValidateAgainstDtd(xml);
+		Check(errors.Count == 0, "a project with every kind of object validates against its DTD" + (errors.Count == 0 ? "" : ": " + errors[0]));
+		Project back = LoadText(xml);
+		Check(back.Parts.Count == project.Parts.Count && back.Sources.Count == 1 && back.Sources[0].Array != null && back.Probes.Count == 1 && back.ColorSchemes.Count == 1
+			&& back.Scene.ImageData is { Length: 3 } && back.Description == "Every kind of object", "the file with its DTD loads back with everything");
+		errors = ValidateAgainstDtd(xml.Replace("<Source Name=", "<Source Nmae="));
+		Check(errors.Count == 1 && errors[0].Contains("Nmae"), "a misspelt attribute is reported" + (errors.Count == 0 ? "" : ": " + errors[0]));
+		errors = ValidateAgainstDtd(xml.Replace("Kind=\"Line\"", "Kind=\"Curve\""));
+		Check(errors.Count == 1 && errors[0].Contains("Curve"), "a value outside the enumeration is reported" + (errors.Count == 0 ? "" : ": " + errors[0]));
+		int probeAt = xml.IndexOf("\t<Probe ");
+		string probeLine = xml.Substring(probeAt, xml.IndexOf(newLine, probeAt) + newLine.Length - probeAt);
+		string reordered = xml.Remove(probeAt, probeLine.Length).Replace("\t<Source ", probeLine + "\t<Source ");
+		errors = ValidateAgainstDtd(reordered);
+		Check(errors.Count > 0 && LoadText(reordered).Probes.Count == 1, "a probe before the sources is reported, and the loader takes it anyway" + (errors.Count == 0 ? "" : ": " + errors[0]));
+
+		string? root = FindRepoRoot();
+		if (root == null)
+		{
+			Console.WriteLine("  skip examples: the repository was not found above the harness");
+			return;
+		}
+		int files = 0, valid = 0;
+		foreach (string file in Directory.GetFiles(Path.Combine(root, "Examples"), "*.wdproj").Order())
+		{
+			files++;
+			errors = ValidateAgainstDtd(SaveToText(Project.Load(file)));
+			if (errors.Count == 0)
+			{
+				valid++;
+			}
+			else
+			{
+				Console.WriteLine("  " + Path.GetFileName(file) + ": " + errors[0]);
+			}
+		}
+		Check(files >= 24 && valid == files, $"every example as saved now validates against the DTD ({valid} of {files})");
+	}
+
+	/// <summary>The project as its file: Save's bytes as text.</summary>
+	private static string SaveToText(Project project)
+	{
+		using var stream = new MemoryStream();
+		project.Save(stream);
+		return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+	}
+
+	/// <summary>A project read from file text.</summary>
+	private static Project LoadText(string xml)
+	{
+		using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(xml));
+		return Project.Load(stream);
+	}
+
+	/// <summary>The errors .NET's DTD validator reports for <paramref name="xml"/>, a document carrying its DTD; none for a valid one.</summary>
+	private static List<string> ValidateAgainstDtd(string xml)
+	{
+		var errors = new List<string>();
+		var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Parse, ValidationType = ValidationType.DTD };
+		settings.ValidationEventHandler += (_, e) => errors.Add(e.Message);
+		using var reader = XmlReader.Create(new StringReader(xml), settings);
+		while (reader.Read())
+		{
+		}
+		return errors;
 	}
 
 	/// <summary>
@@ -3548,7 +3649,8 @@ internal static class Program
 			project.Save(stream);
 			xml = System.Text.Encoding.UTF8.GetString(stream.ToArray());
 		}
-		Check(!xml.Contains("Absorption"), "at their defaults neither is written");
+		// the attributes themselves: the file's DTD declares both names (2026-10-31)
+		Check(!xml.Contains("Absorption=\"") && !xml.Contains("AbsorptionRamp=\""), "at their defaults neither is written");
 		lens.Absorption = 300;
 		lens.AbsorptionRamp = 0;
 		lens.Normalize();

@@ -327,6 +327,17 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   normal in the part frame (within 45° of −x' front, of +x' back, else a side; a fibre's start face, end face and tube); a
   cavity's inner faces can stay bare. A fibre's cladding can absorb (`Absorption`, `AbsorptionRamp`: a hump in its outer
   part, a mode stripper, Jeroen's strips along his fibres).
+- **The project file carries its DTD** (2026-10-31, the user's request, so a text editor completes element and attribute
+  names and enumeration values): `ProjectSchema` builds the DOCTYPE's internal subset once per process by reflection from
+  the serializer attributes (one `ELEMENT` per name with its children in the written order, an `ATTLIST` line per attribute,
+  bools and enums enumerated, the rest `CDATA`, no DTD defaults, `#REQUIRED` only where the serializer always writes), with a
+  comment giving the setting's description, default and range before each declaration when the `ProjectSchema.Comments`
+  constant is true, false since 2026-10-31, the user's choice after seeing them (56 KB a file with them, 15 KB without); `Save`
+  writes it, `Load` skips it (`DtdProcessing.Ignore`; the reader's default refuses
+  any DOCTYPE, so builds before this refuse new files); history snapshots and clipboard fragments carry none; `library_check`
+  validates a one-of-every-kind project and every example as saved against it with .NET's DTD validator and proves a
+  misspelt attribute, a wrong value and a misplaced element are reported. The examples and the harnesses' test projects are
+  not re-saved with it yet.
 - File types `.wdproj` / `.wdscheme` are registered per user at start-up; unsaved edits ask on close.
 - **Examples** (2026-10-29, the user's request): File > Examples lists the project files of the repository's `Examples`
   folder, embedded in the app (`EmbeddedResource` in the WPF project, `Examples.cs`), in file order with the two-digit
@@ -370,7 +381,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard, the first start's tiers).
+`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard, the project file's DTD, the first start's tiers).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 44, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness

@@ -28,7 +28,8 @@ namespace WaveDudeNext.Model;
 /// A wave simulation project: the scene, solver and display settings plus the sources, optical
 /// parts and probes. Persisted as sparse XML through <see cref="XmlSerializer"/>: scalars are attributes,
 /// sources, parts and probes are repeated <c>Source</c>, <c>Lens</c> … <c>GrinLens</c> and <c>Probe</c> elements
-/// directly under the root, and values equal to their defaults are left out. Properties carry
+/// directly under the root, and values equal to their defaults are left out. The file carries its document type definition
+/// (<see cref="ProjectSchema"/>, 2026-10-31), which <see cref="Load(Stream)"/> skips. Properties carry
 /// <see cref="System.ComponentModel"/> metadata for property grids.
 /// </summary>
 [XmlRoot("Project")]
@@ -66,6 +67,11 @@ public sealed class Project : ObservableObject
 		IndentChars = "\t",
 		Encoding = new System.Text.UTF8Encoding(false),
 	};
+	/// <summary>
+	/// A file's reader skips its document type definition without parsing it (<see cref="DtdProcessing.Ignore"/>): a stale or
+	/// hand-edited DTD changes nothing, and the default, which refuses any DOCTYPE, would refuse every file saved since 2026-10-31.
+	/// </summary>
+	private static readonly XmlReaderSettings ReaderSettings = new() { DtdProcessing = DtdProcessing.Ignore };
 
 	/// <summary>Format version of the file this project was read from, or <see cref="CurrentVersion"/>.</summary>
 	[XmlAttribute]
@@ -510,10 +516,12 @@ public sealed class Project : ObservableObject
 		}
 	}
 
-	/// <summary>Writes the project as indented XML.</summary>
+	/// <summary>Writes the project as indented XML: the declaration, the document type definition (<see cref="ProjectSchema"/>) and the root.</summary>
 	public void Save(Stream stream)
 	{
 		using var writer = XmlWriter.Create(stream, WriterSettings);
+		writer.WriteStartDocument();
+		writer.WriteDocType(ProjectSchema.RootName, null, null, ProjectSchema.InternalSubset);
 		Serializer.Serialize(writer, this, NoNamespaces);
 	}
 
@@ -532,7 +540,7 @@ public sealed class Project : ObservableObject
 	/// <exception cref="InvalidOperationException">The stream does not hold a project document.</exception>
 	public static Project Load(Stream stream)
 	{
-		using var reader = XmlReader.Create(stream);
+		using var reader = XmlReader.Create(stream, ReaderSettings);
 		if (Serializer.Deserialize(reader) is not Project project)
 		{
 			throw new InvalidOperationException("The document is not a WaveDude Next project.");
