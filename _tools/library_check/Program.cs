@@ -2545,12 +2545,16 @@ internal static class Program
 		Check(logProbe is { YScale: ProbeValueScale.Linear, IsLogarithmic: false } && normalised.Decades == 12 && normalised.IsLogarithmic, "a field probe's axis is linear; the decades are clamped to 12");
 	}
 
-	/// <summary>The repository root (the folder holding the author's examples), found by walking up from the harness binary; null when not found.</summary>
+	/// <summary>
+	/// The repository root, found by walking up from the harness binary to the folder holding <c>_tools/legacy_examples</c>,
+	/// the Wave Dude 2D projects the import checks read (2026-10-31: the root folder of Jeroen's original examples is gone,
+	/// the four the checks need moved there); null when not found.
+	/// </summary>
 	private static string? FindRepoRoot()
 	{
 		for (DirectoryInfo? dir = new(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
 		{
-			if (Directory.Exists(Path.Combine(dir.FullName, "Wave_Dude_Examples")))
+			if (Directory.Exists(Path.Combine(dir.FullName, "_tools", "legacy_examples")))
 			{
 				return dir.FullName;
 			}
@@ -2558,17 +2562,20 @@ internal static class Program
 		return null;
 	}
 
+	/// <summary>The path of a Wave Dude 2D project among the import fixtures.</summary>
+	private static string LegacyExample(string root, string folder) => Path.Combine(root, "_tools", "legacy_examples", folder, "configuration.json");
+
 	private static void CheckImport()
 	{
 		Console.WriteLine("--- legacy project import");
 		string? root = FindRepoRoot();
 		if (root == null)
 		{
-			Console.WriteLine("  skip import: the Wave_Dude_Examples folder was not found above the harness");
+			Console.WriteLine("  skip import: the _tools/legacy_examples folder was not found above the harness");
 			return;
 		}
 		var notes = new List<string>();
-		Project p = LegacyProject.Import(Path.Combine(root, "Wave_Dude_Examples", "Example12_Dispersion", "configuration.json"), notes, out string name);
+		Project p = LegacyProject.Import(LegacyExample(root, "Example12_Dispersion"), notes, out string name);
 		Check(name == "Example12_Dispersion" && p.Description.StartsWith("This example shows the difference", StringComparison.Ordinal) && notes.Count == 0, "Example 12: name and description, no notes");
 		Check(p.Scene.Mode == SceneMode.Image && p.Scene.Image == "frequency_race_track (2).png" && p.Scene.ImageData is { Length: 58074 } && p.Scene.Width == 1920 && p.Scene.Height == 1080, "scene: image mode, the image embedded (58074 bytes) under its file name, 1920 x 1080");
 		Check(Path.IsPathRooted(p.Scene.ImagePath) && p.Scene.ImagePath.EndsWith(Path.Combine("scene_images", "frequency_race_track (2).png"), StringComparison.OrdinalIgnoreCase), "the import keeps the image's source path (absolute) for the watch");
@@ -2588,11 +2595,11 @@ internal static class Program
 			Project back = Project.Load(stream);
 			Check(back.Sources.Count == 4 && back.Probes.Count == 2 && back.Scene.ImageData!.SequenceEqual(p.Scene.ImageData!) && back.Simulation.Steps == 15000 && !back.Simulation.FourthOrderLaplacian, "the imported project round-trips through the XML format");
 		}
-		Check(LegacyProject.SuggestedFileName(Path.Combine(root, "Wave_Dude_Examples", "Example12_Dispersion", "configuration.json"), name) == Path.Combine(root, "Wave_Dude_Examples", "Example12_Dispersion", "Example12_Dispersion.wdproj"), "Save As proposes <name>.wdproj beside the original");
+		Check(LegacyProject.SuggestedFileName(LegacyExample(root, "Example12_Dispersion"), name) == Path.Combine(root, "_tools", "legacy_examples", "Example12_Dispersion", "Example12_Dispersion.wdproj"), "Save As proposes <name>.wdproj beside the original");
 
 		// a composite, randomised, detaching, pulsed source; a missing image in canvas mode; a global probe switch
 		notes.Clear();
-		p = LegacyProject.Import(Path.Combine(root, "Wave_Dude_Examples", "Example5_Small_incoherent_source", "configuration.json"), notes, out _);
+		p = LegacyProject.Import(LegacyExample(root, "Example5_Small_incoherent_source"), notes, out _);
 		Check(p.Scene.Mode == SceneMode.Canvas && p.Scene.ImageData == null && p.Scene.Image == "scene_images/spherrical_mirror_small_central_aperture.png" && notes.Any(n => n.Contains("not found")), "Example 5: canvas mode, the missing image's path kept and noted");
 		Source composite = p.Sources[0];
 		Check(composite.Array is { SizeX: 5, SizeY: 5, SpacingX: 3, SpacingY: 3, RandomFrequency: 50, RandomPhase: 90, RandomOffWidth: 19, RandomPosition: 1 } && composite.Elements.Count == 25, "a 5 x 5 array with its random amounts, 25 emitters regenerated");
@@ -2602,7 +2609,7 @@ internal static class Program
 
 		// start-after steps in use, an intensity probe, a detaching single source, the fallback decay
 		notes.Clear();
-		p = LegacyProject.Import(Path.Combine(root, "Wave_Dude_Examples", "Example3_Spherical_mirror", "configuration.json"), notes, out _);
+		p = LegacyProject.Import(LegacyExample(root, "Example3_Spherical_mirror"), notes, out _);
 		Check(p.Probes[0] is { StartAfter: 600, Window: 3000, Layer: ProbeLayer.Intensity, Measurement: ProbeMeasurement.Value } && p.Probes[1] is { StartAfter: 600, Measurement: ProbeMeasurement.IntegratedValue, Kind: ProbeKind.Line }, "Example 3: start-after steps kept when their flag is on, intensity measurements");
 		Check(p.Sources[0] is { Array: null, DetachAfter: 670, PulseWidth: 70, OffWidth: 100, Frequency: 200 } && p.Simulation.TimeDecay == 8 && p.Display.Intensity.ColorScheme == "Copper", "a single detaching source (its unused array settings ignored), decay 8, Copper");
 		Check(p.Scene.Mode == SceneMode.Image && p.Scene.ImageData == null && notes.Count == 1, "image mode with the image missing: one note");
@@ -2610,7 +2617,7 @@ internal static class Program
 		// which the author's program simulated at its default (100, 100) all the same: it must come in enabled, or
 		// the run is black (2026-10-16)
 		notes.Clear();
-		p = LegacyProject.Import(Path.Combine(root, "Wave_Dude_Examples", "Example11_Fluorescent_emitter", "configuration.json"), notes, out _);
+		p = LegacyProject.Import(LegacyExample(root, "Example11_Fluorescent_emitter"), notes, out _);
 		Check(p.Sources.Count == 1 && p.Sources[0] is { Enabled: true, X: 100, Y: 100, Array: { SizeX: 41, SizeY: 21 } } && notes.Any(n => n.Contains("no picked position")),
 			"Example 11: the lattice without a picked position comes in enabled at (100, 100), noted");
 

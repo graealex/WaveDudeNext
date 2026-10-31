@@ -33,9 +33,10 @@ param(
 
 . (Join-Path $PSScriptRoot "Common.ps1")
 
-$examples = Join-Path $PSScriptRoot "..\..\Wave_Dude_Examples"
+# two scene images from Jeroen's examples, kept with the import fixtures (2026-10-31)
+$examples = Join-Path $PSScriptRoot "..\legacy_examples"
 $raceTrack = Join-Path $examples "Example12_Dispersion\scene_images\frequency_race_track (2).png"
-$ballLens = Join-Path $examples "Example4_Ball_lens\scene_images\Ball_lens_high_RI_AR.png"
+$ballLens = Join-Path $examples "Ball_lens_high_RI_AR.png"
 $folder = Join-Path $env:TEMP ("wd-scene-" + [Guid]::NewGuid().ToString("N"))
 $null = New-Item -ItemType Directory -Path $folder
 Copy-Item $raceTrack (Join-Path $folder "scene.png")

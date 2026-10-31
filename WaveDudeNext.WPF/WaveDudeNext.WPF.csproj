@@ -49,4 +49,22 @@
     <ProjectReference Include="..\WaveDudeNext\WaveDudeNext.csproj" />
   </ItemGroup>
 
+  <!-- the published single EXE under the release's file name, WaveDudeNext-<version><suffix>.exe (2026-10-31, the user's
+       request: the two publish profiles' files must not share a name). The profiles ask for it with NameReleaseFile and
+       give the suffix; the assembly keeps its name, which the pack URIs of the resources carry -->
+  <Target Name="NameReleaseFile" AfterTargets="Publish" Condition="'$(NameReleaseFile)' == 'true'">
+    <PropertyGroup>
+      <ReleaseFile>$(PublishDir)WaveDudeNext-$(Version)$(ReleaseFileSuffix).exe</ReleaseFile>
+    </PropertyGroup>
+    <Delete Files="$(ReleaseFile)" />
+    <Move SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(ReleaseFile)" />
+    <Message Importance="high" Text="Release file: $(ReleaseFile)" />
+  </Target>
+  <!-- no symbol files beside the release EXE: the referenced library's pdb is not covered by CopyOutputSymbolsToPublishDirectory -->
+  <Target Name="DropPublishedSymbols" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(NameReleaseFile)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+
 </Project>

@@ -15,7 +15,7 @@
 # version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 # <https://www.gnu.org/licenses/>.
 
-# Opens one of the author's projects (Wave_Dude_Examples/Example12_Dispersion/configuration.json) through the
+# Opens one of Jeroen's Wave Dude 2D projects (_tools/legacy_examples/Example12_Dispersion/configuration.json) through the
 # command line and checks the import landed in the app (2026-10-14): the title shows no file (the project is
 # unsaved), the tree lists the four sources and two probes, the preview's canvas is the embedded image's
 # 1920 x 1080, and the status bar carries the import message. See Common.ps1 for the rules (no mouse, no
@@ -30,7 +30,7 @@ param(
 
 . (Join-Path $PSScriptRoot "Common.ps1")
 
-Start-App $Exe (Join-Path $PSScriptRoot "..\..\Wave_Dude_Examples\Example12_Dispersion\configuration.json")
+Start-App $Exe (Join-Path $PSScriptRoot "..\legacy_examples\Example12_Dispersion\configuration.json")
 try {
 	Check "the imported project is unsaved: the title names the file Save As will propose beside the JSON, Example12_Dispersion.wdproj (2026-10-29)" ($win.Current.Name -like "WaveDude Next - *\Example12_Dispersion\Example12_Dispersion.wdproj") $win.Current.Name
 	$sources = @("Source 1", "Source 2", "Source 3", "Source 4") | Where-Object { try { (Find ("Tree:" + $_)) -ne $null } catch { $false } }

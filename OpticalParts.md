@@ -224,8 +224,8 @@ the check's small canvas, +6 % in a wide one).
   the radii (2026-10-26), a handle per outline point (2026-10-19) and per fibre node with its two Bézier handles on
   dotted lines (2026-10-22); otherwise the shape shows through the glowing outline. Arrows nudge, Escape during a drag
   puts things back.
-- **Examples**: `Wave_Dude_Examples/logical_elements_example.wdproj` (Jeroen's, 2026-10-22: XOR and AND gates cascaded
-  with pulsed sources and probes).
+- **Examples**: `Examples/Example18_XOR_AND_OR_logic.wdproj`, the curated form of Jeroen's `logical_elements_example.wdproj`
+  (2026-10-22: XOR and AND gates cascaded with pulsed sources and probes; the original is in git history up to 02d0e2d).
 
 ## Open points
 
@@ -233,4 +233,6 @@ the check's small canvas, +6 % in a wide one).
   the arrows) and example projects for Jeroen (a lens, a cavity, a bent fibre); the planned stage 3.
 - The "+ Part" menu as the way to choose a kind, against a button per kind (decided in practice, never confirmed).
 - Bragg thicknesses in pixels as typed, without an automatic quarter-wave from a source's wavelength.
-- Where example projects live: Jeroen's originals and his first new one sit in `Wave_Dude_Examples/`.
+- Where example projects live: settled (2026-10-29/31): the curated set in `Examples/`, embedded in the app; Jeroen's
+  originals are out of the repository (git history up to 02d0e2d), the four the import checks read sit in
+  `_tools/legacy_examples/`.

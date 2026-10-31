@@ -384,7 +384,11 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 `library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard, the project file's DTD, the first start's tiers).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 44, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
-`ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness
+`ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. The
+Wave Dude 2D projects the import checks read (`library_check`, `ImportCheck`, `SceneImageCheck`) sit in
+`_tools/legacy_examples` (2026-10-31, the user's wish: the root folder `Wave_Dude_Examples` with Jeroen's original
+examples is gone from the repository, in history up to 02d0e2d; `library_check` finds the repository root by the
+fixtures folder). A harness
 sets the persisted settings it expects (split orientation, preview quality). Known flake: a second app start in one
 script sometimes comes up active; only the foreground guard fails then.
 **Manual figures** (2026-10-27): `Screenshots.ps1` on `Common.ps1` writes `Assets/*.svg` (the PNG inlined, numbered
@@ -420,7 +424,8 @@ automatic quality lowering when a run would spill (undecided); dropping the 9-po
 the menu versus buttons, Bragg thicknesses in pixels, where examples live) wait for the user.
 
 **Unsolved: clicks on the intensity picture selected nothing** (2026-10-22, seen once, not reproduced). In
-`Wave_Dude_Examples/logical_elements_example.wdproj`, after several undo and redo cycles (gates moved, undone, redone),
+Jeroen's `logical_elements_example.wdproj` (git history up to 02d0e2d; Example 18 is its curated form), after several
+undo and redo cycles (gates moved, undone, redone),
 a click on Probe 1's or Rectangle 1 copy's handle in the intensity picture selected nothing; nothing lay over them, the
 user checked. Reopening the project (a fresh start) cured it. The session is in the Release build's log
 (`WaveDudeNext.WPF\bin\Release\net10.0-windows\WaveDudeNext.WPF.log`, 21:58:52 to 22:00:42): no warning or error, and

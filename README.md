@@ -34,7 +34,7 @@ A set of example projects opens from the File menu, from a single source and a m
 
 ## Get it
 
-**Download.** The latest release is on the [Releases](https://github.com/graealex/WaveDudeNext/releases) page: one EXE for 64-bit Windows 10 or 11, nothing to install. GPU acceleration uses the OpenCL driver that comes with the graphics driver. MP4 export uses Windows Media Foundation, which Windows N editions get with the Media Feature Pack.
+**Download.** The [Releases](https://github.com/graealex/WaveDudeNext/releases) page offers each release as two EXEs for 64-bit Windows 10 or 11: a small one that needs the .NET 10 Desktop Runtime, which Windows offers to download on the first start if it is missing, and a larger one with the runtime inside, so nothing has to be installed. GPU acceleration uses the OpenCL driver that comes with the graphics driver. MP4 export uses Windows Media Foundation, which Windows N editions get with the Media Feature Pack.
 
 **Build from source.** With the .NET 10 SDK installed:
 
@@ -44,7 +44,7 @@ cd WaveDudeNext
 dotnet build -c Release WaveDudeNext.sln
 ```
 
-The program is `WaveDudeNext.WPF\bin\Release\net10.0-windows\WaveDudeNext.WPF.exe`; or open the solution in Visual Studio. A single EXE like the release comes from
+The program is `WaveDudeNext.WPF\bin\Release\net10.0-windows\WaveDudeNext.WPF.exe`; or open the solution in Visual Studio. A single EXE comes from
 
 ```
 dotnet publish WaveDudeNext.WPF\WaveDudeNext.WPF.csproj -p:PublishProfile=SingleFile
