@@ -1,81 +1,68 @@
 # WaveDude Next
 
-![WaveDude Next](Assets/main-window.png)
+A 2D wave simulator for optics on Windows. You place light sources and optical parts on a canvas and watch how the waves propagate, as the field itself and as the intensity they build up, while the simulation runs.
 
-<!-- Anchor for the real text. Facts only, checked against the code on 2026-10-16. Rewrite freely. -->
+![WaveDude Next with an example project: the project tree, the properties of the selected object, the wave field and the intensity side by side, and the timeline](Assets/main-window.png)
 
-What it is
-- 2D wave simulator for Windows; rewrite of Wave Dude 2D (Jeroen Vleggaar, Huygens Optics).
-- Engine, probes and colour schemes descend from his program; UI, project format, live preview are new.
-- GPL-3.0-or-later, same as the original.
+## What you see
 
-<!-- screenshot 1: main window, finished run, field + intensity, probes with graphs. docs/main.png -->
+Two pictures follow every run: the field, the wave swinging positive and negative, and the intensity, the wave's energy averaged over time. Probes record the field or the intensity at a point or along a line and show their graphs over the picture, with a linear or a logarithmic axis. You can scrub the timeline to any frame, play at any speed, loop a section, and set the brightness yourself or have it fitted to the frame. Colour schemes come with the program; you can also make your own. The interface comes in English, German, French and Dutch, in a dark or a light theme.
 
-Live preview
-- Any edit recomputes the frame shown (GPU: usually under a second); after 1.5 s of quiet the full run is redone in the background.
-- A running automatic run is cancelled and restarted on an edit.
-- Probes update from the recomputed frame, no full run needed.
-- Run button = render all frames ahead of time, then scrubbing is instant.
-- Runs stay in RAM (budget: free RAM minus 2 GB, cap selectable 10..100 %); beyond that a temp file.
-- Full HD, 2500 steps: about 5 s on an RTX 2080.
-- Reduced preview for weak hardware: half/quarter resolution, half/quarter of the frames, 8-bit samples. Simulation and export unaffected.
+## Scenes
 
-Scene
-- An image. Red = refractive index × 100 (100 = 1.0, 150 = 1.5; clamped 0.9..10), green = emitting pixel, blue = damping. Same rules as the original.
-- Embedded in the project; the file is watched and re-embedded when it changes.
-- Absorbing edge of configurable width.
+Scenes are measured in pixels; a source's wavelength in pixels is shown beside its frequency.
 
-Sources
-- Point or composite array; continuous or pulsed; frequency, amplitude, phase, start/stop step.
-- Arrays: pitch, rows/columns, rotation (handle or value), random offsets per emitter.
-- Wavelength in pixels shown next to the frequency.
+Sources are single points or arrays of emitters, which form beams and directional pulses. They emit continuously or in bursts, and random offsets per emitter make a source incoherent.
 
-Probes
-- Point or line; amplitude (field) or value / integrated value (intensity); start step.
-- Graph box drawn on the preview; draggable, resizable, snaps to the probe.
+Optical parts go on the canvas: lenses and mirrors with spherical surfaces, polygons, rectangles, ellipses, triangles and free outlines, of glass with a refractive index of your choice or as mirrors; fibres along a curve, with core and cladding; Bragg reflectors, gradient-index lenses, zone plates, and optical XOR, AND and OR gates. Parts can have anti-reflection coatings and absorption.
 
-Timeline
-- Scrub, play 0.25x..4x (typed values too), step keys, in/out points (export range only), loop.
-- Sources and probes draggable in both pictures; click empty space deselects.
+A scene can also be an image from a paint program, where red stands for the refractive index, green for emitters and blue for absorption. The image is embedded in the project and refreshed when the file changes.
 
-Export
-- PNG sequence, JPEG sequence, MPG (MPEG-1, I-frames only), AVI uncompressed (OpenDML, >4 GB ok), MP4 H.264 (Windows Media Foundation), MOV Animation codec (lossless RGB; Premiere/FinalCut/Resolve).
-- Field, intensity or both; probe graphs and markers burned in (switchable); single frame export.
-- Uses the existing run; starts one if needed. No automatic exports.
+Everything can be moved and shaped on the picture, by handles and levers, or set by typing, and the pictures are rendered in real time while you edit: the frame on screen is recomputed after every change, and the run starts over shortly after. Undo and redo are unlimited, and objects can be copied between projects. Every control is reachable from the keyboard.
 
-Project
-- One `.wdproj` XML file; scene image and colour schemes embedded.
-- Seed in the project: same project, same video.
-- Wave Dude 2D `configuration.json` imports.
+## Export
 
-Colour schemes
-- 23 built in (the original gradients, simplified to their bends); own schemes live in the project; colour picker.
+Videos are written as MP4, MPEG-1, AVI or QuickTime; frames as PNG or JPEG, in sequences or as single images; and OpenEXR files carry the raw values for NumPy, MATLAB, Octave or an EXR viewer such as [DJV](https://github.com/darbyjohnston/DJV). In and out points set the range, and probe graphs, probe markers and source markers can be drawn into the output. A probe's recorded values can be exported as CSV.
 
-Misc
-- OpenCL GPU engine, CPU fallback; 9-point or 4th-order Laplacian.
-- Keyboard-accessible throughout; dockable panes; dark/light theme; English, German, French, Dutch.
-- Help > About shows version, credits, license.
+## Speed
 
-Status
-- No release, no installer, no docs yet.
-- Planned: portable archive + signed installer; documentation file; curated examples (Jeroen); original version hosted as preserved assets.
-- Later: CSV export of probe data; built-in shapes instead of painted PNGs; Avalonia port (Linux/Mac/browser).
+The simulation runs on the GPU, or on the CPU where there is no suitable GPU. On the first start, the preview quality is chosen to suit the machine, and the View menu changes it at any time: for slower machines, the preview can run at a reduced resolution or with fewer frames, while exports always use the full quality. On a sufficiently fast machine, the preview can keep floating-point values and dither the pictures, which shows finer gradients. Finished frames stay in memory for scrubbing and go to disk when a run outgrows it.
 
-<!-- screenshot 2: colour scheme editor with picker, or probe graphs close up. docs/editor.png -->
+## Examples
 
-Build
+A set of example projects opens from the File menu, from a single source and a mirror to fibres, a ball lens and logic gates. WaveDude Next is the successor of Wave Dude 2D by Jeroen Vleggaar (Huygens Optics); it opens Wave Dude 2D projects directly, and the classic examples are included.
+
+## Get it
+
+**Download.** The latest release is on the [Releases](https://github.com/graealex/WaveDudeNext/releases) page: one EXE for 64-bit Windows 10 or 11, nothing to install. GPU acceleration uses the OpenCL driver that comes with the graphics driver. MP4 export uses Windows Media Foundation, which Windows N editions get with the Media Feature Pack.
+
+**Build from source.** With the .NET 10 SDK installed:
+
 ```
-git clone https://github.com/graealex/WaveDude
-dotnet publish WaveDudeNext.WPF/WaveDudeNext.WPF.csproj -p:PublishProfile=SingleFile
+git clone https://github.com/graealex/WaveDudeNext
+cd WaveDudeNext
+dotnet build -c Release WaveDudeNext.sln
 ```
-- .NET 10 SDK to build; Windows 10+, .NET 10 desktop runtime to run; OpenCL driver optional; MP4 needs Media Foundation (Media Feature Pack on N editions).
-- No external frameworks besides Media Foundation.
 
-Credits (as in the source header)
-- Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
-  <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
-- 0x23 (Diffraction Limited), author of WaveSimulator2D
-  <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+The program is `WaveDudeNext.WPF\bin\Release\net10.0-windows\WaveDudeNext.WPF.exe`; or open the solution in Visual Studio. A single EXE like the release comes from
 
-License
-- GPL-3.0-or-later; full text in LICENSE.md.
+```
+dotnet publish WaveDudeNext.WPF\WaveDudeNext.WPF.csproj -p:PublishProfile=SingleFile
+```
+
+## Documentation
+
+[MANUAL.md](MANUAL.md) describes every window, menu and setting, with pictures; the program shows the same text under Help > Manual.
+
+## Problems
+
+Report problems on the [issue tracker](https://github.com/graealex/WaveDudeNext/issues). The report template asks for the system information, which Help > About copies to the clipboard with one click, and for the log file `WaveDudeNext.WPF.log` from the folder of the program.
+
+## Credits and license
+
+Based on the work of
+
+- Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026: [YouTube](https://www.youtube.com/@HuygensOptics), [huygensoptics.com](https://www.huygensoptics.com)
+- 0x23 (Diffraction Limited), author of WaveSimulator2D: [YouTube](https://www.youtube.com/@DiffractionLimited), [GitHub](https://github.com/0x23/WaveSimulator2D)
+
+WaveDude Next is free software by Alexander Gräf, Copyright (C) 2026, released under the GNU General Public License version 3 or later. See [LICENSE.md](LICENSE.md).

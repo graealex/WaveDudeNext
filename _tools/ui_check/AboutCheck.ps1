@@ -89,7 +89,8 @@ try {
 	$version = (DFind "AboutVersion").Current.Name
 	Check "the version line reads 'Version x.y.z (hash)' with the commit of the build" ($version -match "^Version \d+\.\d+\.\d+ \([0-9a-f]{7}\)$" -and $version -like "*($expectedHash)*") ("'{0}', HEAD {1}" -f $version, $expectedHash)
 	Check "the product line" ((DFind "AboutProduct").Current.Name -eq "WaveDude Next") (DFind "AboutProduct").Current.Name
-	Check "the copyright line" ((DFind "AboutCopyright").Current.Name -eq "Copyright (C) 2026 Alexander Graef") (DFind "AboutCopyright").Current.Name
+	# the umlaut from its code point, so the script stays ASCII whatever PowerShell reads the file as (2026-10-31)
+	Check "the copyright line" ((DFind "AboutCopyright").Current.Name -eq ("Copyright (C) 2026 Alexander Gr" + [char]0xE4 + "f")) (DFind "AboutCopyright").Current.Name
 	$vleggaar = (DFind "AboutCreditVleggaar").Current.Name
 	$author0x23 = (DFind "AboutCreditWaveSimulator2D").Current.Name
 	Check "the credits name Jeroen with his copyright and 0x23, as the source header does" (($vleggaar -like "Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026*") -and ($author0x23 -like "0x23 (Diffraction Limited), author of WaveSimulator2D*")) ("'{0}' / '{1}'" -f $vleggaar, $author0x23)

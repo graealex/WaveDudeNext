@@ -402,7 +402,9 @@ from an unchanged app.
 
 ## People, name, license
 
-Alexander Graef (the user), author of WaveDude Next. Jeroen Vleggaar, Huygens Optics, author of Wave Dude 2D,
+Alexander Gräf (the user), author of WaveDude Next: his name has the umlaut in documentation shown to the public (the
+README; 2026-10-31, his rule), while the ASCII "Graef" stays in the license headers and the git author, his choice to
+avoid Unicode there. Jeroen Vleggaar, Huygens Optics, author of Wave Dude 2D,
 Copyright (C) 2026. 0x23 (Diffraction Limited), author of WaveSimulator2D, which Jeroen's numerics followed; named by his handle only, at his wish (2026-10-19).
 Private addresses stay out of files. The name was agreed with Jeroen (he proposed "Pro"); the GitHub repository
 `graealex/WaveDude` still has the old name. The header text is the editorconfig template, identical in every file,

@@ -22,7 +22,7 @@ The main window with an example project at frame 1200.
 6. **Header strip of a picture**: The title, the brightness box and Auto, which fits the brightness to the frame shown; see [The preview](#the-preview).
 7. **Timeline**: Your position in the run. Click or drag to scrub; drag a bracket to move the start or end of the export range. Left/Right step a frame, PageUp/PageDown ten, Home/End jump to the start/end of the range. See [The timeline](#the-timeline).
 8. **Transport controls**: Run, play and pause, frame steps, the in and out points, loop and live, the position as frame and step, the playback speed, and which pictures are shown and how.
-9. **Status bar**: Shows the last entry in the log. Double click to open the messages/log pane. Colour changes for warnings and errors.
+9. **Status bar**: Shows the last entry in the log. Double-click opens the Messages pane. Colour changes for warnings and errors.
 
 The panes can be arranged as you like: drag a pane by its title to another side of the window, or use the controls at the right of its title to move or close it; View > Panes brings a closed pane back. The arrangement is kept for the next start, as are the theme, the language and the preview settings of the View menu.
 
@@ -162,30 +162,30 @@ A probe's measurements are exported as CSV from the probe's context menu, in the
 
 The File > Examples submenu: the example projects shipped with the program, most of them from Wave Dude 2D. Each opens as an unsaved project named after its example; save it under your own name to keep your changes. Hover over an entry for its description.
 
-1. **1. Source Mirror Probe**: Simple omnidirectional pulsed source with a smoothed square intensity profile, reflecting of simple mirror surface. A probe measures the intensity profile near the surface.
-2. **2. Coherent source gaussian beam**: Featuring a 21 x 7 composite source that emits a continuous gaussian beam
-3. **3. Directional pulsed source**: Featuring a coherent pulsed assembly of sources that emits a directional stream of wave pulses.
-4. **4. 3 sources 3 frequencies**: Geometric wave pattern resulting from 3 sources with different frequencies
-5. **5. Small incoherent source**: Simulation features a small (5x5 composite) source using randomized "off"-time and source frequency.
-6. **6. Large incoherent source**: Featuring a large (450+ composite) source that creates both spatially- as well as temporally incoherent wave emission. The probes show that even though the intensity variations are large for an incoherent source, they eventually average out over time. Probe 2 shows the 1/r relationship. where r= distance to the source.
-7. **7. Random emitter lattice**: Collection of 800+ sources distributed over the full animation space and emitting short random wave pulses with a varying frequency.
-8. **8. Resonant wave in cavity**: Wave energy released at the center of a cavity at almost the resonance frequency.
-9. **9. Laplacian dispersion**: Visualization of dispersion (wavelength-dependent propagation speed) when using a third order Laplacian. To remove the dispersion, check the 4th order Laplacian checkbox under "Simulation".
-10. **10. Beam expansion**: A beam expander using a GRIN lens and a large confocal lens.
-11. **11. Zone plate**: One source and a zone plate
-12. **12. Pulse splitter**: Short coherent pulse divided by a beam splitter
-13. **13. Bragg reflector**: Demo of a Bragg reflector. The layer thickness of each layer should be 1/4 lambda divided by the refractive index of the specific layer. However, reflectivity is strongly angle dependent.
-14. **14. Resonant roundabout**: Resonant roundabout with two sources and two exits. If you change the phase of one of the sources by 180 degrees, waves will take the other exit.
-15. **15. Top up the tank**: Filling a tank with radiative energy
-16. **16. Wave in 2 boxes**: Two boxes connected by a small pipe that allows for wave energy to flow from left to right (and back).
-17. **17. Hanbury Brown Twiss**: Switch on the small source and the two telescopes will see highly correlated signals. Switch on the large source and the correlation disappears. This is a demonstration of the area of coherence as can be measured in the HBT experiment to measure the ratio between the diameter and the distance of a star.
-18. **18. XOR AND OR logic**: 3 logical wave gates chained together
-19. **19. Sources with spherical mirror**: Wave pulse emitted from the center of the curvature of a mirror, reflecting and then returning to the point of emission. Featuring timed probes. Notice that this simulation runs extremely fast on the GPU, when no video export is selected.
-20. **20. Test glass**: The simulation shows the interference pattern created between two high-refractive index surfaces in close proximity of each other under a small angle.
-21. **21. Ball lens**: Continuous point source and high refractive index ball lens. Probe 2A-B features 1/r intensity decay from the source with some interference of some reflections superimposed on it.
-22. **22. Coherence and ball lens**: A coherent and directional source directing its waves at a ball lens with a high refractive index. It demonstrates Gaussian beam and Airy disk profiles
-23. **23. Fibers**: Simulation of 3 different fibers: top a single mode fiber, middle a narrow multi-mode fiber, bottom a wide multi-mode fiber. Includes the use of two probes, an A-B (line) field probe and a single point intensity probe.
-24. **24. Fiber cross over**: Two single-mode fibres side by side, their cores a dozen pixels apart: the evanescent field of one reaches into the other, so light launched into fibre A crosses over into fibre B and back along the length, a directional coupler. The probe along A shows the beating, the cross-fibre probe the field across both cores. Switch source A off and B on to launch from the other fibre.
+1. **Source Mirror Probe**: Simple omnidirectional pulsed source with a smoothed square intensity profile, reflecting of simple mirror surface. A probe measures the intensity profile near the surface.
+2. **Coherent source gaussian beam**: Featuring a 21 x 7 composite source that emits a continuous gaussian beam
+3. **Directional pulsed source**: Featuring a coherent pulsed assembly of sources that emits a directional stream of wave pulses.
+4. **3 sources 3 frequencies**: Geometric wave pattern resulting from 3 sources with different frequencies
+5. **Small incoherent source**: Simulation features a small (5x5 composite) source using randomized "off"-time and source frequency.
+6. **Large incoherent source**: Featuring a large (450+ composite) source that creates both spatially- as well as temporally incoherent wave emission. The probes show that even though the intensity variations are large for an incoherent source, they eventually average out over time. Probe 2 shows the 1/r relationship. where r= distance to the source.
+7. **Random emitter lattice**: Collection of 800+ sources distributed over the full animation space and emitting short random wave pulses with a varying frequency.
+8. **Resonant wave in cavity**: Wave energy released at the center of a cavity at almost the resonance frequency.
+9. **Laplacian dispersion**: Visualization of dispersion (wavelength-dependent propagation speed) when using a third order Laplacian. To remove the dispersion, check the 4th order Laplacian checkbox under "Simulation".
+10. **Beam expansion**: A beam expander using a GRIN lens and a large confocal lens.
+11. **Zone plate**: One source and a zone plate
+12. **Pulse splitter**: Short coherent pulse divided by a beam splitter
+13. **Bragg reflector**: Demo of a Bragg reflector. The layer thickness of each layer should be 1/4 lambda divided by the refractive index of the specific layer. However, reflectivity is strongly angle dependent.
+14. **Resonant roundabout**: Resonant roundabout with two sources and two exits. If you change the phase of one of the sources by 180 degrees, waves will take the other exit.
+15. **Top up the tank**: Filling a tank with radiative energy
+16. **Wave in 2 boxes**: Two boxes connected by a small pipe that allows for wave energy to flow from left to right (and back).
+17. **Hanbury Brown Twiss**: Switch on the small source and the two telescopes will see highly correlated signals. Switch on the large source and the correlation disappears. This is a demonstration of the area of coherence as can be measured in the HBT experiment to measure the ratio between the diameter and the distance of a star.
+18. **XOR AND OR logic**: 3 logical wave gates chained together
+19. **Sources with spherical mirror**: Wave pulse emitted from the center of the curvature of a mirror, reflecting and then returning to the point of emission. Featuring timed probes. Notice that this simulation runs extremely fast on the GPU, when no video export is selected.
+20. **Test glass**: The simulation shows the interference pattern created between two high-refractive index surfaces in close proximity of each other under a small angle.
+21. **Ball lens**: Continuous point source and high refractive index ball lens. Probe 2A-B features 1/r intensity decay from the source with some interference of some reflections superimposed on it.
+22. **Coherence and ball lens**: A coherent and directional source directing its waves at a ball lens with a high refractive index. It demonstrates Gaussian beam and Airy disk profiles
+23. **Fibers**: Simulation of 3 different fibers: top a single mode fiber, middle a narrow multi-mode fiber, bottom a wide multi-mode fiber. Includes the use of two probes, an A-B (line) field probe and a single point intensity probe.
+24. **Fiber cross over**: Two single-mode fibres side by side, their cores a dozen pixels apart: the evanescent field of one reaches into the other, so light launched into fibre A crosses over into fibre B and back along the length, a directional coupler. The probe along A shows the beating, the cross-fibre probe the field across both cores. Switch source A off and B on to launch from the other fibre.
 
 ### The Edit menu
 

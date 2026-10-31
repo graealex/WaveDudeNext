@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+#
+# This file is part of WaveDude Next, a 2D wave simulator.
+#
+# Based on the work of
+#   Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+#     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+#   0x23 (Diffraction Limited), author of WaveSimulator2D
+#     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+#
+# WaveDude Next is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+# <https://www.gnu.org/licenses/>.
+
+# The issue form for a problem report: what happened, the system information Help > About copies, and the log file.
+name: Problem report
+description: Something in WaveDude Next does not work as it should
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. The system information and the log tell most of the story, so please include both.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. A project file or a screenshot helps; drag it into the box.
+    validations:
+      required: true
+  - type: textarea
+    id: system
+    attributes:
+      label: System information
+      description: In WaveDude Next, open Help > About, press "Copy system info", and paste here.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Drag the file WaveDudeNext.WPF.log from the folder of WaveDudeNext.WPF.exe into the box, or paste the lines from the time of the problem.
+    validations:
+      required: true

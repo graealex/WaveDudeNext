@@ -16,7 +16,7 @@
          and the author's name is nobody's business on a user's disk; the Copyright line names him -->
     <Authors>WaveDudeNext</Authors>
     <Company>WaveDudeNext</Company>
-    <Copyright>Copyright (C) 2026 Alexander Graef</Copyright>
+    <Copyright>Copyright (C) 2026 Alexander Gräf</Copyright>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <!-- the .editorconfig code-style rules are build warnings too: a file without the license header (IDE0073) -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
