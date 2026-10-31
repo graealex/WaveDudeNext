@@ -1,0 +1,82 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  0x23 (Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+
+
+<Window x:Class="WaveDudeNext.WPF.Help.ManualWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:help="clr-namespace:WaveDudeNext.WPF.Help"
+        Title="{DynamicResource ManualTitle}" Icon="/App.ico"
+        Width="1200" Height="820" MinWidth="480" MinHeight="300"
+        WindowStartupLocation="CenterScreen"
+        Style="{StaticResource {x:Type Window}}"
+        DataContext="{Binding RelativeSource={RelativeSource Self}}"
+        AutomationProperties.AutomationId="ManualWindow">
+	<!-- Help > Manual (2026-10-30, the user's request and choices): MANUAL.md as the build converted it, beside a contents
+	     tree of its chapters and sections by heading level, every branch open, the title no row (the title bar names the
+	     manual). The window opens with the text at its top and the first chapter taken; a row taken by a click or the
+	     arrows goes to its heading, a click on the taken row or Enter goes there again, Enter moving the focus into the
+	     text; Tab reaches the tree, the splitter (the arrows move it) and the text; Esc closes. Owned by the main window
+	     (the user's choice): not modal, but minimised and restored with it and kept above it -->
+	<Grid>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="260" MinWidth="120" />
+			<ColumnDefinition Width="Auto" />
+			<ColumnDefinition Width="*" MinWidth="200" />
+		</Grid.ColumnDefinitions>
+
+		<TreeView x:Name="contents" ItemsSource="{Binding Headings}" SelectedItemChanged="OnContentsSelected" KeyDown="OnContentsKeyDown"
+		          AutomationProperties.Name="{DynamicResource ManualContents}" AutomationProperties.AutomationId="ManualContents">
+			<TreeView.ItemContainerStyle>
+				<Style TargetType="{x:Type TreeViewItem}" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+					<Setter Property="IsExpanded" Value="True" />
+					<EventSetter Event="MouseLeftButtonUp" Handler="OnContentsRowMouseUp" />
+				</Style>
+			</TreeView.ItemContainerStyle>
+			<TreeView.ItemTemplate>
+				<HierarchicalDataTemplate DataType="{x:Type help:ManualHeading}" ItemsSource="{Binding Children}">
+					<TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+				</HierarchicalDataTemplate>
+			</TreeView.ItemTemplate>
+		</TreeView>
+
+		<!-- the splitter: a tab stop, the arrows move it -->
+		<GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" VerticalAlignment="Stretch" ResizeDirection="Columns"
+		              ResizeBehavior="PreviousAndNext" KeyboardIncrement="10" FocusVisualStyle="{x:Null}" ToolTip="{DynamicResource TipManualSplitter}"
+		              AutomationProperties.Name="{DynamicResource TipManualSplitter}" AutomationProperties.AutomationId="ManualSplitter">
+			<GridSplitter.Style>
+				<Style TargetType="{x:Type GridSplitter}" BasedOn="{StaticResource {x:Type GridSplitter}}">
+					<Style.Triggers>
+						<Trigger Property="IsMouseOver" Value="True">
+							<Setter Property="Background" Value="{DynamicResource ButtonHover}" />
+						</Trigger>
+						<Trigger Property="IsKeyboardFocused" Value="True">
+							<Setter Property="Background" Value="{DynamicResource Accent}" />
+						</Trigger>
+					</Style.Triggers>
+				</Style>
+			</GridSplitter.Style>
+		</GridSplitter>
+
+		<!-- the viewer scrolls, selects and copies by itself; its links bubble up to the window (code-behind) -->
+		<FlowDocumentScrollViewer x:Name="documentView" Grid.Column="2" Document="{Binding Document}" IsToolBarVisible="False"
+		                          VerticalScrollBarVisibility="Auto" Background="{DynamicResource DocumentBackground}"
+		                          Foreground="{DynamicResource WindowForeground}" AutomationProperties.AutomationId="ManualText" />
+	</Grid>
+</Window>

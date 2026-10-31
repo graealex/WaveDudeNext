@@ -70,7 +70,7 @@ public static class AboutInfo
 
 	/// <summary>
 	/// LICENSE.md as a <see cref="FlowDocument"/>: the build turns the Markdown into the embedded resource
-	/// <c>License.xaml</c> (<c>Build/LicenseDocument.targets</c>), read here with <see cref="XamlReader"/>. A build without
+	/// <c>License.xaml</c> (<c>Build/Documents.targets</c>), read here with <see cref="XamlReader"/>. A build without
 	/// the resource gets a one-paragraph document pointing at gnu.org. UI thread (the document is a WPF object).
 	/// </summary>
 	public static FlowDocument LicenseDocument()

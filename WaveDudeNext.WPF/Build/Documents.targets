@@ -1,0 +1,86 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  0x23 (Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+
+<!-- Build action: the two Markdown documents become WPF FlowDocuments compiled into the app. LICENSE.md becomes
+     obj/<Configuration>/License.xaml, the embedded resource "License.xaml" that Help > About reads with XamlReader;
+     MANUAL.md becomes Manual.xaml, compiled as the Page Help/Manual.xaml of Help > Manual (2026-10-30), its headings
+     tagged for the window's contents tree, its tight lists without paragraph spacing, and its figures' pictures written
+     to obj/<Configuration>/Manual/ and compiled in as WPF resources (pack://application:,,,/WaveDudeNext.WPF;component/Manual/...).
+     The converter is MarkdownToFlowDocument.cs beside this file, an inline C# task (RoslynCodeTaskFactory, part of
+     MSBuild), so the app carries no Markdown code and the build needs no package; what Markdown and SVG it knows is in
+     its summary. Each document is regenerated only when its Markdown, the figures (the Assets folder), the converter or
+     this file is newer than the output. -->
+<Project>
+
+  <UsingTask TaskName="MarkdownToFlowDocument" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Source ParameterType="System.String" Required="true" />
+      <Destination ParameterType="System.String" Required="true" />
+      <FigureFolder ParameterType="System.String" />
+      <FigureUri ParameterType="System.String" />
+      <TagHeadings ParameterType="System.Boolean" />
+      <TightLists ParameterType="System.Boolean" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Class" Language="cs" Source="$(MSBuildThisFileDirectory)MarkdownToFlowDocument.cs" />
+    </Task>
+  </UsingTask>
+
+  <PropertyGroup>
+    <LicenseMarkdown>$(MSBuildThisFileDirectory)..\..\LICENSE.md</LicenseMarkdown>
+    <ManualMarkdown>$(MSBuildThisFileDirectory)..\..\MANUAL.md</ManualMarkdown>
+    <MarkdownConverter>$(MSBuildThisFileDirectory)MarkdownToFlowDocument.cs</MarkdownConverter>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- what the manual's figures may come from; a change regenerates the document -->
+    <ManualAsset Include="$(MSBuildThisFileDirectory)..\..\Assets\**\*" />
+  </ItemGroup>
+
+  <!-- the conversion, skipped while the output is newer than LICENSE.md -->
+  <Target Name="GenerateLicenseDocument" Inputs="$(LicenseMarkdown);$(MarkdownConverter);$(MSBuildThisFileFullPath)" Outputs="$(IntermediateOutputPath)License.xaml">
+    <MarkdownToFlowDocument Source="$(LicenseMarkdown)" Destination="$(IntermediateOutputPath)License.xaml" />
+  </Target>
+
+  <!-- the embedding; a target of its own, so the item is added even when the conversion was skipped as up to date -->
+  <Target Name="EmbedLicenseDocument" BeforeTargets="BeforeBuild" DependsOnTargets="GenerateLicenseDocument">
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)License.xaml" LogicalName="License.xaml" />
+      <FileWrites Include="$(IntermediateOutputPath)License.xaml" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="GenerateManualDocument" Inputs="$(ManualMarkdown);@(ManualAsset);$(MarkdownConverter);$(MSBuildThisFileFullPath)" Outputs="$(IntermediateOutputPath)Manual.xaml">
+    <MarkdownToFlowDocument Source="$(ManualMarkdown)" Destination="$(IntermediateOutputPath)Manual.xaml" FigureFolder="$(IntermediateOutputPath)Manual"
+                            FigureUri="pack://application:,,,/$(AssemblyName);component/Manual/" TagHeadings="true" TightLists="true" />
+  </Target>
+
+  <!-- the document is compiled to BAML like the app's own XAML, the Page Help/Manual.xaml (Application.LoadComponent reads
+       it; XamlReader, which nothing else in the app warms up, took most of the manual's first opening); the pictures are
+       WPF resources the Image elements load by pack URI, named Manual/<file> by their Link -->
+  <Target Name="EmbedManualDocument" BeforeTargets="BeforeBuild" DependsOnTargets="GenerateManualDocument">
+    <ItemGroup>
+      <Page Include="$(IntermediateOutputPath)Manual.xaml" Link="Help\Manual.xaml" />
+      <_ManualFigure Include="$(IntermediateOutputPath)Manual\*" />
+      <Resource Include="@(_ManualFigure)" Link="Manual\%(Filename)%(Extension)" />
+      <FileWrites Include="$(IntermediateOutputPath)Manual.xaml;@(_ManualFigure)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

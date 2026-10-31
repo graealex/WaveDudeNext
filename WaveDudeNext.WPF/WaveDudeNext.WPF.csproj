@@ -33,8 +33,13 @@
     <EmbeddedResource Include="..\Examples\*.wdproj" Link="Examples\%(Filename)%(Extension)" LogicalName="Examples/%(Filename)%(Extension)" />
   </ItemGroup>
 
-  <!-- LICENSE.md becomes the embedded FlowDocument "License.xaml" that Help > About shows -->
-  <Import Project="Build\LicenseDocument.targets" />
+  <!-- LICENSE.md and MANUAL.md become the embedded FlowDocuments "License.xaml" (Help > About) and "Manual.xaml"
+       (Help > Manual). The Build folder's C# is the build's converter, compiled by MSBuild, not part of the app -->
+  <Import Project="Build\Documents.targets" />
+  <ItemGroup>
+    <Compile Remove="Build\**" />
+    <None Include="Build\**\*.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="NLog" Version="6.2.1" />

@@ -229,6 +229,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<CommandBinding Command="{x:Static commands:ProjectCommands.SaveSceneImage}" CanExecute="CanSaveSceneImage" Executed="OnSaveSceneImage" />
 		<CommandBinding Command="{x:Static commands:ProjectCommands.RemoveSceneImage}" CanExecute="CanRemoveSceneImage" Executed="OnRemoveSceneImage" />
 		<CommandBinding Command="{x:Static commands:HelpCommands.About}" Executed="OnHelpAbout" />
+		<CommandBinding Command="{x:Static commands:HelpCommands.Manual}" Executed="OnHelpManual" />
 	</Window.CommandBindings>
 
 	<!-- SaveAs has no default gesture -->
@@ -376,6 +377,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</MenuItem>
 			<MenuItem Header="{DynamicResource MenuHelp}">
 				<MenuItem Header="{DynamicResource MenuHelpAbout}" Command="{x:Static commands:HelpCommands.About}" AutomationProperties.AutomationId="MenuHelpAbout" controls:MenuIcon.Glyph="&#xE946;" />
+				<MenuItem Header="{DynamicResource MenuHelpManual}" Command="{x:Static commands:HelpCommands.Manual}" InputGestureText="F1" AutomationProperties.AutomationId="MenuHelpManual" controls:MenuIcon.Glyph="&#xE736;" />
 			</MenuItem>
 		</Menu>
 

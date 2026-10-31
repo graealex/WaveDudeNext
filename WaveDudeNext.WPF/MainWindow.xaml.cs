@@ -599,6 +599,8 @@ public partial class MainWindow : Window
 	protected override void OnClosed(EventArgs e)
 	{
 		base.OnClosed(e);
+		// the manual is not owned by this window, and the application ends with its last window
+		_manual?.Close();
 		if (Settings.Default.WindowState == WindowState.Minimized)
 		{
 			// never start minimized

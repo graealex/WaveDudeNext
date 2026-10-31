@@ -96,6 +96,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuSimulationFrameMemoryAuto">_Auto</s:String>
 	<s:String x:Key="MenuHelp">_Help</s:String>
 	<s:String x:Key="MenuHelpAbout">_Over WaveDude Next</s:String>
+	<s:String x:Key="MenuHelpManual">_Handleiding</s:String>
 	<!-- Help > About -->
 	<s:String x:Key="AboutTitle">Over WaveDude Next</s:String>
 	<s:String x:Key="AboutVersionFormat">Versie {0}</s:String>
@@ -125,6 +126,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipAboutCopy">De systeemregels naar het klembord kopiëren, voor een foutmelding</s:String>
 	<s:String x:Key="AboutCopied">Systeeminformatie naar het klembord gekopieerd</s:String>
 	<s:String x:Key="AboutClose">Sluiten</s:String>
+	<!-- Help > Manual; the manual itself is MANUAL.md, in English -->
+	<s:String x:Key="ManualTitle">Handleiding bij WaveDude Next</s:String>
+	<s:String x:Key="ManualContents">Inhoud</s:String>
+	<s:String x:Key="TipManualSplitter">Slepen of pijltoetsen om de verdeling te wijzigen</s:String>
 
 	<s:String x:Key="MenuProjectAddSource">_Bron toevoegen</s:String>
 	<s:String x:Key="MenuProjectAddProbe">_Sonde toevoegen</s:String>

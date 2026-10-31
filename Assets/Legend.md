@@ -665,6 +665,8 @@ A rectangle of glass or mirror, by length and width; linked, a square. A flat mi
    Extent along the axis in pixels.
 17. **Width**  
    Extent across the axis in pixels.
+18. **Linked: the chain keeps the width equal to the length**  
+   Keep the width equal to the length: a square.
 
 ## Ellipse
 
@@ -706,6 +708,8 @@ An ellipse of glass or mirror, by the length and width of its box; linked, a cir
    Diameter along the axis in pixels.
 17. **Width**  
    Diameter across the axis in pixels.
+18. **Linked: the chain keeps the width equal to the length**  
+   Keep the width equal to the length: a circle.
 
 ## Triangle
 
@@ -1233,4 +1237,48 @@ A colour scheme of the project.
    Pick the colour: Space opens the picker, Enter keeps it, Escape puts the old colour back
 6. **Add a stop**  
    Insert a stop in the widest gap, with the gradient's colour there
+
+## Settings every part shares
+
+![properties-part-common](properties-part-common.svg)
+
+The settings every part shares: the top of every part's form, here the rectangle's.
+
+1. **Description of the kind, opened and closed with Space; one setting for every kind**  
+   Show or hide what this kind of part is
+2. **Name**  
+   Name shown in the project tree and on the canvas.
+3. **Enabled**  
+   Paint the part into the scene; a disabled part has no effect on a run.
+4. **X**  
+   X of the part's centre in canvas pixels.
+5. **Y**  
+   Y of the part's centre in canvas pixels.
+6. **Angle**  
+   Rotation about the centre in degrees, counter-clockwise on the screen. 0 points the part's axis to the right.
+
+## Glass and mirror settings
+
+![properties-part-material](properties-part-material.svg)
+
+The glass and mirror settings: the Material section of a shape's form, here the rectangle's.
+
+7. **Mirror**  
+   Make the part a mirror instead of glass. The refractive index, the coating and the absorption are ignored then.
+8. **Refractive index**  
+   Refractive index of the glass, 1.00 to 2.55 in steps of 0.01.
+9. **AR coating**  
+   Thickness in pixels of the anti-reflection band just inside the outline; 0 for none. A quarter-wave layer is λ / (4 √n) pixels thick, λ being the wavelength the source form shows; a graded band is the better the thicker, from a wavelength on.
+10. **Coating profile**  
+   How the index runs through the band: a layer at √n, the quarter-wave idea, or a graded rise from the medium outside to the glass. A graded band reflects less than a layer once it is a wavelength thick or more, at any wavelength; a layer only at the wavelength it is cut for.
+11. **Coat the front**  
+   Put the band on the front: the faces turned toward a source on the left, a lens's first surface. Clear it to leave them bare, as the inner faces of a cavity are.
+12. **Coat the back**  
+   Put the band on the back: the faces turned away from a source on the left, a lens's second surface. Clear it to leave them bare.
+13. **Coat the sides**  
+   Put the band on the sides: the faces that are neither front nor back, a lens's rim, a slab's narrow ends. Clear it to leave them bare.
+14. **Absorption**  
+   How strongly the part absorbs waves, 0 (not at all) to 255, as the scene image's blue channel. It rises from nothing at the outline over the absorption ramp, so a wave enters the part instead of being reflected. A mirror ignores it.
+15. **Absorption ramp**  
+   Depth in pixels over which the absorption rises from nothing at the outline to its full value; the longer, the less of a wave is reflected. A part thinner than twice the ramp reaches its full absorption in its middle.
 

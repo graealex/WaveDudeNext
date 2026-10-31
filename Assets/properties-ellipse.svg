@@ -18,5 +18,6 @@
   <g><title>Absorption ramp</title><circle cx="-12" cy="558" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="558" dy=".36em" fill="#000">15</text></g>
   <g><title>Length</title><circle cx="-12" cy="618" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="618" dy=".36em" fill="#000">16</text></g>
   <g><title>Width</title><circle cx="-12" cy="648" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="-12" y="648" dy=".36em" fill="#000">17</text></g>
+  <g><title>Linked: the chain keeps the width equal to the length</title><circle cx="418" cy="633" r="9" fill="#FFC107" stroke="#202020" stroke-width="1"/><text x="418" y="633" dy=".36em" fill="#000">18</text></g>
   </g>
 </svg>

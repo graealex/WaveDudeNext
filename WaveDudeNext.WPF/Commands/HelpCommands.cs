@@ -25,4 +25,8 @@ public static class HelpCommands
 {
 	/// <summary>Opens the About dialog: version, credits, license and the system facts a bug report needs.</summary>
 	public static readonly RoutedUICommand About = new("About", nameof(About), typeof(HelpCommands));
+
+	/// <summary>Opens the manual (MANUAL.md) in a window of its own, or brings it to the front; F1.</summary>
+	public static readonly RoutedUICommand Manual = new("Manual", nameof(Manual), typeof(HelpCommands),
+		[new KeyGesture(Key.F1)]);
 }

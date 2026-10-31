@@ -21,10 +21,12 @@
 # at UI Automation rectangles, so a run after a UI change moves them along.
 # Two sessions: the example project for the window, the menus, the tree and the preview (a scratch frame at -Frame
 # puts waves into the pictures), then figures.wdproj (one object of every kind) with a short tree, so each
-# properties form has the pane's full height. The window is captured through PrintWindow and may lie behind other
+# properties form has the pane's full height, and two crops of the rectangle's form for the settings several forms
+# share. The window is captured through PrintWindow and may lie behind other
 # windows; a menu popup is a window of its own, captured the same way, or from the screen when that comes back
 # empty. The user settings are set for the figures (the saved window size and pane arrangement, the dark theme,
-# English, the default preview quality) and put back afterwards.
+# English, the default preview quality) and put back afterwards, and so is the mouse pointer when it rested on the
+# window (parked outside it for the captures, so no hover state gets into a figure).
 #
 #   powershell -ExecutionPolicy Bypass -File _tools\ui_check\Screenshots.ps1 [-Exe <path>] [-Example <wdproj>]
 #       [-Out <folder>] [-Frame <n>] [-PngFolder <folder>]
@@ -50,7 +52,11 @@ public static class Shot
 	[DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
 	[DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
 	[DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out RECT rect, int size);
+	[DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT p);
+	[DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
 	[StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+	[StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+	public static RECT WindowRect(IntPtr hwnd) { RECT r; GetWindowRect(hwnd, out r); return r; }
 	// screen position of the last Window() capture's top-left pixel
 	public static int LastLeft, LastTop;
 
@@ -121,6 +127,7 @@ $Headings = @{
 	"properties-triangle" = "Triangle"; "properties-outline" = "Outline"; "properties-fibre" = "Fibre"; "properties-bragg-reflector" = "Bragg reflector"
 	"properties-grin-lens" = "GRIN lens"; "properties-xor-gate" = "XOR gate"; "properties-and-gate" = "AND gate"; "properties-or-gate" = "OR gate"
 	"properties-zone-plate" = "Zone plate"; "properties-probe" = "Probe"; "properties-line-probe" = "Line probe"; "properties-colour-scheme" = "Colour scheme"
+	"properties-part-common" = "Settings every part shares"; "properties-part-material" = "Glass and mirror settings"
 }
 $script:legend = New-Object System.Text.StringBuilder
 $script:figureCount = 0
@@ -221,20 +228,51 @@ function Restore-Settings() {
 
 # --- figures ----------------------------------------------------------------------------------------------------
 # a figure: a bitmap, where its top-left pixel lies on the screen, and the badges (screen rectangle, anchor, label)
-function New-Figure([string]$name, [string]$title, [System.Drawing.Bitmap]$bitmap, [int]$left, [int]$top) {
-	return @{ Name = $name; Title = $title; Bitmap = $bitmap; Left = $left; Top = $top; Items = (New-Object System.Collections.ArrayList) }
+# $start: the number of the figure's first badge (a crop of a form keeps the numbers of the whole form's figure)
+function New-Figure([string]$name, [string]$title, [System.Drawing.Bitmap]$bitmap, [int]$left, [int]$top, [int]$start = 1) {
+	return @{ Name = $name; Title = $title; Bitmap = $bitmap; Left = $left; Top = $top; Start = $start; Items = (New-Object System.Collections.ArrayList) }
 }
 # crops a window capture to a screen rectangle
-function Crop-Figure([string]$name, [string]$title, $capture, [double]$l, [double]$t, [double]$r, [double]$b) {
+function Crop-Figure([string]$name, [string]$title, $capture, [double]$l, [double]$t, [double]$r, [double]$b, [int]$start = 1) {
 	# kept inside the capture, and the figure's origin is where the crop really starts (2026-10-29: a crop reaching
 	# above the window was cut, but the badges were placed from the uncut top)
 	$x = [math]::Max(0, [int][math]::Floor($l) - $capture.Left); $y = [math]::Max(0, [int][math]::Floor($t) - $capture.Top)
 	$w = [math]::Min($capture.Bitmap.Width - $x, [int][math]::Ceiling($r) - $capture.Left - $x)
 	$h = [math]::Min($capture.Bitmap.Height - $y, [int][math]::Ceiling($b) - $capture.Top - $y)
 	$bmp = [Shot]::Crop($capture.Bitmap, $x, $y, $w, $h)
-	return New-Figure $name $title $bmp ($capture.Left + $x) ($capture.Top + $y)
+	return New-Figure $name $title $bmp ($capture.Left + $x) ($capture.Top + $y) $start
+}
+# The figures must not depend on where the mouse pointer rests (2026-10-30: it lay on a probe's graph box during a run,
+# and the box's hover border made the main window's picture differ from the run before). A pointer over the app window
+# is parked just outside the window, where it highlights nothing, before a capture, and put back at the end unless
+# the user has moved it meanwhile. The only mouse action in the harnesses: it clicks nothing and activates nothing.
+$script:parkedFrom = $null; $script:parkedAt = $null
+function Park-Pointer() {
+	$r = [Shot]::WindowRect($script:hwnd)
+	$p = New-Object Shot+POINT
+	$null = [Shot]::GetCursorPos([ref]$p)
+	if ($p.X -lt $r.Left -or $p.X -ge $r.Right -or $p.Y -lt $r.Top -or $p.Y -ge $r.Bottom) { return }
+	$screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
+	foreach ($spot in @(@(($r.Right + 8), $p.Y), @(($r.Left - 8), $p.Y), @($p.X, ($r.Bottom + 8)), @($p.X, ($r.Top - 8)))) {
+		if ($spot[0] -lt $screen.Left -or $spot[0] -ge $screen.Right -or $spot[1] -lt $screen.Top -or $spot[1] -ge $screen.Bottom) { continue }
+		if ($script:parkedFrom -eq $null) { $script:parkedFrom = @($p.X, $p.Y) }
+		$null = [Shot]::SetCursorPos($spot[0], $spot[1])
+		$script:parkedAt = @($spot[0], $spot[1])
+		Write-Output ("note: the pointer rested on the window at {0},{1}; parked at {2},{3} for the captures" -f $p.X, $p.Y, $spot[0], $spot[1])
+		Start-Sleep -Milliseconds 200                  # the hover visuals go
+		return
+	}
+	Problem ("the pointer rests on the window at {0},{1} and no place outside it is on the screen; a hover state may show" -f $p.X, $p.Y)
+}
+function Restore-Pointer() {
+	if ($script:parkedAt -eq $null) { return }
+	$p = New-Object Shot+POINT
+	$null = [Shot]::GetCursorPos([ref]$p)
+	if ($p.X -eq $script:parkedAt[0] -and $p.Y -eq $script:parkedAt[1]) { $null = [Shot]::SetCursorPos($script:parkedFrom[0], $script:parkedFrom[1]) }
+	$script:parkedAt = $null
 }
 function Capture-Window() {
+	Park-Pointer
 	$bmp = [Shot]::Window($script:hwnd)
 	return @{ Bitmap = $bmp; Left = [Shot]::LastLeft; Top = [Shot]::LastTop }
 }
@@ -287,7 +325,7 @@ function Save-Figure($fig) {
 	if ($PngFolder -ne "") { [IO.File]::WriteAllBytes((Join-Path $PngFolder ($fig.Name + ".png")), $png) }
 	$minX = 0; $minY = 0; $maxX = $W; $maxY = $H
 	$badges = New-Object System.Text.StringBuilder
-	$n = 0
+	$n = $fig.Start - 1
 	$heading = if ($Headings.ContainsKey($fig.Name)) { $Headings[$fig.Name] } else { $fig.Name }
 	$null = $script:legend.AppendLine("## " + $heading).AppendLine().AppendLine(("![{0}]({0}.svg)" -f $fig.Name)).AppendLine().AppendLine($fig.Title).AppendLine()
 	foreach ($item in $fig.Items) {
@@ -355,8 +393,12 @@ function Find-InPane($pane, [string]$key) {
 # the properties form's rows: the labels and full-width check boxes at the label column (the smallest Left among the
 # form's TextBlocks), top to bottom; section headings are Labels and the editors sit in the right column. The
 # extras, pairs of an element key (see Find-InPane) and a label, get badges in the right gutter: the controls of a
-# row without a label of its own (a stop, a point) and the buttons.
-function Properties-Figure([string]$name, [string]$title, $extras = @()) {
+# row without a label of its own (a stop, a point) and the buttons. A crop of the form (2026-10-30, the user's
+# request, for the settings several forms share): the rows from $fromRow to $toRow (row names, both inclusive, "" for
+# the form's first or last), the picture from the pane's top, or from the section heading named by the string key
+# $heading, or from the first row, down to the last row's editor; the badges count from $start, so they keep the
+# numbers of the whole form's figure.
+function Properties-Figure([string]$name, [string]$title, $extras = @(), [string]$fromRow = "", [string]$toRow = "", [string]$heading = "", [int]$start = 1) {
 	$pane = FindByClass "PropertiesPane"
 	$all = @($pane.FindAll($TS::Descendants, [System.Windows.Automation.Condition]::TrueCondition))
 	$texts = @($all | Where-Object { $_.Current.ClassName -eq "TextBlock" -and -not $_.Current.IsOffscreen })
@@ -368,14 +410,33 @@ function Properties-Figure([string]$name, [string]$title, $extras = @()) {
 	$rows = @($all | Where-Object { ($_.Current.ClassName -eq "TextBlock" -or $_.Current.ClassName -eq "CheckBox") -and [math]::Abs($_.Current.BoundingRectangle.Left - $column) -le 2 -and $_.Current.BoundingRectangle.Height -le 24 -and $walker.GetParent($_).Current.ControlType -ne $CT::Text } | Sort-Object { $_.Current.BoundingRectangle.Top })
 	$offscreen = @($rows | Where-Object { $_.Current.IsOffscreen })
 	if ($offscreen.Count -gt 0) { Problem ("{0}: {1} rows lie outside the pane (form taller than the pane)" -f $name, $offscreen.Count) }
-	# cropped below the form's last control (the containers span the pane; the form's margin is 8 px)
-	$bottom = ($all | Where-Object { -not $_.Current.IsOffscreen -and $_.Current.ControlType -ne $CT::Pane -and $_.Current.ControlType -ne $CT::Custom -and $_.Current.ControlType -ne $CT::Group } | ForEach-Object { $_.Current.BoundingRectangle.Bottom } | Measure-Object -Maximum).Maximum
-	$capture = Capture-Window
 	$rect = Pane-Rect "properties" "PropertiesPane"
-	$fig = Crop-Figure $name $title $capture $rect[0] $rect[1] $rect[2] ([math]::Min($rect[3], $bottom + 9))
+	$top = $rect[1]
+	# cropped below the form's last control (the containers span the pane; the form's margin is 8 px)
+	$bottom = ($all | Where-Object { -not $_.Current.IsOffscreen -and $_.Current.ControlType -ne $CT::Pane -and $_.Current.ControlType -ne $CT::Custom -and $_.Current.ControlType -ne $CT::Group } | ForEach-Object { $_.Current.BoundingRectangle.Bottom } | Measure-Object -Maximum).Maximum + 9
+	if ($fromRow -ne "" -or $toRow -ne "") {
+		$names = @($rows | ForEach-Object { $_.Current.Name })
+		$first = if ($fromRow -ne "") { [array]::IndexOf($names, $fromRow) } else { 0 }
+		$last = if ($toRow -ne "") { [array]::IndexOf($names, $toRow) } else { $names.Count - 1 }
+		if ($first -lt 0 -or $last -lt $first) { Problem ("{0}: the rows '{1}' to '{2}' were not found" -f $name, $fromRow, $toRow); return }
+		$rows = @($rows[$first..$last])
+		# down to the last row's editor (the next sibling in the control view, when it lies on the row's line)
+		$lastRect = Rect $rows[$rows.Count - 1]
+		$bottom = $lastRect.Bottom + 6
+		$editor = $walker.GetNextSibling($rows[$rows.Count - 1])
+		if ($editor -ne $null -and (Rect $editor).Top -lt $lastRect.Bottom) { $bottom = [math]::Max($bottom, (Rect $editor).Bottom + 6) }
+		if ($heading -ne "") {
+			$label = Find-InPane $pane ("key:" + $heading)
+			if ($label -eq $null) { Problem ("{0}: the section heading '{1}' was not found" -f $name, $heading); return }
+			$top = (Rect $label).Top - 6
+		}
+		elseif ($fromRow -ne "") { $top = (Rect $rows[0]).Top - 6 }
+	}
+	$capture = Capture-Window
+	$fig = Crop-Figure $name $title $capture $rect[0] $top $rect[2] ([math]::Min($rect[3], $bottom)) $start
 	$capture.Bitmap.Dispose()
 	# a part form opens with the kind's description under a collapsible header (open in the figures, the user's choice)
-	$toggle = Find-InPane $pane "PartDescriptionToggle"
+	$toggle = $(if ($fromRow -eq "") { Find-InPane $pane "PartDescriptionToggle" } else { $null })
 	if ($toggle -ne $null) { Add-Badge $fig (Rect $toggle) "rgutter" "Description of the kind, opened and closed with Space; one setting for every kind" $toggle.Current.HelpText }
 	foreach ($row in $rows) { if (-not $row.Current.IsOffscreen) { Add-Badge $fig (Rect $row) "gutter" $row.Current.Name (Row-Hint $row) } }
 	foreach ($extra in $extras) {
@@ -401,6 +462,7 @@ function Open-Menu([int]$index) {
 function Close-Menus() { Key $VK_ESCAPE 150; Key $VK_ESCAPE 150; Key $VK_ESCAPE 150 }
 # a popup's pixels: PrintWindow on its own window, else the screen (a WPF popup is topmost)
 function Capture-Popup($popup) {
+	Park-Pointer
 	$r = Rect $popup
 	$bmp = [Shot]::Window([IntPtr][int64]$popup.Current.NativeWindowHandle)
 	if ([Shot]::IsBlank($bmp)) {
@@ -643,8 +705,8 @@ try {
 			@("Tree:Source 2", "properties-composite-source", "A composite (array) source, pulsed.", @()),
 			@("Tree:Lens*", "properties-lens", (En-String "Kind.LensPart"), @()),
 			@("Tree:Polygon*", "properties-polygon", (En-String "Kind.PolygonPart"), @()),
-			@("Tree:Rectangle*", "properties-rectangle", (En-String "Kind.RectanglePart"), @()),
-			@("Tree:Ellipse*", "properties-ellipse", (En-String "Kind.EllipsePart"), @()),
+			@("Tree:Rectangle*", "properties-rectangle", (En-String "Kind.RectanglePart"), @(, @("PartLinked", "Linked: the chain keeps the width equal to the length"))),
+			@("Tree:Ellipse*", "properties-ellipse", (En-String "Kind.EllipsePart"), @(, @("PartLinked", "Linked: the chain keeps the width equal to the length"))),
 			@("Tree:Triangle*", "properties-triangle", (En-String "Kind.TrianglePart"), @()),
 			@("Tree:Outline*", "properties-outline", (En-String "Kind.OutlinePart"), @(@("key:TipRemovePoint", "A point: X, Y, remove"), @("PartAddPoint", "Add a point"))),
 			@("Tree:Fib*", "properties-fibre", (En-String "Kind.FiberPart"), @(@("key:TipRemoveNode", "Per node: smooth, remove"), @("PartAddNode", "Add a node"))),
@@ -662,10 +724,21 @@ try {
 			Select-TreeRow $id[0]
 			Properties-Figure $spec[1] $spec[2] $spec[3]
 		}
+		# two crops of the rectangle's form (2026-10-30, the user's request), for the manual's sections on the settings
+		# several forms share: the top of the form down to the Angle row, the badges 1 to 6 of every part's figure; the
+		# Material section, the badges 7 to 15 of the shape figures
+		$rectangle = @($ids | Where-Object { $_ -like "Tree:Rectangle*" })
+		if ($rectangle.Count -gt 0) {
+			Select-TreeRow $rectangle[0]
+			Properties-Figure "properties-part-common" "The settings every part shares: the top of every part's form, here the rectangle's." @() "" (En-String "Label.OpticalPart.Angle")
+			Properties-Figure "properties-part-material" "The glass and mirror settings: the Material section of a shape's form, here the rectangle's." @() (En-String "Label.ShapePart.Mirror") (En-String "Label.ShapePart.AbsorptionRamp") "SectionMaterial" 7
+		}
+		else { Problem "no tree row matches 'Tree:Rectangle*' for the crops" }
 	}
 	finally { Stop-App }
 }
 finally {
+	Restore-Pointer
 	Restore-Settings
 	[IO.File]::WriteAllText((Join-Path $Out "Legend.md"), $script:legend.ToString())
 }

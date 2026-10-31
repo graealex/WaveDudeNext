@@ -73,7 +73,7 @@ try {
 	FocusOn "PreviewPlay"
 	Step "F10" 0x79 150                 # the menu bar, File header
 	Step "Left" $VK_LEFT 150            # wraps to the last header, Help
-	Step "Down" 0x28 150                # opens Help on its first (only) entry
+	Step "Down" 0x28 150                # opens Help on its first entry, About (Manual is below it)
 	Step "Enter" $VK_RETURN 400         # About
 	$script:dlg = $null
 	$null = WaitFor { $script:dlg = Dialog; $script:dlg -ne $null } 5000 100
