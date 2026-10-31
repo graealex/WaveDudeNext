@@ -160,6 +160,17 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   an 8-bit run, a reduced resolution or skipped frames make the export run the simulation again at full quality first.
   Only an OpenEXR export of I makes a run that stores I itself (squaring √I back would lose a bit); as coded, that run is
   then the one the preview shows until the next edit or run (undecided whether it should be a side run).
+- **First start** (2026-10-31, the user's design): with no settings file, the three quality settings and the dithering are
+  chosen once from the machine (`PreviewDefaults.TierOf` on `MachineFacts.Read`; `library_check` proves the table): 32 GB
+  or more → 16-bit samples dithered to 16 bits; else any of under 16 GB, a cache drive with a seek penalty (`StorageDevice`:
+  `IOCTL_STORAGE_QUERY_PROPERTY` on the volume, then on its disks, no elevation; unknown counts as none; on the workstation
+  the HDD D: answers yes, the SSD E: no, and C: on the PERC H310's RAID virtual disk nothing, as Windows itself calls its media
+  type unspecified), no OpenCL GPU or ≤ 4 threads →
+  half resolution, every second frame, 8-bit; else the fixed defaults. Tested at 30 and 15 GiB, since Windows reports
+  under the nominal size. The settings file is written at once, so deleting it redoes the choice; the fixed defaults stay
+  the initialisers (the figure harness strips the attributes, the designer); one Info line after "ready" names the facts
+  and the choice. The levers buy memory and readback, never step time: the divisors shrink the captured frames, not the
+  grid (at the defaults 11 of the 24 examples exceed 6 GB, Example 7 needs 19 GB; at Low the largest is 2.4 GB).
 
 ## The app's rules
 
@@ -359,7 +370,7 @@ numbers: no GPU JPEG, no OpenCL colouring at presentation, no `Vector256`, no Di
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard).
+`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard, the first start's tiers).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 44, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. A harness

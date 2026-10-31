@@ -272,6 +272,7 @@ internal static class Program
 		CheckOpenEdges(W, H);
 		CheckWorkGroups();
 		CheckFrameStore(scene);
+		CheckFirstStart();
 		CheckPreviewQuality(scene, W, H);
 		CheckRenderer();
 		CheckColorSchemes();
@@ -288,6 +289,36 @@ internal static class Program
 
 		Console.WriteLine(_failures == 0 ? "LIBRARY OK" : _failures + " check(s) failed");
 		return _failures == 0 ? 0 : 1;
+	}
+
+	/// <summary>
+	/// The first start's choice of the preview quality (2026-10-31): the facts of this machine can be read, the cache
+	/// drive's kind among them, and the tier table holds at its edges on the facts of machines this one is not.
+	/// </summary>
+	private static void CheckFirstStart()
+	{
+		MachineFacts facts = MachineFacts.Read();
+		// the drive's kind may be unknown (the workstation's C: is a RAID controller's virtual disk, which answers neither
+		// on the volume nor on the disk): the query must answer the same twice and refuse paths without a volume
+		Check(facts.PhysicalBytes > 1L << 30 && facts.Threads >= 1 && facts.CacheDrive.Length > 0
+			&& StorageDevice.IncursSeekPenalty(FrameCache.Directory) == facts.CacheDriveSeekPenalty
+			&& StorageDevice.IncursSeekPenalty("relative" + Path.DirectorySeparatorChar + "path") == null && StorageDevice.IncursSeekPenalty(@"\\server\share\cache") == null,
+			"first start: this machine's facts: " + FrameMemory.Gigabytes(facts.PhysicalBytes) + ", " + facts.Threads + " threads, GPU '" + facts.Gpu + "', cache drive " + facts.CacheDrive
+			+ " seek penalty " + (facts.CacheDriveSeekPenalty?.ToString() ?? "unknown"));
+		static MachineFacts Machine(double gigabytes, int threads, bool gpu, bool? seekPenalty) => new((long)(gigabytes * (1L << 30)), threads, gpu ? "GPU" : "", "C:", seekPenalty);
+		Check(PreviewDefaults.TierOf(Machine(15.9, 8, true, false)) == PreviewTier.Middle
+			&& PreviewDefaults.TierOf(Machine(15.9, 4, true, false)) == PreviewTier.Low
+			&& PreviewDefaults.TierOf(Machine(15.9, 8, true, true)) == PreviewTier.Low
+			&& PreviewDefaults.TierOf(Machine(15.9, 8, false, false)) == PreviewTier.Low
+			&& PreviewDefaults.TierOf(Machine(11.9, 16, true, false)) == PreviewTier.Low
+			&& PreviewDefaults.TierOf(Machine(23.9, 8, true, null)) == PreviewTier.Middle
+			&& PreviewDefaults.TierOf(Machine(31.9, 2, false, true)) == PreviewTier.High
+			&& PreviewDefaults.TierOf(Machine(63.9, 20, true, false)) == PreviewTier.High,
+			"first start: 32 GB is High whatever else; below it under 16 GB, a seek penalty, no GPU or 4 threads is Low, an unknown drive is not");
+		Check(PreviewDefaults.QualityOf(PreviewTier.Low) == new PreviewQuality(2, 2, FrameFormat.Index) && PreviewDefaults.DitherBitsOf(PreviewTier.Low) == 0
+			&& PreviewDefaults.QualityOf(PreviewTier.Middle) == new PreviewQuality(1, 1, FrameFormat.Index) && PreviewDefaults.DitherBitsOf(PreviewTier.Middle) == 0
+			&& PreviewDefaults.QualityOf(PreviewTier.High) == new PreviewQuality(1, 1, FrameFormat.Half) && PreviewDefaults.DitherBitsOf(PreviewTier.High) == 16,
+			"first start: Low is half resolution, every second frame, 8-bit; Middle the fixed defaults; High 16-bit dithered to 16 bits");
 	}
 
 	/// <summary>

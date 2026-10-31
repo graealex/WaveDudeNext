@@ -205,6 +205,9 @@ public partial class App : Application
 		}
 
 		FrameCache.Sweep();
+		// the one start without a settings file chooses the preview quality for the machine (2026-10-31, the user's
+		// design); the facts and the choice are told after the "ready" line below, so the status bar shows them
+		(MachineFacts Facts, PreviewTier Tier)? firstStart = Settings.IsFirstStart ? ChoosePreviewDefaults() : null;
 		ColorSchemeCatalog.Instance.Load();
 		ThemeController.Instance.Current = Settings.Default.Theme;
 		ThemeController.Instance.PropertyChanged += (_, args) =>
@@ -230,8 +233,15 @@ public partial class App : Application
 		var window = new MainWindow();
 		MainWindow = window;
 		window.Show();
-		// the last start-up line, and so the status bar's first text unless a file is opened below
+		// the last start-up line, and so the status bar's first text unless this is a first start or a file is opened below
 		Logger.Info("{Title} {Version} ready", FindResource("Title"), Assembly.GetExecutingAssembly().GetName().Version?.ToString(3));
+		if (firstStart is { } first)
+		{
+			Logger.Info("First start on this machine: {Memory:0.0} GB of memory, {Threads} threads, {Gpu}, cache drive {Drive} {DriveKind}: the preview is set to {Quality} (View menu)",
+				first.Facts.PhysicalBytes / (double)(1L << 30), first.Facts.Threads, first.Facts.Gpu.Length == 0 ? "no OpenCL GPU" : first.Facts.Gpu, first.Facts.CacheDrive,
+				first.Facts.CacheDriveSeekPenalty switch { true => "with a seek penalty (a hard disk)", false => "without a seek penalty", null => "of unknown kind" },
+				PreviewDefaults.Describe(first.Tier));
+		}
 		if (e.Args.Length > 0)
 		{
 			// launched with a project file (double-click, "open with", command line); after
@@ -239,6 +249,29 @@ public partial class App : Application
 			Logger.Info("Startup arguments: {Args}", string.Join(" ", e.Args));
 			window.OpenFile(e.Args[0]);
 		}
+	}
+
+	/// <summary>
+	/// Reads the machine's facts, sets the preview quality of its tier (<see cref="PreviewDefaults"/>) and writes the
+	/// settings file at once, so the choice is made once and deleting the file redoes it; the fixed defaults stay the
+	/// initialisers, which the figure harness and the designer rely on. Returns the facts and the tier for the log.
+	/// </summary>
+	private static (MachineFacts Facts, PreviewTier Tier) ChoosePreviewDefaults()
+	{
+		long started = Stopwatch.GetTimestamp();
+		MachineFacts facts = MachineFacts.Read();
+		PreviewTier tier = PreviewDefaults.TierOf(facts);
+		Settings.Default.SetPreviewQuality(PreviewDefaults.QualityOf(tier), PreviewDefaults.DitherBitsOf(tier));
+		Logger.Debug("First start: the machine's facts read in {Ms:0} ms, tier {Tier}", Stopwatch.GetElapsedTime(started).TotalMilliseconds, tier);
+		try
+		{
+			Settings.Default.Save();
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+		{
+			Logger.Warn(ex, "The settings file could not be written at the first start; the preview quality will be chosen again at the next start");
+		}
+		return (facts, tier);
 	}
 
 	/// <inheritdoc/>

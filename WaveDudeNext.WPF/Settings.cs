@@ -24,6 +24,8 @@ using System.Windows.Controls;
 using System.Xml;
 using System.Xml.Serialization;
 using NLog;
+using WaveDudeNext.Engine;
+using WaveDudeNext.Runs;
 using WaveDudeNext.WPF.Docking;
 using WaveDudeNext.WPF.Theming;
 
@@ -45,6 +47,12 @@ public sealed class Settings : INotifyPropertyChanged
 
 	/// <summary>The settings file.</summary>
 	public static string FilePath { get; } = Path.Combine(App.LocalAppDataDirectory, "Settings.xml");
+
+	/// <summary>
+	/// Whether this start found no settings file: the one start that chooses the preview quality for the machine
+	/// (<see cref="App.OnStartup"/>, <see cref="PreviewDefaults"/>); an unreadable file is not a first start. Set by <see cref="Load"/>.
+	/// </summary>
+	public static bool IsFirstStart { get; private set; }
 
 	/// <summary>This user's settings, read from <see cref="FilePath"/> at first use; the defaults when the file is missing or unreadable.</summary>
 	public static Settings Default { get; } = Load();
@@ -266,6 +274,15 @@ public sealed class Settings : INotifyPropertyChanged
 		set => Set(ref _exportHints, value);
 	}
 
+	/// <summary>Sets the three preview quality settings and the dithering as one: a first start's choice for the machine (<see cref="PreviewDefaults"/>).</summary>
+	public void SetPreviewQuality(PreviewQuality quality, int ditherBits)
+	{
+		PreviewResolution = quality.ResolutionDivisor;
+		PreviewFrames = quality.FrameDivisor;
+		PreviewSampleBytes = quality.Format == FrameFormat.Half ? 2 : 1;
+		PreviewDitherBits = ditherBits;
+	}
+
 	/// <summary>Writes the settings to <see cref="FilePath"/>, creating the folder; file errors are the caller's.</summary>
 	public void Save()
 	{
@@ -283,7 +300,8 @@ public sealed class Settings : INotifyPropertyChanged
 	{
 		if (!File.Exists(FilePath))
 		{
-			Logger.Debug("No settings file at '{Path}', using the defaults", FilePath);
+			Logger.Debug("No settings file at '{Path}': a first start, the defaults and the machine's preview quality", FilePath);
+			IsFirstStart = true;
 			return new Settings();
 		}
 		try
