@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.Runtime.InteropServices;
+using System.Globalization;
 
 namespace WaveDudeNext.Runs;
 
@@ -25,7 +26,7 @@ namespace WaveDudeNext.Runs;
 /// user's setting), but never more than what is available now minus a margin for the rest of the application
 /// and the system, so a run never pushes the machine into its page file. Windows answers through
 /// <c>GlobalMemoryStatusEx</c>; elsewhere half of the runtime's view of the total serves as a conservative
-/// upper bound, also capped by Linux's currently available physical memory when reported. Thread-free.
+/// upper bound, also capped by Linux's currently available physical memory and cgroup limits when reported. Thread-free.
 /// </summary>
 public static class FrameMemory
 {
@@ -61,9 +62,73 @@ public static class FrameMemory
 		{
 			return (long)Math.Min(Math.Min(status.AvailPhys, status.AvailPageFile), long.MaxValue);
 		}
-		long fallback = PhysicalBytes() / 2;
-		return OperatingSystem.IsLinux() && TryLinuxAvailable(out long available) ? Math.Min(fallback, available) : fallback;
+		long available = PhysicalBytes() / 2;
+		if (OperatingSystem.IsLinux())
+		{
+			if (TryLinuxAvailable(out long physical)) available = Math.Min(available, physical);
+			if (LinuxCgroupAvailable("/proc/self/cgroup", "/proc/self/mountinfo") is { } cgroup) available = Math.Min(available, cgroup);
+		}
+		return available;
 	}
+
+	/// <summary>Available bytes in the calling process's Linux memory cgroup and its ancestors, or null when unreported.</summary>
+	internal static long? LinuxCgroupAvailable(string cgroupFile, string mountFile)
+	{
+		try
+		{
+			string? v2 = null, v1 = null;
+			foreach (string line in File.ReadLines(cgroupFile))
+			{
+				string[] fields = line.Split(':', 3);
+				if (fields.Length != 3) continue;
+				if (fields[0] == "0" && fields[1].Length == 0) v2 = fields[2];
+				else if (fields[1].Split(',').Contains("memory", StringComparer.Ordinal)) v1 = fields[2];
+			}
+			long? available = null;
+			foreach (string line in File.ReadLines(mountFile))
+			{
+				string[] halves = line.Split(" - ", 2, StringSplitOptions.None);
+				if (halves.Length != 2) continue;
+				string[] before = halves[0].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+				string[] after = halves[1].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+				if (before.Length < 5 || after.Length < 3) continue;
+				bool unified = after[0] == "cgroup2";
+				string? group = unified ? v2 : after[0] == "cgroup" && after[2].Split(',').Contains("memory", StringComparer.Ordinal) ? v1 : null;
+				if (group == null) continue;
+				string root = UnescapeMountPath(before[3]);
+				string mount = Path.TrimEndingDirectorySeparator(Path.GetFullPath(UnescapeMountPath(before[4])));
+				string relative = root != "/" && (group == root || group.StartsWith(root + "/", StringComparison.Ordinal)) ? group[root.Length..] : group;
+				string leaf = Path.GetFullPath(Path.Combine(mount, relative.TrimStart('/')));
+				string prefix = mount.EndsWith('/') ? mount : mount + "/";
+				if (leaf != mount && !leaf.StartsWith(prefix, StringComparison.Ordinal)) continue;
+				for (string? directory = leaf; directory != null; directory = directory == mount ? null : Path.GetDirectoryName(directory))
+				{
+					if (!TryReadCgroupNumber(Path.Combine(directory, unified ? "memory.current" : "memory.usage_in_bytes"), out long used)) continue;
+					if (TryReadCgroupNumber(Path.Combine(directory, unified ? "memory.max" : "memory.limit_in_bytes"), out long limit))
+						available = MinAvailable(available, limit, used);
+					if (unified && TryReadCgroupNumber(Path.Combine(directory, "memory.high"), out long high))
+						available = MinAvailable(available, high, used);
+				}
+			}
+			return available;
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+		{
+			return null;
+		}
+	}
+
+	private static long MinAvailable(long? previous, long limit, long used) => Math.Min(previous ?? long.MaxValue, Math.Max(0, limit - used));
+
+	private static bool TryReadCgroupNumber(string path, out long value)
+	{
+		value = 0;
+		try { return long.TryParse(File.ReadAllText(path).Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out value) && value >= 0; }
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
+	}
+
+	private static string UnescapeMountPath(string path) => path.Replace("\\040", " ", StringComparison.Ordinal).Replace("\\011", "\t", StringComparison.Ordinal)
+		.Replace("\\012", "\n", StringComparison.Ordinal).Replace("\\134", "\\", StringComparison.Ordinal);
 
 	/// <summary>Reads Linux's estimated available physical memory, including reclaimable caches, in bytes.</summary>
 	private static bool TryLinuxAvailable(out long bytes)

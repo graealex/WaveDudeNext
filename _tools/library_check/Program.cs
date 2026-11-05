@@ -1708,6 +1708,7 @@ internal static class Program
 			&& FrameMemory.Budget(1 * gb, 16 * gb, FrameMemory.Automatic, 0) == 0
 			&& FrameMemory.Budget(1 * gb, 16 * gb, 100, 512L << 20) == 0,
 			"budget: reclaimed memory of the outgoing run counts as available, the share still caps it");
+		if (OperatingSystem.IsLinux()) CheckCgroupMemory();
 		// the memory tier waits for that reclaimed memory (2026-10-16): a store made with a release task allocates
 		// nothing and a write to it waits until the task completes, then the frame lands in memory, not in a file
 		path = Path.Combine(Path.GetTempPath(), "library_check-wait-" + Guid.NewGuid().ToString("N") + FrameCache.Extension);
@@ -4311,5 +4312,44 @@ internal static class Program
 			}
 		}
 		Check(!File.Exists(path), "second store deleted");
+	}
+
+	private static void CheckCgroupMemory()
+	{
+		string folder = Path.Combine(Path.GetTempPath(), "WaveDudeNext", "cgroup-" + Guid.NewGuid().ToString("N"));
+		string mount = Path.Combine(folder, "mount space"), child = Path.Combine(mount, "a", "b");
+		Directory.CreateDirectory(child);
+		try
+		{
+			static void Write(string directory, string name, string value) => File.WriteAllText(Path.Combine(directory, name), value);
+			static void V2(string directory, string limit, string high, string current)
+			{
+				Write(directory, "memory.max", limit);
+				Write(directory, "memory.high", high);
+				Write(directory, "memory.current", current);
+			}
+			V2(mount, "1000", "max", "100");
+			V2(Path.Combine(mount, "a"), "500", "400", "200");
+			V2(child, "350", "max", "180");
+			string cgroup = Path.Combine(folder, "cgroup"), mounts = Path.Combine(folder, "mountinfo");
+			File.WriteAllText(cgroup, "0::/rooted/a/b\n");
+			File.WriteAllText(mounts, $"1 0 0:1 /rooted {mount.Replace(" ", "\\040", StringComparison.Ordinal)} rw - cgroup2 cgroup rw\n");
+			long? leaf = FrameMemory.LinuxCgroupAvailable(cgroup, mounts);
+			V2(child, "max", "max", "180");
+			long? ancestor = FrameMemory.LinuxCgroupAvailable(cgroup, mounts);
+			V2(child, "350", "max", "500");
+			long? exhausted = FrameMemory.LinuxCgroupAvailable(cgroup, mounts);
+			Check(leaf == 170 && ancestor == 200 && exhausted == 0, "memory: cgroup v2 uses the tightest leaf or ancestor limit and clamps exhaustion to zero");
+			string legacy = Path.Combine(folder, "v1"), legacyChild = Path.Combine(legacy, "leaf");
+			Directory.CreateDirectory(legacyChild);
+			Write(legacy, "memory.limit_in_bytes", "2000");
+			Write(legacy, "memory.usage_in_bytes", "300");
+			Write(legacyChild, "memory.limit_in_bytes", "1000");
+			Write(legacyChild, "memory.usage_in_bytes", "800");
+			File.WriteAllText(cgroup, "5:cpu,memory:/leaf\n");
+			File.WriteAllText(mounts, $"2 0 0:2 / {legacy} rw - cgroup cgroup rw,memory\n");
+			Check(FrameMemory.LinuxCgroupAvailable(cgroup, mounts) == 200, "memory: cgroup v1 limits available memory");
+		}
+		finally { Directory.Delete(folder, recursive: true); }
 	}
 }

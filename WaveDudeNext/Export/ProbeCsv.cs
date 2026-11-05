@@ -49,7 +49,7 @@ public static class ProbeCsv
 		char[] invalid = Path.GetInvalidFileNameChars();
 		for (int i = 0; i < name.Length; i++)
 		{
-			if (Array.IndexOf(invalid, name[i]) >= 0)
+			if (name[i] < 32 || "<>:\"/\\|?*".Contains(name[i]) || Array.IndexOf(invalid, name[i]) >= 0)
 			{
 				name[i] = '_';
 			}

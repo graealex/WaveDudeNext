@@ -373,7 +373,7 @@ internal static class ExportChecks
 				"formats: exr_0001.exr is a version 2 scanline file, channel Y half, uncompressed, with the halves bit for bit" + (back == null ? " (" + (File.Exists(exrFile) ? exrNote : "no file") + ")" : ""));
 			if (Ffmpeg != null)
 			{
-				// decoded to 16-bit grey, the one form every ffmpeg since 2018 gives for a one-channel EXR: value × 65536,
+				// decoded to full-range 16-bit grey, the one form every ffmpeg since 2018 gives for a one-channel EXR: value × 65536,
 				// clipped to 0..65535 (the negatives and the 1.5 land on the limits); so the values and their places are checked
 				ushort[]? decodedExr = DecodeGray16(exrFile, w, h);
 				bool same = decodedExr != null;
@@ -928,7 +928,7 @@ internal static class ExportChecks
 			UseShellExecute = false,
 			CreateNoWindow = true,
 		};
-		foreach (string arg in new[] { "-v", "error", "-i", path, "-f", "rawvideo", "-pix_fmt", "gray16le", "-" })
+		foreach (string arg in new[] { "-v", "error", "-i", path, "-vf", "scale=in_range=full:out_range=full", "-f", "rawvideo", "-pix_fmt", "gray16le", "-" })
 		{
 			info.ArgumentList.Add(arg);
 		}
