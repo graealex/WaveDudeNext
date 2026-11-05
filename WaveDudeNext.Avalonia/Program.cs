@@ -49,6 +49,7 @@ using WaveDudeNext.Engine;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
 using WaveDudeNext.Probes;
+using WaveDudeNext.Export;
 
 namespace WaveDudeNext.CrossPlatform;
 
@@ -133,7 +134,7 @@ internal sealed class MainWindow : Window
 	{
 		Width = 1000;
 		Height = 700;
-		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, autoBudget, quality) => new MemoryWarningWindow(spec, budget, autoBudget, quality).ShowDialog<MemoryWarningChoice?>(this));
+		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, autoBudget, quality) => new MemoryWarningWindow(spec, budget, autoBudget, quality).ShowDialog<MemoryWarningChoice?>(this), ChooseProbeCsv);
 		AddHandler(InputElement.PointerPressedEvent, (_, _) => state.PointerDown = true, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerReleasedEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerCaptureLostEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
@@ -216,7 +217,7 @@ internal sealed class MainWindow : Window
 		undo.InputGesture = new KeyGesture(Key.Z, KeyModifiers.Control);
 		var redo = ActionItem("MenuEditRedo", state.RedoCommand);
 		redo.InputGesture = new KeyGesture(Key.Y, KeyModifiers.Control);
-		var edit = new MenuItem { ItemsSource = new[] { undo, redo, ActionItem("MenuProjectAddSource", state.AddSourceCommand), ActionItem("MenuProjectAddProbe", state.AddProbeCommand), parts, ActionItem("MenuProjectRemove", state.RemoveCommand) } };
+		var edit = new MenuItem { ItemsSource = new[] { undo, redo, ActionItem("MenuProjectAddSource", state.AddSourceCommand), ActionItem("MenuProjectAddProbe", state.AddProbeCommand), parts, ActionItem("MenuProjectRemove", state.RemoveCommand), ActionItem("MenuExportProbeCsv", state.ExportProbeCsvCommand) } };
 		edit.Bind(MenuItem.HeaderProperty, edit.GetResourceObservable("MenuEdit"));
 		MenuItem QualityMenu(string title, string property, ICommand command, params (string Key, int Value)[] choices)
 		{
@@ -478,6 +479,19 @@ internal sealed class MainWindow : Window
 		await stream.WriteAsync(data);
 	}
 
+	private async Task<string?> ChooseProbeCsv(string name)
+	{
+		IStorageFile? file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+		{
+			Title = (string)Application.Current!.Resources["ExportDialogTitleProbeCsv"]!,
+			SuggestedFileName = name,
+			DefaultExtension = "csv",
+			FileTypeChoices = [new FilePickerFileType("CSV") { Patterns = ["*.csv"] }],
+		});
+		if (file == null) return null;
+		return file.TryGetLocalPath() ?? throw new IOException("The probe data must be saved to a local folder.");
+	}
+
 	private Task<SaveDecision> ConfirmSave(string name)
 	{
 		var dialog = new Window { Width = 440, SizeToContent = SizeToContent.Height, CanResize = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -518,6 +532,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private readonly Func<Task<(byte[] Data, string Name, string? Path)?>> _chooseImage;
 	private readonly Func<string, byte[], Task> _saveImage;
 	private readonly Func<RunSpec, long, long, PreviewQuality, Task<MemoryWarningChoice?>> _warn;
+	private readonly Func<string, Task<string?>> _chooseProbeCsv;
 	private readonly SimulationSettings _settings;
 	private string _title = "WaveDude Next";
 	private string _status = "";
@@ -595,7 +610,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private bool _restoring;
 
 	/// <summary>Creates state for a new project.</summary>
-	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<string, byte[], Task> saveImage, Func<RunSpec, long, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
+	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<string, byte[], Task> saveImage, Func<RunSpec, long, long, PreviewQuality, Task<MemoryWarningChoice?>> warn, Func<string, Task<string?>> chooseProbeCsv)
 	{
 		_open = open;
 		_saveAs = saveAs;
@@ -603,6 +618,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_chooseImage = chooseImage;
 		_saveImage = saveImage;
 		_warn = warn;
+		_chooseProbeCsv = chooseProbeCsv;
 		_settings = SimulationSettings.Load(Path.Combine(Program.DataDirectory, "Settings.xml"));
 		_quality = _settings.Quality;
 		OpenCommand = new OpenCommand(Open);
@@ -611,6 +627,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		SaveAsCommand = new OpenCommand(() => Save(true));
 		BrowseImageCommand = new OpenCommand(BrowseSceneImage);
 		SaveImageCommand = new OpenCommand(SaveEmbeddedImage);
+		ExportProbeCsvCommand = new OpenCommand(ExportProbeCsv, () => SelectedItem is Probe { Active: true } && Project.Simulation.Steps > 0);
 		RemoveImageCommand = new ControlCommand(RemoveSceneImage, () => Project.Scene.ImageData != null || Project.Scene.Image.Length > 0 || Project.Scene.ImagePath.Length > 0);
 		RunCommand = new OpenCommand(() => StartRun());
 		PlayPauseCommand = new OpenCommand(TogglePlayback);
@@ -680,6 +697,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			Changed(nameof(SelectedItem));
 			PropertyRows = BuildPropertyRows(value?.Tag);
 			((ControlCommand)RemoveCommand).Refresh();
+			((OpenCommand)ExportProbeCsvCommand).Refresh();
 		}
 	}
 	/// <summary>The selected project object, if any.</summary>
@@ -700,6 +718,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand BrowseImageCommand { get; }
 	/// <summary>Saves the embedded scene image as a separate file.</summary>
 	public ICommand SaveImageCommand { get; }
+	/// <summary>Exports the selected active probe's recording as CSV.</summary>
+	public ICommand ExportProbeCsvCommand { get; }
 	/// <summary>Removes the image while preserving its canvas size.</summary>
 	public ICommand RemoveImageCommand { get; }
 	/// <summary>Starts a simulation run.</summary>
@@ -853,23 +873,30 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		else if (_requested != null) _scratch?.Request(_requested, (int)frame);
 	}
 
-	private async Task StartRun(bool automatic = false)
+	private async Task StartRun(bool automatic = false, PreviewQuality? qualityOverride = null)
 	{
 		if (_requested == null) return;
 		CancelFit();
 		try
 		{
 			RunSpec original = _requested;
-			RunSpec spec = RunSpec.Create(Project, SceneComposer.Compose(Project, _folder), preferGpu: UseGpu, trackIntensity: true, quality: _quality, preferVulkan: true);
+			PreviewQuality quality = qualityOverride ?? _quality;
+			RunSpec spec = RunSpec.Create(Project, SceneComposer.Compose(Project, _folder), preferGpu: UseGpu, trackIntensity: true, quality: quality, preferVulkan: true);
 			long budget = FrameMemory.Budget(_settings.FrameMemoryPercent, _run?.Store.RamBytes ?? 0);
 			int ramFrames = Math.Min(spec.StoredFrameCount, FrameStore.FramesInBudget(spec.Shape, spec.Layers, budget));
 			if (ramFrames < spec.StoredFrameCount && WarnWhenRamInsufficient)
 			{
 				long autoBudget = FrameMemory.Budget(FrameMemory.Automatic, _run?.Store.RamBytes ?? 0);
-				MemoryWarningChoice? choice = await _warn(spec, budget, autoBudget, _quality);
+				MemoryWarningChoice? choice = await _warn(spec, budget, autoBudget, quality);
 				if (choice == null || _disposed || !ReferenceEquals(original, _requested)) return;
-				_quality = choice.Quality;
-				_settings.Quality = _quality;
+				quality = choice.Quality;
+				if (qualityOverride != null && (quality.FrameDivisor != 1 || quality.ResolutionDivisor != 1))
+				{
+					LogManager.GetCurrentClassLogger().Warn("Probe export requires a full-resolution run with every frame");
+					Status = Application.Current?.Resources.TryGetValue("ExportError", out object? text) == true ? text as string ?? "Export failed" : "Export failed";
+					return;
+				}
+				if (qualityOverride == null) { _quality = quality; _settings.Quality = quality; }
 				if (choice.Mute) _settings.WarnWhenRamInsufficient = false;
 				if (choice.CacheAuto) _settings.FrameMemoryPercent = FrameMemory.Automatic;
 				_settings.Save();
@@ -877,7 +904,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 				Changed(nameof(WarnWhenRamInsufficient));
 				Changed(nameof(FrameMemoryPercent));
 				budget = FrameMemory.Budget(_settings.FrameMemoryPercent, _run?.Store.RamBytes ?? 0);
-				spec = RunSpec.Create(Project, SceneComposer.Compose(Project, _folder), preferGpu: UseGpu, trackIntensity: true, quality: _quality, preferVulkan: true);
+				spec = RunSpec.Create(Project, SceneComposer.Compose(Project, _folder), preferGpu: UseGpu, trackIntensity: true, quality: quality, preferVulkan: true);
 				ramFrames = Math.Min(spec.StoredFrameCount, FrameStore.FramesInBudget(spec.Shape, spec.Layers, budget));
 			}
 			if (ramFrames < spec.StoredFrameCount)
@@ -1209,6 +1236,46 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		if (Project.Scene.ImageData is not { } bytes) return;
 		try { await _saveImage(Project.Scene.Image.Length > 0 ? Project.Scene.Image : "scene", bytes); }
 		catch (Exception ex) { LogManager.GetCurrentClassLogger().Error(ex, "The scene image could not be saved"); Status = ex.Message; }
+	}
+
+	private async Task ExportProbeCsv()
+	{
+		if (SelectedItem is not Probe { Active: true } probe) return;
+		try
+		{
+			int generation = _editGeneration;
+			string name = ProbeCsv.FileName(Path.GetFileNameWithoutExtension(_projectName), probe);
+			string? path = await _chooseProbeCsv(name);
+			if (path == null || _disposed || generation != _editGeneration) return;
+			SimulationRun? run = _run;
+			bool usable = run != null && !_runStale && !_probesStale && run.State is not (RunState.Cancelled or RunState.Failed)
+				&& run.Spec.Probes.Any(item => ReferenceEquals(item.Origin, probe)) && run.Spec.Quality.ResolutionDivisor == 1 && run.Spec.FrameStride == 1;
+			if (!usable)
+			{
+				SimulationRun? previous = run;
+				if (_requested == null) RequestPreview(_folder, resetPosition: false);
+				await StartRun(automatic: true, qualityOverride: _quality with { ResolutionDivisor = 1, FrameDivisor = 1 });
+				run = _run;
+				if (run == null || ReferenceEquals(run, previous) || _runStale || _probesStale || generation != _editGeneration) return;
+			}
+			if (run == null) return;
+			if (!run.IsFinished)
+			{
+				var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+				void OnFinished(object? sender, EventArgs e) => finished.TrySetResult();
+				run.Finished += OnFinished;
+				try { if (!run.IsFinished) await finished.Task; }
+				finally { run.Finished -= OnFinished; }
+			}
+			if (_disposed || generation != _editGeneration || !ReferenceEquals(run, _run) || run.State != RunState.Completed) return;
+			int index = -1;
+			for (int i = 0; i < run.Spec.Probes.Length; i++) if (ReferenceEquals(run.Spec.Probes[i].Origin, probe)) { index = i; break; }
+			if (index < 0 || index >= run.Traces.Length || (probe.Kind == ProbeKind.Line && run.Spec.FrameStride != 1)) return;
+			Probe copy = probe.Clone();
+			int rows = await Task.Run(() => ProbeCsv.Write(path, copy, run.Traces[index], run.Spec.VisualizeEvery, run.Spec.FrameStride));
+			LogManager.GetCurrentClassLogger().Info("Probe data written: {Rows} rows of '{Probe}' to {Path}", rows, copy.Name, path);
+		}
+		catch (Exception ex) { LogManager.GetCurrentClassLogger().Error(ex, "The probe data could not be written"); Status = ex.Message; }
 	}
 
 
@@ -1637,6 +1704,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private void ProjectChanged(object? sender, ProjectChange change)
 	{
 		SceneVisualChanged?.Invoke(this, change);
+		if (ReferenceEquals(change.Item, SelectedItem) && change.Property == nameof(Probe.Active) || change.Item is Simulation && change.Property == nameof(Simulation.Steps)) ((OpenCommand)ExportProbeCsvCommand).Refresh();
 		if (change.Item is Scene)
 		{
 			if (change.Property is nameof(Scene.Edges) or nameof(Scene.HasRim) or nameof(Scene.DampingEdge)) Changed(nameof(EdgeBrush));
@@ -2111,20 +2179,22 @@ internal sealed class ParameterCommand(Action<object?> execute) : ICommand
 }
 
 /// <summary>An asynchronous UI command that admits one invocation at a time.</summary>
-internal sealed class OpenCommand(Func<Task> execute) : ICommand
+internal sealed class OpenCommand(Func<Task> execute, Func<bool>? canExecute = null) : ICommand
 {
 	private bool _running;
 	/// <inheritdoc/>
 	public event EventHandler? CanExecuteChanged;
 	/// <inheritdoc/>
-	public bool CanExecute(object? parameter) => !_running;
+	public bool CanExecute(object? parameter) => !_running && (canExecute?.Invoke() ?? true);
 	/// <inheritdoc/>
 	public async void Execute(object? parameter)
 	{
-		if (_running) return;
+		if (!CanExecute(parameter)) return;
 		_running = true;
 		CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 		try { await execute(); }
 		finally { _running = false; CanExecuteChanged?.Invoke(this, EventArgs.Empty); }
 	}
+	/// <summary>Notifies controls that the command's availability changed.</summary>
+	public void Refresh() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
