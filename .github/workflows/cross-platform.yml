@@ -93,11 +93,17 @@ jobs:
           if loader.vkEnumerateInstanceVersion(ctypes.byref(version)) != 0 or version.value < ((1 << 22) | (3 << 12)):
               raise SystemExit("The bundled Vulkan loader does not expose Vulkan 1.3")
           ctypes.CDLL(str(app / "Contents/Frameworks/libMoltenVK.dylib"))
-          home = temp / "wavedude-smoke-home"
-          home.mkdir()
+          # macOS resolves LocalApplicationData through NSSearchPathForDirectoriesInDomains,
+          # rather than the HOME override used for the single-file extraction directory.
+          app_log = Path.home() / "Library/Application Support/WaveDudeNext/WaveDudeNext.log"
+          original_stat = app_log.stat() if app_log.exists() else None
+          crash_dir = Path.home() / "Library/Logs/DiagnosticReports"
+          started = time.time()
+          extraction = temp / "wavedude-bundle-cache"
           env = os.environ.copy()
-          env["HOME"] = str(home)
-          env["DOTNET_BUNDLE_EXTRACT_BASE_DIR"] = str(home / "bundle-cache")
+          env["DOTNET_BUNDLE_EXTRACT_BASE_DIR"] = str(extraction)
+          env["DOTNET_HOST_TRACE"] = "1"
+          env["DOTNET_HOST_TRACEFILE"] = str(temp / "wavedude-host-trace.log")
           executable = app / "Contents/MacOS/WaveDudeNext"
           with (temp / "wavedude-smoke.log").open("w+") as log:
               process = subprocess.Popen([str(executable)], env=env, stdout=log, stderr=subprocess.STDOUT)
@@ -107,17 +113,26 @@ jobs:
                   while time.monotonic() < deadline:
                       if process.poll() is not None:
                           break
-                      for candidate in home.rglob("WaveDudeNext.log"):
-                          text = candidate.read_text(errors="replace")
+                      if app_log.exists():
+                          data = app_log.read_bytes()
+                          stat = app_log.stat()
+                          if original_stat is not None and stat.st_ino == original_stat.st_ino and len(data) >= original_stat.st_size:
+                              data = data[original_stat.st_size:]
+                          text = data.decode(errors="replace")
                           if "Preview engine:" in text:
                               engine_log = text
-                              break
                       if engine_log is not None:
                           break
                       time.sleep(0.25)
                   if engine_log is None:
                       log.seek(0)
-                      raise SystemExit(f"Application did not initialise a preview ({process.poll()}):\n{log.read()}")
+                      output = log.read()
+                      application = app_log.read_text(errors="replace")[-65536:] if app_log.exists() else "<no application log>"
+                      trace_path = temp / "wavedude-host-trace.log"
+                      trace = trace_path.read_text(errors="replace")[-65536:] if trace_path.exists() else "<no host trace>"
+                      reports = sorted((p for p in crash_dir.glob("WaveDudeNext*.ips") if p.stat().st_mtime >= started), key=lambda p: p.stat().st_mtime)
+                      crash = reports[-1].read_text(errors="replace")[-65536:] if reports else "<no crash report>"
+                      raise SystemExit(f"Application did not initialise a preview ({process.poll()}):\nstdout/stderr:\n{output}\napplication log:\n{application}\nhost trace:\n{trace}\ncrash report:\n{crash}")
                   print(next(line for line in engine_log.splitlines() if "Preview engine:" in line))
               finally:
                   if process.poll() is None:

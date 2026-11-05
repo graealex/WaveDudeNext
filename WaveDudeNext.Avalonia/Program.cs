@@ -787,6 +787,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private readonly ControlCommand _pauseRun;
 	private readonly ControlCommand _stopRun;
 	private PresentationJob? _pendingPresentation;
+	private readonly PreviewColorizer _previewColorizer = new();
+	private int _gpuVersion;
 	private CopiedFrameSource? _lastScratch;
 	private ScratchResult? _lastScratchResult;
 	private ScratchResult? _shownScratchResult;
@@ -1038,7 +1040,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	/// <summary>Fits a picture's brightness to its current frame.</summary>
 	public ICommand AutoBrightnessCommand { get; }
 	/// <summary>Whether to use a Vulkan GPU when available.</summary>
-	public bool UseGpu { get => _settings.UseGpu; set { if (_settings.UseGpu == value) return; _settings.UseGpu = value; _settings.Save(); Changed(); } }
+	public bool UseGpu { get => _settings.UseGpu; set { if (_settings.UseGpu == value) return; _settings.UseGpu = value; _gpuVersion++; _settings.Save(); Changed(); RefreshDisplayedFrame(); } }
 	/// <summary>Whether an edit automatically reruns a stale simulation.</summary>
 	public bool AutoRerun { get => _settings.AutoRerun; set { if (_settings.AutoRerun == value) return; _settings.AutoRerun = value; _settings.Save(); if (value && _runStale) ScheduleRerun(); if (!value) _rerunDelay?.Stop(); Changed(); } }
 	/// <summary>Whether to warn before spilling frames to disk.</summary>
@@ -1121,6 +1123,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		StopPlayback();
 		_playTimer?.Dispose();
 		InvalidatePresentation();
+		if (!_presenting) _previewColorizer.Dispose();
 		_outlineVersion++;
 		_pendingOutline = null;
 		DiscardRun();
@@ -1735,7 +1738,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		}
 		_pendingPresentation = new PresentationJob(++_presentationVersion, source, frame,
 			Lut(Project.Display.Field), Lut(Project.Display.Intensity),
-			(float)Project.Display.Field.Brightness, (float)Project.Display.Intensity.Brightness);
+			(float)Project.Display.Field.Brightness, (float)Project.Display.Intensity.Brightness, UseGpu, _gpuVersion);
 		if (!_presenting) DrainPresentation();
 	}
 
@@ -1828,7 +1831,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			_pendingPresentation = null;
 			try
 			{
-				(int[] Field, int[] Intensity)? pixels = await Task.Run(() => Render(job));
+				(int[] Field, int[] Intensity)? pixels = await Task.Run(() => _previewColorizer.Render(job));
 				if (!_disposed && job.Version == _presentationVersion && pixels is { } pictures)
 				{
 					ShowPictures(job.Source.Width, job.Source.Height, pictures.Field, pictures.Intensity);
@@ -1845,32 +1848,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			}
 		}
 		_presenting = false;
-	}
-
-	private static (int[] Field, int[] Intensity)? Render(PresentationJob job)
-	{
-		IFrameSource source = job.Source;
-		int width = source.Width, height = source.Height;
-		int[]? Plane(FrameLayer layer, ColorLut lut, float brightness)
-		{
-			var pixels = new int[checked(width * height)];
-			if (source.Format == FrameFormat.Index)
-			{
-				var indices = new byte[pixels.Length];
-				if (!source.CopyLayer(job.Frame, layer, indices)) return null;
-				FrameRenderer.RenderIndexed(indices, width, height, lut, pixels);
-			}
-			else
-			{
-				var samples = new Half[pixels.Length];
-				if (!source.CopyLayer(job.Frame, layer, samples)) return null;
-				FrameRenderer.Render(samples, width, height, lut, source.KindOf(layer), brightness, pixels);
-			}
-			return pixels;
-		}
-		int[]? field = Plane(FrameLayer.Field, job.FieldLut, job.FieldBrightness);
-		int[]? intensity = Plane(FrameLayer.Intensity, job.IntensityLut, job.IntensityBrightness);
-		return field == null || intensity == null ? null : (field, intensity);
+		if (_disposed) _previewColorizer.Dispose();
 	}
 
 	private void ShowPictures(int width, int height, int[] fieldPixels, int[] intensityPixels)
@@ -2539,7 +2517,7 @@ internal sealed class PreviewPanel(WindowStateModel state) : DockPanel
 }
 
 /// <summary>Immutable UI-thread settings and source for one background render.</summary>
-internal sealed record PresentationJob(long Version, IFrameSource Source, int Frame, ColorLut FieldLut, ColorLut IntensityLut, float FieldBrightness, float IntensityBrightness);
+internal sealed record PresentationJob(long Version, IFrameSource Source, int Frame, ColorLut FieldLut, ColorLut IntensityLut, float FieldBrightness, float IntensityBrightness, bool PreferGpu, int GpuVersion);
 
 /// <summary>A scene outline request captured on the UI thread.</summary>
 internal sealed record OutlineJob(long Version, ScenePixels? Scene, byte[]? Edges, bool FieldEnabled, double FieldGain, bool IntensityEnabled, double IntensityGain);
