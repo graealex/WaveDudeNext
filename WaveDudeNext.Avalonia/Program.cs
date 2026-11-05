@@ -113,7 +113,7 @@ internal sealed class MainWindow : Window
 	{
 		Width = 1000;
 		Height = 700;
-		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, (spec, budget, quality) => new MemoryWarningWindow(spec, budget, budget, quality).ShowDialog<MemoryWarningChoice?>(this));
+		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, (spec, budget, quality) => new MemoryWarningWindow(spec, budget, budget, quality).ShowDialog<MemoryWarningChoice?>(this));
 		Opened += (_, _) => state.Initialise();
 		bool closeApproved = false, confirmingClose = false;
 		Closing += async (_, e) =>
@@ -344,6 +344,21 @@ internal sealed class MainWindow : Window
 		return file.TryGetLocalPath() ?? throw new IOException("The project must be saved to a local folder.");
 	}
 
+	private async Task<(byte[] Data, string Name, string? Path)?> PickSceneImage()
+	{
+		var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+		{
+			Title = (string)Application.Current!.Resources["TipBrowseSceneImage"]!,
+			AllowMultiple = false,
+			FileTypeFilter = [new FilePickerFileType("Images") { Patterns = ["*.png", "*.bmp", "*.jpg", "*.jpeg", "*.tif", "*.tiff", "*.gif"] }],
+		});
+		if (files.Count == 0) return null;
+		await using Stream stream = await files[0].OpenReadAsync();
+		using var bytes = new MemoryStream();
+		await stream.CopyToAsync(bytes);
+		return (bytes.ToArray(), files[0].Name, files[0].TryGetLocalPath());
+	}
+
 	private Task<SaveDecision> ConfirmSave(string name)
 	{
 		var dialog = new Window { Width = 440, SizeToContent = SizeToContent.Height, CanResize = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -381,6 +396,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private readonly Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> _open;
 	private readonly Func<string?, Task<string?>> _saveAs;
 	private readonly Func<string, Task<SaveDecision>> _confirmSave;
+	private readonly Func<Task<(byte[] Data, string Name, string? Path)?>> _chooseImage;
 	private readonly Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> _warn;
 	private string _title = "WaveDude Next";
 	private string _status = "";
@@ -428,15 +444,18 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private bool _saving;
 
 	/// <summary>Creates state for a new project.</summary>
-	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
+	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
 	{
 		_open = open;
 		_saveAs = saveAs;
 		_confirmSave = confirmSave;
+		_chooseImage = chooseImage;
 		_warn = warn;
 		OpenCommand = new OpenCommand(Open);
 		SaveCommand = new OpenCommand(() => Save(false));
 		SaveAsCommand = new OpenCommand(() => Save(true));
+		BrowseImageCommand = new OpenCommand(BrowseSceneImage);
+		RemoveImageCommand = new ControlCommand(RemoveSceneImage, () => Project.Scene.ImageData != null || Project.Scene.Image.Length > 0 || Project.Scene.ImagePath.Length > 0);
 		RunCommand = new OpenCommand(() => StartRun());
 		PlayPauseCommand = new OpenCommand(TogglePlayback);
 		_pauseRun = new ControlCommand(ToggleRunPause, () => _run?.IsActive == true);
@@ -485,6 +504,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand SaveCommand { get; }
 	/// <summary>Chooses a new path and saves the current project.</summary>
 	public ICommand SaveAsCommand { get; }
+	/// <summary>Embeds a chosen scene image in the project.</summary>
+	public ICommand BrowseImageCommand { get; }
+	/// <summary>Removes the image while preserving its canvas size.</summary>
+	public ICommand RemoveImageCommand { get; }
 	/// <summary>Starts a simulation run.</summary>
 	public ICommand RunCommand { get; }
 	/// <summary>Starts or pauses playback of the timeline.</summary>
@@ -838,6 +861,43 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void UpdateTitle() => Title = _projectName + (_dirty ? "*" : "") + " - WaveDude Next";
 
+	private async Task BrowseSceneImage()
+	{
+		try
+		{
+			if (await _chooseImage() is not { } image || _disposed) return;
+			using var stream = new MemoryStream(image.Data, writable: false);
+			ScenePixels pixels = SceneComposer.Decode(stream);
+			Project.Scene.ImageData = image.Data;
+			Project.Scene.Image = image.Name;
+			Project.Scene.ImagePath = image.Path == null ? "" : Scene.StoredImagePath(_folder, image.Path);
+			Project.Scene.Mode = SceneMode.Image;
+			LogManager.GetCurrentClassLogger().Info("Scene image '{Name}' embedded: {Width}×{Height}, {Bytes} bytes", image.Name, pixels.Width, pixels.Height, image.Data.Length);
+		}
+		catch (Exception ex)
+		{
+			LogManager.GetCurrentClassLogger().Error(ex, "The scene image could not be loaded");
+			Status = ex.Message;
+		}
+	}
+
+	private void RemoveSceneImage()
+	{
+		Scene scene = Project.Scene;
+		if (scene.ImageData is { } bytes)
+		{
+			try
+			{
+				using var stream = new MemoryStream(bytes, writable: false);
+				ScenePixels pixels = SceneComposer.Decode(stream);
+				scene.Width = pixels.Width;
+				scene.Height = pixels.Height;
+			}
+			catch (Exception ex) { LogManager.GetCurrentClassLogger().Debug(ex, "Could not read the scene image size"); }
+		}
+		scene.RemoveImage();
+	}
+
 
 	private void RequestPreview(string? folder, bool resetPosition = true)
 	{
@@ -1049,6 +1109,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void ProjectChanged(object? sender, ProjectChange change)
 	{
+		if (change.Item is Scene) ((ControlCommand)RemoveImageCommand).Refresh();
 		if (change.Item is INotifyCollectionChanged) RefreshTree();
 		if (!_saving)
 		{
@@ -1112,7 +1173,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		await StartRun(automatic: true);
 	}
 
-	private static IReadOnlyList<Control> BuildPropertyRows(object? item)
+	private IReadOnlyList<Control> BuildPropertyRows(object? item)
 	{
 		if (item == null) return [];
 		var rows = new List<Control>();
@@ -1125,7 +1186,25 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			if (Application.Current?.Resources.ContainsKey(key) == true) label.Bind(TextBlock.TextProperty, label.GetResourceObservable(key));
 			Control value;
 			var binding = new Binding(property.Name) { Source = item, Mode = BindingMode.TwoWay };
-			if (!property.IsReadOnly && type == typeof(bool))
+			if (item is Scene && property.Name == nameof(Scene.Image))
+			{
+				var imageName = new TextBlock();
+				imageName.Bind(TextBlock.TextProperty, new Binding(property.Name) { Source = item });
+				var browse = new Button { Content = "…", Command = BrowseImageCommand };
+				browse.Bind(ToolTip.TipProperty, browse.GetResourceObservable("TipBrowseSceneImage"));
+				AutomationProperties.SetAutomationId(browse, "SceneImageBrowse");
+				var remove = new Button { Content = "×", Command = RemoveImageCommand };
+				remove.Bind(ToolTip.TipProperty, remove.GetResourceObservable("TipRemoveSceneImage"));
+				AutomationProperties.SetAutomationId(remove, "SceneImageRemove");
+				value = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Children = { imageName, browse, remove } };
+			}
+			else if (item is Scene && property.Name == nameof(Scene.ImagePath))
+			{
+				var text = new TextBlock { TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
+				text.Bind(TextBlock.TextProperty, new Binding(property.Name) { Source = item, Mode = BindingMode.OneWay });
+				value = text;
+			}
+			else if (!property.IsReadOnly && type == typeof(bool))
 			{
 				var check = new CheckBox();
 				check.Bind(ToggleButton.IsCheckedProperty, binding);
