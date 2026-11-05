@@ -36,6 +36,8 @@ internal sealed class SimulationSettings(string path)
 	public bool AutoRerun { get; set; } = true;
 	/// <summary>Whether runs that spill from RAM show a warning.</summary>
 	public bool WarnWhenRamInsufficient { get; set; } = true;
+	/// <summary>The UI language code, or an empty string to follow the system language.</summary>
+	public string Language { get; set; } = "";
 	/// <summary>RAM cache limit as a percentage of physical memory; zero is automatic.</summary>
 	public int FrameMemoryPercent { get; set; }
 	/// <summary>The stored preview quality.</summary>
@@ -67,6 +69,8 @@ internal sealed class SimulationSettings(string path)
 			settings.UseGpu = Bool("UseGpu", true);
 			settings.AutoRerun = Bool("AutoRerun", true);
 			settings.WarnWhenRamInsufficient = Bool("WarnWhenRamInsufficient", true);
+			string language = ((string?)root.Attribute("Language") ?? "").ToLowerInvariant();
+			settings.Language = language is "en" or "de" or "fr" or "nl" ? language : "";
 			settings.FrameMemoryPercent = Math.Clamp(Number("FrameMemoryPercent", 0), 0, 100);
 			settings.Quality = new PreviewQuality(Divisor("PreviewResolution"), Divisor("PreviewFrames"), Number("PreviewSampleBytes", 1) == 2 ? FrameFormat.Half : FrameFormat.Index);
 		}
@@ -90,6 +94,7 @@ internal sealed class SimulationSettings(string path)
 			root.SetAttributeValue("UseGpu", UseGpu ? "true" : "false");
 			root.SetAttributeValue("AutoRerun", AutoRerun ? "true" : "false");
 			root.SetAttributeValue("WarnWhenRamInsufficient", WarnWhenRamInsufficient ? "true" : "false");
+			root.SetAttributeValue("Language", Language.Length == 0 ? null : Language);
 			root.SetAttributeValue("FrameMemoryPercent", FrameMemoryPercent);
 			root.SetAttributeValue("PreviewResolution", Quality.ResolutionDivisor);
 			root.SetAttributeValue("PreviewFrames", Quality.FrameDivisor);

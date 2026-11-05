@@ -109,8 +109,14 @@ internal sealed class App : Application
 		Styles.Add(new FluentTheme());
 		Resources["PictureHandle"] = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#FFC8C8C8"));
 		Resources["PictureSelection"] = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#FFFFE000"));
-		string language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.ToUpperInvariant();
-		if (language is not ("DE" or "FR" or "NL")) language = "EN";
+		ApplyLanguage("");
+	}
+
+	/// <summary>Applies the selected UI language, or the system language for an empty code. UI thread only.</summary>
+	internal void ApplyLanguage(string code)
+	{
+		string language = (code.Length == 0 ? CultureInfo.CurrentUICulture.TwoLetterISOLanguageName : code).ToUpperInvariant();
+		if (language is not ("EN" or "DE" or "FR" or "NL")) language = "EN";
 		using Stream stream = typeof(App).Assembly.GetManifestResourceStream($"Strings/Strings.{language}.xaml")
 			?? throw new InvalidOperationException("The language resource is missing: " + language);
 		XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
@@ -327,9 +333,24 @@ internal sealed class MainWindow : Window
 		var cacheMenu = new MenuItem { ItemsSource = cacheChoices };
 		cacheMenu.Bind(MenuItem.HeaderProperty, cacheMenu.GetResourceObservable("MenuSimulationFrameMemory"));
 		simulation.ItemsSource = new object[] { run, pause, resume, stop, play, pausePlayback, Toggle("MenuSimulationUseVulkan", nameof(WindowStateModel.UseGpu)), Toggle("MenuSimulationAutoRerun", nameof(WindowStateModel.AutoRerun)), Toggle("MenuSimulationWarnMemory", nameof(WindowStateModel.WarnWhenRamInsufficient)), cacheMenu };
+		MenuItem LanguageMenu()
+		{
+			MenuItem Option(string code, string name)
+			{
+				var item = new MenuItem { Header = name, Command = state.LanguageCommand, CommandParameter = code, ToggleType = MenuItemToggleType.Radio };
+				if (code.Length == 0) item.Bind(HeaderedItemsControl.HeaderProperty, item.GetResourceObservable("LanguageSystem"));
+				item.Bind(MenuItem.IsCheckedProperty, new Binding(nameof(WindowStateModel.Language)) { Converter = new FuncValueConverter<string, bool>(value => value == code) });
+				AutomationProperties.SetAutomationId(item, "Language" + (code.Length == 0 ? "System" : code.ToUpperInvariant()));
+				return item;
+			}
+			var menu = new MenuItem { ItemsSource = new[] { Option("", "System"), Option("en", "English"), Option("de", "Deutsch"), Option("fr", "Français"), Option("nl", "Nederlands") } };
+			menu.Bind(HeaderedItemsControl.HeaderProperty, menu.GetResourceObservable("MenuViewLanguage"));
+			return menu;
+		}
 		var view = new MenuItem { ItemsSource = new[]
 		{
 			ActionItem("PaneMessages", new ControlCommand(() => { if (messages.IsVisible) messages.IsVisible = false; else ShowMessages(); }, () => true)),
+			LanguageMenu(),
 			QualityMenu("MenuViewResolution", nameof(WindowStateModel.PreviewResolution), state.ResolutionCommand, ("MenuViewResolutionFull", 1), ("MenuViewResolutionHalf", 2), ("MenuViewResolutionQuarter", 4)),
 			QualityMenu("MenuViewFrames", nameof(WindowStateModel.PreviewFrames), state.FramesCommand, ("MenuViewFramesFull", 1), ("MenuViewFramesHalf", 2), ("MenuViewFramesQuarter", 4)),
 			QualityMenu("MenuViewSamples", nameof(WindowStateModel.PreviewSampleBytes), state.SamplesCommand, ("MenuViewSamples16", 2), ("MenuViewSamples8", 1)),
@@ -788,6 +809,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_chooseExport = chooseExport;
 		_confirmExportFolder = confirmExportFolder;
 		_settings = SimulationSettings.Load(Path.Combine(Program.DataDirectory, "Settings.xml"));
+		if (Application.Current is App app) app.ApplyLanguage(_settings.Language);
 		_quality = _settings.Quality;
 		OpenCommand = new OpenCommand(Open);
 		NewCommand = new OpenCommand(NewProject);
@@ -818,6 +840,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		ResolutionCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { ResolutionDivisor = n }); });
 		FramesCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { FrameDivisor = n }); });
 		SamplesCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { Format = n == 2 ? FrameFormat.Half : FrameFormat.Index }); });
+		LanguageCommand = new ParameterCommand(value => { if (value is string code) SetLanguage(code); });
 		MemoryCommand = new ParameterCommand(value => { if (value is int n && (n == 0 || n is >= 10 and <= 100 && n % 10 == 0)) { _settings.FrameMemoryPercent = n; _settings.Save(); Changed(nameof(FrameMemoryPercent)); } });
 		AutoBrightnessCommand = new ParameterCommand(value => { if (value is FrameLayer layer) FitBrightness(layer); });
 		SetProject(_project);
@@ -853,6 +876,19 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public string Title { get => _title; private set { _title = value; Changed(); } }
 	/// <summary>The current status message.</summary>
 	public string Status { get => _status; private set { _status = value; Changed(); } }
+	/// <summary>The UI language code, or an empty string for the system language.</summary>
+	public string Language => _settings.Language;
+	/// <summary>Selects and saves a UI language.</summary>
+	public ICommand LanguageCommand { get; }
+	private void SetLanguage(string code)
+	{
+		if (code is not ("" or "en" or "de" or "fr" or "nl") || code == _settings.Language) return;
+		_settings.Language = code;
+		if (Application.Current is App app) app.ApplyLanguage(code);
+		_settings.Save();
+		Changed(nameof(Language));
+		LogManager.GetCurrentClassLogger().Info("Language changed to '{Language}'", code.Length == 0 ? "system" : code);
+	}
 	/// <summary>Shows a log message of Info level or higher on the UI thread.</summary>
 	internal void ReportLogMessage(string message) => Status = message;
 	/// <summary>The displayed project nodes.</summary>
