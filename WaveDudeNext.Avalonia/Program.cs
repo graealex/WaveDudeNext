@@ -54,10 +54,21 @@ namespace WaveDudeNext.CrossPlatform;
 /// <summary>The desktop application's entry point.</summary>
 internal static class Program
 {
+	/// <summary>The user's application-data directory, created before any cache or settings path is used.</summary>
+	internal static string DataDirectory
+	{
+		get
+		{
+			string root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create);
+			if (!Path.IsPathFullyQualified(root)) throw new IOException("The local application data directory is unavailable.");
+			return Path.Combine(root, "WaveDudeNext");
+		}
+	}
+
 	[STAThread]
 	private static void Main(string[] args)
 	{
-		string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WaveDudeNext");
+		string folder = DataDirectory;
 		Directory.CreateDirectory(folder);
 		var configuration = new LoggingConfiguration { DefaultCultureInfo = System.Globalization.CultureInfo.InvariantCulture };
 		var file = new FileTarget("file")
@@ -69,7 +80,12 @@ internal static class Program
 		};
 		configuration.AddRule(LogLevel.Debug, LogLevel.Fatal, file);
 		LogManager.Configuration = configuration;
-		AppBuilder.Configure<App>().UsePlatformDetect().StartWithClassicDesktopLifetime(args);
+		AppBuilder.Configure<App>()
+			.UsePlatformDetect()
+			.With(new global::Avalonia.Vulkan.VulkanOptions { VulkanInstanceCreationOptions = new() { ApplicationName = "WaveDude Next", VulkanVersion = new Version(1, 3) } })
+			.With(new X11PlatformOptions { RenderingMode = [X11RenderingMode.Vulkan, X11RenderingMode.Glx, X11RenderingMode.Software] })
+			.With(new Win32PlatformOptions { RenderingMode = [Win32RenderingMode.Vulkan, Win32RenderingMode.AngleEgl, Win32RenderingMode.Software] })
+			.StartWithClassicDesktopLifetime(args);
 	}
 }
 
@@ -531,7 +547,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_chooseImage = chooseImage;
 		_saveImage = saveImage;
 		_warn = warn;
-		_settings = SimulationSettings.Load(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WaveDudeNext", "Settings.xml"));
+		_settings = SimulationSettings.Load(Path.Combine(Program.DataDirectory, "Settings.xml"));
 		_quality = _settings.Quality;
 		OpenCommand = new OpenCommand(Open);
 		SaveCommand = new OpenCommand(() => Save(false));
