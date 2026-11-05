@@ -114,7 +114,7 @@ internal sealed class MainWindow : Window
 	{
 		Width = 1000;
 		Height = 700;
-		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, quality) => new MemoryWarningWindow(spec, budget, budget, quality).ShowDialog<MemoryWarningChoice?>(this));
+		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, autoBudget, quality) => new MemoryWarningWindow(spec, budget, autoBudget, quality).ShowDialog<MemoryWarningChoice?>(this));
 		AddHandler(InputElement.PointerPressedEvent, (_, _) => state.PointerDown = true, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerReleasedEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerCaptureLostEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
@@ -159,7 +159,14 @@ internal sealed class MainWindow : Window
 		var pausePlayback = new MenuItem { Command = state.PlayPauseCommand, InputGesture = new global::Avalonia.Input.KeyGesture(global::Avalonia.Input.Key.F7) };
 		pausePlayback.Bind(MenuItem.HeaderProperty, pausePlayback.GetResourceObservable("MenuSimulationPausePlayback"));
 		pausePlayback.Bind(IsVisibleProperty, new Binding(nameof(WindowStateModel.IsPlaying)));
-		var simulation = new MenuItem { ItemsSource = new[] { run, pause, resume, stop, play, pausePlayback } };
+		MenuItem Toggle(string key, string property)
+		{
+			var item = new MenuItem { ToggleType = MenuItemToggleType.CheckBox };
+			item.Bind(MenuItem.HeaderProperty, item.GetResourceObservable(key));
+			item.Bind(MenuItem.IsCheckedProperty, new Binding(property) { Mode = BindingMode.TwoWay });
+			return item;
+		}
+		var simulation = new MenuItem();
 		simulation.Bind(MenuItem.HeaderProperty, simulation.GetResourceObservable("MenuSimulation"));
 		MenuItem ActionItem(string key, ICommand command, object? parameter = null)
 		{
@@ -190,7 +197,42 @@ internal sealed class MainWindow : Window
 		redo.InputGesture = new KeyGesture(Key.Y, KeyModifiers.Control);
 		var edit = new MenuItem { ItemsSource = new[] { undo, redo, ActionItem("MenuProjectAddSource", state.AddSourceCommand), ActionItem("MenuProjectAddProbe", state.AddProbeCommand), parts, ActionItem("MenuProjectRemove", state.RemoveCommand) } };
 		edit.Bind(MenuItem.HeaderProperty, edit.GetResourceObservable("MenuEdit"));
-		var menu = new Menu { ItemsSource = new[] { file, edit, simulation } };
+		MenuItem QualityMenu(string title, string property, ICommand command, params (string Key, int Value)[] choices)
+		{
+			var items = choices.Select(choice =>
+			{
+				var item = ActionItem(choice.Key, command, choice.Value);
+				item.ToggleType = MenuItemToggleType.Radio;
+				item.Bind(MenuItem.IsCheckedProperty, new Binding(property) { Mode = BindingMode.OneWay, Converter = new FuncValueConverter<int, bool>(value => value == choice.Value) });
+				return item;
+			}).ToArray();
+			var group = new MenuItem { ItemsSource = items };
+			group.Bind(MenuItem.HeaderProperty, group.GetResourceObservable(title));
+			return group;
+		}
+		var cacheChoices = new List<MenuItem> { ActionItem("MenuSimulationFrameMemoryAuto", state.MemoryCommand, 0) };
+		for (int percent = 10; percent <= 100; percent += 10)
+		{
+			int value = percent;
+			cacheChoices.Add(new MenuItem { Header = $"{value}%", Command = state.MemoryCommand, CommandParameter = value });
+		}
+		for (int i = 0; i < cacheChoices.Count; i++)
+		{
+			int value = i * 10;
+			cacheChoices[i].ToggleType = MenuItemToggleType.Radio;
+			cacheChoices[i].Bind(MenuItem.IsCheckedProperty, new Binding(nameof(WindowStateModel.FrameMemoryPercent)) { Mode = BindingMode.OneWay, Converter = new FuncValueConverter<int, bool>(percent => percent == value) });
+		}
+		var cacheMenu = new MenuItem { ItemsSource = cacheChoices };
+		cacheMenu.Bind(MenuItem.HeaderProperty, cacheMenu.GetResourceObservable("MenuSimulationFrameMemory"));
+		simulation.ItemsSource = new object[] { run, pause, resume, stop, play, pausePlayback, Toggle("MenuSimulationUseVulkan", nameof(WindowStateModel.UseGpu)), Toggle("MenuSimulationAutoRerun", nameof(WindowStateModel.AutoRerun)), Toggle("MenuSimulationWarnMemory", nameof(WindowStateModel.WarnWhenRamInsufficient)), cacheMenu };
+		var view = new MenuItem { ItemsSource = new[]
+		{
+			QualityMenu("MenuViewResolution", nameof(WindowStateModel.PreviewResolution), state.ResolutionCommand, ("MenuViewResolutionFull", 1), ("MenuViewResolutionHalf", 2), ("MenuViewResolutionQuarter", 4)),
+			QualityMenu("MenuViewFrames", nameof(WindowStateModel.PreviewFrames), state.FramesCommand, ("MenuViewFramesFull", 1), ("MenuViewFramesHalf", 2), ("MenuViewFramesQuarter", 4)),
+			QualityMenu("MenuViewSamples", nameof(WindowStateModel.PreviewSampleBytes), state.SamplesCommand, ("MenuViewSamples16", 2), ("MenuViewSamples8", 1)),
+		} };
+		view.Bind(MenuItem.HeaderProperty, view.GetResourceObservable("MenuView"));
+		var menu = new Menu { ItemsSource = new[] { file, edit, view, simulation } };
 		var tree = new TreeView { Width = 250, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Left };
 		tree.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(WindowStateModel.Nodes)));
 		tree.Bind(TreeView.SelectedItemProperty, new Binding(nameof(WindowStateModel.SelectedNode)) { Mode = BindingMode.TwoWay });
@@ -423,7 +465,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private readonly Func<string, Task<SaveDecision>> _confirmSave;
 	private readonly Func<Task<(byte[] Data, string Name, string? Path)?>> _chooseImage;
 	private readonly Func<string, byte[], Task> _saveImage;
-	private readonly Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> _warn;
+	private readonly Func<RunSpec, long, long, PreviewQuality, Task<MemoryWarningChoice?>> _warn;
+	private readonly SimulationSettings _settings;
 	private string _title = "WaveDude Next";
 	private string _status = "";
 	private IReadOnlyList<TreeViewItem> _nodes = [];
@@ -440,7 +483,6 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private SimulationRun? _run;
 	private string? _folder;
 	private PreviewQuality _quality = PreviewQuality.Full;
-	private bool _warnMemory = true;
 	private bool _following;
 	private readonly ControlCommand _pauseRun;
 	private readonly ControlCommand _stopRun;
@@ -481,7 +523,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private bool _restoring;
 
 	/// <summary>Creates state for a new project.</summary>
-	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<string, byte[], Task> saveImage, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
+	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<string, byte[], Task> saveImage, Func<RunSpec, long, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
 	{
 		_open = open;
 		_saveAs = saveAs;
@@ -489,6 +531,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_chooseImage = chooseImage;
 		_saveImage = saveImage;
 		_warn = warn;
+		_settings = SimulationSettings.Load(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WaveDudeNext", "Settings.xml"));
+		_quality = _settings.Quality;
 		OpenCommand = new OpenCommand(Open);
 		SaveCommand = new OpenCommand(() => Save(false));
 		SaveAsCommand = new OpenCommand(() => Save(true));
@@ -511,6 +555,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		RemoveCommand = new ControlCommand(RemoveSelected, () => SelectedNode?.Tag is Source or OpticalPart or Probe or ColorScheme);
 		UndoCommand = new ControlCommand(() => MoveHistory(false), () => _history != null && (_history.CanUndo || _recordPending));
 		RedoCommand = new ControlCommand(() => MoveHistory(true), () => _history?.CanRedo == true && !_recordPending);
+		ResolutionCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { ResolutionDivisor = n }); });
+		FramesCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { FrameDivisor = n }); });
+		SamplesCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { Format = n == 2 ? FrameFormat.Half : FrameFormat.Index }); });
+		MemoryCommand = new ParameterCommand(value => { if (value is int n && (n == 0 || n is >= 10 and <= 100 && n % 10 == 0)) { _settings.FrameMemoryPercent = n; _settings.Save(); Changed(nameof(FrameMemoryPercent)); } });
 		SetProject(_project);
 	}
 
@@ -579,6 +627,28 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand UndoCommand { get; }
 	/// <summary>Restores the next project edit.</summary>
 	public ICommand RedoCommand { get; }
+	/// <summary>Sets the preview resolution divisor.</summary>
+	public ICommand ResolutionCommand { get; }
+	/// <summary>Sets the preview frame divisor.</summary>
+	public ICommand FramesCommand { get; }
+	/// <summary>Sets the preview sample size.</summary>
+	public ICommand SamplesCommand { get; }
+	/// <summary>Sets the RAM cache size as a percentage of physical memory, or zero for automatic.</summary>
+	public ICommand MemoryCommand { get; }
+	/// <summary>Whether to use a Vulkan GPU when available.</summary>
+	public bool UseGpu { get => _settings.UseGpu; set { if (_settings.UseGpu == value) return; _settings.UseGpu = value; _settings.Save(); Changed(); } }
+	/// <summary>Whether an edit automatically reruns a stale simulation.</summary>
+	public bool AutoRerun { get => _settings.AutoRerun; set { if (_settings.AutoRerun == value) return; _settings.AutoRerun = value; _settings.Save(); if (value && _runStale) ScheduleRerun(); if (!value) _rerunDelay?.Stop(); Changed(); } }
+	/// <summary>Whether to warn before spilling frames to disk.</summary>
+	public bool WarnWhenRamInsufficient { get => _settings.WarnWhenRamInsufficient; set { if (_settings.WarnWhenRamInsufficient == value) return; _settings.WarnWhenRamInsufficient = value; _settings.Save(); Changed(); } }
+	/// <summary>Preview resolution divisor.</summary>
+	public int PreviewResolution => _quality.ResolutionDivisor;
+	/// <summary>Preview frame divisor.</summary>
+	public int PreviewFrames => _quality.FrameDivisor;
+	/// <summary>Preview bytes per sample.</summary>
+	public int PreviewSampleBytes => _quality.Format == FrameFormat.Half ? 2 : 1;
+	/// <summary>The RAM cache limit as a percentage of physical memory, or zero for automatic.</summary>
+	public int FrameMemoryPercent => _settings.FrameMemoryPercent;
 	/// <summary>Whether a pointer button is held during a project edit.</summary>
 	public bool PointerDown { get; set; }
 	/// <summary>Whether the timeline is playing.</summary>
@@ -668,16 +738,24 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		try
 		{
 			RunSpec original = _requested;
-			RunSpec spec = original;
-			long budget = FrameMemory.Budget(FrameMemory.Automatic, _run?.Store.RamBytes ?? 0);
+			RunSpec spec = RunSpec.Create(Project, SceneComposer.Compose(Project, _folder), preferGpu: UseGpu, trackIntensity: true, quality: _quality, preferVulkan: true);
+			long budget = FrameMemory.Budget(_settings.FrameMemoryPercent, _run?.Store.RamBytes ?? 0);
 			int ramFrames = Math.Min(spec.StoredFrameCount, FrameStore.FramesInBudget(spec.Shape, spec.Layers, budget));
-			if (ramFrames < spec.StoredFrameCount && _warnMemory)
+			if (ramFrames < spec.StoredFrameCount && WarnWhenRamInsufficient)
 			{
-				MemoryWarningChoice? choice = await _warn(spec, budget, _quality);
+				long autoBudget = FrameMemory.Budget(FrameMemory.Automatic, _run?.Store.RamBytes ?? 0);
+				MemoryWarningChoice? choice = await _warn(spec, budget, autoBudget, _quality);
 				if (choice == null || _disposed || !ReferenceEquals(original, _requested)) return;
 				_quality = choice.Quality;
-				_warnMemory = !choice.Mute;
-				spec = RunSpec.Create(Project, SceneComposer.Compose(Project, _folder), preferGpu: true, trackIntensity: true, quality: _quality, preferVulkan: true);
+				_settings.Quality = _quality;
+				if (choice.Mute) _settings.WarnWhenRamInsufficient = false;
+				if (choice.CacheAuto) _settings.FrameMemoryPercent = FrameMemory.Automatic;
+				_settings.Save();
+				NotifyQuality();
+				Changed(nameof(WarnWhenRamInsufficient));
+				Changed(nameof(FrameMemoryPercent));
+				budget = FrameMemory.Budget(_settings.FrameMemoryPercent, _run?.Store.RamBytes ?? 0);
+				spec = RunSpec.Create(Project, SceneComposer.Compose(Project, _folder), preferGpu: UseGpu, trackIntensity: true, quality: _quality, preferVulkan: true);
 				ramFrames = Math.Min(spec.StoredFrameCount, FrameStore.FramesInBudget(spec.Shape, spec.Layers, budget));
 			}
 			if (ramFrames < spec.StoredFrameCount)
@@ -973,7 +1051,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private void RequestPreview(string? folder, bool resetPosition = true)
 	{
 		ScenePixels? scene = SceneComposer.Compose(Project, folder);
-		RunSpec spec = RunSpec.Create(Project, scene, preferGpu: true, trackIntensity: true, quality: _quality, preferVulkan: true);
+		RunSpec spec = RunSpec.Create(Project, scene, preferGpu: UseGpu, trackIntensity: true, quality: _quality, preferVulkan: true);
 		_requested = spec;
 		_canvasWidth = spec.Width;
 		_canvasHeight = spec.Height;
@@ -1304,6 +1382,28 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			if (change.Item is DisplayLayer or ColorScheme || ReferenceEquals(change.Item, Project.ColorSchemes)) RefreshDisplayedFrame();
 			return;
 		}
+		InvalidateSimulation(change);
+	}
+
+	private void SetQuality(PreviewQuality quality)
+	{
+		if (quality == _quality) return;
+		_quality = quality;
+		_settings.Quality = quality;
+		_settings.Save();
+		NotifyQuality();
+		InvalidateSimulation(null);
+	}
+
+	private void NotifyQuality()
+	{
+		Changed(nameof(PreviewResolution));
+		Changed(nameof(PreviewFrames));
+		Changed(nameof(PreviewSampleBytes));
+	}
+
+	private void InvalidateSimulation(ProjectChange? change)
+	{
 		_lastEdit = change;
 		_editGeneration++;
 		_runStale |= _run != null;
@@ -1318,7 +1418,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_scratchDelay.Tick += OnScratchDelay;
 		_scratchDelay.Stop();
 		_scratchDelay.Start();
-		if (_runStale) ScheduleRerun();
+		if (_runStale && AutoRerun) ScheduleRerun();
 	}
 
 	private void ScheduleHistoryRecord()
@@ -1424,7 +1524,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private async void OnRerunDelay(object? sender, EventArgs e)
 	{
 		_rerunDelay!.Stop();
-		if (_disposed || !_runStale) return;
+		if (_disposed || !_runStale || !AutoRerun) return;
 		if (_scratchWaiting || _scratchDelay?.IsEnabled == true || _requested == null)
 		{
 			ScheduleRerun();

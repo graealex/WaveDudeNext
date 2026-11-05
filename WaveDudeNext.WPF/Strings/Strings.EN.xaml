@@ -104,6 +104,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuSimulationPlay">Pla_y</s:String>
 	<s:String x:Key="MenuSimulationPausePlayback">Pause pla_yback</s:String>
 	<s:String x:Key="MenuSimulationUseGpu">Use the _GPU (OpenCL)</s:String>
+	<s:String x:Key="MenuSimulationUseVulkan">Use the _GPU (Vulkan)</s:String>
 	<s:String x:Key="MenuSimulationAutoRerun">Re-run _automatically after edits</s:String>
 	<s:String x:Key="MenuSimulationWarnMemory">_Warn when a run does not fit in RAM</s:String>
 	<s:String x:Key="MenuSimulationFrameMemory">RAM _cache size</s:String>

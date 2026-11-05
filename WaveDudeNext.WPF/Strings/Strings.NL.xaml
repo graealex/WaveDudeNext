@@ -102,6 +102,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuSimulationPlay">Afspe_len</s:String>
 	<s:String x:Key="MenuSimulationPausePlayback">Afspe_len pauzeren</s:String>
 	<s:String x:Key="MenuSimulationUseGpu">_GPU gebruiken (OpenCL)</s:String>
+	<s:String x:Key="MenuSimulationUseVulkan">_GPU gebruiken (Vulkan)</s:String>
 	<s:String x:Key="MenuSimulationAutoRerun">Na bewerkingen _automatisch opnieuw starten</s:String>
 	<s:String x:Key="MenuSimulationWarnMemory">_Waarschuwen als een simulatie niet in het RAM past</s:String>
 	<s:String x:Key="MenuSimulationFrameMemory">Grootte van de RAM-_cache</s:String>

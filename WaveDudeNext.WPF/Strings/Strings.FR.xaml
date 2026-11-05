@@ -102,6 +102,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="MenuSimulationPlay">L_ecture</s:String>
 	<s:String x:Key="MenuSimulationPausePlayback">Mettre la lecture _en pause</s:String>
 	<s:String x:Key="MenuSimulationUseGpu">Utiliser le _GPU (OpenCL)</s:String>
+	<s:String x:Key="MenuSimulationUseVulkan">Utiliser le _GPU (Vulkan)</s:String>
 	<s:String x:Key="MenuSimulationAutoRerun">Relancer a_utomatiquement après une modification</s:String>
 	<s:String x:Key="MenuSimulationWarnMemory">A_vertir quand une simulation ne tient pas dans la RAM</s:String>
 	<s:String x:Key="MenuSimulationFrameMemory">Taille du _cache RAM</s:String>
