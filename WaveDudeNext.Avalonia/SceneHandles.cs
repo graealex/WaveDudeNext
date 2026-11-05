@@ -90,6 +90,8 @@ internal sealed class SceneHandles : Panel
 				Children.Add(marker);
 			}
 			marker.UpdateName();
+			marker.IsVisible = _state.Project.Display.HandlesInPreview || ReferenceEquals(key.Item1, _state.SelectedItem);
+			marker.Opacity = key.Item1 switch { Source { Enabled: false } => .45, OpticalPart { Enabled: false } => .45, Probe { Active: false } => .45, _ => 1 };
 			marker.InvalidateVisual();
 		}
 		InvalidateMeasure();
@@ -101,7 +103,7 @@ internal sealed class SceneHandles : Panel
 		double scale = Math.Min(size.Width / width, size.Height / height);
 		return (new Rect((size.Width - width * scale) / 2, (size.Height - height * scale) / 2, width * scale, height * scale), scale);
 	}
-	private Point ViewPoint(int x, int y)
+	private Point ViewPoint(double x, double y)
 	{
 		var (rect, scale) = Canvas(Bounds.Size);
 		return new Point(rect.X + (x + .5) * scale, rect.Y + (y + .5) * scale);
@@ -125,18 +127,46 @@ internal sealed class SceneHandles : Panel
 	}
 	private void Draw(DrawingContext context)
 	{
-		foreach (Probe probe in _state.Project.Probes.Where(p => p.Layer == _layer && p.Kind == ProbeKind.Line))
+		object? selected = _state.SelectedItem;
+		var display = _state.Project.Display;
+		foreach (Probe probe in _state.Project.Probes.Where(p => p.Layer == _layer && p.Kind == ProbeKind.Line && (display.HandlesInPreview || ReferenceEquals(p, selected))).OrderBy(p => ReferenceEquals(p, selected)))
 		{
 			Point a = ViewPoint(probe.AX, probe.AY), b = ViewPoint(probe.BX, probe.BY);
 			context.DrawLine(new Pen(Halo, 3), a, b);
-			context.DrawLine(new Pen(ReferenceEquals(probe, _state.SelectedItem) ? SelectionBrush : HandleBrush, 1), a, b);
+			context.DrawLine(new Pen(ReferenceEquals(probe, selected) ? SelectionBrush : HandleBrush, 1, dashStyle: DashStyle.Dash), a, b);
 		}
-		foreach (var entry in _markers.Where(entry => !entry.Key.Item2))
+		if (selected is OpticalPart part)
+		{
+			(double X, double Y)[] outline = part.Outline();
+			if (outline.Length >= 2)
+			{
+				var geometry = new StreamGeometry();
+				using (StreamGeometryContext path = geometry.Open())
+				{
+					var (x, y) = part.ToCanvas(outline[0].X, outline[0].Y);
+					path.BeginFigure(ViewPoint(x, y), false);
+					foreach (var point in outline.Skip(1))
+					{
+						(x, y) = part.ToCanvas(point.X, point.Y);
+						path.LineTo(ViewPoint(x, y));
+					}
+					path.EndFigure(part.OutlineClosed);
+				}
+				context.DrawGeometry(null, new Pen(Halo, 3), geometry);
+				context.DrawGeometry(null, new Pen(SelectionBrush, 1), geometry);
+			}
+		}
+		foreach (var entry in _markers.Where(entry => !entry.Key.Item2 && (display.LabelsInPreview || ReferenceEquals(entry.Key.Item1, selected))).OrderBy(entry => ReferenceEquals(entry.Key.Item1, selected)))
 		{
 			var marker = entry.Value;
 			var (x, y) = marker.Position;
-			Point point = ViewPoint(x, y) + new Vector(8, 0);
-			var text = new FormattedText(((WaveDudeNext.Model.INamed)entry.Key.Item1).Name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 11, ReferenceEquals(entry.Key.Item1, _state.SelectedItem) ? SelectionBrush : HandleBrush);
+			Point centre = ViewPoint(x, y);
+			var text = new FormattedText(((WaveDudeNext.Model.INamed)entry.Key.Item1).Name, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 11, ReferenceEquals(entry.Key.Item1, selected) ? SelectionBrush : HandleBrush);
+			Rect canvas = Canvas(Bounds.Size).Rect;
+			bool below = entry.Key.Item1 is OpticalPart or Source { Array: not null };
+			double left = below ? centre.X - text.Width / 2 : centre.X + 8;
+			double top = below ? centre.Y + 8 : centre.Y - text.Height / 2;
+			Point point = new(Math.Clamp(left, canvas.Left, Math.Max(canvas.Left, canvas.Right - text.Width)), Math.Clamp(top, canvas.Top, Math.Max(canvas.Top, canvas.Bottom - text.Height)));
 			context.DrawText(text, point);
 		}
 	}
@@ -168,7 +198,8 @@ internal sealed class SceneHandles : Panel
 			string id = _item switch { Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_end ? "B" : "A")}" };
 			AutomationProperties.SetAutomationId(this, id);
 			AutomationProperties.SetName(this, id);
-			ToolTip.SetTip(this, name);
+			string format = Application.Current?.Resources.TryGetValue("TipMarkerFormat", out object? value) == true && value is string text ? text : "{0}";
+			ToolTip.SetTip(this, string.Format(CultureInfo.CurrentCulture, format, name));
 		}
 		private void SetPoint(int x, int y)
 		{
@@ -187,6 +218,11 @@ internal sealed class SceneHandles : Panel
 			IBrush? brush = ReferenceEquals(_item, _owner._state.SelectedItem) ? _owner.SelectionBrush : _owner.HandleBrush;
 			context.DrawEllipse(Halo, null, new Point(7, 7), 6, 6);
 			context.DrawEllipse(null, new Pen(brush, IsFocused ? 2 : 1), new Point(7, 7), 4, 4);
+		}
+		protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+		{
+			base.OnPropertyChanged(change);
+			if (change.Property == IsFocusedProperty) InvalidateVisual();
 		}
 		protected override void OnPointerPressed(PointerPressedEventArgs e)
 		{
@@ -211,6 +247,7 @@ internal sealed class SceneHandles : Panel
 			base.OnKeyDown(e);
 			if (e.Key == Key.Escape && _drag != null) { SetPoint(_start.X, _start.Y); _drag = null; _pointer?.Capture(null); _pointer = null; e.Handled = true; return; }
 			if (e.Key == Key.Delete) { _owner._state.SelectItem(_item); if (_owner._state.RemoveCommand.CanExecute(null)) _owner._state.RemoveCommand.Execute(null); e.Handled = true; return; }
+			if ((e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Meta)) != 0) return;
 			int step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 10 : 1;
 			var (x, y) = Position;
 			switch (e.Key) { case Key.Left: x -= step; break; case Key.Right: x += step; break; case Key.Up: y -= step; break; case Key.Down: y += step; break; default: return; }
