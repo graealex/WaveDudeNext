@@ -309,8 +309,9 @@ internal sealed class MainWindow : Window
 		var setOut = TransportButton("O", "TipPreviewSetOut", "PreviewSetOut", state.SetOutCommand);
 		var clearRange = TransportButton("X", "TipPreviewClearRange", "PreviewClearRange", state.ClearRangeCommand);
 		var live = TransportButton("F", "TipPreviewLive", "PreviewLive", state.LiveCommand);
-		var loop = new CheckBox();
-		loop.Bind(ContentControl.ContentProperty, loop.GetResourceObservable("TipPreviewLoop"));
+		var loop = new CheckBox { Content = "↻" };
+		loop.Bind(ToolTip.TipProperty, loop.GetResourceObservable("TipPreviewLoop"));
+		loop.Bind(AutomationProperties.NameProperty, loop.GetResourceObservable("TipPreviewLoop"));
 		loop.Bind(ToggleButton.IsCheckedProperty, new Binding(nameof(WindowStateModel.IsLooping)) { Mode = BindingMode.TwoWay });
 		AutomationProperties.SetAutomationId(loop, "PreviewLoop");
 		var speed = new NumericUpDown { Minimum = 0.01m, Maximum = 100m, Increment = 0.25m, Width = 80 };
@@ -343,12 +344,31 @@ internal sealed class MainWindow : Window
 		DockPanel.SetDock(position, Dock.Right);
 		transport.Children.Add(position);
 		transport.Children.Add(timeline);
-		var field = new Image();
-		field.Bind(Image.SourceProperty, new Binding(nameof(WindowStateModel.FieldImage)));
-		field.Bind(IsVisibleProperty, new Binding("Project.Display.Field.Preview"));
-		var intensity = new Image();
-		intensity.Bind(Image.SourceProperty, new Binding(nameof(WindowStateModel.IntensityImage)));
-		intensity.Bind(IsVisibleProperty, new Binding("Project.Display.Intensity.Preview"));
+		Control Picture(string layer, string source, string title, FrameLayer plane)
+		{
+			var image = new Image();
+			image.Bind(Image.SourceProperty, new Binding(source));
+			var name = new TextBlock { VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center };
+			name.Bind(TextBlock.TextProperty, name.GetResourceObservable(title));
+			var brightness = new NumericUpDown { Minimum = 0.0001m, Maximum = 100000m, Increment = 0.1m, Width = 90 };
+			brightness.Bind(NumericUpDown.ValueProperty, new Binding($"Project.Display.{layer}.Brightness") { Mode = BindingMode.TwoWay });
+			brightness.Bind(AutomationProperties.NameProperty, brightness.GetResourceObservable("Label.DisplayLayer.Brightness"));
+			AutomationProperties.SetAutomationId(brightness, $"{layer}Brightness");
+			var auto = new Button { Command = state.AutoBrightnessCommand, CommandParameter = plane };
+			auto.Bind(ContentControl.ContentProperty, auto.GetResourceObservable("ButtonAutoBrightness"));
+			auto.Bind(ToolTip.TipProperty, auto.GetResourceObservable("TipAutoBrightness"));
+			AutomationProperties.SetAutomationId(auto, $"{layer}AutoBrightness");
+			var header = new DockPanel { Children = { name, auto, brightness } };
+			DockPanel.SetDock(name, Dock.Left);
+			DockPanel.SetDock(auto, Dock.Right);
+			DockPanel.SetDock(brightness, Dock.Right);
+			DockPanel.SetDock(header, Dock.Top);
+			var picture = new DockPanel { Children = { header, image } };
+			picture.Bind(IsVisibleProperty, new Binding($"Project.Display.{layer}.Preview"));
+			return picture;
+		}
+		Control field = Picture("Field", nameof(WindowStateModel.FieldImage), "Label.Display.Field", FrameLayer.Field);
+		Control intensity = Picture("Intensity", nameof(WindowStateModel.IntensityImage), "Label.Display.Intensity", FrameLayer.Intensity);
 		var pictures = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Focusable = true };
 		Grid.SetColumn(intensity, 1);
 		pictures.Children.Add(field);
@@ -506,6 +526,12 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private CopiedFrameSource? _lastScratch;
 	private RunSpec? _lastScratchSpec;
 	private int _lastScratchFrame;
+	private IFrameSource? _shownSource;
+	private int _shownFrame;
+	private ScratchRunner? _fitRunner;
+	private SimulationRun? _pausedForFit;
+	private FrameLayer _fitLayer;
+	private int _fitGeneration;
 	private bool _presenting;
 	private long _presentationVersion;
 	private TreeViewItem? _selectedNode;
@@ -575,6 +601,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		FramesCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { FrameDivisor = n }); });
 		SamplesCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { Format = n == 2 ? FrameFormat.Half : FrameFormat.Index }); });
 		MemoryCommand = new ParameterCommand(value => { if (value is int n && (n == 0 || n is >= 10 and <= 100 && n % 10 == 0)) { _settings.FrameMemoryPercent = n; _settings.Save(); Changed(nameof(FrameMemoryPercent)); } });
+		AutoBrightnessCommand = new ParameterCommand(value => { if (value is FrameLayer layer) FitBrightness(layer); });
 		SetProject(_project);
 	}
 
@@ -651,6 +678,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand SamplesCommand { get; }
 	/// <summary>Sets the RAM cache size as a percentage of physical memory, or zero for automatic.</summary>
 	public ICommand MemoryCommand { get; }
+	/// <summary>Fits a picture's brightness to its current frame.</summary>
+	public ICommand AutoBrightnessCommand { get; }
 	/// <summary>Whether to use a Vulkan GPU when available.</summary>
 	public bool UseGpu { get => _settings.UseGpu; set { if (_settings.UseGpu == value) return; _settings.UseGpu = value; _settings.Save(); Changed(); } }
 	/// <summary>Whether an edit automatically reruns a stale simulation.</summary>
@@ -720,6 +749,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_recordDelay?.Stop();
 		_watcher?.Dispose();
 		DisarmImageWatch();
+		CancelFit();
 		StopPlayback();
 		_playTimer?.Dispose();
 		InvalidatePresentation();
@@ -751,6 +781,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private async Task StartRun(bool automatic = false)
 	{
 		if (_requested == null) return;
+		CancelFit();
 		try
 		{
 			RunSpec original = _requested;
@@ -938,6 +969,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			if (!await ConfirmDiscard()) return;
 			if (await _open() is { } result)
 			{
+				CancelFit();
+				_shownSource = null;
 				_editGeneration++;
 				_scratchDelay?.Stop();
 				_rerunDelay?.Stop();
@@ -1132,7 +1165,11 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			{
 				(int[] Field, int[] Intensity)? pixels = await Task.Run(() => Render(job));
 				if (!_disposed && job.Version == _presentationVersion && pixels is { } pictures)
+				{
 					ShowPictures(job.Source.Width, job.Source.Height, pictures.Field, pictures.Intensity);
+					_shownSource = job.Source;
+					_shownFrame = job.Frame;
+				}
 			}
 			catch (Exception ex)
 			{
@@ -1420,6 +1457,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void InvalidateSimulation(ProjectChange? change)
 	{
+		CancelFit();
 		_lastEdit = change;
 		_editGeneration++;
 		_runStale |= _run != null;
@@ -1435,6 +1473,67 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_scratchDelay.Stop();
 		_scratchDelay.Start();
 		if (_runStale && AutoRerun) ScheduleRerun();
+	}
+
+	private void FitBrightness(FrameLayer layer)
+	{
+		if (_disposed || _fitRunner != null || _requested == null) return;
+		try
+		{
+			if (_shownSource is { Format: FrameFormat.Half } source && source.Has(layer) && _shownFrame < source.Count)
+			{
+				var samples = new Half[checked(source.Width * source.Height)];
+				if (source.CopyLayer(_shownFrame, layer, samples))
+				{
+					ApplyBrightness(layer, BrightnessFit.For(samples, source.KindOf(layer)));
+					return;
+				}
+			}
+			RunSpec spec = RunSpec.Create(Project, SceneComposer.Compose(Project, _folder), preferGpu: UseGpu, trackIntensity: layer == FrameLayer.Intensity, quality: _quality with { Format = FrameFormat.Half }, preferVulkan: true);
+			if (_run is { IsActive: true, IsPauseRequested: false } run) { run.Pause(); _pausedForFit = run; }
+			_fitLayer = layer;
+			_fitGeneration = _editGeneration;
+			_fitRunner = new ScratchRunner(SynchronizationContext.Current ?? throw new InvalidOperationException("No UI synchronisation context is available."));
+			_fitRunner.Completed += FitCompleted;
+			_fitRunner.Request(spec, Math.Clamp((int)Frame, 0, spec.FrameCount - 1));
+		}
+		catch (Exception ex) { CancelFit(); LogManager.GetCurrentClassLogger().Warn(ex, "Could not fit brightness"); Status = ex.Message; }
+	}
+
+	private void FitCompleted(object? sender, ScratchResult result)
+	{
+		if (_disposed || !ReferenceEquals(sender, _fitRunner)) return;
+		IFrameSource source = new SnapshotFrameSource(result.Snapshot);
+		var samples = new Half[checked(source.Width * source.Height)];
+		double? value = source.Has(_fitLayer) && source.CopyLayer(0, _fitLayer, samples) ? BrightnessFit.For(samples, source.KindOf(_fitLayer)) : null;
+		FrameLayer layer = _fitLayer;
+		bool current = _fitGeneration == _editGeneration;
+		CancelFit();
+		if (current) ApplyBrightness(layer, value);
+	}
+
+	private void CancelFit()
+	{
+		ScratchRunner? runner = _fitRunner;
+		_fitRunner = null;
+		if (runner != null)
+		{
+			runner.Completed -= FitCompleted;
+			_ = Task.Run(runner.Dispose);
+		}
+		if (_pausedForFit is { } paused)
+		{
+			_pausedForFit = null;
+			if (ReferenceEquals(paused, _run) && paused.IsActive) paused.Resume();
+		}
+	}
+
+	private void ApplyBrightness(FrameLayer layer, double? value)
+	{
+		if (value is not { } brightness) return;
+		DisplayLayer settings = layer == FrameLayer.Field ? Project.Display.Field : Project.Display.Intensity;
+		LogManager.GetCurrentClassLogger().Info("Fitted {Layer} brightness: {Old} to {New}", layer, settings.Brightness, brightness);
+		settings.Brightness = brightness;
 	}
 
 	private void ScheduleHistoryRecord()
