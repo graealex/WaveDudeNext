@@ -269,7 +269,12 @@ internal sealed class MainWindow : Window
 			QualityMenu("MenuViewSamples", nameof(WindowStateModel.PreviewSampleBytes), state.SamplesCommand, ("MenuViewSamples16", 2), ("MenuViewSamples8", 1)),
 		} };
 		view.Bind(MenuItem.HeaderProperty, view.GetResourceObservable("MenuView"));
-		var menu = new Menu { ItemsSource = new[] { file, edit, view, simulation } };
+		var about = new MenuItem { Command = new OpenCommand(() => new AboutWindow(state.UseGpu).ShowDialog(this)) };
+		about.Bind(MenuItem.HeaderProperty, about.GetResourceObservable("MenuHelpAbout"));
+		AutomationProperties.SetAutomationId(about, "MenuHelpAbout");
+		var help = new MenuItem { ItemsSource = new[] { about } };
+		help.Bind(MenuItem.HeaderProperty, help.GetResourceObservable("MenuHelp"));
+		var menu = new Menu { ItemsSource = new[] { file, edit, view, simulation, help } };
 		var tree = new TreeView { Width = 250, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Left };
 		tree.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(WindowStateModel.Nodes)));
 		tree.Bind(TreeView.SelectedItemProperty, new Binding(nameof(WindowStateModel.SelectedNode)) { Mode = BindingMode.TwoWay });
