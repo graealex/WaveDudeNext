@@ -30,6 +30,16 @@ namespace WaveDudeNext.Engine;
 /// <param name="ComputeQueueFamily">Index of a queue family that supports compute.</param>
 public sealed record VulkanDeviceInfo(string Name, uint ApiVersion, bool Discrete, bool Software, uint ComputeQueueFamily)
 {
+	/// <summary>The Vulkan device UUID as 16 bytes in driver order.</summary>
+	public byte[] DeviceUuid { get; private init; } = [];
+
+	internal static unsafe byte[] ReadDeviceUuid(Vk vk, PhysicalDevice device)
+	{
+		var id = new PhysicalDeviceIDProperties { SType = StructureType.PhysicalDeviceIDProperties };
+		var properties = new PhysicalDeviceProperties2 { SType = StructureType.PhysicalDeviceProperties2, PNext = &id };
+		vk.GetPhysicalDeviceProperties2(device, &properties);
+		return new ReadOnlySpan<byte>(id.DeviceUuid, 16).ToArray();
+	}
 	/// <summary>
 	/// Enumerates Vulkan 1.3 devices with a compute queue, discrete GPUs first. The portability-enumeration
 	/// extension is enabled when present so MoltenVK devices are included. Handles do not outlive this call.
@@ -93,7 +103,7 @@ public sealed record VulkanDeviceInfo(string Name, uint ApiVersion, bool Discret
 						if (queues[i].QueueCount > 0 && (queues[i].QueueFlags & QueueFlags.ComputeBit) != 0)
 						{
 							string name = Marshal.PtrToStringUTF8((IntPtr)properties.DeviceName) ?? "GPU";
-							found.Add(new VulkanDeviceInfo(name, properties.ApiVersion, properties.DeviceType == PhysicalDeviceType.DiscreteGpu, properties.DeviceType == PhysicalDeviceType.Cpu, i));
+							found.Add(new VulkanDeviceInfo(name, properties.ApiVersion, properties.DeviceType == PhysicalDeviceType.DiscreteGpu, properties.DeviceType == PhysicalDeviceType.Cpu, i) { DeviceUuid = ReadDeviceUuid(vk, device) });
 							break;
 						}
 					}

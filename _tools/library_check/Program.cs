@@ -962,6 +962,16 @@ internal static class Program
 		}
 		try
 		{
+			VulkanDeviceInfo selected = devices.First(device => !device.Software);
+			Check(selected.DeviceUuid.Length == 16, "Vulkan device discovery returns a 16-byte UUID");
+			using (var matched = new VulkanFrameRenderer(1, 1, selected.DeviceUuid))
+				Check(matched.DeviceName == selected.Name, "Vulkan renderer accepts the discovered device UUID");
+			byte[] missingUuid = new byte[16];
+			while (devices.Any(device => device.DeviceUuid.AsSpan().SequenceEqual(missingUuid))) missingUuid[0]++;
+			bool rejected = false;
+			try { using var missing = new VulkanFrameRenderer(1, 1, missingUuid); }
+			catch (InvalidOperationException) { rejected = true; }
+			Check(rejected, "Vulkan renderer rejects an unknown device UUID");
 			const int count = 65537; // Every half bit pattern, plus an odd trailing sample.
 			using var renderer = new VulkanFrameRenderer(count, 1);
 			var halves = new Half[count];

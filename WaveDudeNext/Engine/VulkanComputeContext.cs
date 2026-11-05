@@ -34,13 +34,14 @@ internal sealed unsafe class VulkanComputeContext : IDisposable
 	private bool _disposed;
 
 	/// <summary>Creates the first suitable GPU and its compute queue; callers dispose the context.</summary>
-	public VulkanComputeContext()
+	public VulkanComputeContext(byte[]? deviceUuid = null)
 	{
+		if (deviceUuid is not null && deviceUuid.Length != 16) throw new ArgumentException("A Vulkan device UUID must contain 16 bytes.", nameof(deviceUuid));
 		_vk = Vk.GetApi();
 		try
 		{
 			CreateInstance();
-			SelectDevice();
+			SelectDevice(deviceUuid);
 			CreateDevice();
 			var poolInfo = new CommandPoolCreateInfo { SType = StructureType.CommandPoolCreateInfo, QueueFamilyIndex = QueueFamily, Flags = CommandPoolCreateFlags.ResetCommandBufferBit };
 			Check(_vk.CreateCommandPool(_device, in poolInfo, null, out _pool), "create command pool");
@@ -98,7 +99,7 @@ internal sealed unsafe class VulkanComputeContext : IDisposable
 		}
 	}
 
-	private void SelectDevice()
+	private void SelectDevice(byte[]? deviceUuid)
 	{
 		uint count = 0;
 		Check(_vk.EnumeratePhysicalDevices(_instance, ref count, (PhysicalDevice*)null), "enumerate physical devices");
@@ -115,6 +116,7 @@ internal sealed unsafe class VulkanComputeContext : IDisposable
 			{
 			continue;
 			}
+			if (deviceUuid is not null && !deviceUuid.AsSpan().SequenceEqual(VulkanDeviceInfo.ReadDeviceUuid(_vk, device))) continue;
 			uint queueCount = 0;
 			_vk.GetPhysicalDeviceQueueFamilyProperties(device, ref queueCount, (QueueFamilyProperties*)null);
 			var queues = new QueueFamilyProperties[queueCount];
@@ -141,7 +143,7 @@ internal sealed unsafe class VulkanComputeContext : IDisposable
 		}
 		if (best < 0)
 		{
-			throw new InvalidOperationException("No Vulkan 1.3 GPU with a compute queue was found.");
+			throw new InvalidOperationException(deviceUuid is null ? "No Vulkan 1.3 GPU with a compute queue was found." : "No Vulkan 1.3 GPU with a compute queue matches the requested device UUID.");
 		}
 	}
 

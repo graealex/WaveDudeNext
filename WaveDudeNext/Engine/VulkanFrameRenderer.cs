@@ -36,14 +36,17 @@ public sealed class VulkanFrameRenderer : IDisposable
 	private bool _disposed;
 
 	/// <summary>Creates buffers for a frame of <paramref name="width"/> × <paramref name="height"/> samples.</summary>
-	public VulkanFrameRenderer(int width, int height)
+	/// <param name="width">Frame width in pixels.</param>
+	/// <param name="height">Frame height in pixels.</param>
+	/// <param name="deviceUuid">Optional 16-byte Vulkan device UUID. A supplied UUID must match a hardware GPU.</param>
+	public VulkanFrameRenderer(int width, int height, byte[]? deviceUuid = null)
 	{
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
 		_count = checked(width * height);
 		int sampleBytes = checked((checked(_count * 2) + 3) & ~3);
 		int pixelBytes = checked(_count * sizeof(int));
-		_context = new VulkanComputeContext();
+		_context = new VulkanComputeContext(deviceUuid);
 		VulkanBuffer? samples = null, colours = null, pixels = null;
 		try
 		{
