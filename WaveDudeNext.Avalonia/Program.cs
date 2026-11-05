@@ -37,10 +37,12 @@ using Avalonia.Data.Converters;
 using Avalonia.Platform.Storage;
 using Avalonia.Platform;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NLog;
 using NLog.Config;
 using NLog.Targets;
@@ -136,6 +138,46 @@ internal sealed class MainWindow : Window
 		Width = 1000;
 		Height = 700;
 		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, autoBudget, quality) => new MemoryWarningWindow(spec, budget, autoBudget, quality).ShowDialog<MemoryWarningChoice?>(this), ChooseProbeCsv, ChooseExport, ConfirmExportFolder);
+		bool CanCopy() => state.SelectedItem is { } item && ProjectClipboard.CanCopy(state.Project, item);
+		bool CanCut() => state.SelectedItem is WaveDudeNext.Model.INamed && CanCopy();
+		async Task CopyObject(bool cut)
+		{
+			object? item = state.SelectedItem;
+			Project project = state.Project;
+			if (Clipboard == null || item == null || !CanCopy() || cut && !CanCut()) return;
+			try
+			{
+				string text = ProjectClipboard.Write(project, [item]);
+				await Clipboard.SetTextAsync(text);
+				if (cut && ReferenceEquals(state.Project, project) && ReferenceEquals(state.SelectedItem, item)) state.RemoveSelected();
+				Logger.Debug("Copied project object {Name}, cut={Cut}", (item as WaveDudeNext.Model.INamed)?.Name ?? item.GetType().Name, cut);
+			}
+			catch (Exception ex) { Logger.Warn(ex, "Could not write project object to clipboard"); }
+		}
+		async Task PasteObject()
+		{
+			if (Clipboard == null) return;
+			Project project = state.Project;
+			object? target = state.SelectedItem;
+			try
+			{
+				string? text = await Clipboard.TryGetTextAsync();
+				if (!ReferenceEquals(state.Project, project) || !ReferenceEquals(state.SelectedItem, target) || text == null) return;
+				if (ProjectClipboard.Read(text) is not { } clip || !clip.CanPaste(project, target)) return;
+				IReadOnlyList<object> pasted = ProjectClipboard.Paste(project, clip, target);
+				if (pasted.Count > 0)
+				{
+					state.RefreshTree();
+					state.SelectItem(pasted[^1]);
+					Logger.Debug("Pasted {Count} project object(s)", pasted.Count);
+				}
+			}
+			catch (Exception ex) { Logger.Warn(ex, "Could not paste project object from clipboard"); }
+		}
+		var copyObject = new OpenCommand(() => CopyObject(false), CanCopy);
+		var cutObject = new OpenCommand(() => CopyObject(true), CanCut);
+		var pasteObject = new OpenCommand(PasteObject);
+		state.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(WindowStateModel.SelectedItem)) { copyObject.Refresh(); cutObject.Refresh(); } };
 		DragDrop.SetAllowDrop(this, true);
 		AddHandler(DragDrop.DragOverEvent, (_, e) =>
 		{
@@ -245,7 +287,7 @@ internal sealed class MainWindow : Window
 		undo.InputGesture = new KeyGesture(Key.Z, KeyModifiers.Control);
 		var redo = ActionItem("MenuEditRedo", state.RedoCommand);
 		redo.InputGesture = new KeyGesture(Key.Y, KeyModifiers.Control);
-		var edit = new MenuItem { ItemsSource = new[] { undo, redo, ActionItem("MenuProjectAddSource", state.AddSourceCommand), ActionItem("MenuProjectAddProbe", state.AddProbeCommand), parts, ActionItem("MenuProjectRemove", state.RemoveCommand), ActionItem("MenuExportProbeCsv", state.ExportProbeCsvCommand) } };
+		var edit = new MenuItem { ItemsSource = new[] { undo, redo, ActionItem("MenuEditCut", cutObject), ActionItem("MenuEditCopy", copyObject), ActionItem("MenuEditPaste", pasteObject), ActionItem("MenuProjectAddSource", state.AddSourceCommand), ActionItem("MenuProjectAddProbe", state.AddProbeCommand), parts, ActionItem("MenuProjectRemove", state.RemoveCommand), ActionItem("MenuExportProbeCsv", state.ExportProbeCsvCommand) } };
 		edit.Bind(MenuItem.HeaderProperty, edit.GetResourceObservable("MenuEdit"));
 		MenuItem QualityMenu(string title, string property, ICommand command, params (string Key, int Value)[] choices)
 		{
@@ -295,6 +337,10 @@ internal sealed class MainWindow : Window
 		tree.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(WindowStateModel.Nodes)));
 		tree.Bind(TreeView.SelectedItemProperty, new Binding(nameof(WindowStateModel.SelectedNode)) { Mode = BindingMode.TwoWay });
 		tree.KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Delete), Command = state.RemoveCommand });
+		KeyModifiers clipboardModifier = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+		tree.KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.C, clipboardModifier), Command = copyObject });
+		tree.KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.X, clipboardModifier), Command = cutObject });
+		tree.KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.V, clipboardModifier), Command = pasteObject });
 		var properties = new ItemsControl();
 		properties.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(WindowStateModel.PropertyRows)));
 		var propertyTitle = new TextBlock();
@@ -686,6 +732,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private bool _outlining;
 	private long _outlineVersion;
 	private TreeViewItem? _selectedNode;
+	private int _selectionVersion;
 	private IReadOnlyList<Control> _propertyRows = [];
 	private readonly Stopwatch _playClock = new();
 	private Timer? _playTimer;
@@ -802,6 +849,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		set
 		{
 			if (ReferenceEquals(_selectedNode, value)) return;
+			if (value != null) _selectionVersion++;
 			_selectedNode = value;
 			Changed();
 			Changed(nameof(SelectedItem));
@@ -1848,7 +1896,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		catch (Exception ex) { LogManager.GetCurrentClassLogger().Warn(ex, "Cannot reload scene image '{Path}'", path); }
 	}
 
-	private void RefreshTree()
+	internal void RefreshTree()
 	{
 		object? selected = SelectedNode?.Tag;
 		TreeViewItem Group(string key, object? value, IEnumerable<object> children)
@@ -1888,6 +1936,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	internal void SelectItem(object? value)
 	{
+		int version = ++_selectionVersion;
 		if (value == null) { SelectedNode = null; return; }
 		foreach (TreeViewItem group in Nodes)
 		{
@@ -1897,15 +1946,31 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			{
 				if (!ReferenceEquals(row.Tag, value)) continue;
 				group.IsExpanded = true;
-				row.IsSelected = true;
-				SelectedNode = row;
+				if (!row.IsAttachedToVisualTree())
+				{
+					// The tree replaces its containers on a collection edit. Selecting before the new row
+					// joins the tree is lost when the old selection is detached; wait for attachment.
+					EventHandler<VisualTreeAttachmentEventArgs>? attached = null;
+					attached = (_, _) =>
+					{
+						row.AttachedToVisualTree -= attached;
+						Dispatcher.UIThread.Post(() =>
+						{
+							if (_disposed || version != _selectionVersion || !row.IsAttachedToVisualTree()) return;
+							row.IsSelected = true;
+							SelectedNode = row;
+						}, DispatcherPriority.Background);
+					};
+					row.AttachedToVisualTree += attached;
+				}
+				else { row.IsSelected = true; SelectedNode = row; }
 				return;
 			}
 		}
 		SelectedNode = null;
 	}
 
-	private void RemoveSelected()
+	internal void RemoveSelected()
 	{
 		object? item = SelectedNode?.Tag;
 		IList? list = item switch
