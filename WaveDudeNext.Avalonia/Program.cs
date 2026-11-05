@@ -151,13 +151,15 @@ internal sealed class MainWindow : Window
 		Closed += (_, _) => state.Dispose();
 		DataContext = state;
 		this.Bind(TitleProperty, new Binding(nameof(WindowStateModel.Title)));
+		var newProject = new MenuItem { Command = state.NewCommand, InputGesture = new KeyGesture(Key.N, KeyModifiers.Control) };
+		newProject.Bind(MenuItem.HeaderProperty, newProject.GetResourceObservable("MenuFileNew"));
 		var open = new MenuItem { Command = state.OpenCommand, InputGesture = new global::Avalonia.Input.KeyGesture(global::Avalonia.Input.Key.O, global::Avalonia.Input.KeyModifiers.Control) };
 		open.Bind(MenuItem.HeaderProperty, open.GetResourceObservable("MenuFileOpen"));
 		var save = new MenuItem { Command = state.SaveCommand, InputGesture = new KeyGesture(Key.S, KeyModifiers.Control) };
 		save.Bind(MenuItem.HeaderProperty, save.GetResourceObservable("MenuFileSave"));
 		var saveAs = new MenuItem { Command = state.SaveAsCommand, InputGesture = new KeyGesture(Key.S, KeyModifiers.Control | KeyModifiers.Shift) };
 		saveAs.Bind(MenuItem.HeaderProperty, saveAs.GetResourceObservable("MenuFileSaveAs"));
-		var file = new MenuItem { ItemsSource = new[] { open, save, saveAs } };
+		var file = new MenuItem { ItemsSource = new[] { newProject, open, save, saveAs } };
 		file.Bind(MenuItem.HeaderProperty, file.GetResourceObservable("MenuFile"));
 		var run = new MenuItem { Command = state.RunCommand, InputGesture = new global::Avalonia.Input.KeyGesture(global::Avalonia.Input.Key.F5) };
 		run.Bind(MenuItem.HeaderProperty, run.GetResourceObservable("MenuSimulationRun"));
@@ -591,6 +593,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_settings = SimulationSettings.Load(Path.Combine(Program.DataDirectory, "Settings.xml"));
 		_quality = _settings.Quality;
 		OpenCommand = new OpenCommand(Open);
+		NewCommand = new OpenCommand(NewProject);
 		SaveCommand = new OpenCommand(() => Save(false));
 		SaveAsCommand = new OpenCommand(() => Save(true));
 		BrowseImageCommand = new OpenCommand(BrowseSceneImage);
@@ -647,6 +650,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public Project Project { get => _project; private set { _project = value; Changed(); } }
 	/// <summary>Opens an existing project.</summary>
 	public ICommand OpenCommand { get; }
+	/// <summary>Creates a new project after handling unsaved changes.</summary>
+	public ICommand NewCommand { get; }
 	/// <summary>Saves the current project.</summary>
 	public ICommand SaveCommand { get; }
 	/// <summary>Chooses a new path and saves the current project.</summary>
@@ -998,33 +1003,49 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			if (!await ConfirmDiscard()) return;
 			if (await _open() is { } result)
 			{
-				CancelFit();
-				_shownSource = null;
-				_editGeneration++;
-				_scratchDelay?.Stop();
-				_rerunDelay?.Stop();
-				_runStale = false;
-				_scratchWaiting = false;
-				StopPlayback();
-				_ = DiscardRun();
-				_requested = null;
-				_folder = result.Folder;
-				_path = result.Path;
-				SetProject(result.Project);
-				_projectName = result.Name;
-				_dirty = false;
-				UpdateTitle();
-				LocateSceneImage();
-				ArmImageWatch();
-				_ = ReloadSceneImage(_imageGeneration);
-				Status = "";
-				RequestPreview(_folder);
+				ReplaceProject(result.Project, result.Name, result.Folder, result.Path);
 			}
 		}
 		catch (Exception ex)
 		{
 			Status = ex.Message;
 		}
+	}
+
+	private async Task NewProject()
+	{
+		try
+		{
+			if (!await ConfirmDiscard()) return;
+			string name = Application.Current?.Resources.TryGetValue("Untitled", out object? value) == true ? value as string ?? "Untitled" : "Untitled";
+			ReplaceProject(new Project(), name, null, null);
+		}
+		catch (Exception ex) { Status = ex.Message; }
+	}
+
+	private void ReplaceProject(Project project, string name, string? folder, string? path)
+	{
+		CancelFit();
+		_shownSource = null;
+		_editGeneration++;
+		_scratchDelay?.Stop();
+		_rerunDelay?.Stop();
+		_runStale = false;
+		_scratchWaiting = false;
+		StopPlayback();
+		_ = DiscardRun();
+		_requested = null;
+		_folder = folder;
+		_path = path;
+		SetProject(project);
+		_projectName = name;
+		_dirty = false;
+		UpdateTitle();
+		LocateSceneImage();
+		ArmImageWatch();
+		_ = ReloadSceneImage(_imageGeneration);
+		Status = "";
+		RequestPreview(_folder);
 	}
 
 	/// <summary>Asks to save or discard unsaved edits before replacing or closing the project.</summary>
