@@ -348,6 +348,13 @@ internal sealed class MainWindow : Window
 		{
 			var image = new Image();
 			image.Bind(Image.SourceProperty, new Binding(source));
+			var overlay = new Image { IsHitTestVisible = false };
+			overlay.Bind(Image.SourceProperty, new Binding(layer == "Field" ? nameof(WindowStateModel.FieldOverlay) : nameof(WindowStateModel.IntensityOverlay)));
+			var edge = new PictureEdgeLine { IsHitTestVisible = false };
+			edge.Bind(PictureEdgeLine.CanvasWidthProperty, new Binding(nameof(WindowStateModel.CanvasWidth)));
+			edge.Bind(PictureEdgeLine.CanvasHeightProperty, new Binding(nameof(WindowStateModel.CanvasHeight)));
+			edge.Bind(PictureEdgeLine.EdgeBrushProperty, new Binding(nameof(WindowStateModel.EdgeBrush)));
+			var pictureLayers = new Grid { Children = { image, overlay, edge } };
 			var name = new TextBlock { VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center };
 			name.Bind(TextBlock.TextProperty, name.GetResourceObservable(title));
 			var brightness = new NumericUpDown { Minimum = 0.0001m, Maximum = 100000m, Increment = 0.1m, Width = 90 };
@@ -363,7 +370,7 @@ internal sealed class MainWindow : Window
 			DockPanel.SetDock(auto, Dock.Right);
 			DockPanel.SetDock(brightness, Dock.Right);
 			DockPanel.SetDock(header, Dock.Top);
-			var picture = new DockPanel { Children = { header, image } };
+			var picture = new DockPanel { Children = { header, pictureLayers } };
 			picture.Bind(IsVisibleProperty, new Binding($"Project.Display.{layer}.Preview"));
 			return picture;
 		}
@@ -511,6 +518,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private RunSpec? _requested;
 	private WriteableBitmap? _fieldImage;
 	private WriteableBitmap? _intensityImage;
+	private WriteableBitmap? _fieldOverlay;
+	private WriteableBitmap? _intensityOverlay;
 	private bool _disposed;
 	private double _frame;
 	private int _lastFrame;
@@ -534,6 +543,12 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private int _fitGeneration;
 	private bool _presenting;
 	private long _presentationVersion;
+	private ScenePixels? _scenePixels;
+	private ScenePixels? _edgeCacheScene;
+	private byte[]? _edgeCache;
+	private OutlineJob? _pendingOutline;
+	private bool _outlining;
+	private long _outlineVersion;
 	private TreeViewItem? _selectedNode;
 	private IReadOnlyList<Control> _propertyRows = [];
 	private readonly Stopwatch _playClock = new();
@@ -716,6 +731,16 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public WriteableBitmap? FieldImage { get => _fieldImage; private set { _fieldImage = value; Changed(); } }
 	/// <summary>The latest intensity picture.</summary>
 	public WriteableBitmap? IntensityImage { get => _intensityImage; private set { _intensityImage = value; Changed(); } }
+	/// <summary>The field picture's translucent scene outline.</summary>
+	public WriteableBitmap? FieldOverlay { get => _fieldOverlay; private set { _fieldOverlay = value; Changed(); } }
+	/// <summary>The intensity picture's translucent scene outline.</summary>
+	public WriteableBitmap? IntensityOverlay { get => _intensityOverlay; private set { _intensityOverlay = value; Changed(); } }
+	/// <summary>Width of the displayed canvas in cells.</summary>
+	public int CanvasWidth => _canvasWidth > 0 ? _canvasWidth : Project.Scene.Width;
+	/// <summary>Height of the displayed canvas in cells.</summary>
+	public int CanvasHeight => _canvasHeight > 0 ? _canvasHeight : Project.Scene.Height;
+	/// <summary>Colour of the simulated boundary around the preview.</summary>
+	public global::Avalonia.Media.IBrush EdgeBrush => Project.Scene.HasRim ? global::Avalonia.Media.Brushes.Blue : Project.Scene.Edges == EdgeMode.Reflective ? global::Avalonia.Media.Brushes.Red : global::Avalonia.Media.Brushes.Transparent;
 	/// <summary>The last frame on the project's timeline.</summary>
 	public int LastFrame { get => _lastFrame; private set { _lastFrame = value; Changed(); } }
 	/// <summary>The requested timeline frame.</summary>
@@ -753,10 +778,14 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		StopPlayback();
 		_playTimer?.Dispose();
 		InvalidatePresentation();
+		_outlineVersion++;
+		_pendingOutline = null;
 		DiscardRun();
 		_scratch?.Dispose();
 		_fieldImage?.Dispose();
 		_intensityImage?.Dispose();
+		_fieldOverlay?.Dispose();
+		_intensityOverlay?.Dispose();
 	}
 
 	private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -1104,6 +1133,9 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_requested = spec;
 		_canvasWidth = spec.Width;
 		_canvasHeight = spec.Height;
+		Changed(nameof(CanvasWidth));
+		Changed(nameof(CanvasHeight));
+		QueueOutline(scene);
 		LastFrame = Math.Max(0, spec.FrameCount - 1);
 		((ControlCommand)StepBackCommand).Refresh();
 		((ControlCommand)StepForwardCommand).Refresh();
@@ -1147,6 +1179,81 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			Lut(Project.Display.Field), Lut(Project.Display.Intensity),
 			(float)Project.Display.Field.Brightness, (float)Project.Display.Intensity.Brightness);
 		if (!_presenting) DrainPresentation();
+	}
+
+	private void QueueOutline(ScenePixels? scene)
+	{
+		_scenePixels = scene;
+		_pendingOutline = new OutlineJob(++_outlineVersion, scene, ReferenceEquals(scene, _edgeCacheScene) ? _edgeCache : null,
+			Project.Display.Field.Overlay, Project.Display.Field.OverlayGain, Project.Display.Intensity.Overlay, Project.Display.Intensity.OverlayGain);
+		if (!_outlining) DrainOutline();
+	}
+
+	private async void DrainOutline()
+	{
+		_outlining = true;
+		while (_pendingOutline is { } job)
+		{
+			_pendingOutline = null;
+			try
+			{
+				OutlineResult result = await Task.Run(() => RenderOutline(job));
+				if (_disposed || job.Version != _outlineVersion) continue;
+				_edgeCacheScene = job.Scene;
+				_edgeCache = result.Edges;
+				ShowOutlines(job.Scene, result.Field, result.Intensity);
+			}
+			catch (Exception ex)
+			{
+				LogManager.GetCurrentClassLogger().Error(ex, "Scene outline rendering failed");
+				if (!_disposed && job.Version == _outlineVersion) Status = ex.Message;
+			}
+		}
+		_outlining = false;
+	}
+
+	private static OutlineResult RenderOutline(OutlineJob job)
+	{
+		if (job.Scene is not { } scene) return new(null, null, null);
+		byte[] edges = job.Edges ?? GlowingEdges.Compute(scene.Bgra, scene.Width, scene.Height, scene.StrideBytes);
+		static byte[]? Layer(byte[] edges, bool enabled, double gain)
+		{
+			if (!enabled || gain <= 0) return null;
+			var pixels = new byte[edges.Length];
+			for (int i = 0; i < pixels.Length; i += 4)
+			{
+				int b = edges[i], g = edges[i + 1], r = edges[i + 2];
+				int max = Math.Max(b, Math.Max(g, r));
+				if (max == 0) continue;
+				pixels[i] = (byte)(b * 255 / max);
+				pixels[i + 1] = (byte)(g * 255 / max);
+				pixels[i + 2] = (byte)(r * 255 / max);
+				pixels[i + 3] = (byte)Math.Min(255.0, max * gain);
+			}
+			return pixels;
+		}
+		return new(edges, Layer(edges, job.FieldEnabled, job.FieldGain), Layer(edges, job.IntensityEnabled, job.IntensityGain));
+	}
+
+	private void ShowOutlines(ScenePixels? scene, byte[]? fieldPixels, byte[]? intensityPixels)
+	{
+		WriteableBitmap? MakePicture(byte[]? pixels)
+		{
+			if (scene == null || pixels == null) return null;
+			var bitmap = new WriteableBitmap(new PixelSize(scene.Width, scene.Height), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Unpremul);
+			using var locked = bitmap.Lock();
+			int stride = checked(scene.Width * 4);
+			for (int y = 0; y < scene.Height; y++) Marshal.Copy(pixels, y * stride, IntPtr.Add(locked.Address, y * locked.RowBytes), stride);
+			return bitmap;
+		}
+		WriteableBitmap? field = MakePicture(fieldPixels);
+		WriteableBitmap? intensity = MakePicture(intensityPixels);
+		WriteableBitmap? oldField = FieldOverlay;
+		WriteableBitmap? oldIntensity = IntensityOverlay;
+		FieldOverlay = field;
+		IntensityOverlay = intensity;
+		oldField?.Dispose();
+		oldIntensity?.Dispose();
 	}
 
 	private void InvalidatePresentation()
@@ -1241,6 +1348,14 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		Changed(nameof(HasEmbeddedImage));
 		_canvasWidth = 0;
 		_canvasHeight = 0;
+		Changed(nameof(CanvasWidth));
+		Changed(nameof(CanvasHeight));
+		Changed(nameof(EdgeBrush));
+		_outlineVersion++;
+		_pendingOutline = null;
+		_scenePixels = null;
+		_edgeCacheScene = null;
+		_edgeCache = null;
 		_watcher = new ProjectWatcher(project);
 		_watcher.Changed += ProjectChanged;
 		RefreshTree();
@@ -1412,6 +1527,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	{
 		if (change.Item is Scene)
 		{
+			if (change.Property is nameof(Scene.Edges) or nameof(Scene.HasRim) or nameof(Scene.DampingEdge)) Changed(nameof(EdgeBrush));
 			if (change.Property == nameof(Scene.ImageData)) Changed(nameof(HasEmbeddedImage));
 			((ControlCommand)RemoveImageCommand).Refresh();
 			if (change.Property is nameof(Scene.ImagePath) or nameof(Scene.ImageData)) ArmImageWatch();
@@ -1432,6 +1548,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		bool unrecordedProbe = change.AffectsProbes && _run is { } run && Project.Probes.Any(probe => probe.Active && !run.Spec.Probes.Any(spec => ReferenceEquals(spec.Origin, probe)));
 		if (!change.AffectsSimulation && !bakedBrightness && !unrecordedProbe)
 		{
+			if (change.Item is DisplayLayer && change.Property is nameof(DisplayLayer.Overlay) or nameof(DisplayLayer.OverlayGain)) QueueOutline(_scenePixels);
 			if (change.Item is DisplayLayer or ColorScheme || ReferenceEquals(change.Item, Project.ColorSchemes)) RefreshDisplayedFrame();
 			return;
 		}
@@ -1802,6 +1919,12 @@ internal sealed class PreviewPanel(WindowStateModel state) : DockPanel
 
 /// <summary>Immutable UI-thread settings and source for one background render.</summary>
 internal sealed record PresentationJob(long Version, IFrameSource Source, int Frame, ColorLut FieldLut, ColorLut IntensityLut, float FieldBrightness, float IntensityBrightness);
+
+/// <summary>A scene outline request captured on the UI thread.</summary>
+internal sealed record OutlineJob(long Version, ScenePixels? Scene, byte[]? Edges, bool FieldEnabled, double FieldGain, bool IntensityEnabled, double IntensityGain);
+
+/// <summary>Computed edge values and the two translucent layers.</summary>
+internal sealed record OutlineResult(byte[]? Edges, byte[]? Field, byte[]? Intensity);
 
 /// <summary>A scratch frame copied before its runner can reuse it.</summary>
 internal sealed class CopiedFrameSource : IFrameSource
