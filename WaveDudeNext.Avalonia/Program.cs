@@ -136,6 +136,18 @@ internal sealed class MainWindow : Window
 		Width = 1000;
 		Height = 700;
 		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, autoBudget, quality) => new MemoryWarningWindow(spec, budget, autoBudget, quality).ShowDialog<MemoryWarningChoice?>(this), ChooseProbeCsv, ChooseExport, ConfirmExportFolder);
+		DragDrop.SetAllowDrop(this, true);
+		AddHandler(DragDrop.DragOverEvent, (_, e) =>
+		{
+			e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
+			e.Handled = true;
+		});
+		AddHandler(DragDrop.DropEvent, async (_, e) =>
+		{
+			IStorageFile? file = e.DataTransfer.TryGetFiles()?.OfType<IStorageFile>().FirstOrDefault();
+			e.Handled = true;
+			if (file != null) await state.OpenFile(() => LoadProject(file));
+		});
 		AddHandler(InputElement.PointerPressedEvent, (_, _) => state.PointerDown = true, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerReleasedEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerCaptureLostEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
@@ -450,10 +462,15 @@ internal sealed class MainWindow : Window
 		{
 			return null;
 		}
+		return await LoadProject(files[0]);
+	}
+
+	private static async Task<(Project Project, string Name, string? Folder, string? Path)> LoadProject(IStorageFile file)
+	{
 		try
 		{
-			string? path = files[0].TryGetLocalPath();
-			if (LegacyProject.IsLegacyFile(files[0].Name))
+			string? path = file.TryGetLocalPath();
+			if (LegacyProject.IsLegacyFile(file.Name))
 			{
 				if (path == null)
 				{
@@ -461,13 +478,13 @@ internal sealed class MainWindow : Window
 				}
 				return ImportLegacy(path);
 			}
-			await using Stream stream = await files[0].OpenReadAsync();
-			return (Project.Load(stream), files[0].Name, path == null ? null : Path.GetDirectoryName(path), path);
+			await using Stream stream = await file.OpenReadAsync();
+			return (Project.Load(stream), file.Name, path == null ? null : Path.GetDirectoryName(path), path);
 		}
 		catch (Exception ex)
 		{
-			string? path = files[0].TryGetLocalPath();
-			Logger.Error(path == null ? ex : new UnreadableFileException(path, ex), "Error while opening '{Path}'", path ?? files[0].Name);
+			string? path = file.TryGetLocalPath();
+			Logger.Error(path == null ? ex : new UnreadableFileException(path, ex), "Error while opening '{Path}'", path ?? file.Name);
 			throw;
 		}
 	}
@@ -1197,6 +1214,18 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		{
 			Status = ex.Message;
 		}
+	}
+
+	/// <summary>Opens a dropped project after handling unsaved changes.</summary>
+	internal async Task OpenFile(Func<Task<(Project Project, string Name, string? Folder, string? Path)>> load)
+	{
+		try
+		{
+			if (!await ConfirmDiscard()) return;
+			var result = await load();
+			ReplaceProject(result.Project, result.Name, result.Folder, result.Path);
+		}
+		catch (Exception ex) { Status = ex.Message; }
 	}
 
 	private async Task NewProject()
