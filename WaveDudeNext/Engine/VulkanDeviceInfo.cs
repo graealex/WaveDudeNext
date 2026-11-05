@@ -32,6 +32,27 @@ public sealed record VulkanDeviceInfo(string Name, uint ApiVersion, bool Discret
 {
 	/// <summary>The Vulkan device UUID as 16 bytes in driver order.</summary>
 	public byte[] DeviceUuid { get; private init; } = [];
+	/// <summary>Whether opaque native semaphore handles can be both exported and imported on Windows or Linux. False on other platforms.</summary>
+	public bool OpaqueSemaphoreSharing { get; private init; }
+
+	private static unsafe bool SupportsOpaqueSemaphoreSharing(Vk vk, PhysicalDevice device)
+	{
+		string extension;
+		ExternalSemaphoreHandleTypeFlags handle;
+		if (OperatingSystem.IsWindows()) { extension = "VK_KHR_external_semaphore_win32"; handle = ExternalSemaphoreHandleTypeFlags.OpaqueWin32Bit; }
+		else if (OperatingSystem.IsLinux()) { extension = "VK_KHR_external_semaphore_fd"; handle = ExternalSemaphoreHandleTypeFlags.OpaqueFDBit; }
+		else return false;
+		uint count = 0;
+		Check(vk.EnumerateDeviceExtensionProperties(device, (byte*)null, ref count, (ExtensionProperties*)null));
+		var extensions = new ExtensionProperties[count];
+		fixed (ExtensionProperties* pointer = extensions) Check(vk.EnumerateDeviceExtensionProperties(device, (byte*)null, ref count, pointer));
+		if (!extensions.Any(item => Marshal.PtrToStringUTF8((IntPtr)item.ExtensionName) == extension)) return false;
+		var query = new PhysicalDeviceExternalSemaphoreInfo { SType = StructureType.PhysicalDeviceExternalSemaphoreInfo, HandleType = handle };
+		var properties = new ExternalSemaphoreProperties { SType = StructureType.ExternalSemaphoreProperties };
+		vk.GetPhysicalDeviceExternalSemaphoreProperties(device, &query, &properties);
+		const ExternalSemaphoreFeatureFlags required = ExternalSemaphoreFeatureFlags.ExportableBit | ExternalSemaphoreFeatureFlags.ImportableBit;
+		return (properties.ExternalSemaphoreFeatures & required) == required;
+	}
 
 	internal static unsafe byte[] ReadDeviceUuid(Vk vk, PhysicalDevice device)
 	{
@@ -103,7 +124,11 @@ public sealed record VulkanDeviceInfo(string Name, uint ApiVersion, bool Discret
 						if (queues[i].QueueCount > 0 && (queues[i].QueueFlags & QueueFlags.ComputeBit) != 0)
 						{
 							string name = Marshal.PtrToStringUTF8((IntPtr)properties.DeviceName) ?? "GPU";
-							found.Add(new VulkanDeviceInfo(name, properties.ApiVersion, properties.DeviceType == PhysicalDeviceType.DiscreteGpu, properties.DeviceType == PhysicalDeviceType.Cpu, i) { DeviceUuid = ReadDeviceUuid(vk, device) });
+							found.Add(new VulkanDeviceInfo(name, properties.ApiVersion, properties.DeviceType == PhysicalDeviceType.DiscreteGpu, properties.DeviceType == PhysicalDeviceType.Cpu, i)
+							{
+								DeviceUuid = ReadDeviceUuid(vk, device),
+								OpaqueSemaphoreSharing = SupportsOpaqueSemaphoreSharing(vk, device),
+							});
 							break;
 						}
 					}

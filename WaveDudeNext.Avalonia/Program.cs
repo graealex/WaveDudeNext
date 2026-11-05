@@ -566,7 +566,7 @@ internal sealed class MainWindow : Window
 			IReadOnlyList<VulkanDeviceInfo> devices = await Task.Run(VulkanDeviceInfo.FindAll);
 			VulkanDeviceInfo? match = devices.FirstOrDefault(device => device.DeviceUuid.AsSpan().SequenceEqual(uuid));
 			if (match == null) Logger.Debug("No Vulkan 1.3 compute device matches the viewport compositor UUID {Uuid}", uuidText);
-			else Logger.Debug("Viewport compositor matches Vulkan device {Device}; software {Software}", match.Name, match.Software);
+			else Logger.Debug("Viewport compositor matches Vulkan device {Device}; software {Software}, opaque semaphore sharing {SemaphoreSharing}", match.Name, match.Software, match.OpaqueSemaphoreSharing);
 		}
 		catch (Exception ex) { Logger.Debug(ex, "Viewport GPU interop discovery failed"); }
 	}
