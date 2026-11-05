@@ -113,7 +113,7 @@ internal sealed class MainWindow : Window
 	{
 		Width = 1000;
 		Height = 700;
-		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, (spec, budget, quality) => new MemoryWarningWindow(spec, budget, budget, quality).ShowDialog<MemoryWarningChoice?>(this));
+		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, quality) => new MemoryWarningWindow(spec, budget, budget, quality).ShowDialog<MemoryWarningChoice?>(this));
 		Opened += (_, _) => state.Initialise();
 		bool closeApproved = false, confirmingClose = false;
 		Closing += async (_, e) =>
@@ -359,6 +359,21 @@ internal sealed class MainWindow : Window
 		return (bytes.ToArray(), files[0].Name, files[0].TryGetLocalPath());
 	}
 
+	private async Task SaveSceneImage(string name, byte[] data)
+	{
+		string extension = Path.GetExtension(name);
+		IStorageFile? file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+		{
+			Title = (string)Application.Current!.Resources["TipSaveSceneImage"]!,
+			SuggestedFileName = name,
+			DefaultExtension = extension.TrimStart('.'),
+		});
+		if (file == null) return;
+		await using Stream stream = await file.OpenWriteAsync();
+		if (stream.CanSeek) stream.SetLength(0);
+		await stream.WriteAsync(data);
+	}
+
 	private Task<SaveDecision> ConfirmSave(string name)
 	{
 		var dialog = new Window { Width = 440, SizeToContent = SizeToContent.Height, CanResize = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -397,6 +412,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private readonly Func<string?, Task<string?>> _saveAs;
 	private readonly Func<string, Task<SaveDecision>> _confirmSave;
 	private readonly Func<Task<(byte[] Data, string Name, string? Path)?>> _chooseImage;
+	private readonly Func<string, byte[], Task> _saveImage;
 	private readonly Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> _warn;
 	private string _title = "WaveDude Next";
 	private string _status = "";
@@ -442,19 +458,25 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private string _projectName = "Untitled";
 	private bool _dirty;
 	private bool _saving;
+	private FileSystemWatcher? _imageWatcher;
+	private DispatcherTimer? _imageDelay;
+	private int _imageGeneration;
+	private bool _sceneImageFileMissing;
 
 	/// <summary>Creates state for a new project.</summary>
-	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
+	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<string, byte[], Task> saveImage, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
 	{
 		_open = open;
 		_saveAs = saveAs;
 		_confirmSave = confirmSave;
 		_chooseImage = chooseImage;
+		_saveImage = saveImage;
 		_warn = warn;
 		OpenCommand = new OpenCommand(Open);
 		SaveCommand = new OpenCommand(() => Save(false));
 		SaveAsCommand = new OpenCommand(() => Save(true));
 		BrowseImageCommand = new OpenCommand(BrowseSceneImage);
+		SaveImageCommand = new OpenCommand(SaveEmbeddedImage);
 		RemoveImageCommand = new ControlCommand(RemoveSceneImage, () => Project.Scene.ImageData != null || Project.Scene.Image.Length > 0 || Project.Scene.ImagePath.Length > 0);
 		RunCommand = new OpenCommand(() => StartRun());
 		PlayPauseCommand = new OpenCommand(TogglePlayback);
@@ -506,6 +528,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand SaveAsCommand { get; }
 	/// <summary>Embeds a chosen scene image in the project.</summary>
 	public ICommand BrowseImageCommand { get; }
+	/// <summary>Saves the embedded scene image as a separate file.</summary>
+	public ICommand SaveImageCommand { get; }
 	/// <summary>Removes the image while preserving its canvas size.</summary>
 	public ICommand RemoveImageCommand { get; }
 	/// <summary>Starts a simulation run.</summary>
@@ -544,6 +568,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand StopRunCommand => _stopRun;
 	/// <summary>Whether the simulation has been asked to pause.</summary>
 	public bool IsPauseRequested => _run?.IsPauseRequested == true;
+	/// <summary>Whether the embedded image's named source file is missing.</summary>
+	public bool SceneImageFileMissing { get => _sceneImageFileMissing; private set { if (_sceneImageFileMissing != value) { _sceneImageFileMissing = value; Changed(); } } }
+	/// <summary>Whether the scene contains an embedded image to save.</summary>
+	public bool HasEmbeddedImage => Project.Scene.ImageData != null;
 	/// <summary>The latest field picture.</summary>
 	public WriteableBitmap? FieldImage { get => _fieldImage; private set { _fieldImage = value; Changed(); } }
 	/// <summary>The latest intensity picture.</summary>
@@ -579,6 +607,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_scratchDelay?.Stop();
 		_rerunDelay?.Stop();
 		_watcher?.Dispose();
+		DisarmImageWatch();
 		StopPlayback();
 		_playTimer?.Dispose();
 		InvalidatePresentation();
@@ -803,6 +832,9 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 				_projectName = result.Name;
 				_dirty = false;
 				UpdateTitle();
+				LocateSceneImage();
+				ArmImageWatch();
+				_ = ReloadSceneImage(_imageGeneration);
 				Status = "";
 				RequestPreview(_folder);
 			}
@@ -848,6 +880,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			finally { _saving = false; }
 			_path = path;
 			_folder = folder;
+			ArmImageWatch();
 			_projectName = Path.GetFileName(path);
 			_dirty = false;
 			UpdateTitle();
@@ -896,6 +929,13 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			catch (Exception ex) { LogManager.GetCurrentClassLogger().Debug(ex, "Could not read the scene image size"); }
 		}
 		scene.RemoveImage();
+	}
+
+	private async Task SaveEmbeddedImage()
+	{
+		if (Project.Scene.ImageData is not { } bytes) return;
+		try { await _saveImage(Project.Scene.Image.Length > 0 ? Project.Scene.Image : "scene", bytes); }
+		catch (Exception ex) { LogManager.GetCurrentClassLogger().Error(ex, "The scene image could not be saved"); Status = ex.Message; }
 	}
 
 
@@ -1025,14 +1065,106 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void SetProject(Project project)
 	{
+		DisarmImageWatch();
 		_watcher?.Dispose();
 		SelectedNode = null;
 		Project = project;
+		Changed(nameof(HasEmbeddedImage));
 		_canvasWidth = 0;
 		_canvasHeight = 0;
 		_watcher = new ProjectWatcher(project);
 		_watcher.Changed += ProjectChanged;
 		RefreshTree();
+	}
+
+	private void LocateSceneImage()
+	{
+		Scene scene = Project.Scene;
+		if (_folder == null || scene.ImageData == null || scene.ImagePath.Length != 0 || scene.Image.Length == 0) return;
+		foreach (string subfolder in new[] { "", "scene_images" })
+		{
+			string path = Path.Combine(_folder, subfolder, scene.Image);
+			if (!File.Exists(path)) continue;
+			scene.ImagePath = Scene.StoredImagePath(_folder, path);
+			return;
+		}
+	}
+
+	private void DisarmImageWatch()
+	{
+		_imageGeneration++;
+		_imageDelay?.Stop();
+		_imageWatcher?.Dispose();
+		_imageWatcher = null;
+	}
+
+	private void ArmImageWatch()
+	{
+		DisarmImageWatch();
+		Scene scene = Project.Scene;
+		string path = scene.ResolveImagePath(_folder);
+		SceneImageFileMissing = path.Length > 0 && scene.ImageData != null && !File.Exists(path);
+		if (path.Length == 0 || scene.ImageData == null) return;
+		string? folder = Path.GetDirectoryName(path);
+		if (folder == null || !Directory.Exists(folder)) return;
+		try
+		{
+			var watcher = new FileSystemWatcher(folder, Path.GetFileName(path))
+			{
+				NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName | NotifyFilters.CreationTime,
+			};
+			watcher.Changed += ImageFileChanged;
+			watcher.Created += ImageFileChanged;
+			watcher.Deleted += ImageFileChanged;
+			watcher.Renamed += ImageFileChanged;
+			_imageWatcher = watcher;
+			watcher.EnableRaisingEvents = true;
+		}
+		catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+		{
+			LogManager.GetCurrentClassLogger().Debug(ex, "Cannot watch scene image '{Path}'", path);
+		}
+	}
+
+	private void ImageFileChanged(object sender, FileSystemEventArgs e) => Dispatcher.UIThread.Post(() =>
+	{
+		if (_disposed || !ReferenceEquals(sender, _imageWatcher)) return;
+		_imageDelay ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+		_imageDelay.Tick -= OnImageDelay;
+		_imageDelay.Tick += OnImageDelay;
+		_imageDelay.Stop();
+		_imageDelay.Start();
+	});
+
+	private async void OnImageDelay(object? sender, EventArgs e)
+	{
+		_imageDelay!.Stop();
+		await ReloadSceneImage(_imageGeneration);
+	}
+
+	private async Task ReloadSceneImage(int generation)
+	{
+		Scene scene = Project.Scene;
+		string path = scene.ResolveImagePath(_folder);
+		if (path.Length == 0 || scene.ImageData == null) return;
+		SceneImageFileMissing = !File.Exists(path);
+		if (SceneImageFileMissing) return;
+		try
+		{
+			byte[]? bytes = null;
+			for (int attempt = 0; attempt < 8; attempt++)
+			{
+				try { bytes = await File.ReadAllBytesAsync(path); break; }
+				catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { await Task.Delay(100); }
+			}
+			if (_disposed || generation != _imageGeneration || bytes == null || bytes.AsSpan().SequenceEqual(scene.ImageData)) return;
+			using var stream = new MemoryStream(bytes, writable: false);
+			ScenePixels pixels = SceneComposer.Decode(stream);
+			scene.ImageData = bytes;
+			scene.Image = Path.GetFileName(path);
+			LogManager.GetCurrentClassLogger().Info("Scene image re-embedded from '{Path}': {Width}×{Height}", path, pixels.Width, pixels.Height);
+		}
+		catch (Exception ex) { LogManager.GetCurrentClassLogger().Warn(ex, "Cannot reload scene image '{Path}'", path); }
 	}
 
 	private void RefreshTree()
@@ -1109,7 +1241,12 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void ProjectChanged(object? sender, ProjectChange change)
 	{
-		if (change.Item is Scene) ((ControlCommand)RemoveImageCommand).Refresh();
+		if (change.Item is Scene)
+		{
+			if (change.Property == nameof(Scene.ImageData)) Changed(nameof(HasEmbeddedImage));
+			((ControlCommand)RemoveImageCommand).Refresh();
+			if (change.Property is nameof(Scene.ImagePath) or nameof(Scene.ImageData)) ArmImageWatch();
+		}
 		if (change.Item is INotifyCollectionChanged) RefreshTree();
 		if (!_saving)
 		{
@@ -1193,16 +1330,23 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 				var browse = new Button { Content = "…", Command = BrowseImageCommand };
 				browse.Bind(ToolTip.TipProperty, browse.GetResourceObservable("TipBrowseSceneImage"));
 				AutomationProperties.SetAutomationId(browse, "SceneImageBrowse");
+				var save = new Button { Content = "↓", Command = SaveImageCommand };
+				save.Bind(InputElement.IsEnabledProperty, new Binding(nameof(HasEmbeddedImage)) { Source = this });
+				save.Bind(ToolTip.TipProperty, save.GetResourceObservable("TipSaveSceneImage"));
+				AutomationProperties.SetAutomationId(save, "SceneImageSave");
 				var remove = new Button { Content = "×", Command = RemoveImageCommand };
 				remove.Bind(ToolTip.TipProperty, remove.GetResourceObservable("TipRemoveSceneImage"));
 				AutomationProperties.SetAutomationId(remove, "SceneImageRemove");
-				value = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Children = { imageName, browse, remove } };
+				value = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Children = { imageName, browse, save, remove } };
 			}
 			else if (item is Scene && property.Name == nameof(Scene.ImagePath))
 			{
 				var text = new TextBlock { TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
 				text.Bind(TextBlock.TextProperty, new Binding(property.Name) { Source = item, Mode = BindingMode.OneWay });
-				value = text;
+				var missing = new TextBlock();
+				missing.Bind(TextBlock.TextProperty, missing.GetResourceObservable("SceneImageNotFound"));
+				missing.Bind(Visual.IsVisibleProperty, new Binding(nameof(SceneImageFileMissing)) { Source = this });
+				value = new StackPanel { Children = { text, missing } };
 			}
 			else if (!property.IsReadOnly && type == typeof(bool))
 			{
