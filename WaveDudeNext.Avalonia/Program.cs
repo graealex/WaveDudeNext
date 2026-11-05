@@ -96,6 +96,8 @@ internal sealed class App : Application
 	public override void Initialize()
 	{
 		Styles.Add(new FluentTheme());
+		Resources["PictureHandle"] = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#FFC8C8C8"));
+		Resources["PictureSelection"] = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#FFFFE000"));
 		string language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.ToUpperInvariant();
 		if (language is not ("DE" or "FR" or "NL")) language = "EN";
 		using Stream stream = typeof(App).Assembly.GetManifestResourceStream($"Strings/Strings.{language}.xaml")
@@ -356,7 +358,10 @@ internal sealed class MainWindow : Window
 			edge.Bind(PictureEdgeLine.CanvasWidthProperty, new Binding(nameof(WindowStateModel.CanvasWidth)));
 			edge.Bind(PictureEdgeLine.CanvasHeightProperty, new Binding(nameof(WindowStateModel.CanvasHeight)));
 			edge.Bind(PictureEdgeLine.EdgeBrushProperty, new Binding(nameof(WindowStateModel.EdgeBrush)));
-			var pictureLayers = new Grid { Children = { image, overlay, edge } };
+			var handles = new SceneHandles(state, plane == FrameLayer.Field ? ProbeLayer.Field : ProbeLayer.Intensity);
+			handles.Bind(SceneHandles.HandleBrushProperty, handles.GetResourceObservable("PictureHandle"));
+			handles.Bind(SceneHandles.SelectionBrushProperty, handles.GetResourceObservable("PictureSelection"));
+			var pictureLayers = new Grid { Children = { image, overlay, edge, handles } };
 			var name = new TextBlock { VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center };
 			name.Bind(TextBlock.TextProperty, name.GetResourceObservable(title));
 			var brightness = new NumericUpDown { Minimum = 0.0001m, Maximum = 100000m, Increment = 0.1m, Width = 90 };
@@ -625,6 +630,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	/// <summary>Raised when a bound property changes.</summary>
 	public event PropertyChangedEventHandler? PropertyChanged;
+	/// <summary>Raised on the UI thread when project items shown over a picture change.</summary>
+	internal event EventHandler? SceneVisualChanged;
 	/// <summary>The window title.</summary>
 	public string Title { get => _title; private set { _title = value; Changed(); } }
 	/// <summary>The current status message.</summary>
@@ -640,10 +647,13 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			if (ReferenceEquals(_selectedNode, value)) return;
 			_selectedNode = value;
 			Changed();
+			Changed(nameof(SelectedItem));
 			PropertyRows = BuildPropertyRows(value?.Tag);
 			((ControlCommand)RemoveCommand).Refresh();
 		}
 	}
+	/// <summary>The selected project object, if any.</summary>
+	public object? SelectedItem => SelectedNode?.Tag;
 	/// <summary>The selected object's visible scalar properties.</summary>
 	public IReadOnlyList<Control> PropertyRows { get => _propertyRows; private set { _propertyRows = value; Changed(); } }
 	/// <summary>The loaded project, retained for editing and simulation.</summary>
@@ -1501,8 +1511,9 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private (int X, int Y) CanvasCentre() => ((_canvasWidth > 0 ? _canvasWidth : Project.Scene.Width) / 2, (_canvasHeight > 0 ? _canvasHeight : Project.Scene.Height) / 2);
 
-	private void SelectItem(object value)
+	internal void SelectItem(object? value)
 	{
+		if (value == null) { SelectedNode = null; return; }
 		foreach (TreeViewItem group in Nodes)
 		{
 			if (ReferenceEquals(group.Tag, value)) { group.IsSelected = true; SelectedNode = group; return; }
@@ -1546,6 +1557,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void ProjectChanged(object? sender, ProjectChange change)
 	{
+		SceneVisualChanged?.Invoke(this, EventArgs.Empty);
 		if (change.Item is Scene)
 		{
 			if (change.Property is nameof(Scene.Edges) or nameof(Scene.HasRim) or nameof(Scene.DampingEdge)) Changed(nameof(EdgeBrush));
