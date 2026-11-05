@@ -34,7 +34,10 @@ internal sealed unsafe class VulkanBuffer : IDisposable
 	private bool _disposed;
 
 	/// <summary>Allocates and maps a storage buffer of <paramref name="length"/> bytes.</summary>
-	public VulkanBuffer(VulkanComputeContext context, int length)
+	/// <param name="context">The owning device.</param>
+	/// <param name="length">The buffer's size in bytes.</param>
+	/// <param name="preferHostCached">Prefer host-cached coherent memory when the CPU will read the buffer.</param>
+	public VulkanBuffer(VulkanComputeContext context, int length, bool preferHostCached = false)
 	{
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(length);
 		_context = context;
@@ -52,15 +55,15 @@ internal sealed unsafe class VulkanBuffer : IDisposable
 			context.Api.GetBufferMemoryRequirements(context.Device, _buffer, out MemoryRequirements requirements);
 			context.Api.GetPhysicalDeviceMemoryProperties(context.PhysicalDevice, out PhysicalDeviceMemoryProperties properties);
 			MemoryPropertyFlags needed = MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit;
-			uint index = 0;
-			for (; index < properties.MemoryTypeCount; index++)
+			uint index = uint.MaxValue;
+			for (uint candidate = 0; candidate < properties.MemoryTypeCount; candidate++)
 			{
-				if ((requirements.MemoryTypeBits & (1u << (int)index)) != 0 && (properties.MemoryTypes[(int)index].PropertyFlags & needed) == needed)
-				{
-					break;
-				}
+				MemoryPropertyFlags flags = properties.MemoryTypes[(int)candidate].PropertyFlags;
+				if ((requirements.MemoryTypeBits & (1u << (int)candidate)) == 0 || (flags & needed) != needed) continue;
+				if (index == uint.MaxValue) index = candidate;
+				if (!preferHostCached || (flags & MemoryPropertyFlags.HostCachedBit) != 0) { index = candidate; break; }
 			}
-			if (index == properties.MemoryTypeCount)
+			if (index == uint.MaxValue)
 			{
 				throw new InvalidOperationException("No host-visible coherent Vulkan memory is available for the buffer.");
 			}

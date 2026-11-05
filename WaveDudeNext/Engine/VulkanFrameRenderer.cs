@@ -49,7 +49,7 @@ public sealed class VulkanFrameRenderer : IDisposable
 		{
 			samples = new VulkanBuffer(_context, sampleBytes);
 			colours = new VulkanBuffer(_context, 65536 * sizeof(int));
-			pixels = new VulkanBuffer(_context, pixelBytes);
+			pixels = new VulkanBuffer(_context, pixelBytes, preferHostCached: true);
 			_pipeline = new VulkanPipeline(_context, "Colorize", [samples, colours, pixels], (uint)Marshal.SizeOf<Parameters>());
 			_samples = samples; _colours = colours; _pixels = pixels;
 		}
