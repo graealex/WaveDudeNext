@@ -48,6 +48,7 @@ using WaveDudeNext.Model;
 using WaveDudeNext.Engine;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
+using WaveDudeNext.Probes;
 
 namespace WaveDudeNext.CrossPlatform;
 
@@ -361,7 +362,8 @@ internal sealed class MainWindow : Window
 			var handles = new SceneHandles(state, plane == FrameLayer.Field ? ProbeLayer.Field : ProbeLayer.Intensity);
 			handles.Bind(SceneHandles.HandleBrushProperty, handles.GetResourceObservable("PictureHandle"));
 			handles.Bind(SceneHandles.SelectionBrushProperty, handles.GetResourceObservable("PictureSelection"));
-			var pictureLayers = new Grid { Children = { image, overlay, edge, handles } };
+			var graphs = new ProbeGraphs(state, plane == FrameLayer.Field ? ProbeLayer.Field : ProbeLayer.Intensity);
+			var pictureLayers = new Grid { Children = { image, overlay, edge, handles, graphs } };
 			var name = new TextBlock { VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center };
 			name.Bind(TextBlock.TextProperty, name.GetResourceObservable(title));
 			var brightness = new NumericUpDown { Minimum = 0.0001m, Maximum = 100000m, Increment = 0.1m, Width = 90 };
@@ -540,6 +542,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private readonly ControlCommand _stopRun;
 	private PresentationJob? _pendingPresentation;
 	private CopiedFrameSource? _lastScratch;
+	private ScratchResult? _lastScratchResult;
+	private ScratchResult? _shownScratchResult;
 	private RunSpec? _lastScratchSpec;
 	private int _lastScratchFrame;
 	private IFrameSource? _shownSource;
@@ -632,6 +636,25 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public event PropertyChangedEventHandler? PropertyChanged;
 	/// <summary>Raised on the UI thread when project items shown over a picture change.</summary>
 	internal event EventHandler<ProjectChange>? SceneVisualChanged;
+	/// <summary>Raised on the UI thread when the displayed frame or its probe recordings change.</summary>
+	internal event EventHandler? ProbeGraphsChanged;
+	/// <summary>Returns the recording for the frame currently displayed, and the simulation length in steps.</summary>
+	internal ProbeGraphData ProbeData(Probe probe, out int totalSteps)
+	{
+		if (_shownScratchResult is { } scratch)
+		{
+			totalSteps = Math.Max(1, scratch.Spec.Steps);
+			for (int i = 0; i < scratch.Spec.Probes.Length && i < scratch.Traces.Length; i++)
+				if (ReferenceEquals(scratch.Spec.Probes[i].Origin, probe)) return ProbeGraphData.At(scratch.Traces[i], scratch.Frame * scratch.Spec.VisualizeEvery, 0);
+			return default;
+		}
+		SimulationRun? run = _run;
+		totalSteps = Math.Max(1, run?.Spec.Steps ?? Project.Simulation.Steps);
+		if (run == null || !ReferenceEquals(_shownSource, run.Frames)) return default;
+		for (int i = 0; i < run.Spec.Probes.Length && i < run.Traces.Length; i++)
+			if (ReferenceEquals(run.Spec.Probes[i].Origin, probe)) return ProbeGraphData.At(run.Traces[i], _shownFrame * run.Spec.VisualizeEvery, _shownFrame);
+		return default;
+	}
 	/// <summary>The window title.</summary>
 	public string Title { get => _title; private set { _title = value; Changed(); } }
 	/// <summary>The current status message.</summary>
@@ -865,6 +888,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			_rerunDelay?.Stop();
 			_following = !automatic;
 			run.PropertyChanged += RunChanged;
+			run.ProbesUpdated += RunProbesUpdated;
 			run.Start();
 			UpdateRunControls();
 		}
@@ -947,6 +971,11 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		}
 	}
 
+	private void RunProbesUpdated(object? sender, ProbeUpdate update)
+	{
+		if (!_disposed && ReferenceEquals(sender, _run)) ProbeGraphsChanged?.Invoke(this, EventArgs.Empty);
+	}
+
 	private void ToggleRunPause()
 	{
 		_run?.TogglePause();
@@ -1002,6 +1031,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		UpdateRunControls();
 		if (old == null) return Task.CompletedTask;
 		old.PropertyChanged -= RunChanged;
+		old.ProbesUpdated -= RunProbesUpdated;
 		old.Stop();
 		return old.Completion.ContinueWith(_ => { old.Store.Dispose(); old.Dispose(); }, TaskScheduler.Default);
 	}
@@ -1037,6 +1067,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	{
 		CancelFit();
 		_shownSource = null;
+		_shownScratchResult = null;
+		_lastScratchResult = null;
 		_editGeneration++;
 		_scratchDelay?.Stop();
 		_rerunDelay?.Stop();
@@ -1193,6 +1225,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		}
 		_scratchWaiting = false;
 		_lastScratch = new CopiedFrameSource(result.Snapshot);
+		_lastScratchResult = result;
 		_lastScratchSpec = result.Spec;
 		_lastScratchFrame = result.Frame;
 		Present(_lastScratch, 0);
@@ -1307,6 +1340,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 					ShowPictures(job.Source.Width, job.Source.Height, pictures.Field, pictures.Intensity);
 					_shownSource = job.Source;
 					_shownFrame = job.Frame;
+					_shownScratchResult = ReferenceEquals(job.Source, _lastScratch) ? _lastScratchResult : null;
+					ProbeGraphsChanged?.Invoke(this, EventArgs.Empty);
 				}
 			}
 			catch (Exception ex)
