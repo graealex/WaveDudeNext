@@ -31,6 +31,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Automation;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
@@ -2397,7 +2398,17 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			}
 			else if (!property.IsReadOnly && type.IsEnum)
 			{
-				var choice = new ComboBox { ItemsSource = Enum.GetValues(type) };
+				var choice = new ComboBox
+				{
+					ItemsSource = Enum.GetValues(type),
+					ItemTemplate = new FuncDataTemplate<object>((value, _) =>
+					{
+						var text = new TextBlock { Text = value?.ToString() };
+						string enumKey = $"Enum.{type.Name}.{value}";
+						if (Application.Current?.Resources.ContainsKey(enumKey) == true) text.Bind(TextBlock.TextProperty, text.GetResourceObservable(enumKey));
+						return text;
+					}),
+				};
 				choice.Bind(SelectingItemsControl.SelectedItemProperty, binding);
 				value = choice;
 			}
@@ -2426,6 +2437,13 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 				value = text;
 			}
 			AutomationProperties.SetAutomationId(value, $"Property{property.ComponentType.Name}{property.Name}");
+			if (Application.Current?.Resources.ContainsKey(key) == true) value.Bind(AutomationProperties.NameProperty, value.GetResourceObservable(key));
+			string hintKey = $"Hint.{property.ComponentType.Name}.{property.Name}";
+			if (Application.Current?.Resources.ContainsKey(hintKey) == true)
+			{
+				label.Bind(ToolTip.TipProperty, label.GetResourceObservable(hintKey));
+				value.Bind(ToolTip.TipProperty, value.GetResourceObservable(hintKey));
+			}
 			var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*") };
 			Grid.SetColumn(value, 1);
 			row.Children.Add(label);
