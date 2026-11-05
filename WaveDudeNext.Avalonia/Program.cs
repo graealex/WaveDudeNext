@@ -129,6 +129,7 @@ internal sealed class App : Application
 internal sealed class MainWindow : Window
 {
 	private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+	private ManualWindow? _manual;
 	/// <summary>Creates the project menu and tree.</summary>
 	public MainWindow()
 	{
@@ -272,7 +273,10 @@ internal sealed class MainWindow : Window
 		var about = new MenuItem { Command = new OpenCommand(() => new AboutWindow(state.UseGpu).ShowDialog(this)) };
 		about.Bind(MenuItem.HeaderProperty, about.GetResourceObservable("MenuHelpAbout"));
 		AutomationProperties.SetAutomationId(about, "MenuHelpAbout");
-		var help = new MenuItem { ItemsSource = new[] { about } };
+		var manual = new MenuItem { Command = new ControlCommand(ShowManual, () => true), InputGesture = new KeyGesture(Key.F1) };
+		manual.Bind(MenuItem.HeaderProperty, manual.GetResourceObservable("MenuHelpManual"));
+		AutomationProperties.SetAutomationId(manual, "MenuHelpManual");
+		var help = new MenuItem { ItemsSource = new[] { about, manual } };
 		help.Bind(MenuItem.HeaderProperty, help.GetResourceObservable("MenuHelp"));
 		var menu = new Menu { ItemsSource = new[] { file, edit, view, simulation, help } };
 		var tree = new TreeView { Width = 250, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Left };
@@ -417,6 +421,17 @@ internal sealed class MainWindow : Window
 		DockPanel.SetDock(transport, Dock.Bottom);
 		var preview = new PreviewPanel(state) { Children = { transport, pictures } };
 		Content = new DockPanel { Children = { menu, status, tree, propertyPane, preview } };
+	}
+
+	private void ShowManual()
+	{
+		if (_manual == null)
+		{
+			_manual = new ManualWindow();
+			_manual.Closed += (_, _) => _manual = null;
+			_manual.Show(this);
+		}
+		else _manual.Activate();
 	}
 
 	private async Task<(Project Project, string Name, string? Folder, string? Path)?> OpenProject()

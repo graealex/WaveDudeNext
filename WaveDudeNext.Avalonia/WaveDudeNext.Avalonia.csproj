@@ -16,5 +16,7 @@
   <ItemGroup>
     <EmbeddedResource Include="..\WaveDudeNext.WPF\Strings\Strings.*.xaml" LogicalName="Strings/%(Filename)%(Extension)" WithCulture="false" />
     <EmbeddedResource Include="..\LICENSE.md" LogicalName="Documents/LICENSE.md" />
+    <EmbeddedResource Include="..\MANUAL.md" LogicalName="Documents/MANUAL.md" />
+    <EmbeddedResource Include="..\Assets\*.svg" LogicalName="ManualFigures/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
