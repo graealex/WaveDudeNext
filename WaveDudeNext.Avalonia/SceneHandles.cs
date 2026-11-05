@@ -36,9 +36,9 @@ internal sealed class SceneHandles : Panel
 	public static readonly StyledProperty<IBrush?> SelectionBrushProperty = AvaloniaProperty.Register<SceneHandles, IBrush?>(nameof(SelectionBrush), Brushes.Yellow);
 	private readonly WindowStateModel _state;
 	private readonly ProbeLayer _layer;
-	private readonly Dictionary<(object, MarkerRole), Marker> _markers = new();
+	private readonly Dictionary<(object, MarkerRole, int), Marker> _markers = new();
 	private readonly Dictionary<Source, IReadOnlyList<SourceElement>> _emitters = new();
-	private enum MarkerRole { Centre, ProbeEnd, Angle, Grip, Surface1, Surface2 }
+	private enum MarkerRole { Centre, ProbeEnd, Angle, Grip, Surface1, Surface2, Point }
 	private static readonly IBrush Halo = new SolidColorBrush(Color.FromArgb(192, 0, 0, 0));
 
 	public SceneHandles(WindowStateModel state, ProbeLayer layer)
@@ -89,21 +89,23 @@ internal sealed class SceneHandles : Panel
 			copy.GenerateElements(_state.Project.Seed);
 			_emitters[source] = copy.Elements;
 		}
-		var wanted = new List<(object, MarkerRole)>();
-		wanted.AddRange(_state.Project.Sources.Select(s => ((object)s, MarkerRole.Centre)));
-		wanted.AddRange(_state.Project.Parts.Select(p => ((object)p, MarkerRole.Centre)));
+		var wanted = new List<(object, MarkerRole, int)>();
+		wanted.AddRange(_state.Project.Sources.Select(s => ((object)s, MarkerRole.Centre, 0)));
+		wanted.AddRange(_state.Project.Parts.Select(p => ((object)p, MarkerRole.Centre, 0)));
 		foreach (Probe probe in _state.Project.Probes.Where(p => p.Layer == _layer))
 		{
-			wanted.Add((probe, MarkerRole.Centre));
-			if (probe.Kind == ProbeKind.Line) wanted.Add((probe, MarkerRole.ProbeEnd));
+			wanted.Add((probe, MarkerRole.Centre, 0));
+			if (probe.Kind == ProbeKind.Line) wanted.Add((probe, MarkerRole.ProbeEnd, 0));
 		}
-		if (_state.SelectedItem is OpticalPart or Source { Array: not null }) wanted.Add((_state.SelectedItem, MarkerRole.Angle));
-		if (_state.SelectedItem is OpticalPart selectedPart && GripOf(selectedPart) != null) wanted.Add((selectedPart, MarkerRole.Grip));
+		if (_state.SelectedItem is OpticalPart or Source { Array: not null }) wanted.Add((_state.SelectedItem, MarkerRole.Angle, 0));
+		if (_state.SelectedItem is OpticalPart selectedPart && GripOf(selectedPart) != null) wanted.Add((selectedPart, MarkerRole.Grip, 0));
 		if (_state.SelectedItem is LensPart lens)
 		{
-			wanted.Add((lens, MarkerRole.Surface1));
-			wanted.Add((lens, MarkerRole.Surface2));
+			wanted.Add((lens, MarkerRole.Surface1, 0));
+			wanted.Add((lens, MarkerRole.Surface2, 0));
 		}
+		if (_state.SelectedItem is OutlinePart outline)
+			for (int i = 0; i < outline.Points.Count; i++) wanted.Add((outline, MarkerRole.Point, i));
 		foreach (var key in _markers.Keys.Except(wanted).ToArray())
 		{
 			Children.Remove(_markers[key]);
@@ -113,7 +115,7 @@ internal sealed class SceneHandles : Panel
 		{
 			if (!_markers.TryGetValue(key, out Marker? marker))
 			{
-				marker = new Marker(this, key.Item1, key.Item2);
+				marker = new Marker(this, key.Item1, key.Item2, key.Item3);
 				_markers.Add(key, marker);
 				Children.Add(marker);
 			}
@@ -188,7 +190,7 @@ internal sealed class SceneHandles : Panel
 	private static Point ViewDetail((double X, double Y) position, Rect rect, double scale)
 	{
 		var (x, y) = position;
-		return new Point(rect.X + (x + .5) * scale, rect.Y + (y + .5) * scale);
+		return new Point(rect.X + x * scale, rect.Y + y * scale);
 	}
 	private static void SetGrip(OpticalPart part, int canvasX, int canvasY)
 	{
@@ -287,6 +289,7 @@ internal sealed class SceneHandles : Panel
 		private readonly SceneHandles _owner;
 		private readonly object _item;
 		private readonly MarkerRole _role;
+		private readonly int _index;
 		private Point? _drag;
 		private IPointer? _pointer;
 		private (int X, int Y) _start;
@@ -294,16 +297,18 @@ internal sealed class SceneHandles : Panel
 		private (double X, double Y) _rimAnchor;
 		private (double X, double Y) _otherAnchor;
 		private double _startAngle;
-		public Marker(SceneHandles owner, object item, MarkerRole role) { _owner = owner; _item = item; _role = role; Focusable = true; }
+		public Marker(SceneHandles owner, object item, MarkerRole role, int index) { _owner = owner; _item = item; _role = role; _index = index; Focusable = true; }
 		public object Item => _item;
 		public bool IsAngle => _role == MarkerRole.Angle;
 		public bool IsGrip => _role == MarkerRole.Grip;
 		public bool IsSurface => _role is MarkerRole.Surface1 or MarkerRole.Surface2;
 		private int Surface => _role == MarkerRole.Surface1 ? 1 : 2;
-		public bool HasDetailPosition => IsGrip || IsSurface;
+		public bool IsPoint => _role == MarkerRole.Point;
+		public bool HasDetailPosition => IsGrip || IsSurface || IsPoint;
 		public (double X, double Y) DetailPosition => _item switch
 		{
 			LensPart lens when IsSurface => lens.ToCanvas(lens.VertexX(Surface), 0),
+			OutlinePart part when IsPoint && _index < part.Points.Count => part.ToCanvas(part.Points[_index].X, part.Points[_index].Y),
 			OpticalPart part when IsGrip => GripCanvas(part),
 			_ => default,
 		};
@@ -314,11 +319,11 @@ internal sealed class SceneHandles : Panel
 		public void UpdateName()
 		{
 			string name = ((WaveDudeNext.Model.INamed)_item).Name;
-			string id = _item switch { Source when IsAngle => $"SourceAngle:{name}", OpticalPart when IsAngle => $"PartAngle:{name}", OpticalPart when IsGrip => $"PartGrip:{name}", LensPart when IsSurface => $"PartSurface:{name}:{Surface}", Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_role == MarkerRole.ProbeEnd ? "B" : "A")}" };
+			string id = _item switch { Source when IsAngle => $"SourceAngle:{name}", OpticalPart when IsAngle => $"PartAngle:{name}", OpticalPart when IsGrip => $"PartGrip:{name}", LensPart when IsSurface => $"PartSurface:{name}:{Surface}", OutlinePart when IsPoint => $"PartPoint:{name}:{_index}", Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_role == MarkerRole.ProbeEnd ? "B" : "A")}" };
 			AutomationProperties.SetAutomationId(this, id);
 			AutomationProperties.SetName(this, id);
-			string format = Application.Current?.Resources.TryGetValue(IsAngle ? "TipAngleMarkerFormat" : IsGrip ? "TipGripFormat" : IsSurface ? "TipSurfaceFormat" : "TipMarkerFormat", out object? value) == true && value is string text ? text : "{0}";
-			ToolTip.SetTip(this, string.Format(CultureInfo.CurrentCulture, format, name, Surface));
+			string format = Application.Current?.Resources.TryGetValue(IsAngle ? "TipAngleMarkerFormat" : IsGrip ? "TipGripFormat" : IsSurface ? "TipSurfaceFormat" : IsPoint ? "TipPointFormat" : "TipMarkerFormat", out object? value) == true && value is string text ? text : "{0}";
+			ToolTip.SetTip(this, string.Format(CultureInfo.CurrentCulture, format, name, IsPoint ? _index : Surface));
 		}
 		private void SetPoint(int x, int y)
 		{
@@ -332,6 +337,9 @@ internal sealed class SceneHandles : Panel
 					if (_drag != null) p.SetVertex(Surface, axisX, p.ToFrame(_rimAnchor.X, _rimAnchor.Y).X, p.ToFrame(_otherAnchor.X, _otherAnchor.Y).X);
 					else p.SetVertex(Surface, axisX);
 					break;
+				case OutlinePart p when IsPoint && _index < p.Points.Count:
+					(double pointX, double pointY) = p.ToFrame(x, y);
+					p.Points[_index].X = (int)Math.Round(pointX); p.Points[_index].Y = (int)Math.Round(pointY); break;
 				case OpticalPart p when IsGrip: SetGrip(p, x, y); break;
 				case OpticalPart p: p.X = x; p.Y = y; break;
 				case Probe p when _role == MarkerRole.ProbeEnd: p.BX = x; p.BY = y; break;
