@@ -15,6 +15,8 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+// Contributors: Vinicius Miguel
+
 #version 450
 
 // One source element per work item; mutable cycle state stays with the element.
@@ -37,7 +39,7 @@ struct Emitter
 };
 layout(set = 0, binding = 0, std430) buffer Field { float u[]; };
 layout(set = 0, binding = 1, std430) buffer Emitters { Emitter emitters[]; };
-layout(push_constant) uniform Parameters { int count; float time; } p;
+layout(push_constant) uniform Parameters { int count; float time; int start; } p;
 const float pi = 3.14159265358979323846;
 
 uint xorshift32(uint x)
@@ -50,7 +52,7 @@ uint xorshift32(uint x)
 
 void main()
 {
-    int k = int(gl_GlobalInvocationID.x);
+    int k = p.start + int(gl_GlobalInvocationID.x);
     if (k >= p.count) return;
     Emitter e = emitters[k];
     float detachFade = 1.0;

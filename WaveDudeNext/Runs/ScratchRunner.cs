@@ -245,7 +245,7 @@ public sealed class ScratchRunner : IDisposable
 		(_engine as IDisposable)?.Dispose();
 		_engine = null;
 		var clock = Stopwatch.StartNew();
-		_engine = WaveEngineFactory.Create(spec.BuildScene(), spec.Engine, spec.PreferGpu, spec.Emitters, out string note);
+		_engine = WaveEngineFactory.Create(spec.BuildScene(), spec.Engine, spec.PreferGpu, spec.Emitters, out string note, spec.PreferVulkan);
 		_engineSpec = spec;
 		Logger.Debug("Preview engine: {Engine} in {Elapsed:0} ms{Note}", _engine.Description, clock.ElapsedMilliseconds, note.Length > 0 ? " (" + note + ")" : "");
 		return _engine;

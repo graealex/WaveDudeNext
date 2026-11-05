@@ -15,6 +15,8 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+// Contributors: Vinicius Miguel
+
 #version 450
 
 // One work item per image source. SceneData supplies at most one source per pixel.

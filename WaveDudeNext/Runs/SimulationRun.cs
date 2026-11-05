@@ -250,7 +250,7 @@ public sealed class SimulationRun : INotifyPropertyChanged, IDisposable
 			SceneData scene = Spec.BuildScene();
 			ProbeSampler? sampler = Spec.Probes.Length > 0 ? ProbeSampler.Build(Spec.Probes, scene.CanvasWidth, scene.CanvasHeight, scene.Rim) : null;
 			ProbeCollector? collector = sampler != null ? new ProbeCollector(sampler) : null;
-			engine = WaveEngineFactory.Create(scene, Spec.Engine, Spec.PreferGpu, Spec.Emitters, out string note);
+			engine = WaveEngineFactory.Create(scene, Spec.Engine, Spec.PreferGpu, Spec.Emitters, out string note, Spec.PreferVulkan);
 			Logger.Info("Engine: {0}", engine.Description);
 			if (note.Length > 0)
 			{

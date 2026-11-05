@@ -15,6 +15,8 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+// Contributors: Vinicius Miguel
+
 using System.Runtime.InteropServices;
 using SkiaSharp;
 using WaveDudeNext.Model;

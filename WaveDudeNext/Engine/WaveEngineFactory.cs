@@ -18,30 +18,51 @@
 namespace WaveDudeNext.Engine;
 
 /// <summary>
-/// Picks the wave engine for a run: the GPU (OpenCL) engine when requested and available, otherwise the CPU engine.
+/// Picks the requested GPU engine (OpenCL or Vulkan) when available, otherwise the CPU engine.
 /// Called by the run on its worker once per run.
 /// </summary>
 public static class WaveEngineFactory
 {
 	/// <summary>
 	/// Creates the engine for <paramref name="scene"/>. With <paramref name="preferGpu"/> set it first tries
-	/// <see cref="GpuWaveSimulator.TryCreate"/>, translating the usual OpenCL loader failures (missing, wrong-bitness or
-	/// incomplete OpenCL.dll) into a readable reason; any failure falls back to the CPU <see cref="WaveSimulator"/>.
+	/// the selected GPU backend; failure falls back to the CPU <see cref="WaveSimulator"/> with a readable reason.
 	/// Never throws for GPU problems, but CPU engine construction may still throw (e.g. out of memory).
 	/// Object sources run on either engine, the same as the image sources.
 	/// </summary>
 	/// <param name="scene">Per-pixel speed, damping and image sources of the canvas; the engine copies it into its padded grid.</param>
 	/// <param name="options">The physics options passed to the engine (frequency scale, image source amplitude, intensity tracking, Laplacian order, time decay, intensity scale).</param>
-	/// <param name="preferGpu">Try the OpenCL engine first (an application setting, not a project property).</param>
+	/// <param name="preferGpu">Try a GPU engine first (an application setting, not a project property).</param>
 	/// <param name="emitters">The emitters of the object sources to drive in addition to the image sources; may be null.</param>
 	/// <param name="note">
 	/// Receives an empty string when the GPU was not requested or the GPU engine was created; "GPU not used: reason" when the GPU
 	/// was requested but could not be used (the loader message above, or the per-device errors from <c>TryCreate</c>).
 	/// </param>
 	/// <returns>A ready engine; the caller owns and must dispose it.</returns>
-	public static IWaveEngine Create(SceneData scene, EngineOptions options, bool preferGpu, IReadOnlyList<Emitter>? emitters, out string note)
+	public static IWaveEngine Create(SceneData scene, EngineOptions options, bool preferGpu, IReadOnlyList<Emitter>? emitters, out string note) =>
+		Create(scene, options, preferGpu, emitters, out note, false);
+
+	/// <summary>Creates an engine using the selected GPU backend, with CPU fallback.</summary>
+	/// <param name="scene">The scene to simulate.</param>
+	/// <param name="options">The engine's physics settings.</param>
+	/// <param name="preferGpu">Whether to attempt GPU execution.</param>
+	/// <param name="emitters">The object emitters, or null.</param>
+	/// <param name="note">A reason when the requested GPU is not used.</param>
+	/// <param name="preferVulkan">Use Vulkan for the GPU attempt instead of OpenCL.</param>
+	public static IWaveEngine Create(SceneData scene, EngineOptions options, bool preferGpu, IReadOnlyList<Emitter>? emitters, out string note, bool preferVulkan)
 	{
 		note = "";
+		if (preferGpu && preferVulkan)
+		{
+			try
+			{
+				return new VulkanWaveSimulator(scene, options, emitters);
+			}
+			catch (Exception ex)
+			{
+				note = "GPU not used: Vulkan unavailable: " + ex.Message;
+				return new WaveSimulator(scene, options, emitters);
+			}
+		}
 		if (preferGpu)
 		{
 			string gpuMessage;

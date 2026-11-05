@@ -15,6 +15,8 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+// Contributors: Vinicius Miguel
+
 #version 450
 
 // Same 32 x 8 work groups and padded-grid layout as the existing engines.

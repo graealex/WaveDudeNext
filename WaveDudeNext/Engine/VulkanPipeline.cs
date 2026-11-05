@@ -15,6 +15,8 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+// Contributors: Vinicius Miguel
+
 using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 
@@ -138,35 +140,22 @@ internal sealed unsafe class VulkanPipeline : IDisposable
 		}
 	}
 
-	/// <summary>Dispatches one grid and waits for it; the caller may then read mapped buffers.</summary>
-	public void Dispatch<T>(in T parameters, uint groupsX, uint groupsY = 1) where T : unmanaged
+	/// <summary>Records a dispatch and a compute memory barrier into an open command buffer.</summary>
+	public void Record<T>(CommandBuffer command, in T parameters, uint groupsX, uint groupsY = 1) where T : unmanaged
 	{
 		ObjectDisposedException.ThrowIf(_disposed, this);
 		if (sizeof(T) != _pushSize || groupsX == 0 || groupsY == 0)
 		{
 			throw new ArgumentException("The push constants or grid do not match the pipeline.");
 		}
-		var allocate = new CommandBufferAllocateInfo { SType = StructureType.CommandBufferAllocateInfo, CommandPool = _context.Pool, Level = CommandBufferLevel.Primary, CommandBufferCount = 1 };
-		VulkanComputeContext.Check(_context.Api.AllocateCommandBuffers(_context.Device, in allocate, out CommandBuffer command), "allocate command buffer");
-		try
-		{
-			var begin = new CommandBufferBeginInfo { SType = StructureType.CommandBufferBeginInfo };
-			VulkanComputeContext.Check(_context.Api.BeginCommandBuffer(command, in begin), "begin command buffer");
-			_context.Api.CmdBindPipeline(command, PipelineBindPoint.Compute, _pipeline);
-			DescriptorSet set = _set;
-			_context.Api.CmdBindDescriptorSets(command, PipelineBindPoint.Compute, _layout, 0, 1, &set, 0, (uint*)null);
-			T copy = parameters;
-			_context.Api.CmdPushConstants(command, _layout, ShaderStageFlags.ComputeBit, 0, _pushSize, &copy);
-			_context.Api.CmdDispatch(command, groupsX, groupsY, 1);
-			VulkanComputeContext.Check(_context.Api.EndCommandBuffer(command), "end command buffer");
-			var submit = new SubmitInfo { SType = StructureType.SubmitInfo, CommandBufferCount = 1, PCommandBuffers = &command };
-			VulkanComputeContext.Check(_context.Api.QueueSubmit(_context.Queue, 1, in submit, default), "submit compute work");
-			VulkanComputeContext.Check(_context.Api.QueueWaitIdle(_context.Queue), "wait for compute work");
-		}
-		finally
-		{
-			_context.Api.FreeCommandBuffers(_context.Device, _context.Pool, 1, in command);
-		}
+		_context.Api.CmdBindPipeline(command, PipelineBindPoint.Compute, _pipeline);
+		DescriptorSet set = _set;
+		_context.Api.CmdBindDescriptorSets(command, PipelineBindPoint.Compute, _layout, 0, 1, &set, 0, (uint*)null);
+		T copy = parameters;
+		_context.Api.CmdPushConstants(command, _layout, ShaderStageFlags.ComputeBit, 0, _pushSize, &copy);
+		_context.Api.CmdDispatch(command, groupsX, groupsY, 1);
+		var barrier = new MemoryBarrier { SType = StructureType.MemoryBarrier, SrcAccessMask = AccessFlags.ShaderWriteBit, DstAccessMask = AccessFlags.ShaderReadBit | AccessFlags.ShaderWriteBit };
+		_context.Api.CmdPipelineBarrier(command, PipelineStageFlags.ComputeShaderBit, PipelineStageFlags.ComputeShaderBit, 0, 1, &barrier, 0, (BufferMemoryBarrier*)null, 0, (ImageMemoryBarrier*)null);
 	}
 
 	/// <summary>Releases the pipeline and its descriptors.</summary>

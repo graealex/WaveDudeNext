@@ -27,7 +27,7 @@ namespace WaveDudeNext.Runs;
 public sealed class RunSpecException(string message) : Exception(message);
 
 /// <summary>
-/// Everything a run needs, snapshotted from the <see cref="Project"/> on the UI thread by <see cref="Create"/>
+/// Everything a run needs, snapshotted from the <see cref="Project"/> on the UI thread by <c>Create</c>
 /// so the worker never touches the (UI-thread-only) model and later edits do not affect a run in progress.
 /// Immutable; shared read-only by the worker and the UI.
 /// </summary>
@@ -40,7 +40,7 @@ public sealed class RunSpec
 {
 	private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-	private RunSpec(Project project, ScenePixels? image, int width, int height, bool trackIntensity, bool preferGpu, PreviewQuality quality)
+	private RunSpec(Project project, ScenePixels? image, int width, int height, bool trackIntensity, bool preferGpu, PreviewQuality quality, bool preferVulkan)
 	{
 		Seed = project.Seed;
 		Steps = project.Simulation.Steps;
@@ -48,6 +48,7 @@ public sealed class RunSpec
 		VisualizeEvery = Math.Max(1, project.Simulation.VisualizeEvery);
 		Shape = new FrameShape(width, height, quality.ResolutionDivisor, quality.Format, (float)project.Display.Field.Brightness, (float)project.Display.Intensity.Brightness, quality.IntensityRoot);
 		PreferGpu = preferGpu;
+		PreferVulkan = preferVulkan;
 		Engine = EngineOptions.From(project.Simulation, project.Scene, trackIntensity);
 		Image = image;
 		Width = width;
@@ -106,8 +107,11 @@ public sealed class RunSpec
 	/// <summary>The frames' geometry and format: the canvas shrunk by the quality's resolution divisor, in its sample format, with the display brightness of the moment for index frames.</summary>
 	public FrameShape Shape { get; }
 
-	/// <summary>Try the OpenCL engine first; an application setting, not part of the project.</summary>
+	/// <summary>Try the selected GPU engine first; an application setting, not part of the project.</summary>
 	public bool PreferGpu { get; }
+
+	/// <summary>Try Vulkan rather than OpenCL when the GPU is requested.</summary>
+	public bool PreferVulkan { get; }
 
 	/// <summary>The physics options the engine is created with.</summary>
 	public EngineOptions Engine { get; }
@@ -154,11 +158,21 @@ public sealed class RunSpec
 	/// </summary>
 	/// <param name="project">The project to run; not modified beyond the emitter regeneration.</param>
 	/// <param name="image">The scene pixels: the decoded image when <see cref="Scene.Mode"/> is <see cref="SceneMode.Image"/>, with the optical parts painted in; for a canvas scene, the parts painted on a blank canvas of the scene's size, or null without parts (a canvas of another size is ignored).</param>
-	/// <param name="preferGpu">Try the OpenCL engine first (the application's choice; the CPU is the fallback either way).</param>
+	/// <param name="preferGpu">Try the selected GPU engine first (the application's choice; the CPU is the fallback either way).</param>
 	/// <param name="trackIntensity">Store the intensity plane even when nothing in the project needs it (an export of the intensity asks for it).</param>
 	/// <param name="quality">How much of the run to keep (the application's preview setting); null is <see cref="PreviewQuality.Full"/>.</param>
 	/// <exception cref="RunSpecException">The project cannot run: no image for an image scene, or no steps.</exception>
-	public static RunSpec Create(Project project, ScenePixels? image, bool preferGpu = true, bool trackIntensity = false, PreviewQuality? quality = null)
+	public static RunSpec Create(Project project, ScenePixels? image, bool preferGpu = true, bool trackIntensity = false, PreviewQuality? quality = null) =>
+		Create(project, image, preferGpu, trackIntensity, quality, false);
+
+	/// <summary>Snapshots a project for a run with an explicit GPU backend choice. UI thread.</summary>
+	/// <param name="project">The project to snapshot.</param>
+	/// <param name="image">The composed scene pixels, or null for a blank canvas.</param>
+	/// <param name="preferGpu">Whether to attempt GPU execution.</param>
+	/// <param name="trackIntensity">Whether to force intensity tracking.</param>
+	/// <param name="quality">The preview quality, or null for full quality.</param>
+	/// <param name="preferVulkan">Use Vulkan for the GPU attempt instead of OpenCL.</param>
+	public static RunSpec Create(Project project, ScenePixels? image, bool preferGpu, bool trackIntensity, PreviewQuality? quality, bool preferVulkan)
 	{
 		project.Normalize();
 		if (project.Simulation.Steps < 1)
@@ -191,7 +205,7 @@ public sealed class RunSpec
 		}
 		trackIntensity |= project.Display.Intensity.Preview
 			|| project.Probes.Any(probe => probe.Active && probe.Measurement != ProbeMeasurement.Amplitude);
-		return new RunSpec(project, image, width, height, trackIntensity, preferGpu, quality ?? PreviewQuality.Full);
+		return new RunSpec(project, image, width, height, trackIntensity, preferGpu, quality ?? PreviewQuality.Full, preferVulkan);
 	}
 
 	/// <summary>
@@ -200,14 +214,14 @@ public sealed class RunSpec
 	/// </summary>
 	public bool SameSceneAs(RunSpec other) =>
 		Width == other.Width && Height == other.Height && ReferenceEquals(Image, other.Image) && DampingEdge == other.DampingEdge && Edges == other.Edges
-		&& RefractiveIndex == other.RefractiveIndex && ImageSources == other.ImageSources && Engine == other.Engine && PreferGpu == other.PreferGpu;
+		&& RefractiveIndex == other.RefractiveIndex && ImageSources == other.ImageSources && Engine == other.Engine && PreferGpu == other.PreferGpu && PreferVulkan == other.PreferVulkan;
 
 	/// <summary>Whether the object sources are the same emitters, value for value.</summary>
 	public bool SameEmittersAs(RunSpec other) => Emitters.AsSpan().SequenceEqual(other.Emitters.AsSpan());
 
 	/// <summary>Whether the engine built for <paramref name="other"/> can take this spec's scene through <see cref="Engine.IWaveEngine.TryReplaceScene"/>: the same grid, edges, options and engine choice, the scene's pixels or background aside.</summary>
 	public bool SameGridAs(RunSpec other) =>
-		Width == other.Width && Height == other.Height && DampingEdge == other.DampingEdge && Edges == other.Edges && Engine == other.Engine && PreferGpu == other.PreferGpu;
+		Width == other.Width && Height == other.Height && DampingEdge == other.DampingEdge && Edges == other.Edges && Engine == other.Engine && PreferGpu == other.PreferGpu && PreferVulkan == other.PreferVulkan;
 
 	/// <summary>Builds the engine's scene input from the snapshot. Worker; allocates the per-pixel maps.</summary>
 	internal SceneData BuildScene() => Image is { } image

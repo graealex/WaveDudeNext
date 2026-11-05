@@ -15,6 +15,8 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+// Contributors: Vinicius Miguel
+
 using System.Runtime.InteropServices;
 using WaveDudeNext.Model;
 using WaveDudeNext.Probes;
@@ -42,6 +44,7 @@ internal sealed class VulkanWaveStepper : IDisposable
 	private VulkanBuffer? _objectBuffer;
 	private byte[]? _initialObjectState;
 	private int _objectCount;
+	private bool _overlappingObjects;
 	private readonly double _sourceFrequencyScale;
 	private readonly int _sourceCount;
 	private readonly float _sourceAmplitude;
@@ -159,6 +162,8 @@ internal sealed class VulkanWaveStepper : IDisposable
 	public Span<float> StageTwo => MemoryMarshal.Cast<byte, float>(_stageTwo.Bytes);
 	/// <summary>Name of the selected device.</summary>
 	public string DeviceName => _context.Name;
+	/// <summary>Sub-steps per simulation step for the current scene.</summary>
+	public int SubSteps => _subSteps;
 
 
 	/// <summary>Replaces a compatible scene and resets the simulation without rebuilding its pipelines.</summary>
@@ -390,6 +395,7 @@ internal sealed class VulkanWaveStepper : IDisposable
 		_objectBuffer = newBuffer;
 		_initialObjectState = initial;
 		_objectCount = active.Length;
+		_overlappingObjects = active.Select(source => (source.X, source.Y)).Distinct().Count() != active.Length;
 		_alpha = intensityAlpha;
 	}
 
@@ -463,28 +469,46 @@ internal sealed class VulkanWaveStepper : IDisposable
 	public void AdvanceOneStep()
 	{
 		ObjectDisposedException.ThrowIf(_disposed, this);
-		if (_imageSources != null)
+		int current = _current;
+		_context.Execute(command =>
 		{
-			var sources = new ImageSourceParameters { Count = _sourceCount, Time = (float)_time, Amplitude = _sourceAmplitude };
-			_imageSources[_current].Dispatch(in sources, (uint)((_sourceCount + 63) / 64));
-		}
-		if (_objectSources != null)
-		{
-			var sources = new ObjectSourceParameters { Count = _objectCount, Time = (float)_time };
-			_objectSources[_current].Dispatch(in sources, (uint)((_objectCount + 63) / 64));
-		}
-		for (int sub = 0; sub < _subSteps; sub++)
-		{
-			var parameters = new Parameters
+			if (_imageSources != null)
 			{
-				Width = _width, Height = _height, Stride = _stride,
-				TrackIntensity = _trackIntensity && sub == _subSteps - 1 ? 1 : 0,
-				SpeedScale = _speedScale, IntensityAlpha = _alpha,
-			};
-			_step[_current].Dispatch(in parameters, (uint)((_width + 31) / 32), (uint)((_height + 7) / 8));
-			_edges?[_current].Dispatch(in parameters, (uint)((_width + 2 + _height + 63) / 64));
-			_current = 1 - _current;
-		}
+				var sources = new ImageSourceParameters { Count = _sourceCount, Time = (float)_time, Amplitude = _sourceAmplitude };
+				_imageSources[current].Record(command, in sources, (uint)((_sourceCount + 63) / 64));
+			}
+			if (_objectSources != null)
+			{
+				var sources = new ObjectSourceParameters { Count = _objectCount, Time = (float)_time };
+				if (_overlappingObjects)
+				{
+					// Sources blend in project order when they share a pixel, as on the CPU.
+					for (int i = 0; i < _objectCount; i++)
+					{
+						sources.Start = i;
+						sources.Count = i + 1;
+						_objectSources[current].Record(command, in sources, 1);
+					}
+				}
+				else
+				{
+					_objectSources[current].Record(command, in sources, (uint)((_objectCount + 63) / 64));
+				}
+			}
+			for (int sub = 0; sub < _subSteps; sub++)
+			{
+				var parameters = new Parameters
+				{
+					Width = _width, Height = _height, Stride = _stride,
+					TrackIntensity = _trackIntensity && sub == _subSteps - 1 ? 1 : 0,
+					SpeedScale = _speedScale, IntensityAlpha = _alpha,
+				};
+				_step[current].Record(command, in parameters, (uint)((_width + 31) / 32), (uint)((_height + 7) / 8));
+				_edges?[current].Record(command, in parameters, (uint)((_width + 2 + _height + 63) / 64));
+				current = 1 - current;
+			}
+		});
+		_current = current;
 		_time += 1;
 	}
 
@@ -531,6 +555,7 @@ internal sealed class VulkanWaveStepper : IDisposable
 	{
 		public int Count;
 		public float Time;
+		public int Start;
 	}
 
 	[StructLayout(LayoutKind.Sequential)]

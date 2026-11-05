@@ -15,6 +15,8 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+// Contributors: Vinicius Miguel
+
 using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 
@@ -178,6 +180,30 @@ internal sealed unsafe class VulkanComputeContext : IDisposable
 	}
 
 	private static string? ExtensionName(ExtensionProperties extension) => Marshal.PtrToStringUTF8((IntPtr)extension.ExtensionName);
+
+	/// <summary>Records and submits one command buffer, waiting before returning.</summary>
+	public void Execute(Action<CommandBuffer> record)
+	{
+		ObjectDisposedException.ThrowIf(_disposed, this);
+		var allocate = new CommandBufferAllocateInfo { SType = StructureType.CommandBufferAllocateInfo, CommandPool = _pool, Level = CommandBufferLevel.Primary, CommandBufferCount = 1 };
+		Check(_vk.AllocateCommandBuffers(_device, in allocate, out CommandBuffer command), "allocate command buffer");
+		try
+		{
+			var begin = new CommandBufferBeginInfo { SType = StructureType.CommandBufferBeginInfo };
+			Check(_vk.BeginCommandBuffer(command, in begin), "begin command buffer");
+			record(command);
+			var hostBarrier = new MemoryBarrier { SType = StructureType.MemoryBarrier, SrcAccessMask = AccessFlags.ShaderWriteBit, DstAccessMask = AccessFlags.HostReadBit };
+			_vk.CmdPipelineBarrier(command, PipelineStageFlags.ComputeShaderBit, PipelineStageFlags.HostBit, 0, 1, &hostBarrier, 0, (BufferMemoryBarrier*)null, 0, (ImageMemoryBarrier*)null);
+			Check(_vk.EndCommandBuffer(command), "end command buffer");
+			var submit = new SubmitInfo { SType = StructureType.SubmitInfo, CommandBufferCount = 1, PCommandBuffers = &command };
+			Check(_vk.QueueSubmit(Queue, 1, in submit, default), "submit compute work");
+			Check(_vk.QueueWaitIdle(Queue), "wait for compute work");
+		}
+		finally
+		{
+			_vk.FreeCommandBuffers(_device, _pool, 1, in command);
+		}
+	}
 
 	/// <summary>Throws a diagnostic when a Vulkan call fails.</summary>
 	public static void Check(Result result, string operation)

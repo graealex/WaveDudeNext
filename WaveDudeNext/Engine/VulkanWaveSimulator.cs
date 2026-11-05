@@ -15,7 +15,10 @@
 // version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 // <https://www.gnu.org/licenses/>.
 
+// Contributors: Vinicius Miguel
+
 using WaveDudeNext.Probes;
+using NLog;
 
 namespace WaveDudeNext.Engine;
 
@@ -23,6 +26,7 @@ namespace WaveDudeNext.Engine;
 /// <remarks>Captures and probes use host-visible memory. Each Vulkan dispatch currently waits for completion.</remarks>
 internal sealed class VulkanWaveSimulator : IWaveEngine, IDisposable
 {
+	private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 	private readonly EngineOptions _options;
 	private readonly VulkanWaveStepper _stepper;
 	private SceneData _scene;
@@ -40,6 +44,8 @@ internal sealed class VulkanWaveSimulator : IWaveEngine, IDisposable
 		_field = new float[checked((scene.Width + 2) * (scene.Height + 2))];
 		_intensity = options.TrackIntensity ? new float[_field.Length] : null;
 		_stepper = new VulkanWaveStepper(scene, options.FourthOrderLaplacian, options.TrackIntensity, Retention(scene, _emitters), options.SourceFrequencyScale, options.SourceAmplitude, _emitters, options.IntensityScale);
+		Logger.Debug("Vulkan engine built on {Device}: grid {Width} × {Height} (canvas {CanvasWidth} × {CanvasHeight}, rim {Rim}, {Edges}), stride {Stride}, {Stencil}, work group 32 × 8",
+			_stepper.DeviceName, scene.Width, scene.Height, scene.CanvasWidth, scene.CanvasHeight, scene.Rim, scene.OpenEdges ? "open" : "reflective", scene.Width + 2, WaveSimulator.StencilText(options.FourthOrderLaplacian, _stepper.SubSteps));
 	}
 
 	/// <inheritdoc/>
@@ -132,10 +138,6 @@ internal sealed class VulkanWaveSimulator : IWaveEngine, IDisposable
 	private static Emitter[] FilterEmitters(SceneData scene, IReadOnlyList<Emitter>? emitters)
 	{
 		Emitter[] filtered = emitters?.Where(source => source.X >= 0 && source.Y >= 0 && source.X < scene.CanvasWidth && source.Y < scene.CanvasHeight).ToArray() ?? [];
-		if (filtered.Select(source => (source.X, source.Y)).Distinct().Count() != filtered.Length)
-		{
-			throw new NotSupportedException("The Vulkan engine cannot yet order overlapping object sources.");
-		}
 		return filtered;
 	}
 
