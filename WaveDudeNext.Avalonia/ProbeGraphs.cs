@@ -190,7 +190,7 @@ internal sealed class ProbeGraphs : Panel
 		private static readonly IBrush Grid = new SolidColorBrush(Color.FromArgb(46, 255, 255, 255));
 		private static readonly IBrush Curve = new SolidColorBrush(Color.FromRgb(255, 208, 64));
 		private static readonly Typeface Font = new("Segoe UI");
-		public GraphBox(ProbeGraphs owner, Probe probe) : base(owner, probe) { Focusable = true; }
+		public GraphBox(ProbeGraphs owner, Probe probe) : base(owner, probe) { Focusable = true; ContextMenu = owner._state.ProbeCsvMenu(probe); }
 		protected override bool IsCorner => false;
 		private static FormattedText Text(string text, IBrush brush) => new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Font, 11, brush);
 		public override void Render(DrawingContext context)

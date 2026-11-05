@@ -627,7 +627,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		SaveAsCommand = new OpenCommand(() => Save(true));
 		BrowseImageCommand = new OpenCommand(BrowseSceneImage);
 		SaveImageCommand = new OpenCommand(SaveEmbeddedImage);
-		ExportProbeCsvCommand = new OpenCommand(ExportProbeCsv, () => SelectedItem is Probe { Active: true } && Project.Simulation.Steps > 0);
+		ExportProbeCsvCommand = new AsyncParameterCommand(ExportProbeCsv, parameter => (parameter ?? SelectedItem) is Probe { Active: true } && Project.Simulation.Steps > 0);
 		RemoveImageCommand = new ControlCommand(RemoveSceneImage, () => Project.Scene.ImageData != null || Project.Scene.Image.Length > 0 || Project.Scene.ImagePath.Length > 0);
 		RunCommand = new OpenCommand(() => StartRun());
 		PlayPauseCommand = new OpenCommand(TogglePlayback);
@@ -697,7 +697,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			Changed(nameof(SelectedItem));
 			PropertyRows = BuildPropertyRows(value?.Tag);
 			((ControlCommand)RemoveCommand).Refresh();
-			((OpenCommand)ExportProbeCsvCommand).Refresh();
+			((AsyncParameterCommand)ExportProbeCsvCommand).Refresh();
 		}
 	}
 	/// <summary>The selected project object, if any.</summary>
@@ -1238,9 +1238,9 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		catch (Exception ex) { LogManager.GetCurrentClassLogger().Error(ex, "The scene image could not be saved"); Status = ex.Message; }
 	}
 
-	private async Task ExportProbeCsv()
+	private async Task ExportProbeCsv(object? parameter)
 	{
-		if (SelectedItem is not Probe { Active: true } probe) return;
+		if ((parameter ?? SelectedItem) is not Probe { Active: true } probe) return;
 		try
 		{
 			int generation = _editGeneration;
@@ -1631,12 +1631,13 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private void RefreshTree()
 	{
 		object? selected = SelectedNode?.Tag;
-		static TreeViewItem Group(string key, object? value, IEnumerable<object> children)
+		TreeViewItem Group(string key, object? value, IEnumerable<object> children)
 		{
 			var item = new TreeViewItem { Tag = value, ItemsSource = children.Select(child =>
 			{
 				var row = new TreeViewItem { Tag = child };
 				row.Bind(HeaderedItemsControl.HeaderProperty, new Binding("Name") { Source = child });
+				if (child is Probe probe) row.ContextMenu = ProbeCsvMenu(probe);
 				return row;
 			}).ToArray() };
 			item.Bind(TreeViewItem.HeaderProperty, item.GetResourceObservable(key));
@@ -1653,6 +1654,14 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			Group("TreeColorSchemes", null, Project.ColorSchemes.Cast<object>()),
 		];
 		if (selected != null) SelectItem(selected);
+	}
+
+	internal ContextMenu ProbeCsvMenu(Probe probe)
+	{
+		var export = new MenuItem { Command = ExportProbeCsvCommand, CommandParameter = probe };
+		export.Bind(HeaderedItemsControl.HeaderProperty, export.GetResourceObservable("MenuExportProbeCsv"));
+		AutomationProperties.SetAutomationId(export, "ContextExportProbeCsv");
+		return new ContextMenu { Items = { export } };
 	}
 
 	private (int X, int Y) CanvasCentre() => ((_canvasWidth > 0 ? _canvasWidth : Project.Scene.Width) / 2, (_canvasHeight > 0 ? _canvasHeight : Project.Scene.Height) / 2);
@@ -1704,7 +1713,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private void ProjectChanged(object? sender, ProjectChange change)
 	{
 		SceneVisualChanged?.Invoke(this, change);
-		if (ReferenceEquals(change.Item, SelectedItem) && change.Property == nameof(Probe.Active) || change.Item is Simulation && change.Property == nameof(Simulation.Steps)) ((OpenCommand)ExportProbeCsvCommand).Refresh();
+		if (change.Item is Probe && change.Property == nameof(Probe.Active) || change.Item is Simulation && change.Property == nameof(Simulation.Steps)) ((AsyncParameterCommand)ExportProbeCsvCommand).Refresh();
 		if (change.Item is Scene)
 		{
 			if (change.Property is nameof(Scene.Edges) or nameof(Scene.HasRim) or nameof(Scene.DampingEdge)) Changed(nameof(EdgeBrush));
@@ -2194,6 +2203,27 @@ internal sealed class OpenCommand(Func<Task> execute, Func<bool>? canExecute = n
 		CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 		try { await execute(); }
 		finally { _running = false; CanExecuteChanged?.Invoke(this, EventArgs.Empty); }
+	}
+	/// <summary>Notifies controls that the command's availability changed.</summary>
+	public void Refresh() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+}
+
+/// <summary>An asynchronous parameterised command that admits one invocation at a time.</summary>
+internal sealed class AsyncParameterCommand(Func<object?, Task> execute, Func<object?, bool> canExecute) : ICommand
+{
+	private bool _running;
+	/// <inheritdoc/>
+	public event EventHandler? CanExecuteChanged;
+	/// <inheritdoc/>
+	public bool CanExecute(object? parameter) => !_running && canExecute(parameter);
+	/// <inheritdoc/>
+	public async void Execute(object? parameter)
+	{
+		if (!CanExecute(parameter)) return;
+		_running = true;
+		Refresh();
+		try { await execute(parameter); }
+		finally { _running = false; Refresh(); }
 	}
 	/// <summary>Notifies controls that the command's availability changed.</summary>
 	public void Refresh() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
