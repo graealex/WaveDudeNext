@@ -37,6 +37,7 @@ using Avalonia.Data.Converters;
 using Avalonia.Platform.Storage;
 using Avalonia.Platform;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
@@ -114,6 +115,9 @@ internal sealed class MainWindow : Window
 		Width = 1000;
 		Height = 700;
 		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, quality) => new MemoryWarningWindow(spec, budget, budget, quality).ShowDialog<MemoryWarningChoice?>(this));
+		AddHandler(InputElement.PointerPressedEvent, (_, _) => state.PointerDown = true, RoutingStrategies.Tunnel);
+		AddHandler(InputElement.PointerReleasedEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
+		AddHandler(InputElement.PointerCaptureLostEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
 		Opened += (_, _) => state.Initialise();
 		bool closeApproved = false, confirmingClose = false;
 		Closing += async (_, e) =>
@@ -180,7 +184,11 @@ internal sealed class MainWindow : Window
 			ActionItem("MenuAddOrGate", state.AddPartCommand, typeof(OrGatePart)),
 		} };
 		parts.Bind(MenuItem.HeaderProperty, parts.GetResourceObservable("MenuProjectAddPart"));
-		var edit = new MenuItem { ItemsSource = new[] { ActionItem("MenuProjectAddSource", state.AddSourceCommand), ActionItem("MenuProjectAddProbe", state.AddProbeCommand), parts, ActionItem("MenuProjectRemove", state.RemoveCommand) } };
+		var undo = ActionItem("MenuEditUndo", state.UndoCommand);
+		undo.InputGesture = new KeyGesture(Key.Z, KeyModifiers.Control);
+		var redo = ActionItem("MenuEditRedo", state.RedoCommand);
+		redo.InputGesture = new KeyGesture(Key.Y, KeyModifiers.Control);
+		var edit = new MenuItem { ItemsSource = new[] { undo, redo, ActionItem("MenuProjectAddSource", state.AddSourceCommand), ActionItem("MenuProjectAddProbe", state.AddProbeCommand), parts, ActionItem("MenuProjectRemove", state.RemoveCommand) } };
 		edit.Bind(MenuItem.HeaderProperty, edit.GetResourceObservable("MenuEdit"));
 		var menu = new Menu { ItemsSource = new[] { file, edit, simulation } };
 		var tree = new TreeView { Width = 250, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Left };
@@ -467,6 +475,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private DispatcherTimer? _imageDelay;
 	private int _imageGeneration;
 	private bool _sceneImageFileMissing;
+	private ProjectHistory? _history;
+	private DispatcherTimer? _recordDelay;
+	private bool _recordPending;
+	private bool _restoring;
 
 	/// <summary>Creates state for a new project.</summary>
 	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<string, byte[], Task> saveImage, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
@@ -497,6 +509,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		AddProbeCommand = new ControlCommand(() => { (int x, int y) = CanvasCentre(); SelectItem(Project.AddProbe(x, y)); }, () => true);
 		AddPartCommand = new ParameterCommand(value => { if (value is Type type) { (int x, int y) = CanvasCentre(); SelectItem(Project.AddPart(type, x, y)); } });
 		RemoveCommand = new ControlCommand(RemoveSelected, () => SelectedNode?.Tag is Source or OpticalPart or Probe or ColorScheme);
+		UndoCommand = new ControlCommand(() => MoveHistory(false), () => _history != null && (_history.CanUndo || _recordPending));
+		RedoCommand = new ControlCommand(() => MoveHistory(true), () => _history?.CanRedo == true && !_recordPending);
 		SetProject(_project);
 	}
 
@@ -561,6 +575,12 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand AddPartCommand { get; }
 	/// <summary>Removes the selected project item.</summary>
 	public ICommand RemoveCommand { get; }
+	/// <summary>Restores the preceding project edit.</summary>
+	public ICommand UndoCommand { get; }
+	/// <summary>Restores the next project edit.</summary>
+	public ICommand RedoCommand { get; }
+	/// <summary>Whether a pointer button is held during a project edit.</summary>
+	public bool PointerDown { get; set; }
 	/// <summary>Whether the timeline is playing.</summary>
 	public bool IsPlaying { get => _isPlaying; private set { _isPlaying = value; Changed(); } }
 	/// <summary>Whether playback wraps over the export range.</summary>
@@ -611,6 +631,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_editGeneration++;
 		_scratchDelay?.Stop();
 		_rerunDelay?.Stop();
+		_recordDelay?.Stop();
 		_watcher?.Dispose();
 		DisarmImageWatch();
 		StopPlayback();
@@ -888,6 +909,11 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			ArmImageWatch();
 			_projectName = Path.GetFileName(path);
 			_dirty = false;
+			_recordDelay?.Stop();
+			_recordPending = false;
+			_history?.Record();
+			_history?.MarkSaved();
+			RefreshHistoryCommands();
 			UpdateTitle();
 		}
 		catch (Exception ex)
@@ -1073,10 +1099,14 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void SetProject(Project project)
 	{
+		_recordDelay?.Stop();
+		_recordPending = false;
 		DisarmImageWatch();
 		_watcher?.Dispose();
 		SelectedNode = null;
 		Project = project;
+		_history = new ProjectHistory(project);
+		RefreshHistoryCommands();
 		Changed(nameof(HasEmbeddedImage));
 		_canvasWidth = 0;
 		_canvasHeight = 0;
@@ -1260,6 +1290,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		{
 			_dirty = true;
 			UpdateTitle();
+			if (!_restoring) ScheduleHistoryRecord();
 		}
 		if (change.Item is Source && change.Property == nameof(Source.Array) && ReferenceEquals(SelectedNode?.Tag, change.Item))
 		{
@@ -1288,6 +1319,75 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_scratchDelay.Stop();
 		_scratchDelay.Start();
 		if (_runStale) ScheduleRerun();
+	}
+
+	private void ScheduleHistoryRecord()
+	{
+		_recordPending = true;
+		_recordDelay ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+		_recordDelay.Tick -= OnHistoryDelay;
+		_recordDelay.Tick += OnHistoryDelay;
+		_recordDelay.Stop();
+		_recordDelay.Start();
+		RefreshHistoryCommands();
+	}
+
+	private void OnHistoryDelay(object? sender, EventArgs e)
+	{
+		if (!PointerDown) RecordHistory();
+	}
+
+	private void RecordHistory()
+	{
+		_recordDelay?.Stop();
+		if (!_recordPending || _history == null) return;
+		_recordPending = false;
+		try
+		{
+			_history.Record();
+			_dirty = !_history.IsAtSaved;
+			UpdateTitle();
+		}
+		catch (Exception ex) { LogManager.GetCurrentClassLogger().Error(ex, "Could not record the project edit"); Status = ex.Message; }
+		RefreshHistoryCommands();
+	}
+
+	private void RefreshHistoryCommands()
+	{
+		((ControlCommand)UndoCommand).Refresh();
+		((ControlCommand)RedoCommand).Refresh();
+	}
+
+	private void MoveHistory(bool redo)
+	{
+		RecordHistory();
+		if (_history == null) return;
+		object? previous = SelectedNode?.Tag;
+		IList? list = previous switch { Source => Project.Sources, OpticalPart => Project.Parts, Probe => Project.Probes, ColorScheme => Project.ColorSchemes, _ => null };
+		int index = previous != null && list != null ? list.IndexOf(previous) : -1;
+		string? name = (previous as WaveDudeNext.Model.INamed)?.Name;
+		try
+		{
+			_restoring = true;
+			if (!(redo ? _history.Redo() : _history.Undo())) return;
+		}
+		catch (Exception ex) { LogManager.GetCurrentClassLogger().Error(ex, "Could not restore a project edit"); Status = ex.Message; return; }
+		finally { _restoring = false; }
+		RefreshTree();
+		object? restored = previous switch
+		{
+			Scene => Project.Scene,
+			Simulation => Project.Simulation,
+			Display => Project.Display,
+			_ when list != null => list.Cast<object>().FirstOrDefault(item => item is WaveDudeNext.Model.INamed named && named.Name == name) ?? (index >= 0 && index < list.Count ? list[index] : null),
+			_ => null,
+		};
+		if (restored != null) SelectItem(restored);
+		else SelectedNode = null;
+		ArmImageWatch();
+		_dirty = !_history.IsAtSaved;
+		UpdateTitle();
+		RefreshHistoryCommands();
 	}
 
 	private void RefreshDisplayedFrame()
