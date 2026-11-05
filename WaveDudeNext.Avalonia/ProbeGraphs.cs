@@ -77,9 +77,16 @@ internal sealed class ProbeGraphs : Panel
 			AutomationProperties.SetAutomationId(pair.Corner, "ProbeBoxCorner:" + probe.Name);
 			AutomationProperties.SetName(pair.Box, probe.Name);
 			AutomationProperties.SetName(pair.Corner, probe.Name);
+			SetTip(pair.Box, "TipProbeBoxFormat", probe.Name);
+			SetTip(pair.Corner, "TipProbeBoxCornerFormat", probe.Name);
 			pair.Box.InvalidateVisual(); pair.Corner.InvalidateVisual();
 		}
 		InvalidateMeasure();
+	}
+	private static void SetTip(Control control, string key, string name)
+	{
+		string format = Application.Current?.Resources.TryGetValue(key, out object? value) == true && value is string text ? text : "{0}";
+		ToolTip.SetTip(control, string.Format(CultureInfo.CurrentCulture, format, name));
 	}
 	private (Rect Rect, double Scale) Canvas(Size size)
 	{
@@ -210,11 +217,30 @@ internal sealed class ProbeGraphs : Panel
 				using (context.PushClip(new Rect(graph.PlotX, graph.PlotY, graph.PlotWidth, graph.PlotHeight)))
 				{
 					if (graph.Curve.Length == 1) context.DrawEllipse(Curve, null, new Point(graph.Curve[0].X, graph.Curve[0].Y), 2, 2);
-					for (int i = 1; i < graph.Curve.Length; i++) context.DrawLine(new Pen(Curve, graph.LineWidth), new Point(graph.Curve[i - 1].X, graph.Curve[i - 1].Y), new Point(graph.Curve[i].X, graph.Curve[i].Y));
+					if (graph.Curve.Length > 1)
+					{
+						var geometry = new StreamGeometry();
+						using (StreamGeometryContext path = geometry.Open())
+						{
+							path.BeginFigure(new Point(graph.Curve[0].X, graph.Curve[0].Y), false);
+							for (int i = 1; i < graph.Curve.Length; i++) path.LineTo(new Point(graph.Curve[i].X, graph.Curve[i].Y));
+							path.EndFigure(false);
+						}
+						context.DrawGeometry(null, new Pen(Curve, graph.LineWidth), geometry);
+					}
 				}
 			}
-			context.DrawText(Text(graph.Title, Brushes.White), new Point(6, graph.TitleTop));
-			if (graph.Readout.Length > 0) { var readout = Text(graph.Readout, Curve); context.DrawText(readout, new Point(Math.Max(0, graph.Width - readout.Width - 8), graph.TitleTop)); }
+			FormattedText? readout = graph.Readout.Length > 0 ? Text(graph.Readout, Curve) : null;
+			double titleWidth = Math.Max(0, graph.Width - (readout?.Width ?? 0) - 16);
+			if (titleWidth > 0)
+			{
+				FormattedText title = Text(graph.Title, Brushes.White);
+				title.MaxTextWidth = titleWidth;
+				title.MaxLineCount = 1;
+				title.Trimming = TextTrimming.CharacterEllipsis;
+				context.DrawText(title, new Point(6, graph.TitleTop));
+			}
+			if (readout != null) context.DrawText(readout, new Point(Math.Max(0, graph.Width - readout.Width - 8), graph.TitleTop));
 		}
 	}
 }
