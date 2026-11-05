@@ -38,7 +38,7 @@ internal sealed class SceneHandles : Panel
 	private readonly ProbeLayer _layer;
 	private readonly Dictionary<(object, MarkerRole), Marker> _markers = new();
 	private readonly Dictionary<Source, IReadOnlyList<SourceElement>> _emitters = new();
-	private enum MarkerRole { Centre, ProbeEnd, Angle }
+	private enum MarkerRole { Centre, ProbeEnd, Angle, Grip }
 	private static readonly IBrush Halo = new SolidColorBrush(Color.FromArgb(192, 0, 0, 0));
 
 	public SceneHandles(WindowStateModel state, ProbeLayer layer)
@@ -98,6 +98,7 @@ internal sealed class SceneHandles : Panel
 			if (probe.Kind == ProbeKind.Line) wanted.Add((probe, MarkerRole.ProbeEnd));
 		}
 		if (_state.SelectedItem is OpticalPart or Source { Array: not null }) wanted.Add((_state.SelectedItem, MarkerRole.Angle));
+		if (_state.SelectedItem is OpticalPart selectedPart && GripOf(selectedPart) != null) wanted.Add((selectedPart, MarkerRole.Grip));
 		foreach (var key in _markers.Keys.Except(wanted).ToArray())
 		{
 			Children.Remove(_markers[key]);
@@ -143,7 +144,7 @@ internal sealed class SceneHandles : Panel
 		foreach (Marker marker in Children.OfType<Marker>())
 		{
 			var (x, y) = marker.Position;
-			Point centre = marker.IsAngle ? AnglePoint(marker.Item, finalSize) : new Point(rect.X + (x + .5) * scale, rect.Y + (y + .5) * scale);
+			Point centre = marker.IsAngle ? AnglePoint(marker.Item, finalSize) : marker.IsGrip ? ViewGrip((OpticalPart)marker.Item, rect, scale) : new Point(rect.X + (x + .5) * scale, rect.Y + (y + .5) * scale);
 			marker.Arrange(new Rect(centre.X - 7, centre.Y - 7, 14, 14));
 		}
 		return finalSize;
@@ -162,6 +163,44 @@ internal sealed class SceneHandles : Panel
 		return new Point(rect.X + (x + .5) * scale + reach * Math.Cos(radians), rect.Y + (y + .5) * scale - reach * Math.Sin(radians));
 	}
 	private static double AngleOf(object item) => item switch { Source { Array: { } array } => array.Angle, OpticalPart part => part.Angle, _ => 0 };
+	private static (double X, double Y)? GripOf(OpticalPart part) => part switch
+	{
+		RectanglePart p => (p.Length / 2.0, p.Width / 2.0),
+		EllipsePart p => (p.Length / 2.0, p.Width / 2.0),
+		LensPart p => (p.Thickness / 2.0, p.Diameter / 2.0),
+		PolygonPart p => p.Vertices()[0],
+		TrianglePart p => p.Vertices()[1],
+		GrinLensPart p => (p.Length / 2.0, p.Diameter / 2.0),
+		BraggReflectorPart p => (p.Length / 2.0, p.Width / 2.0),
+		ZonePlatePart p => (p.Thickness / 2.0, p.Diameter / 2.0),
+		_ => null,
+	};
+	private static (double X, double Y) GripCanvas(OpticalPart part)
+	{
+		var (x, y) = GripOf(part) ?? default;
+		return part.ToCanvas(x, y);
+	}
+	private static Point ViewGrip(OpticalPart part, Rect rect, double scale)
+	{
+		var (x, y) = GripCanvas(part);
+		return new Point(rect.X + (x + .5) * scale, rect.Y + (y + .5) * scale);
+	}
+	private static void SetGrip(OpticalPart part, int canvasX, int canvasY)
+	{
+		var (x, y) = part.ToFrame(canvasX, canvasY);
+		int across = (int)Math.Round(2 * Math.Abs(y)), along = (int)Math.Round(2 * Math.Abs(x));
+		switch (part)
+		{
+			case RectanglePart p: p.Length = Math.Max(1, p.Linked ? Math.Max(along, across) : along); p.Width = Math.Max(1, p.Linked ? Math.Max(along, across) : across); break;
+			case EllipsePart p: p.Length = Math.Max(1, p.Linked ? Math.Max(along, across) : along); p.Width = Math.Max(1, p.Linked ? Math.Max(along, across) : across); break;
+			case LensPart p: p.SetExtents(across, along); break;
+			case PolygonPart p: p.Side = Math.Max(2, (int)Math.Round(2 * Math.Sqrt(x * x + y * y) * Math.Sin(Math.PI / Math.Clamp(p.Sides, PolygonPart.MinSides, PolygonPart.MaxSides)))); break;
+			case TrianglePart p: p.Base = Math.Max(2, across); break;
+			case GrinLensPart p: p.Length = Math.Max(1, along); p.Diameter = Math.Max(2, across); break;
+			case BraggReflectorPart p: p.Width = Math.Max(2, across); break;
+			case ZonePlatePart p: p.Thickness = Math.Max(1, along); p.Diameter = Math.Max(2, across); break;
+		}
+	}
 	private static void SetAngle(object item, double degrees)
 	{
 		switch (item)
@@ -246,21 +285,24 @@ internal sealed class SceneHandles : Panel
 		private Point? _drag;
 		private IPointer? _pointer;
 		private (int X, int Y) _start;
+		private (double X, double Y) _gripStart;
 		private double _startAngle;
 		public Marker(SceneHandles owner, object item, MarkerRole role) { _owner = owner; _item = item; _role = role; Focusable = true; }
 		public object Item => _item;
 		public bool IsAngle => _role == MarkerRole.Angle;
+		public bool IsGrip => _role == MarkerRole.Grip;
 		public (int X, int Y) Position => _item switch
 		{
-			Source s => (s.X, s.Y), OpticalPart p => (p.X, p.Y), Probe p when _role == MarkerRole.ProbeEnd => (p.BX, p.BY), Probe p => (p.AX, p.AY), _ => default
+			Source s => (s.X, s.Y), OpticalPart p when IsGrip => RoundedGrip(p), OpticalPart p => (p.X, p.Y), Probe p when _role == MarkerRole.ProbeEnd => (p.BX, p.BY), Probe p => (p.AX, p.AY), _ => default
 		};
+		private static (int X, int Y) RoundedGrip(OpticalPart part) { var (x, y) = GripCanvas(part); return ((int)Math.Round(x), (int)Math.Round(y)); }
 		public void UpdateName()
 		{
 			string name = ((WaveDudeNext.Model.INamed)_item).Name;
-			string id = _item switch { Source when IsAngle => $"SourceAngle:{name}", OpticalPart when IsAngle => $"PartAngle:{name}", Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_role == MarkerRole.ProbeEnd ? "B" : "A")}" };
+			string id = _item switch { Source when IsAngle => $"SourceAngle:{name}", OpticalPart when IsAngle => $"PartAngle:{name}", OpticalPart when IsGrip => $"PartGrip:{name}", Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_role == MarkerRole.ProbeEnd ? "B" : "A")}" };
 			AutomationProperties.SetAutomationId(this, id);
 			AutomationProperties.SetName(this, id);
-			string format = Application.Current?.Resources.TryGetValue(IsAngle ? "TipAngleMarkerFormat" : "TipMarkerFormat", out object? value) == true && value is string text ? text : "{0}";
+			string format = Application.Current?.Resources.TryGetValue(IsAngle ? "TipAngleMarkerFormat" : IsGrip ? "TipGripFormat" : "TipMarkerFormat", out object? value) == true && value is string text ? text : "{0}";
 			ToolTip.SetTip(this, string.Format(CultureInfo.CurrentCulture, format, name));
 		}
 		private void SetPoint(int x, int y)
@@ -270,6 +312,7 @@ internal sealed class SceneHandles : Panel
 			switch (_item)
 			{
 				case Source s: s.X = x; s.Y = y; break;
+				case OpticalPart p when IsGrip: SetGrip(p, x, y); break;
 				case OpticalPart p: p.X = x; p.Y = y; break;
 				case Probe p when _role == MarkerRole.ProbeEnd: p.BX = x; p.BY = y; break;
 				case Probe p: p.AX = x; p.AY = y; break;
@@ -279,7 +322,8 @@ internal sealed class SceneHandles : Panel
 		{
 			IBrush? brush = ReferenceEquals(_item, _owner._state.SelectedItem) ? _owner.SelectionBrush : _owner.HandleBrush;
 			context.DrawEllipse(Halo, null, new Point(7, 7), 6, 6);
-			context.DrawEllipse(null, new Pen(brush, IsFocused ? 2 : 1), new Point(7, 7), 4, 4);
+			if (IsGrip) context.DrawRectangle(null, new Pen(brush, IsFocused ? 2 : 1), new Rect(3, 3, 8, 8));
+			else context.DrawEllipse(null, new Pen(brush, IsFocused ? 2 : 1), new Point(7, 7), 4, 4);
 		}
 		protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
 		{
@@ -294,7 +338,7 @@ internal sealed class SceneHandles : Panel
 		{
 			base.OnPointerPressed(e);
 			if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-			_owner._state.SelectItem(_item); Focus(); _start = Position; _startAngle = AngleOf(_item); _drag = e.GetPosition(_owner); _pointer = e.Pointer; e.Pointer.Capture(this); e.Handled = true;
+			_owner._state.SelectItem(_item); Focus(); _start = Position; _startAngle = AngleOf(_item); if (IsGrip) _gripStart = GripCanvas((OpticalPart)_item); _drag = e.GetPosition(_owner); _pointer = e.Pointer; e.Pointer.Capture(this); e.Handled = true;
 		}
 		protected override void OnPointerMoved(PointerEventArgs e)
 		{
@@ -312,7 +356,8 @@ internal sealed class SceneHandles : Panel
 			double scale = _owner.Canvas(_owner.Bounds.Size).Scale;
 			if (scale <= 0) return;
 			Vector delta = e.GetPosition(_owner) - start;
-			SetPoint(_start.X + (int)Math.Round(delta.X / scale), _start.Y + (int)Math.Round(delta.Y / scale));
+			if (IsGrip) SetPoint((int)Math.Round(_gripStart.X + delta.X / scale), (int)Math.Round(_gripStart.Y + delta.Y / scale));
+			else SetPoint(_start.X + (int)Math.Round(delta.X / scale), _start.Y + (int)Math.Round(delta.Y / scale));
 			e.Handled = true;
 		}
 		protected override void OnPointerReleased(PointerReleasedEventArgs e) { base.OnPointerReleased(e); if (_drag != null) { _drag = null; _pointer = null; e.Pointer.Capture(null); e.Handled = true; } }
