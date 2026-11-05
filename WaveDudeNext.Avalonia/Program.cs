@@ -58,6 +58,8 @@ namespace WaveDudeNext.CrossPlatform;
 /// <summary>The desktop application's entry point.</summary>
 internal static class Program
 {
+	/// <summary>In-memory log shared by the window and NLog. Entries are consumed on the UI thread.</summary>
+	internal static MessagesTarget Messages { get; } = new();
 	/// <summary>The user's application-data directory, created before any cache or settings path is used.</summary>
 	internal static string DataDirectory
 	{
@@ -83,6 +85,11 @@ internal static class Program
 			MaxArchiveFiles = 1,
 		};
 		configuration.AddRule(LogLevel.Debug, LogLevel.Fatal, file);
+#if DEBUG
+		configuration.AddRule(LogLevel.Trace, LogLevel.Fatal, Messages);
+#else
+		configuration.AddRule(LogLevel.Debug, LogLevel.Fatal, Messages);
+#endif
 		LogManager.Configuration = configuration;
 		AppBuilder.Configure<App>()
 			.UsePlatformDetect()
@@ -138,6 +145,9 @@ internal sealed class MainWindow : Window
 		Width = 1000;
 		Height = 700;
 		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, autoBudget, quality) => new MemoryWarningWindow(spec, budget, autoBudget, quality).ShowDialog<MemoryWarningChoice?>(this), ChooseProbeCsv, ChooseExport, ConfirmExportFolder);
+		var messages = new MessagesPane(Program.Messages) { Height = 220, IsVisible = false };
+		Program.Messages.StatusMessage += entry => state.ReportLogMessage(entry.Message);
+		void ShowMessages() { messages.IsVisible = true; Dispatcher.UIThread.Post(messages.FocusList, DispatcherPriority.Background); }
 		bool CanCopy() => state.SelectedItem is { } item && ProjectClipboard.CanCopy(state.Project, item);
 		bool CanCut() => state.SelectedItem is WaveDudeNext.Model.INamed && CanCopy();
 		async Task CopyObject(bool cut)
@@ -319,6 +329,7 @@ internal sealed class MainWindow : Window
 		simulation.ItemsSource = new object[] { run, pause, resume, stop, play, pausePlayback, Toggle("MenuSimulationUseVulkan", nameof(WindowStateModel.UseGpu)), Toggle("MenuSimulationAutoRerun", nameof(WindowStateModel.AutoRerun)), Toggle("MenuSimulationWarnMemory", nameof(WindowStateModel.WarnWhenRamInsufficient)), cacheMenu };
 		var view = new MenuItem { ItemsSource = new[]
 		{
+			ActionItem("PaneMessages", new ControlCommand(() => { if (messages.IsVisible) messages.IsVisible = false; else ShowMessages(); }, () => true)),
 			QualityMenu("MenuViewResolution", nameof(WindowStateModel.PreviewResolution), state.ResolutionCommand, ("MenuViewResolutionFull", 1), ("MenuViewResolutionHalf", 2), ("MenuViewResolutionQuarter", 4)),
 			QualityMenu("MenuViewFrames", nameof(WindowStateModel.PreviewFrames), state.FramesCommand, ("MenuViewFramesFull", 1), ("MenuViewFramesHalf", 2), ("MenuViewFramesQuarter", 4)),
 			QualityMenu("MenuViewSamples", nameof(WindowStateModel.PreviewSampleBytes), state.SamplesCommand, ("MenuViewSamples16", 2), ("MenuViewSamples8", 1)),
@@ -351,6 +362,7 @@ internal sealed class MainWindow : Window
 		propertyPane.Children.Add(new ScrollViewer { Content = properties });
 		var status = new TextBlock();
 		status.Bind(TextBlock.TextProperty, new Binding(nameof(WindowStateModel.Status)));
+		status.DoubleTapped += (_, _) => ShowMessages();
 		var timeline = new Slider { Minimum = 0, TickFrequency = 1, IsSnapToTickEnabled = true, SmallChange = 1, LargeChange = 10 };
 		timeline.Bind(Slider.MaximumProperty, new Binding(nameof(WindowStateModel.LastFrame)));
 		timeline.Bind(Slider.ValueProperty, new Binding(nameof(WindowStateModel.Frame)) { Mode = BindingMode.TwoWay });
@@ -476,9 +488,10 @@ internal sealed class MainWindow : Window
 		DockPanel.SetDock(propertyPane, Dock.Right);
 		DockPanel.SetDock(menu, Dock.Top);
 		DockPanel.SetDock(status, Dock.Bottom);
+		DockPanel.SetDock(messages, Dock.Bottom);
 		DockPanel.SetDock(transport, Dock.Bottom);
 		var preview = new PreviewPanel(state) { Children = { transport, pictures } };
-		Content = new DockPanel { Children = { menu, status, tree, propertyPane, preview } };
+		Content = new DockPanel { Children = { menu, status, messages, tree, propertyPane, preview } };
 	}
 
 	private void ShowManual()
@@ -840,6 +853,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public string Title { get => _title; private set { _title = value; Changed(); } }
 	/// <summary>The current status message.</summary>
 	public string Status { get => _status; private set { _status = value; Changed(); } }
+	/// <summary>Shows a log message of Info level or higher on the UI thread.</summary>
+	internal void ReportLogMessage(string message) => Status = message;
 	/// <summary>The displayed project nodes.</summary>
 	public IReadOnlyList<TreeViewItem> Nodes { get => _nodes; private set { _nodes = value; Changed(); } }
 	/// <summary>The selected tree row.</summary>
