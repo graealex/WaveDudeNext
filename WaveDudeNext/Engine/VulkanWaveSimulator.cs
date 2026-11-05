@@ -23,7 +23,7 @@ using NLog;
 namespace WaveDudeNext.Engine;
 
 /// <summary>A Vulkan implementation of the wave-engine contract, driven by one thread at a time.</summary>
-/// <remarks>Captures and probes use host-visible memory. Each Vulkan dispatch currently waits for completion.</remarks>
+/// <remarks>Captures and probes use host-visible memory. Each simulation step waits for its recorded Vulkan work to complete.</remarks>
 internal sealed class VulkanWaveSimulator : IWaveEngine, IDisposable
 {
 	private static readonly Logger Logger = LogManager.GetCurrentClassLogger();

@@ -168,6 +168,12 @@ internal static class Program
 	private static int Main(string[] args)
 	{
 		LogManager.Setup().LoadConfiguration(c => c.ForLogger().FilterMinLevel(LogLevel.Info).WriteToConsole(layout: "  log  ${level}: ${message}"));
+		if (args.Length > 0 && args[0] == "vulkan")
+		{
+			CheckVulkan();
+			Console.WriteLine(_failures == 0 ? "VULKAN CHECK OK" : _failures + " check(s) failed");
+			return _failures == 0 ? 0 : 1;
+		}
 		if (args.Length > 0 && args[0] == "bench")
 		{
 			Bench(args.Length > 1 ? int.Parse(args[1]) : 1920, args.Length > 2 ? int.Parse(args[2]) : 1080);
@@ -275,6 +281,7 @@ internal static class Program
 		Check(Math.Abs(scene.C2[0] - 1f) < 1e-6f && scene.D[0] == 0f && scene.D[7 * W + 7] == 1f, "c² = 1, damping edge of 6 (corner 0, inside 1)");
 
 		CheckEngines(scene, W, H, Steps);
+		CheckVulkan();
 		CheckCaptureResetEmitters(scene, W, H);
 		CheckSceneReplacement();
 		CheckDeterminism(scene);
@@ -936,6 +943,79 @@ internal static class Program
 		}
 		double withCapture = clock.Elapsed.TotalMilliseconds / steps;
 		Console.WriteLine($"  {name} 4th order {fourth}: {pure:0.00} ms/step pure, {withReadback:0.00} ms/step with both planes read back every 2 steps, {withCapture:0.00} ms/step with pipelined half captures every 2 steps ({steps} steps)");
+	}
+
+	private static void CheckVulkan()
+	{
+		Console.WriteLine("--- Vulkan engine contract");
+		IReadOnlyList<VulkanDeviceInfo> devices;
+		try { devices = VulkanDeviceInfo.FindAll(); }
+		catch (Exception ex)
+		{
+			Console.WriteLine("  skip Vulkan: device discovery unavailable: " + ex.Message);
+			return;
+		}
+		if (!devices.Any(device => !device.Software))
+		{
+			Console.WriteLine("  skip Vulkan: no Vulkan 1.3 hardware GPU with compute support");
+			return;
+		}
+		const int width = 67, height = 43;
+		(byte[] bgra, int stride) = ScenePixels(width, height);
+		List<Emitter> emitters = [Make(20, 20, 120, 0.7), Make(20, 20, 180, 0.4, SourceMode.Pulsed, PulseShape.Gaussian, phase: 0.5)];
+		ProbeSpec[] probes =
+		[
+			new("point", ProbeKind.Point, ProbeMeasurement.Amplitude, 20, 20, 0, 0, 0),
+			new("line", ProbeKind.Line, ProbeMeasurement.IntegratedValue, 10, 20, 30, 20, 0),
+		];
+		foreach (bool fourth in new[] { false, true })
+		foreach (bool open in new[] { false, true })
+		{
+			try
+			{
+				SceneData scene = SceneData.FromBgra(bgra, width, height, stride, true, -4, open);
+				var options = new EngineOptions(1.7, 0.8, true, fourth, 10, 2);
+				using var cpu = new WaveSimulator(scene, options, emitters);
+				using var gpu = new VulkanWaveSimulator(scene, options, emitters);
+				cpu.SetProbes(ProbeSampler.Build(probes, width, height, scene.Rim));
+				gpu.SetProbes(ProbeSampler.Build(probes, width, height, scene.Rim));
+				Run(cpu, 120);
+				Run(gpu, 120);
+				float field = MaxDiff(cpu.FieldData, gpu.FieldData);
+				float intensity = MaxDiff(cpu.IntensityData!, gpu.IntensityData!);
+				float samples = MaxDiff(cpu.TakeProbeSamples(), gpu.TakeProbeSamples());
+				float profiles = MaxDiff(cpu.ReadProbeProfiles(), gpu.ReadProbeProfiles());
+				string variant = $"{(fourth ? "fourth-order" : "nine-point")}, {(open ? "open" : "reflective")}";
+				Check(Math.Max(Math.Max(field, intensity), Math.Max(samples, profiles)) < 1e-3f,
+					$"Vulkan {variant}: field, intensity and probes match CPU (max {Math.Max(Math.Max(field, intensity), Math.Max(samples, profiles)):G5})");
+				foreach (FrameFormat format in new[] { FrameFormat.Half, FrameFormat.Index })
+				{
+					var shape = new FrameShape(width, height, 2, format, 3, 4);
+					FrameSnapshot a = cpu.CreateSnapshot(shape, true), b = gpu.CreateSnapshot(shape, true);
+					cpu.CaptureFrame(a, true); gpu.CaptureFrame(b, true);
+					cpu.AwaitFrame(a); gpu.AwaitFrame(b);
+					bool same = true;
+					if (format == FrameFormat.Index)
+					{
+						for (int i = 0; i < a.FieldBytes.Length && same; i++)
+							same = Math.Abs(a.FieldBytes[i] - b.FieldBytes[i]) <= 1 && Math.Abs(a.IntensityBytes[i] - b.IntensityBytes[i]) <= 1;
+					}
+					else
+					{
+						for (int i = 0; i < a.Field.Length && same; i++)
+							same = Math.Abs((float)a.Field[i] - (float)b.Field[i]) < 1e-3f && Math.Abs((float)a.Intensity[i] - (float)b.Intensity[i]) < 1e-3f;
+					}
+					Check(same, $"Vulkan {variant}: reduced {format} capture matches CPU");
+				}
+				byte[] changed = (byte[])bgra.Clone();
+				changed[2] = 0;
+				SceneData replacement = SceneData.FromBgra(changed, width, height, stride, true, -4, open);
+				bool replaced = cpu.TryReplaceScene(replacement) && gpu.TryReplaceScene(replacement);
+				if (replaced) { Run(cpu, 40); Run(gpu, 40); }
+				Check(replaced && MaxDiff(cpu.FieldData, gpu.FieldData) < 1e-3f, $"Vulkan {variant}: replaced scene matches CPU");
+			}
+			catch (Exception ex) { Check(false, "Vulkan engine contract: " + ex); }
+		}
 	}
 
 	private static void CheckEngines(SceneData scene, int W, int H, int Steps)
