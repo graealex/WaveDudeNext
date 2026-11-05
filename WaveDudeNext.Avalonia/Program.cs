@@ -41,6 +41,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Themes.Fluent;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NLog;
@@ -347,9 +348,24 @@ internal sealed class MainWindow : Window
 			menu.Bind(HeaderedItemsControl.HeaderProperty, menu.GetResourceObservable("MenuViewLanguage"));
 			return menu;
 		}
+		MenuItem ThemeMenu()
+		{
+			MenuItem Option(string theme)
+			{
+				var item = new MenuItem { Command = state.ThemeCommand, CommandParameter = theme, ToggleType = MenuItemToggleType.Radio };
+				item.Bind(HeaderedItemsControl.HeaderProperty, item.GetResourceObservable("Enum.AppTheme." + theme));
+				item.Bind(MenuItem.IsCheckedProperty, new Binding(nameof(WindowStateModel.Theme)) { Converter = new FuncValueConverter<string, bool>(value => value == theme) });
+				AutomationProperties.SetAutomationId(item, "Theme" + theme);
+				return item;
+			}
+			var menu = new MenuItem { ItemsSource = new[] { Option("System"), Option("Light"), Option("Dark") } };
+			menu.Bind(HeaderedItemsControl.HeaderProperty, menu.GetResourceObservable("MenuViewTheme"));
+			return menu;
+		}
 		var view = new MenuItem { ItemsSource = new[]
 		{
 			ActionItem("PaneMessages", new ControlCommand(() => { if (messages.IsVisible) messages.IsVisible = false; else ShowMessages(); }, () => true)),
+			ThemeMenu(),
 			LanguageMenu(),
 			QualityMenu("MenuViewResolution", nameof(WindowStateModel.PreviewResolution), state.ResolutionCommand, ("MenuViewResolutionFull", 1), ("MenuViewResolutionHalf", 2), ("MenuViewResolutionQuarter", 4)),
 			QualityMenu("MenuViewFrames", nameof(WindowStateModel.PreviewFrames), state.FramesCommand, ("MenuViewFramesFull", 1), ("MenuViewFramesHalf", 2), ("MenuViewFramesQuarter", 4)),
@@ -810,6 +826,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_confirmExportFolder = confirmExportFolder;
 		_settings = SimulationSettings.Load(Path.Combine(Program.DataDirectory, "Settings.xml"));
 		if (Application.Current is App app) app.ApplyLanguage(_settings.Language);
+		ApplyTheme(_settings.Theme);
 		_quality = _settings.Quality;
 		OpenCommand = new OpenCommand(Open);
 		NewCommand = new OpenCommand(NewProject);
@@ -841,6 +858,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		FramesCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { FrameDivisor = n }); });
 		SamplesCommand = new ParameterCommand(value => { if (value is int n) SetQuality(_quality with { Format = n == 2 ? FrameFormat.Half : FrameFormat.Index }); });
 		LanguageCommand = new ParameterCommand(value => { if (value is string code) SetLanguage(code); });
+		ThemeCommand = new ParameterCommand(value => { if (value is string theme) SetTheme(theme); });
 		MemoryCommand = new ParameterCommand(value => { if (value is int n && (n == 0 || n is >= 10 and <= 100 && n % 10 == 0)) { _settings.FrameMemoryPercent = n; _settings.Save(); Changed(nameof(FrameMemoryPercent)); } });
 		AutoBrightnessCommand = new ParameterCommand(value => { if (value is FrameLayer layer) FitBrightness(layer); });
 		SetProject(_project);
@@ -880,6 +898,23 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public string Language => _settings.Language;
 	/// <summary>Selects and saves a UI language.</summary>
 	public ICommand LanguageCommand { get; }
+	/// <summary>The selected UI theme.</summary>
+	public string Theme => _settings.Theme;
+	/// <summary>Selects and saves a UI theme.</summary>
+	public ICommand ThemeCommand { get; }
+	private static void ApplyTheme(string theme)
+	{
+		if (Application.Current is { } app) app.RequestedThemeVariant = theme switch { "Light" => ThemeVariant.Light, "Dark" => ThemeVariant.Dark, _ => ThemeVariant.Default };
+	}
+	private void SetTheme(string theme)
+	{
+		if (theme is not ("System" or "Light" or "Dark") || theme == _settings.Theme) return;
+		_settings.Theme = theme;
+		ApplyTheme(theme);
+		_settings.Save();
+		Changed(nameof(Theme));
+		LogManager.GetCurrentClassLogger().Info("Theme changed to {Theme}", theme);
+	}
 	private void SetLanguage(string code)
 	{
 		if (code is not ("" or "en" or "de" or "fr" or "nl") || code == _settings.Language) return;
