@@ -544,6 +544,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private CopiedFrameSource? _lastScratch;
 	private ScratchResult? _lastScratchResult;
 	private ScratchResult? _shownScratchResult;
+	private ScratchResult? _probeScratchResult;
+	private SimulationRun? _pausedForScratch;
+	private bool _probesStale;
+	private int _scratchGeneration;
 	private RunSpec? _lastScratchSpec;
 	private int _lastScratchFrame;
 	private IFrameSource? _shownSource;
@@ -641,7 +645,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	/// <summary>Returns the recording for the frame currently displayed, and the simulation length in steps.</summary>
 	internal ProbeGraphData ProbeData(Probe probe, out int totalSteps)
 	{
-		if (_shownScratchResult is { } scratch)
+		ScratchResult? shown = _shownScratchResult;
+		if (_probesStale && _run is { } displayedRun && ReferenceEquals(_shownSource, displayedRun.Frames) && _probeScratchResult is { } probeScratch && probeScratch.Frame == _shownFrame)
+			shown = probeScratch;
+		if (shown is { } scratch)
 		{
 			totalSteps = Math.Max(1, scratch.Spec.Steps);
 			for (int i = 0; i < scratch.Spec.Probes.Length && i < scratch.Traces.Length; i++)
@@ -841,6 +848,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		if (_run is { } run && !_runStale)
 		{
 			if ((int)frame < run.FrameCount) Present(run.Frames, (int)frame);
+			if (_probesStale && !IsPlaying && !_following) ScheduleScratch();
 		}
 		else if (_requested != null) _scratch?.Request(_requested, (int)frame);
 	}
@@ -884,6 +892,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			var run = new SimulationRun(spec, store, SynchronizationContext.Current ?? throw new InvalidOperationException("No UI synchronisation context is available."), automatic);
 			_run = run;
 			_runStale = false;
+			_probesStale = false;
+			_probeScratchResult = null;
 			_scratchWaiting = false;
 			_rerunDelay?.Stop();
 			_following = !automatic;
@@ -910,6 +920,16 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			if (ReferenceEquals(previous, _run)) return;
 		}
 		if (_disposed || generation != _playGeneration || _run == null) return;
+		_scratchDelay?.Stop();
+		if (_scratchWaiting && _scratch is { } pendingScratch)
+		{
+			_scratch = null;
+			pendingScratch.Completed -= ScratchCompleted;
+			await Task.Run(pendingScratch.Dispose);
+			_scratchWaiting = false;
+			ResumeAfterScratch();
+			if (_disposed || generation != _playGeneration || _run == null) return;
+		}
 		_following = false;
 		int divisor = _requested?.VisualizeEvery ?? 1;
 		int start = Math.Clamp(Project.Display.ExportFrom / divisor, 0, LastFrame);
@@ -932,6 +952,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_playTimer?.Change(Timeout.Infinite, Timeout.Infinite);
 		_playClock.Stop();
 		if (IsPlaying) IsPlaying = false;
+		if (_probesStale && !_runStale && !_disposed) ScheduleScratch();
 	}
 
 	private void PlaybackTick()
@@ -1069,6 +1090,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_shownSource = null;
 		_shownScratchResult = null;
 		_lastScratchResult = null;
+		_probeScratchResult = null;
+		_probesStale = false;
 		_editGeneration++;
 		_scratchDelay?.Stop();
 		_rerunDelay?.Stop();
@@ -1213,22 +1236,43 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			_scratch = new ScratchRunner(SynchronizationContext.Current ?? throw new InvalidOperationException("No UI synchronisation context is available."));
 			_scratch.Completed += ScratchCompleted;
 		}
+		if (_run is { IsActive: true, IsPauseRequested: false } running && _pausedForScratch == null)
+		{
+			running.Pause();
+			_pausedForScratch = running;
+		}
 		_scratchWaiting = true;
+		_scratchGeneration = _editGeneration;
 		_scratch.Request(spec, (int)_frame);
 	}
 
 	private void ScratchCompleted(object? sender, ScratchResult result)
 	{
-		if (_disposed || (_run != null && !_runStale) || !ReferenceEquals(result.Spec, _requested) || result.Frame != (int)Frame)
+		if (_disposed || _scratchGeneration != _editGeneration || !ReferenceEquals(result.Spec, _requested) || result.Frame != (int)Frame)
 		{
+			if (!_disposed && _probesStale && !IsPlaying && _scratchGeneration == _editGeneration && ReferenceEquals(result.Spec, _requested) && result.Frame != (int)Frame) ScheduleScratch();
 			return;
 		}
 		_scratchWaiting = false;
+		ResumeAfterScratch();
+		if (_run != null && !_runStale)
+		{
+			_probeScratchResult = result;
+			ProbeGraphsChanged?.Invoke(this, EventArgs.Empty);
+			return;
+		}
 		_lastScratch = new CopiedFrameSource(result.Snapshot);
 		_lastScratchResult = result;
 		_lastScratchSpec = result.Spec;
 		_lastScratchFrame = result.Frame;
 		Present(_lastScratch, 0);
+	}
+
+	private void ResumeAfterScratch()
+	{
+		SimulationRun? paused = _pausedForScratch;
+		_pausedForScratch = null;
+		if (paused != null && ReferenceEquals(paused, _run) && paused.IsActive) paused.Resume();
 	}
 
 	private void Present(IFrameSource source, int frame)
@@ -1614,6 +1658,15 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		}
 		bool bakedBrightness = change.Item is DisplayLayer && change.Property == nameof(DisplayLayer.Brightness) && _quality.Format == FrameFormat.Index;
 		bool unrecordedProbe = change.AffectsProbes && _run is { } run && Project.Probes.Any(probe => probe.Active && !run.Spec.Probes.Any(spec => ReferenceEquals(spec.Origin, probe)));
+		if (change.AffectsProbes && !unrecordedProbe && !change.AffectsSimulation && !bakedBrightness)
+		{
+			_probesStale |= _run != null;
+			_probeScratchResult = null;
+			_lastEdit = change;
+			_editGeneration++;
+			if (!IsPlaying) ScheduleScratch();
+			return;
+		}
 		if (!change.AffectsSimulation && !bakedBrightness && !unrecordedProbe)
 		{
 			if (change.Item is DisplayLayer && change.Property is nameof(DisplayLayer.Overlay) or nameof(DisplayLayer.OverlayGain)) QueueOutline(_scenePixels);
@@ -1649,15 +1702,21 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		StopPlayback();
 		_following = false;
 		_run?.Stop();
+		_pausedForScratch = null;
 		_requested = null;
 		_scratchWaiting = false;
 		InvalidatePresentation();
+		ScheduleScratch();
+		if (_runStale && AutoRerun) ScheduleRerun();
+	}
+
+	private void ScheduleScratch()
+	{
 		_scratchDelay ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
 		_scratchDelay.Tick -= OnScratchDelay;
 		_scratchDelay.Tick += OnScratchDelay;
 		_scratchDelay.Stop();
 		_scratchDelay.Start();
-		if (_runStale && AutoRerun) ScheduleRerun();
 	}
 
 	private void FitBrightness(FrameLayer layer)
@@ -1800,7 +1859,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	{
 		_scratchDelay!.Stop();
 		int generation = _editGeneration;
-		if (_run is { IsActive: true } run) await run.Completion;
+		if (_runStale && _run is { IsActive: true } run) await run.Completion;
 		if (_disposed || generation != _editGeneration) return;
 		try
 		{
