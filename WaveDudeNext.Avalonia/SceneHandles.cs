@@ -36,7 +36,8 @@ internal sealed class SceneHandles : Panel
 	public static readonly StyledProperty<IBrush?> SelectionBrushProperty = AvaloniaProperty.Register<SceneHandles, IBrush?>(nameof(SelectionBrush), Brushes.Yellow);
 	private readonly WindowStateModel _state;
 	private readonly ProbeLayer _layer;
-	private readonly Dictionary<(object, bool), Marker> _markers = new();
+	private readonly Dictionary<(object, MarkerRole), Marker> _markers = new();
+	private enum MarkerRole { Centre, ProbeEnd, Angle }
 	private static readonly IBrush Halo = new SolidColorBrush(Color.FromArgb(192, 0, 0, 0));
 
 	public SceneHandles(WindowStateModel state, ProbeLayer layer)
@@ -68,14 +69,15 @@ internal sealed class SceneHandles : Panel
 	private void SceneChanged(object? sender, EventArgs e) => Refresh();
 	private void Refresh()
 	{
-		var wanted = new List<(object, bool)>();
-		wanted.AddRange(_state.Project.Sources.Select(s => ((object)s, false)));
-		wanted.AddRange(_state.Project.Parts.Select(p => ((object)p, false)));
+		var wanted = new List<(object, MarkerRole)>();
+		wanted.AddRange(_state.Project.Sources.Select(s => ((object)s, MarkerRole.Centre)));
+		wanted.AddRange(_state.Project.Parts.Select(p => ((object)p, MarkerRole.Centre)));
 		foreach (Probe probe in _state.Project.Probes.Where(p => p.Layer == _layer))
 		{
-			wanted.Add((probe, false));
-			if (probe.Kind == ProbeKind.Line) wanted.Add((probe, true));
+			wanted.Add((probe, MarkerRole.Centre));
+			if (probe.Kind == ProbeKind.Line) wanted.Add((probe, MarkerRole.ProbeEnd));
 		}
+		if (_state.SelectedItem is OpticalPart or Source { Array: not null }) wanted.Add((_state.SelectedItem, MarkerRole.Angle));
 		foreach (var key in _markers.Keys.Except(wanted).ToArray())
 		{
 			Children.Remove(_markers[key]);
@@ -121,9 +123,32 @@ internal sealed class SceneHandles : Panel
 		foreach (Marker marker in Children.OfType<Marker>())
 		{
 			var (x, y) = marker.Position;
-			marker.Arrange(new Rect(rect.X + (x + .5) * scale - 7, rect.Y + (y + .5) * scale - 7, 14, 14));
+			Point centre = marker.IsAngle ? AnglePoint(marker.Item, finalSize) : new Point(rect.X + (x + .5) * scale, rect.Y + (y + .5) * scale);
+			marker.Arrange(new Rect(centre.X - 7, centre.Y - 7, 14, 14));
 		}
 		return finalSize;
+	}
+	private Point AnglePoint(object item, Size size)
+	{
+		(int x, int y, double angle, double extent) = item switch
+		{
+			Source { Array: { } array } source => (source.X, source.Y, array.Angle, (array.SizeX - 1) / 2.0 * array.SpacingX),
+			OpticalPart part => (part.X, part.Y, part.Angle, part.AxisReach),
+			_ => (0, 0, 0, 0),
+		};
+		var (rect, scale) = Canvas(size);
+		double reach = Math.Max(28, extent * scale + 14);
+		double radians = angle * Math.PI / 180;
+		return new Point(rect.X + (x + .5) * scale + reach * Math.Cos(radians), rect.Y + (y + .5) * scale - reach * Math.Sin(radians));
+	}
+	private static double AngleOf(object item) => item switch { Source { Array: { } array } => array.Angle, OpticalPart part => part.Angle, _ => 0 };
+	private static void SetAngle(object item, double degrees)
+	{
+		switch (item)
+		{
+			case Source { Array: { } array }: array.Angle = degrees; array.Normalize(); break;
+			case OpticalPart part: part.Angle = degrees; part.Normalize(); break;
+		}
 	}
 	private void Draw(DrawingContext context)
 	{
@@ -134,6 +159,13 @@ internal sealed class SceneHandles : Panel
 			Point a = ViewPoint(probe.AX, probe.AY), b = ViewPoint(probe.BX, probe.BY);
 			context.DrawLine(new Pen(Halo, 3), a, b);
 			context.DrawLine(new Pen(ReferenceEquals(probe, selected) ? SelectionBrush : HandleBrush, 1, dashStyle: DashStyle.Dash), a, b);
+		}
+		if (selected is OpticalPart or Source { Array: not null })
+		{
+			(int x, int y) = selected is OpticalPart p ? (p.X, p.Y) : (((Source)selected).X, ((Source)selected).Y);
+			Point centre = ViewPoint(x, y), end = AnglePoint(selected, Bounds.Size);
+			context.DrawLine(new Pen(Halo, 3), centre, end);
+			context.DrawLine(new Pen(SelectionBrush, 1, dashStyle: DashStyle.Dot), centre, end);
 		}
 		if (selected is OpticalPart part)
 		{
@@ -156,7 +188,7 @@ internal sealed class SceneHandles : Panel
 				context.DrawGeometry(null, new Pen(SelectionBrush, 1), geometry);
 			}
 		}
-		foreach (var entry in _markers.Where(entry => !entry.Key.Item2 && (display.LabelsInPreview || ReferenceEquals(entry.Key.Item1, selected))).OrderBy(entry => ReferenceEquals(entry.Key.Item1, selected)))
+		foreach (var entry in _markers.Where(entry => entry.Key.Item2 == MarkerRole.Centre && (display.LabelsInPreview || ReferenceEquals(entry.Key.Item1, selected))).OrderBy(entry => ReferenceEquals(entry.Key.Item1, selected)))
 		{
 			var marker = entry.Value;
 			var (x, y) = marker.Position;
@@ -183,22 +215,25 @@ internal sealed class SceneHandles : Panel
 	{
 		private readonly SceneHandles _owner;
 		private readonly object _item;
-		private readonly bool _end;
+		private readonly MarkerRole _role;
 		private Point? _drag;
 		private IPointer? _pointer;
 		private (int X, int Y) _start;
-		public Marker(SceneHandles owner, object item, bool end) { _owner = owner; _item = item; _end = end; Focusable = true; }
+		private double _startAngle;
+		public Marker(SceneHandles owner, object item, MarkerRole role) { _owner = owner; _item = item; _role = role; Focusable = true; }
+		public object Item => _item;
+		public bool IsAngle => _role == MarkerRole.Angle;
 		public (int X, int Y) Position => _item switch
 		{
-			Source s => (s.X, s.Y), OpticalPart p => (p.X, p.Y), Probe p when _end => (p.BX, p.BY), Probe p => (p.AX, p.AY), _ => default
+			Source s => (s.X, s.Y), OpticalPart p => (p.X, p.Y), Probe p when _role == MarkerRole.ProbeEnd => (p.BX, p.BY), Probe p => (p.AX, p.AY), _ => default
 		};
 		public void UpdateName()
 		{
 			string name = ((WaveDudeNext.Model.INamed)_item).Name;
-			string id = _item switch { Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_end ? "B" : "A")}" };
+			string id = _item switch { Source when IsAngle => $"SourceAngle:{name}", OpticalPart when IsAngle => $"PartAngle:{name}", Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_role == MarkerRole.ProbeEnd ? "B" : "A")}" };
 			AutomationProperties.SetAutomationId(this, id);
 			AutomationProperties.SetName(this, id);
-			string format = Application.Current?.Resources.TryGetValue("TipMarkerFormat", out object? value) == true && value is string text ? text : "{0}";
+			string format = Application.Current?.Resources.TryGetValue(IsAngle ? "TipAngleMarkerFormat" : "TipMarkerFormat", out object? value) == true && value is string text ? text : "{0}";
 			ToolTip.SetTip(this, string.Format(CultureInfo.CurrentCulture, format, name));
 		}
 		private void SetPoint(int x, int y)
@@ -209,7 +244,7 @@ internal sealed class SceneHandles : Panel
 			{
 				case Source s: s.X = x; s.Y = y; break;
 				case OpticalPart p: p.X = x; p.Y = y; break;
-				case Probe p when _end: p.BX = x; p.BY = y; break;
+				case Probe p when _role == MarkerRole.ProbeEnd: p.BX = x; p.BY = y; break;
 				case Probe p: p.AX = x; p.AY = y; break;
 			}
 		}
@@ -228,12 +263,21 @@ internal sealed class SceneHandles : Panel
 		{
 			base.OnPointerPressed(e);
 			if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-			_owner._state.SelectItem(_item); Focus(); _start = Position; _drag = e.GetPosition(_owner); _pointer = e.Pointer; e.Pointer.Capture(this); e.Handled = true;
+			_owner._state.SelectItem(_item); Focus(); _start = Position; _startAngle = AngleOf(_item); _drag = e.GetPosition(_owner); _pointer = e.Pointer; e.Pointer.Capture(this); e.Handled = true;
 		}
 		protected override void OnPointerMoved(PointerEventArgs e)
 		{
 			base.OnPointerMoved(e);
 			if (_drag is not Point start) return;
+			if (IsAngle)
+			{
+				Point centre = _owner.ViewPoint(_start.X, _start.Y), current = e.GetPosition(_owner);
+				double degrees = Math.Atan2(centre.Y - current.Y, current.X - centre.X) * 180 / Math.PI;
+				double unit = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 15 : 1;
+				SetAngle(_item, Math.Round(degrees / unit) * unit);
+				e.Handled = true;
+				return;
+			}
 			double scale = _owner.Canvas(_owner.Bounds.Size).Scale;
 			if (scale <= 0) return;
 			Vector delta = e.GetPosition(_owner) - start;
@@ -245,10 +289,16 @@ internal sealed class SceneHandles : Panel
 		protected override void OnKeyDown(KeyEventArgs e)
 		{
 			base.OnKeyDown(e);
-			if (e.Key == Key.Escape && _drag != null) { SetPoint(_start.X, _start.Y); _drag = null; _pointer?.Capture(null); _pointer = null; e.Handled = true; return; }
+			if (e.Key == Key.Escape && _drag != null) { if (IsAngle) SetAngle(_item, _startAngle); else SetPoint(_start.X, _start.Y); _drag = null; _pointer?.Capture(null); _pointer = null; e.Handled = true; return; }
 			if (e.Key == Key.Delete) { _owner._state.SelectItem(_item); if (_owner._state.RemoveCommand.CanExecute(null)) _owner._state.RemoveCommand.Execute(null); e.Handled = true; return; }
 			if ((e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Meta)) != 0) return;
 			int step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 10 : 1;
+			if (IsAngle)
+			{
+				int turn = e.Key switch { Key.Right or Key.Up => step, Key.Left or Key.Down => -step, _ => 0 };
+				if (turn != 0) { SetAngle(_item, AngleOf(_item) + turn); e.Handled = true; }
+				return;
+			}
 			var (x, y) = Position;
 			switch (e.Key) { case Key.Left: x -= step; break; case Key.Right: x += step; break; case Key.Up: y -= step; break; case Key.Down: y += step; break; default: return; }
 			_owner._state.SelectItem(_item); SetPoint(x, y); e.Handled = true;
