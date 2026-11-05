@@ -960,6 +960,27 @@ internal static class Program
 			Console.WriteLine("  skip Vulkan: no Vulkan 1.3 hardware GPU with compute support");
 			return;
 		}
+		try
+		{
+			const int count = 65537; // Every half bit pattern, plus an odd trailing sample.
+			using var renderer = new VulkanFrameRenderer(count, 1);
+			var halves = new Half[count];
+			Span<ushort> bits = MemoryMarshal.Cast<Half, ushort>(halves.AsSpan());
+			for (int i = 0; i < count; i++) bits[i] = (ushort)i;
+			var expected = new int[count];
+			var actual = new int[count];
+			foreach (SampleKind kind in Enum.GetValues<SampleKind>())
+			{
+				FrameRenderer.Render(halves, count, 1, ColorLut.Grey, kind, 2.5f, expected);
+				renderer.Render(MemoryMarshal.AsBytes(halves.AsSpan()), FrameFormat.Half, ColorLut.Grey, kind, 2.5f, actual);
+				Check(expected.AsSpan().SequenceEqual(actual), $"Vulkan colour mapping: every half bit pattern matches CPU for {kind}");
+			}
+			byte[] indices = Enumerable.Range(0, count).Select(i => (byte)i).ToArray();
+			FrameRenderer.RenderIndexed(indices, count, 1, ColorLut.Grey, expected);
+			renderer.Render(indices, FrameFormat.Index, ColorLut.Grey, SampleKind.Field, 1, actual);
+			Check(expected.AsSpan().SequenceEqual(actual), "Vulkan colour mapping: all palette indices and odd frame length match CPU");
+		}
+		catch (Exception ex) { Check(false, "Vulkan colour mapping: " + ex); }
 		const int width = 67, height = 43;
 		(byte[] bgra, int stride) = ScenePixels(width, height);
 		List<Emitter> emitters = [Make(20, 20, 120, 0.7), Make(20, 20, 180, 0.4, SourceMode.Pulsed, PulseShape.Gaussian, phase: 0.5)];
