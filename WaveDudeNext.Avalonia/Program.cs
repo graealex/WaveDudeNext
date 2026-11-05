@@ -279,8 +279,10 @@ internal sealed class MainWindow : Window
 		transport.Children.Add(timeline);
 		var field = new Image();
 		field.Bind(Image.SourceProperty, new Binding(nameof(WindowStateModel.FieldImage)));
+		field.Bind(IsVisibleProperty, new Binding("Project.Display.Field.Preview"));
 		var intensity = new Image();
 		intensity.Bind(Image.SourceProperty, new Binding(nameof(WindowStateModel.IntensityImage)));
+		intensity.Bind(IsVisibleProperty, new Binding("Project.Display.Intensity.Preview"));
 		var pictures = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*"), Focusable = true };
 		Grid.SetColumn(intensity, 1);
 		pictures.Children.Add(field);
@@ -435,6 +437,9 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private readonly ControlCommand _pauseRun;
 	private readonly ControlCommand _stopRun;
 	private PresentationJob? _pendingPresentation;
+	private CopiedFrameSource? _lastScratch;
+	private RunSpec? _lastScratchSpec;
+	private int _lastScratchFrame;
 	private bool _presenting;
 	private long _presentationVersion;
 	private TreeViewItem? _selectedNode;
@@ -971,7 +976,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			return;
 		}
 		_scratchWaiting = false;
-		Present(new CopiedFrameSource(result.Snapshot), 0);
+		_lastScratch = new CopiedFrameSource(result.Snapshot);
+		_lastScratchSpec = result.Spec;
+		_lastScratchFrame = result.Frame;
+		Present(_lastScratch, 0);
 	}
 
 	private void Present(IFrameSource source, int frame)
@@ -1253,9 +1261,18 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			_dirty = true;
 			UpdateTitle();
 		}
+		if (change.Item is Source && change.Property == nameof(Source.Array) && ReferenceEquals(SelectedNode?.Tag, change.Item))
+		{
+			object selected = change.Item;
+			Dispatcher.UIThread.Post(() => { if (!_disposed && ReferenceEquals(SelectedNode?.Tag, selected)) PropertyRows = BuildPropertyRows(selected); });
+		}
 		bool bakedBrightness = change.Item is DisplayLayer && change.Property == nameof(DisplayLayer.Brightness) && _quality.Format == FrameFormat.Index;
 		bool unrecordedProbe = change.AffectsProbes && _run is { } run && Project.Probes.Any(probe => probe.Active && !run.Spec.Probes.Any(spec => ReferenceEquals(spec.Origin, probe)));
-		if (!change.AffectsSimulation && !bakedBrightness && !unrecordedProbe) return;
+		if (!change.AffectsSimulation && !bakedBrightness && !unrecordedProbe)
+		{
+			if (change.Item is DisplayLayer or ColorScheme || ReferenceEquals(change.Item, Project.ColorSchemes)) RefreshDisplayedFrame();
+			return;
+		}
 		_lastEdit = change;
 		_editGeneration++;
 		_runStale |= _run != null;
@@ -1271,6 +1288,12 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_scratchDelay.Stop();
 		_scratchDelay.Start();
 		if (_runStale) ScheduleRerun();
+	}
+
+	private void RefreshDisplayedFrame()
+	{
+		if (_run is { } run && !_runStale && Frame < run.FrameCount) Present(run.Frames, (int)Frame);
+		else if (_lastScratch != null && ReferenceEquals(_lastScratchSpec, _requested) && _lastScratchFrame == (int)Frame) Present(_lastScratch, 0);
 	}
 
 	private async void OnScratchDelay(object? sender, EventArgs e)
@@ -1317,10 +1340,21 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		foreach (PropertyDescriptor property in TypeDescriptor.GetProperties(item))
 		{
 			Type type = property.PropertyType;
-			if (!property.IsBrowsable || !(type.IsPrimitive || type.IsEnum || type == typeof(string) || type == typeof(decimal))) continue;
+			if (!property.IsBrowsable) continue;
 			var label = new TextBlock { Text = property.DisplayName, TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
 			string key = $"Label.{property.ComponentType.Name}.{property.Name}";
 			if (Application.Current?.Resources.ContainsKey(key) == true) label.Bind(TextBlock.TextProperty, label.GetResourceObservable(key));
+			if (type == typeof(DisplayLayer) || type == typeof(Video) || type == typeof(SourceArray))
+			{
+				if (property.GetValue(item) is { } nested)
+				{
+					var panel = new StackPanel { Margin = new Thickness(8, 0, 0, 0) };
+					foreach (Control child in BuildPropertyRows(nested)) panel.Children.Add(child);
+					rows.Add(new Expander { Header = label, Content = panel, IsExpanded = true });
+				}
+				continue;
+			}
+			if (!(type.IsPrimitive || type.IsEnum || type == typeof(string) || type == typeof(decimal))) continue;
 			Control value;
 			var binding = new Binding(property.Name) { Source = item, Mode = BindingMode.TwoWay };
 			if (item is Scene && property.Name == nameof(Scene.Image))
@@ -1366,12 +1400,13 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 				text.Bind(TextBox.TextProperty, binding);
 				value = text;
 			}
-			else if (!property.IsReadOnly && property.Attributes[typeof(RangeAttribute)] is RangeAttribute range && IsNumber(type))
+			else if (!property.IsReadOnly && IsNumber(type))
 			{
+				(decimal minimum, decimal maximum) = NumericBounds(type, property.Attributes[typeof(RangeAttribute)] as RangeAttribute);
 				var number = new NumericUpDown
 				{
-					Minimum = Convert.ToDecimal(range.Minimum, CultureInfo.InvariantCulture),
-					Maximum = Convert.ToDecimal(range.Maximum, CultureInfo.InvariantCulture),
+					Minimum = minimum,
+					Maximum = maximum,
 					Increment = type == typeof(float) || type == typeof(double) || type == typeof(decimal) ? 0.1m : 1m,
 				};
 				number.Bind(NumericUpDown.ValueProperty, binding);
@@ -1396,6 +1431,23 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private static bool IsNumber(Type type) => type == typeof(byte) || type == typeof(sbyte) || type == typeof(short) || type == typeof(ushort)
 		|| type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong)
 		|| type == typeof(float) || type == typeof(double) || type == typeof(decimal);
+
+	private static (decimal Minimum, decimal Maximum) NumericBounds(Type type, RangeAttribute? range)
+	{
+		if (range != null) return (Convert.ToDecimal(range.Minimum, CultureInfo.InvariantCulture), Convert.ToDecimal(range.Maximum, CultureInfo.InvariantCulture));
+		return Type.GetTypeCode(type) switch
+		{
+			TypeCode.Byte => (byte.MinValue, byte.MaxValue),
+			TypeCode.SByte => (sbyte.MinValue, sbyte.MaxValue),
+			TypeCode.Int16 => (short.MinValue, short.MaxValue),
+			TypeCode.UInt16 => (ushort.MinValue, ushort.MaxValue),
+			TypeCode.Int32 => (int.MinValue, int.MaxValue),
+			TypeCode.UInt32 => (uint.MinValue, uint.MaxValue),
+			TypeCode.Int64 => (long.MinValue, long.MaxValue),
+			TypeCode.UInt64 => (ulong.MinValue, ulong.MaxValue),
+			_ => (decimal.MinValue, decimal.MaxValue),
+		};
+	}
 }
 
 /// <summary>The user's answer to an unsaved-changes prompt.</summary>
