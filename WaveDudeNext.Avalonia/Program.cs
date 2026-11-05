@@ -631,7 +631,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	/// <summary>Raised when a bound property changes.</summary>
 	public event PropertyChangedEventHandler? PropertyChanged;
 	/// <summary>Raised on the UI thread when project items shown over a picture change.</summary>
-	internal event EventHandler? SceneVisualChanged;
+	internal event EventHandler<ProjectChange>? SceneVisualChanged;
 	/// <summary>The window title.</summary>
 	public string Title { get => _title; private set { _title = value; Changed(); } }
 	/// <summary>The current status message.</summary>
@@ -1557,7 +1557,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void ProjectChanged(object? sender, ProjectChange change)
 	{
-		SceneVisualChanged?.Invoke(this, EventArgs.Empty);
+		SceneVisualChanged?.Invoke(this, change);
 		if (change.Item is Scene)
 		{
 			if (change.Property is nameof(Scene.Edges) or nameof(Scene.HasRim) or nameof(Scene.DampingEdge)) Changed(nameof(EdgeBrush));

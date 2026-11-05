@@ -37,6 +37,7 @@ internal sealed class SceneHandles : Panel
 	private readonly WindowStateModel _state;
 	private readonly ProbeLayer _layer;
 	private readonly Dictionary<(object, MarkerRole), Marker> _markers = new();
+	private readonly Dictionary<Source, IReadOnlyList<SourceElement>> _emitters = new();
 	private enum MarkerRole { Centre, ProbeEnd, Angle }
 	private static readonly IBrush Halo = new SolidColorBrush(Color.FromArgb(192, 0, 0, 0));
 
@@ -64,11 +65,30 @@ internal sealed class SceneHandles : Panel
 	}
 	private void StateChanged(object? sender, PropertyChangedEventArgs e)
 	{
+		if (e.PropertyName == nameof(WindowStateModel.Project)) _emitters.Clear();
 		if (e.PropertyName is nameof(WindowStateModel.Project) or nameof(WindowStateModel.SelectedItem) or nameof(WindowStateModel.CanvasWidth) or nameof(WindowStateModel.CanvasHeight)) Refresh();
 	}
-	private void SceneChanged(object? sender, EventArgs e) => Refresh();
+	private void SceneChanged(object? sender, ProjectChange change)
+	{
+		if (change.Item is Source source) _emitters.Remove(source);
+		else if (change.Item is SourceArray array)
+		{
+			Source? owner = _state.Project.Sources.FirstOrDefault(source => ReferenceEquals(source.Array, array));
+			if (owner != null) _emitters.Remove(owner);
+		}
+		else if (ReferenceEquals(change.Item, _state.Project) && change.Property == nameof(Project.Seed)) _emitters.Clear();
+		Refresh();
+	}
 	private void Refresh()
 	{
+		foreach (Source source in _emitters.Keys.Where(source => source.Array == null || !_state.Project.Sources.Contains(source)).ToArray()) _emitters.Remove(source);
+		foreach (Source source in _state.Project.Sources.Where(source => source.Array != null && !_emitters.ContainsKey(source)))
+		{
+			// Generate on a copy: the preview must not normalise or modify the live project.
+			Source copy = source.Clone();
+			copy.GenerateElements(_state.Project.Seed);
+			_emitters[source] = copy.Elements;
+		}
 		var wanted = new List<(object, MarkerRole)>();
 		wanted.AddRange(_state.Project.Sources.Select(s => ((object)s, MarkerRole.Centre)));
 		wanted.AddRange(_state.Project.Parts.Select(p => ((object)p, MarkerRole.Centre)));
@@ -159,6 +179,13 @@ internal sealed class SceneHandles : Panel
 			Point a = ViewPoint(probe.AX, probe.AY), b = ViewPoint(probe.BX, probe.BY);
 			context.DrawLine(new Pen(Halo, 3), a, b);
 			context.DrawLine(new Pen(ReferenceEquals(probe, selected) ? SelectionBrush : HandleBrush, 1, dashStyle: DashStyle.Dash), a, b);
+		}
+		foreach (Source source in _state.Project.Sources.Where(s => s.Array != null && (display.HandlesInPreview || ReferenceEquals(s, selected))).OrderBy(s => ReferenceEquals(s, selected)))
+		{
+			if (!_emitters.TryGetValue(source, out IReadOnlyList<SourceElement>? elements)) continue;
+			IBrush? brush = ReferenceEquals(source, selected) ? SelectionBrush : HandleBrush;
+			var halo = new Pen(Halo, 1.5);
+			foreach (SourceElement element in elements) context.DrawEllipse(brush, halo, ViewPoint(element.X, element.Y), 2.5, 2.5);
 		}
 		if (selected is OpticalPart or Source { Array: not null })
 		{
@@ -257,7 +284,11 @@ internal sealed class SceneHandles : Panel
 		protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
 		{
 			base.OnPropertyChanged(change);
-			if (change.Property == IsFocusedProperty) InvalidateVisual();
+			if (change.Property == IsFocusedProperty)
+			{
+				if (IsFocused) _owner._state.SelectItem(_item);
+				InvalidateVisual();
+			}
 		}
 		protected override void OnPointerPressed(PointerPressedEventArgs e)
 		{
