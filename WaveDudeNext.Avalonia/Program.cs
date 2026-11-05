@@ -134,7 +134,7 @@ internal sealed class MainWindow : Window
 	{
 		Width = 1000;
 		Height = 700;
-		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, autoBudget, quality) => new MemoryWarningWindow(spec, budget, autoBudget, quality).ShowDialog<MemoryWarningChoice?>(this), ChooseProbeCsv);
+		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, PickSceneImage, SaveSceneImage, (spec, budget, autoBudget, quality) => new MemoryWarningWindow(spec, budget, autoBudget, quality).ShowDialog<MemoryWarningChoice?>(this), ChooseProbeCsv, ChooseExport, ConfirmExportFolder);
 		AddHandler(InputElement.PointerPressedEvent, (_, _) => state.PointerDown = true, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerReleasedEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerCaptureLostEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
@@ -163,7 +163,22 @@ internal sealed class MainWindow : Window
 		save.Bind(MenuItem.HeaderProperty, save.GetResourceObservable("MenuFileSave"));
 		var saveAs = new MenuItem { Command = state.SaveAsCommand, InputGesture = new KeyGesture(Key.S, KeyModifiers.Control | KeyModifiers.Shift) };
 		saveAs.Bind(MenuItem.HeaderProperty, saveAs.GetResourceObservable("MenuFileSaveAs"));
-		var file = new MenuItem { ItemsSource = new[] { newProject, open, save, saveAs } };
+		MenuItem ExportItem(string key, ExportRequest request)
+		{
+			var item = new MenuItem { Command = state.ExportImagesCommand, CommandParameter = request };
+			item.Bind(MenuItem.HeaderProperty, item.GetResourceObservable(key));
+			return item;
+		}
+		var export = new MenuItem { ItemsSource = new[]
+		{
+			ExportItem("MenuFileExportField", new(true, false, false)), ExportItem("MenuFileExportIntensity", new(false, true, false)),
+			ExportItem("MenuFileExportBoth", new(true, true, false)), ExportItem("MenuFileExportFieldFrame", new(true, false, true)),
+			ExportItem("MenuFileExportIntensityFrame", new(false, true, true)),
+		} };
+		export.Bind(MenuItem.HeaderProperty, export.GetResourceObservable("MenuFileExport"));
+		var cancelExport = new MenuItem { Command = state.CancelExportCommand, InputGesture = new KeyGesture(Key.Escape) };
+		cancelExport.Bind(MenuItem.HeaderProperty, cancelExport.GetResourceObservable("TipExportCancel"));
+		var file = new MenuItem { ItemsSource = new[] { newProject, open, save, saveAs, export, cancelExport } };
 		file.Bind(MenuItem.HeaderProperty, file.GetResourceObservable("MenuFile"));
 		var run = new MenuItem { Command = state.RunCommand, InputGesture = new global::Avalonia.Input.KeyGesture(global::Avalonia.Input.Key.F5) };
 		run.Bind(MenuItem.HeaderProperty, run.GetResourceObservable("MenuSimulationRun"));
@@ -492,6 +507,51 @@ internal sealed class MainWindow : Window
 		return file.TryGetLocalPath() ?? throw new IOException("The probe data must be saved to a local folder.");
 	}
 
+	private async Task<ExportSelection?> ChooseExport(ExportRequest request, string name)
+	{
+		ExportFormat[] formats = request.Still ? ExportFormats.Stills : ExportFormats.All;
+		string filter = (string)Application.Current!.Resources[request.Still ? "ExportDialogFilterStill" : "ExportDialogFilter"]!;
+		string[] entries = filter.Split('|');
+		var dialog = new Window { Width = 520, SizeToContent = SizeToContent.Height, CanResize = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+		dialog.Title = (string)Application.Current.Resources[request.Still ? "ExportDialogTitleFrame" : request.Field && request.Intensity ? "ExportDialogTitleBoth" : request.Field ? "ExportDialogTitleField" : "ExportDialogTitleIntensity"]!;
+		var choice = new ComboBox { ItemsSource = formats.Select((_, i) => entries[i * 2]).ToArray(), SelectedIndex = 0, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Stretch };
+		AutomationProperties.SetAutomationId(choice, "ExportFormat");
+		var accept = new Button { Command = new ControlCommand(() => dialog.Close(choice.SelectedIndex), () => choice.SelectedIndex >= 0) };
+		accept.Bind(ContentControl.ContentProperty, accept.GetResourceObservable("DialogSave"));
+		var cancel = new Button { Command = new ControlCommand(() => dialog.Close(-1), () => true), IsCancel = true };
+		cancel.Bind(ContentControl.ContentProperty, cancel.GetResourceObservable("DialogCancel"));
+		var buttons = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right, Spacing = 8, Children = { accept, cancel } };
+		dialog.Content = new StackPanel { Margin = new Thickness(20), Spacing = 16, Children = { choice, buttons } };
+		dialog.Opened += (_, _) => choice.Focus();
+		int? selected = await dialog.ShowDialog<int?>(this);
+		if (selected is not int index || index < 0 || index >= formats.Length) return null;
+		ExportFormat format = formats[index];
+		string extension = ExportFormats.Extension(format);
+		IStorageFile? file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+		{
+			Title = dialog.Title, SuggestedFileName = name + extension, DefaultExtension = extension.TrimStart('.'),
+			FileTypeChoices = [new FilePickerFileType(entries[index * 2]) { Patterns = ExportFormats.Extensions(format).Select(ext => "*" + ext).ToArray() }],
+		});
+		if (file == null) return null;
+		string path = file.TryGetLocalPath() ?? throw new IOException("The export must be saved to a local folder.");
+		if (!ExportFormats.Accepts(format, path)) path = Path.ChangeExtension(path, extension);
+		return new ExportSelection(path, format);
+	}
+
+	private Task<bool> ConfirmExportFolder(string folder)
+	{
+		var dialog = new Window { Width = 460, SizeToContent = SizeToContent.Height, CanResize = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+		var message = new TextBlock { Text = string.Format(CultureInfo.CurrentCulture, (string)Application.Current!.Resources["ExportFolderExistsFormat"]!, folder), TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
+		var yes = new Button { Command = new ControlCommand(() => dialog.Close(true), () => true) };
+		yes.Bind(ContentControl.ContentProperty, yes.GetResourceObservable("DialogYes"));
+		var no = new Button { Command = new ControlCommand(() => dialog.Close(false), () => true), IsCancel = true };
+		no.Bind(ContentControl.ContentProperty, no.GetResourceObservable("DialogNo"));
+		var buttons = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right, Spacing = 8, Children = { yes, no } };
+		dialog.Content = new StackPanel { Margin = new Thickness(20), Spacing = 16, Children = { message, buttons } };
+		dialog.Opened += (_, _) => no.Focus();
+		return dialog.ShowDialog<bool>(this);
+	}
+
 	private Task<SaveDecision> ConfirmSave(string name)
 	{
 		var dialog = new Window { Width = 440, SizeToContent = SizeToContent.Height, CanResize = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
@@ -523,6 +583,12 @@ internal sealed class MainWindow : Window
 	}
 }
 
+/// <summary>Picture layers and whether the export contains only the currently shown frame.</summary>
+internal sealed record ExportRequest(bool Field, bool Intensity, bool Still);
+
+/// <summary>The selected destination and encoder.</summary>
+internal sealed record ExportSelection(string Path, ExportFormat Format);
+
 /// <summary>Bound project state and commands, used on the UI thread.</summary>
 internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 {
@@ -533,6 +599,9 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private readonly Func<string, byte[], Task> _saveImage;
 	private readonly Func<RunSpec, long, long, PreviewQuality, Task<MemoryWarningChoice?>> _warn;
 	private readonly Func<string, Task<string?>> _chooseProbeCsv;
+	private readonly Func<ExportRequest, string, Task<ExportSelection?>> _chooseExport;
+	private readonly Func<string, Task<bool>> _confirmExportFolder;
+	private ExportJob? _exportJob;
 	private readonly SimulationSettings _settings;
 	private string _title = "WaveDude Next";
 	private string _status = "";
@@ -610,7 +679,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private bool _restoring;
 
 	/// <summary>Creates state for a new project.</summary>
-	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<string, byte[], Task> saveImage, Func<RunSpec, long, long, PreviewQuality, Task<MemoryWarningChoice?>> warn, Func<string, Task<string?>> chooseProbeCsv)
+	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<Task<(byte[] Data, string Name, string? Path)?>> chooseImage, Func<string, byte[], Task> saveImage, Func<RunSpec, long, long, PreviewQuality, Task<MemoryWarningChoice?>> warn, Func<string, Task<string?>> chooseProbeCsv, Func<ExportRequest, string, Task<ExportSelection?>> chooseExport, Func<string, Task<bool>> confirmExportFolder)
 	{
 		_open = open;
 		_saveAs = saveAs;
@@ -619,6 +688,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_saveImage = saveImage;
 		_warn = warn;
 		_chooseProbeCsv = chooseProbeCsv;
+		_chooseExport = chooseExport;
+		_confirmExportFolder = confirmExportFolder;
 		_settings = SimulationSettings.Load(Path.Combine(Program.DataDirectory, "Settings.xml"));
 		_quality = _settings.Quality;
 		OpenCommand = new OpenCommand(Open);
@@ -628,6 +699,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		BrowseImageCommand = new OpenCommand(BrowseSceneImage);
 		SaveImageCommand = new OpenCommand(SaveEmbeddedImage);
 		ExportProbeCsvCommand = new AsyncParameterCommand(ExportProbeCsv, parameter => (parameter ?? SelectedItem) is Probe { Active: true } && Project.Simulation.Steps > 0);
+		ExportImagesCommand = new AsyncParameterCommand(ExportImages, parameter => parameter is ExportRequest && Project.Simulation.Steps > 0);
+		CancelExportCommand = new ControlCommand(() => _exportJob?.Cancel(), () => _exportJob?.IsActive == true);
 		RemoveImageCommand = new ControlCommand(RemoveSceneImage, () => Project.Scene.ImageData != null || Project.Scene.Image.Length > 0 || Project.Scene.ImagePath.Length > 0);
 		RunCommand = new OpenCommand(() => StartRun());
 		PlayPauseCommand = new OpenCommand(TogglePlayback);
@@ -720,6 +793,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand SaveImageCommand { get; }
 	/// <summary>Exports the selected active probe's recording as CSV.</summary>
 	public ICommand ExportProbeCsvCommand { get; }
+	/// <summary>Exports the requested picture layers or a still frame.</summary>
+	public ICommand ExportImagesCommand { get; }
+	/// <summary>Cancels an active export after its current frame.</summary>
+	public ICommand CancelExportCommand { get; }
 	/// <summary>Removes the image while preserving its canvas size.</summary>
 	public ICommand RemoveImageCommand { get; }
 	/// <summary>Starts a simulation run.</summary>
@@ -833,6 +910,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public void Dispose()
 	{
 		_disposed = true;
+		_exportJob?.Cancel();
 		_editGeneration++;
 		_scratchDelay?.Stop();
 		_rerunDelay?.Stop();
@@ -890,7 +968,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 				MemoryWarningChoice? choice = await _warn(spec, budget, autoBudget, quality);
 				if (choice == null || _disposed || !ReferenceEquals(original, _requested)) return;
 				quality = choice.Quality;
-				if (qualityOverride != null && (quality.FrameDivisor != 1 || quality.ResolutionDivisor != 1))
+				if (qualityOverride != null && (quality.FrameDivisor != 1 || quality.ResolutionDivisor != 1 || qualityOverride.Format == FrameFormat.Half && quality.Format != FrameFormat.Half || quality.IntensityRoot != qualityOverride.IntensityRoot))
 				{
 					LogManager.GetCurrentClassLogger().Warn("Probe export requires a full-resolution run with every frame");
 					Status = Application.Current?.Resources.TryGetValue("ExportError", out object? text) == true ? text as string ?? "Export failed" : "Export failed";
@@ -1081,7 +1159,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		old.PropertyChanged -= RunChanged;
 		old.ProbesUpdated -= RunProbesUpdated;
 		old.Stop();
-		return old.Completion.ContinueWith(_ => { old.Store.Dispose(); old.Dispose(); }, TaskScheduler.Default);
+		Task exportDone = _exportJob is { } export && ReferenceEquals(export.Store, old.Store) ? export.Completion : Task.CompletedTask;
+		return Task.WhenAll(old.Completion, exportDone).ContinueWith(_ => { old.Store.Dispose(); old.Dispose(); }, TaskScheduler.Default);
 	}
 
 	private async Task Open()
@@ -1276,6 +1355,98 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			LogManager.GetCurrentClassLogger().Info("Probe data written: {Rows} rows of '{Probe}' to {Path}", rows, copy.Name, path);
 		}
 		catch (Exception ex) { LogManager.GetCurrentClassLogger().Error(ex, "The probe data could not be written"); Status = ex.Message; }
+	}
+
+	private async Task ExportImages(object? parameter)
+	{
+		if (parameter is not ExportRequest request || (!request.Field && !request.Intensity) || _exportJob != null) return;
+		try
+		{
+			int generation = _editGeneration;
+			int stillFrame = Math.Max(0, (int)Frame);
+			string suffix = request.Field && request.Intensity ? "" : request.Field ? "_field" : "_intensity";
+			if (request.Still) suffix += "_" + stillFrame.ToString("D" + ImageSequenceSink.MinDigits, CultureInfo.InvariantCulture);
+			ExportSelection? selection = await _chooseExport(request, Path.GetFileNameWithoutExtension(_projectName) + suffix);
+			if (selection == null || _disposed || generation != _editGeneration) return;
+			ExportFormat format = selection.Format;
+			if (!ExportFormats.IsAvailable(format) || request.Still && !ExportFormats.IsSequence(format)) throw new NotSupportedException("The selected export format is not available.");
+			var outputs = new List<(FrameLayer Layer, string Path)>();
+			if (request.Field && request.Intensity)
+			{
+				string folder = Path.GetDirectoryName(selection.Path) ?? "", stem = Path.GetFileNameWithoutExtension(selection.Path);
+				foreach (string known in new[] { "_field", "_intensity" }) if (stem.EndsWith(known, StringComparison.OrdinalIgnoreCase)) stem = stem[..^known.Length];
+				outputs.Add((FrameLayer.Field, Path.Combine(folder, stem + "_field" + ExportFormats.Extension(format))));
+				outputs.Add((FrameLayer.Intensity, Path.Combine(folder, stem + "_intensity" + ExportFormats.Extension(format))));
+			}
+			else outputs.Add((request.Field ? FrameLayer.Field : FrameLayer.Intensity, selection.Path));
+			if (!request.Still && ExportFormats.IsSequence(format))
+				foreach (var output in outputs)
+				{
+					string folder = ExportFormats.SequenceFolder(output.Path);
+					if (Directory.Exists(folder) && Directory.EnumerateFileSystemEntries(folder).Any() && !await _confirmExportFolder(folder)) return;
+					if (_disposed || generation != _editGeneration) return;
+				}
+			bool? requiredRoot = request.Intensity ? ExportFormats.IntensityRootFor(format) : null;
+			SimulationRun? run = _run;
+			bool usable = run != null && !_runStale && !_probesStale && run.State is not (RunState.Cancelled or RunState.Failed)
+				&& run.Spec.Quality.IsFull && (requiredRoot == null || run.Store.IntensityRoot == requiredRoot);
+			if (!usable)
+			{
+				SimulationRun? previous = run;
+				if (_requested == null) RequestPreview(_folder, resetPosition: false);
+				await StartRun(automatic: true, qualityOverride: PreviewQuality.Full with { IntensityRoot = requiredRoot ?? true });
+				run = _run;
+				if (run == null || ReferenceEquals(run, previous) || _runStale || _probesStale || generation != _editGeneration) return;
+			}
+			if (run == null) return;
+			if (!run.IsFinished)
+			{
+				var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+				void OnFinished(object? sender, EventArgs e) => finished.TrySetResult();
+				run.Finished += OnFinished;
+				try { if (!run.IsFinished) await finished.Task; }
+				finally { run.Finished -= OnFinished; }
+			}
+			if (_disposed || generation != _editGeneration || !ReferenceEquals(run, _run) || run.State != RunState.Completed || !run.Spec.Quality.IsFull || requiredRoot != null && run.Store.IntensityRoot != requiredRoot) return;
+			int every = run.Spec.VisualizeEvery, lastFrame = run.Spec.FrameCount - 1;
+			int first = request.Still ? Math.Clamp(stillFrame, 0, lastFrame) : Math.Clamp(Project.Display.ExportFrom / every, 0, lastFrame);
+			int last = request.Still ? first : Project.Display.ExportTo <= 0 ? lastFrame : Math.Clamp(Project.Display.ExportTo / every, first, lastFrame);
+			ScenePixels? scene = SceneComposer.Compose(Project, _folder);
+			byte[]? edges = scene != null && scene.Width == run.Spec.Width && scene.Height == run.Spec.Height && (Project.Display.Field.OverlayInExport || Project.Display.Intensity.OverlayInExport) ? GlowingEdges.Compute(scene.Bgra, scene.Width, scene.Height, scene.StrideBytes) : null;
+			var decorations = new ExportDecorations(Project, run);
+			var schemes = Project.ColorSchemes.Concat(ColorSchemeStore.LoadBuiltIn(null)).ToArray();
+			var targets = new List<ExportTarget>();
+			foreach (var output in outputs)
+			{
+				DisplayLayer layer = output.Layer == FrameLayer.Field ? Project.Display.Field : Project.Display.Intensity;
+				ColorScheme? scheme = ColorSchemeStore.Find(schemes, layer.ColorScheme);
+				ColorLut lut = scheme == null ? ColorLut.Grey : ColorLut.Build(scheme, layer.BlackLevel);
+				var render = new ExportLayer(output.Layer, lut, (float)layer.Brightness, layer.OverlayInExport ? edges : null, layer.OverlayGain, decorations.For(output.Layer == FrameLayer.Field ? ProbeLayer.Field : ProbeLayer.Intensity));
+				int width = run.Spec.Width, height = run.Spec.Height, fps = Project.Display.Video.Fps, quality = Project.Display.Video.Quality;
+				string path = output.Path;
+				Func<IFrameSink> open = request.Still ? () => ExportFormats.OpenStill(format, path, width, height, quality) : () => ExportFormats.Open(format, path, width, height, fps, quality, last - first + 1, first);
+				targets.Add(new ExportTarget(render, !request.Still && ExportFormats.IsSequence(format) ? ExportFormats.SequenceFolder(path) : path, open));
+			}
+			var job = new ExportJob(run.Store, first, last, targets, SynchronizationContext.Current);
+			_exportJob = job;
+			void OnProgress(object? sender, PropertyChangedEventArgs e)
+			{
+				if (e.PropertyName == nameof(ExportJob.FramesDone) && ReferenceEquals(job, _exportJob) && Application.Current?.Resources.TryGetValue("ExportStatusFormat", out object? value) == true && value is string formatText)
+					Status = string.Format(CultureInfo.CurrentCulture, formatText, job.FramesDone, job.FrameCount);
+			}
+			job.PropertyChanged += OnProgress;
+			var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+			job.Finished += (_, _) => done.TrySetResult();
+			job.Start();
+			((ControlCommand)CancelExportCommand).Refresh();
+			await done.Task;
+			job.PropertyChanged -= OnProgress;
+			if (job.State == ExportState.Failed) throw job.Error ?? new IOException("The export failed.");
+			Status = job.State.ToString();
+			LogManager.GetCurrentClassLogger().Info("Export {State}: {Count} frames to {Outputs}", job.State, job.FramesDone, string.Join(", ", targets.Select(target => target.Output)));
+		}
+		catch (Exception ex) { LogManager.GetCurrentClassLogger().Error(ex, "The export failed"); Status = ex.Message; }
+		finally { _exportJob = null; ((ControlCommand)CancelExportCommand).Refresh(); }
 	}
 
 
