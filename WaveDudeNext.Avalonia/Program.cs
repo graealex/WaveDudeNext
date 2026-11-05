@@ -43,6 +43,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Themes.Fluent;
 using Avalonia.Styling;
+using Avalonia.Rendering.Composition;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NLog;
@@ -211,7 +212,11 @@ internal sealed class MainWindow : Window
 		AddHandler(InputElement.PointerPressedEvent, (_, _) => state.PointerDown = true, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerReleasedEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
 		AddHandler(InputElement.PointerCaptureLostEvent, (_, _) => state.PointerDown = false, RoutingStrategies.Tunnel);
-		Opened += (_, _) => state.Initialise();
+		Opened += (_, _) =>
+		{
+			state.Initialise();
+			Dispatcher.UIThread.Post(DescribeViewportInterop, DispatcherPriority.Background);
+		};
 		bool closeApproved = false, confirmingClose = false;
 		Closing += async (_, e) =>
 		{
@@ -541,6 +546,29 @@ internal sealed class MainWindow : Window
 			_manual.Show(this);
 		}
 		else _manual.Activate();
+	}
+
+	private async void DescribeViewportInterop()
+	{
+		try
+		{
+			CompositionVisual? visual = ElementComposition.GetElementVisual(this);
+			if (visual == null) { Logger.Debug("Viewport compositor is not available for GPU interop discovery"); return; }
+			ICompositionGpuInterop? interop = await visual.Compositor.TryGetCompositionGpuInterop();
+			if (interop == null) { Logger.Debug("Viewport compositor does not expose GPU interop"); return; }
+			byte[]? uuid = interop.DeviceUuid;
+			string images = string.Join(", ", interop.SupportedImageHandleTypes.Select(type => $"{type} ({interop.GetSynchronizationCapabilities(type)})"));
+			string semaphores = string.Join(", ", interop.SupportedSemaphoreTypes);
+			string uuidText = uuid == null ? "unavailable" : Convert.ToHexString(uuid);
+			string luidText = interop.DeviceLuid == null ? "unavailable" : Convert.ToHexString(interop.DeviceLuid);
+			Logger.Debug("Viewport compositor GPU interop: lost {Lost}, UUID {Uuid}, LUID {Luid}, image handles [{Images}], semaphore handles [{Semaphores}]", interop.IsLost, uuidText, luidText, images, semaphores);
+			if (uuid is not { Length: 16 }) return;
+			IReadOnlyList<VulkanDeviceInfo> devices = await Task.Run(VulkanDeviceInfo.FindAll);
+			VulkanDeviceInfo? match = devices.FirstOrDefault(device => device.DeviceUuid.AsSpan().SequenceEqual(uuid));
+			if (match == null) Logger.Debug("No Vulkan 1.3 compute device matches the viewport compositor UUID {Uuid}", uuidText);
+			else Logger.Debug("Viewport compositor matches Vulkan device {Device}; software {Software}", match.Name, match.Software);
+		}
+		catch (Exception ex) { Logger.Debug(ex, "Viewport GPU interop discovery failed"); }
 	}
 
 	private async Task<(Project Project, string Name, string? Folder, string? Path)?> OpenProject()
