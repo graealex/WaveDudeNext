@@ -40,3 +40,92 @@ jobs:
         run: dotnet build WaveDudeNext.sln --configuration Release -warnaserror
       - name: Check the shared library
         run: dotnet run --project _tools/library_check --configuration Release
+
+  macos-bundle:
+    name: macOS universal bundle (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Apple silicon
+            runner: macos-15
+          - name: Intel
+            runner: macos-15-intel
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Fetch the pinned Vulkan SDK and license texts
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/vulkan-sdk.zip" https://sdk.lunarg.com/sdk/download/1.4.363.0/mac/vulkan_sdk.zip
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/vulkan-loader-license" https://raw.githubusercontent.com/KhronosGroup/Vulkan-Loader/v1.4.363/LICENSE.txt
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/moltenvk-license" https://raw.githubusercontent.com/KhronosGroup/MoltenVK/v1.4.2/LICENSE
+          printf '%s  %s\n' 43c0a37e6a0fa7ff3c843b3ec5a4fac84b712558ddac103fbd4c1649662a9ece "$RUNNER_TEMP/vulkan-loader-license" | shasum -a 256 -c -
+          printf '%s  %s\n' cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30 "$RUNNER_TEMP/moltenvk-license" | shasum -a 256 -c -
+          _tools/prepare_macos_vulkan.py "$RUNNER_TEMP/vulkan-sdk.zip" "$RUNNER_TEMP/vulkan-libraries"
+      - name: Build the universal app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          _tools/package_macos.sh "$RUNNER_TEMP/WaveDude Next.app" "$RUNNER_TEMP/vulkan-libraries" "$RUNNER_TEMP/vulkan-libraries" "$RUNNER_TEMP/vulkan-loader-license" "$RUNNER_TEMP/moltenvk-license"
+      - name: Launch the bundle on the runner architecture
+        shell: bash
+        run: |
+          python3 - "$RUNNER_TEMP/WaveDude Next.app" "$RUNNER_TEMP" <<'PY'
+          import ctypes
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import time
+          app, temp = map(Path, sys.argv[1:])
+          loader = ctypes.CDLL(str(app / "Contents/Frameworks/libvulkan.dylib"))
+          version = ctypes.c_uint32()
+          loader.vkEnumerateInstanceVersion.argtypes = [ctypes.POINTER(ctypes.c_uint32)]
+          loader.vkEnumerateInstanceVersion.restype = ctypes.c_int32
+          if loader.vkEnumerateInstanceVersion(ctypes.byref(version)) != 0 or version.value < ((1 << 22) | (3 << 12)):
+              raise SystemExit("The bundled Vulkan loader does not expose Vulkan 1.3")
+          ctypes.CDLL(str(app / "Contents/Frameworks/libMoltenVK.dylib"))
+          home = temp / "wavedude-smoke-home"
+          home.mkdir()
+          env = os.environ.copy()
+          env["HOME"] = str(home)
+          env["DOTNET_BUNDLE_EXTRACT_BASE_DIR"] = str(home / "bundle-cache")
+          executable = app / "Contents/MacOS/WaveDudeNext"
+          with (temp / "wavedude-smoke.log").open("w+") as log:
+              process = subprocess.Popen([str(executable)], env=env, stdout=log, stderr=subprocess.STDOUT)
+              try:
+                  deadline = time.monotonic() + 30
+                  engine_log = None
+                  while time.monotonic() < deadline:
+                      if process.poll() is not None:
+                          break
+                      for candidate in home.rglob("WaveDudeNext.log"):
+                          text = candidate.read_text(errors="replace")
+                          if "Preview engine:" in text:
+                              engine_log = text
+                              break
+                      if engine_log is not None:
+                          break
+                      time.sleep(0.25)
+                  if engine_log is None:
+                      log.seek(0)
+                      raise SystemExit(f"Application did not initialise a preview ({process.poll()}):\n{log.read()}")
+                  print(next(line for line in engine_log.splitlines() if "Preview engine:" in line))
+              finally:
+                  if process.poll() is None:
+                      process.terminate()
+                      try:
+                          process.wait(timeout=5)
+                      except subprocess.TimeoutExpired:
+                          process.kill()
+                          process.wait()
+          print("Universal app remained running on", os.uname().machine)
+          PY
