@@ -43,8 +43,8 @@ for license in "$loader_license" "$molten_license"; do
 	if [[ ! -f "$license" ]]; then printf 'License file missing: %s\n' "$license" >&2; exit 1; fi
 done
 for library in libvulkan.1.dylib libMoltenVK.dylib; do
-	lipo -verify_arch arm64 "$arm_lib/$library"
-	lipo -verify_arch x86_64 "$x64_lib/$library"
+	lipo "$arm_lib/$library" -verify_arch arm64
+	lipo "$x64_lib/$library" -verify_arch x86_64
 done
 
 version=$(dotnet msbuild "$root/WaveDudeNext.Avalonia/WaveDudeNext.Avalonia.csproj" -nologo -getProperty:Version)
@@ -80,9 +80,9 @@ for library in libvulkan.1.dylib libMoltenVK.dylib; do
 	copy_slice "$x64_lib/$library" x86_64 "$work/x64-$library"
 	if [[ "$library" == libvulkan.1.dylib ]]; then target=libvulkan.dylib; else target=$library; fi
 	lipo -create "$work/arm64-$library" "$work/x64-$library" -output "$contents/Frameworks/$target"
-	lipo -verify_arch arm64 x86_64 "$contents/Frameworks/$target"
+	lipo "$contents/Frameworks/$target" -verify_arch arm64 x86_64
 done
-lipo -verify_arch arm64 x86_64 "$contents/MacOS/WaveDudeNext"
+lipo "$contents/MacOS/WaveDudeNext" -verify_arch arm64 x86_64
 # Silk.NET searches AppContext.BaseDirectory first; the link resolves to the signed loader in Frameworks.
 ln -s ../Frameworks/libvulkan.dylib "$contents/MacOS/libvulkan.dylib"
 cat > "$contents/Resources/vulkan/icd.d/MoltenVK_icd.json" <<'JSON'
