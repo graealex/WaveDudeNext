@@ -19,6 +19,8 @@
 
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Specialized;
+using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -155,10 +157,36 @@ internal sealed class MainWindow : Window
 		pausePlayback.Bind(IsVisibleProperty, new Binding(nameof(WindowStateModel.IsPlaying)));
 		var simulation = new MenuItem { ItemsSource = new[] { run, pause, resume, stop, play, pausePlayback } };
 		simulation.Bind(MenuItem.HeaderProperty, simulation.GetResourceObservable("MenuSimulation"));
-		var menu = new Menu { ItemsSource = new[] { file, simulation } };
+		MenuItem ActionItem(string key, ICommand command, object? parameter = null)
+		{
+			var item = new MenuItem { Command = command, CommandParameter = parameter };
+			item.Bind(MenuItem.HeaderProperty, item.GetResourceObservable(key));
+			return item;
+		}
+		var parts = new MenuItem { ItemsSource = new[]
+		{
+			ActionItem("MenuAddLens", state.AddPartCommand, typeof(LensPart)),
+			ActionItem("MenuAddPolygon", state.AddPartCommand, typeof(PolygonPart)),
+			ActionItem("MenuAddRectangle", state.AddPartCommand, typeof(RectanglePart)),
+			ActionItem("MenuAddEllipse", state.AddPartCommand, typeof(EllipsePart)),
+			ActionItem("MenuAddTriangle", state.AddPartCommand, typeof(TrianglePart)),
+			ActionItem("MenuAddOutline", state.AddPartCommand, typeof(OutlinePart)),
+			ActionItem("MenuAddFiber", state.AddPartCommand, typeof(FiberPart)),
+			ActionItem("MenuAddBraggReflector", state.AddPartCommand, typeof(BraggReflectorPart)),
+			ActionItem("MenuAddGrinLens", state.AddPartCommand, typeof(GrinLensPart)),
+			ActionItem("MenuAddZonePlate", state.AddPartCommand, typeof(ZonePlatePart)),
+			ActionItem("MenuAddXorGate", state.AddPartCommand, typeof(XorGatePart)),
+			ActionItem("MenuAddAndGate", state.AddPartCommand, typeof(AndGatePart)),
+			ActionItem("MenuAddOrGate", state.AddPartCommand, typeof(OrGatePart)),
+		} };
+		parts.Bind(MenuItem.HeaderProperty, parts.GetResourceObservable("MenuProjectAddPart"));
+		var edit = new MenuItem { ItemsSource = new[] { ActionItem("MenuProjectAddSource", state.AddSourceCommand), ActionItem("MenuProjectAddProbe", state.AddProbeCommand), parts, ActionItem("MenuProjectRemove", state.RemoveCommand) } };
+		edit.Bind(MenuItem.HeaderProperty, edit.GetResourceObservable("MenuEdit"));
+		var menu = new Menu { ItemsSource = new[] { file, edit, simulation } };
 		var tree = new TreeView { Width = 250, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Left };
 		tree.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(WindowStateModel.Nodes)));
 		tree.Bind(TreeView.SelectedItemProperty, new Binding(nameof(WindowStateModel.SelectedNode)) { Mode = BindingMode.TwoWay });
+		tree.KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Delete), Command = state.RemoveCommand });
 		var properties = new ItemsControl();
 		properties.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(WindowStateModel.PropertyRows)));
 		var propertyTitle = new TextBlock();
@@ -365,6 +393,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private bool _disposed;
 	private double _frame;
 	private int _lastFrame;
+	private int _canvasWidth;
+	private int _canvasHeight;
 	private SimulationRun? _run;
 	private string? _folder;
 	private PreviewQuality _quality = PreviewQuality.Full;
@@ -417,6 +447,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		SetOutCommand = new ControlCommand(SetOutPoint, () => _requested != null && LastFrame > 0);
 		ClearRangeCommand = new ControlCommand(ClearRange, () => _requested != null && (Project.Display.ExportFrom != 0 || Project.Display.ExportTo != 0));
 		LiveCommand = new ControlCommand(ToggleLive, () => _run?.IsActive == true);
+		AddSourceCommand = new ControlCommand(() => { (int x, int y) = CanvasCentre(); SelectItem(Project.AddSource(x, y)); }, () => true);
+		AddProbeCommand = new ControlCommand(() => { (int x, int y) = CanvasCentre(); SelectItem(Project.AddProbe(x, y)); }, () => true);
+		AddPartCommand = new ParameterCommand(value => { if (value is Type type) { (int x, int y) = CanvasCentre(); SelectItem(Project.AddPart(type, x, y)); } });
+		RemoveCommand = new ControlCommand(RemoveSelected, () => SelectedNode?.Tag is Source or OpticalPart or Probe or ColorScheme);
 		SetProject(_project);
 	}
 
@@ -438,6 +472,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			_selectedNode = value;
 			Changed();
 			PropertyRows = BuildPropertyRows(value?.Tag);
+			((ControlCommand)RemoveCommand).Refresh();
 		}
 	}
 	/// <summary>The selected object's visible scalar properties.</summary>
@@ -466,6 +501,14 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public ICommand ClearRangeCommand { get; }
 	/// <summary>Starts or stops following the newest simulation frame.</summary>
 	public ICommand LiveCommand { get; }
+	/// <summary>Adds a source at the centre of the canvas.</summary>
+	public ICommand AddSourceCommand { get; }
+	/// <summary>Adds a probe at the centre of the canvas.</summary>
+	public ICommand AddProbeCommand { get; }
+	/// <summary>Adds an optical part of the supplied type.</summary>
+	public ICommand AddPartCommand { get; }
+	/// <summary>Removes the selected project item.</summary>
+	public ICommand RemoveCommand { get; }
 	/// <summary>Whether the timeline is playing.</summary>
 	public bool IsPlaying { get => _isPlaying; private set { _isPlaying = value; Changed(); } }
 	/// <summary>Whether playback wraps over the export range.</summary>
@@ -801,6 +844,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		ScenePixels? scene = SceneComposer.Compose(Project, folder);
 		RunSpec spec = RunSpec.Create(Project, scene, preferGpu: true, trackIntensity: true, quality: _quality, preferVulkan: true);
 		_requested = spec;
+		_canvasWidth = spec.Width;
+		_canvasHeight = spec.Height;
 		LastFrame = Math.Max(0, spec.FrameCount - 1);
 		((ControlCommand)StepBackCommand).Refresh();
 		((ControlCommand)StepForwardCommand).Refresh();
@@ -923,35 +968,96 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_watcher?.Dispose();
 		SelectedNode = null;
 		Project = project;
+		_canvasWidth = 0;
+		_canvasHeight = 0;
 		_watcher = new ProjectWatcher(project);
 		_watcher.Changed += ProjectChanged;
-		static TreeViewItem Group(string key, object? value, IEnumerable<(string Name, object Value)> children)
+		RefreshTree();
+	}
+
+	private void RefreshTree()
+	{
+		object? selected = SelectedNode?.Tag;
+		static TreeViewItem Group(string key, object? value, IEnumerable<object> children)
 		{
-			var item = new TreeViewItem { Tag = value, ItemsSource = children.Select(child => new TreeViewItem { Header = child.Name, Tag = child.Value }).ToArray() };
+			var item = new TreeViewItem { Tag = value, ItemsSource = children.Select(child =>
+			{
+				var row = new TreeViewItem { Tag = child };
+				row.Bind(HeaderedItemsControl.HeaderProperty, new Binding("Name") { Source = child });
+				return row;
+			}).ToArray() };
 			item.Bind(TreeViewItem.HeaderProperty, item.GetResourceObservable(key));
 			return item;
 		}
 		Nodes =
 		[
-			Group("TreeScene", project.Scene, []),
-			Group("TreeSimulation", project.Simulation, []),
-			Group("TreeDisplay", project.Display, []),
-			Group("TreeSources", null, project.Sources.Select(item => (item.Name, (object)item))),
-			Group("TreeParts", null, project.Parts.Select(item => (item.Name, (object)item))),
-			Group("TreeProbes", null, project.Probes.Select(item => (item.Name, (object)item))),
-			Group("TreeColorSchemes", null, project.ColorSchemes.Select(item => (item.Name, (object)item))),
+			Group("TreeScene", Project.Scene, []),
+			Group("TreeSimulation", Project.Simulation, []),
+			Group("TreeDisplay", Project.Display, []),
+			Group("TreeSources", null, Project.Sources.Cast<object>()),
+			Group("TreeParts", null, Project.Parts.Cast<object>()),
+			Group("TreeProbes", null, Project.Probes.Cast<object>()),
+			Group("TreeColorSchemes", null, Project.ColorSchemes.Cast<object>()),
 		];
+		if (selected != null) SelectItem(selected);
+	}
+
+	private (int X, int Y) CanvasCentre() => ((_canvasWidth > 0 ? _canvasWidth : Project.Scene.Width) / 2, (_canvasHeight > 0 ? _canvasHeight : Project.Scene.Height) / 2);
+
+	private void SelectItem(object value)
+	{
+		foreach (TreeViewItem group in Nodes)
+		{
+			if (ReferenceEquals(group.Tag, value)) { group.IsSelected = true; SelectedNode = group; return; }
+			if (group.ItemsSource is not IEnumerable<TreeViewItem> children) continue;
+			foreach (TreeViewItem row in children)
+			{
+				if (!ReferenceEquals(row.Tag, value)) continue;
+				group.IsExpanded = true;
+				row.IsSelected = true;
+				SelectedNode = row;
+				return;
+			}
+		}
+		SelectedNode = null;
+	}
+
+	private void RemoveSelected()
+	{
+		object? item = SelectedNode?.Tag;
+		IList? list = item switch
+		{
+			Source => Project.Sources,
+			OpticalPart => Project.Parts,
+			Probe => Project.Probes,
+			ColorScheme => Project.ColorSchemes,
+			_ => null,
+		};
+		if (list == null || item == null) return;
+		int index = list.IndexOf(item);
+		int groupIndex = item switch { Source => 3, OpticalPart => 4, Probe => 5, _ => 6 };
+		switch (item)
+		{
+			case Source source: Project.Remove(source); break;
+			case OpticalPart part: Project.Remove(part); break;
+			case Probe probe: Project.Remove(probe); break;
+			case ColorScheme scheme: Project.Remove(scheme); break;
+		}
+		if (list.Count > 0) SelectItem(list[Math.Clamp(index, 0, list.Count - 1)]!);
+		else { Nodes[groupIndex].IsSelected = true; SelectedNode = Nodes[groupIndex]; }
 	}
 
 	private void ProjectChanged(object? sender, ProjectChange change)
 	{
+		if (change.Item is INotifyCollectionChanged) RefreshTree();
 		if (!_saving)
 		{
 			_dirty = true;
 			UpdateTitle();
 		}
 		bool bakedBrightness = change.Item is DisplayLayer && change.Property == nameof(DisplayLayer.Brightness) && _quality.Format == FrameFormat.Index;
-		if (!change.AffectsSimulation && !bakedBrightness) return;
+		bool unrecordedProbe = change.AffectsProbes && _run is { } run && Project.Probes.Any(probe => probe.Active && !run.Spec.Probes.Any(spec => ReferenceEquals(spec.Origin, probe)));
+		if (!change.AffectsSimulation && !bakedBrightness && !unrecordedProbe) return;
 		_lastEdit = change;
 		_editGeneration++;
 		_runStale |= _run != null;
@@ -1151,6 +1257,17 @@ internal sealed class ControlCommand(Action execute, Func<bool> canExecute) : IC
 	public void Execute(object? parameter) { if (canExecute()) execute(); }
 	/// <summary>Notifies controls that command availability may have changed.</summary>
 	public void Refresh() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+}
+
+/// <summary>A UI command that passes its parameter to an action.</summary>
+internal sealed class ParameterCommand(Action<object?> execute) : ICommand
+{
+	/// <inheritdoc/>
+	public event EventHandler? CanExecuteChanged { add { } remove { } }
+	/// <inheritdoc/>
+	public bool CanExecute(object? parameter) => true;
+	/// <inheritdoc/>
+	public void Execute(object? parameter) => execute(parameter);
 }
 
 /// <summary>An asynchronous UI command that admits one invocation at a time.</summary>
