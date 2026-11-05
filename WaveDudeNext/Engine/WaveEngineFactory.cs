@@ -55,7 +55,9 @@ public static class WaveEngineFactory
 			}
 			catch (DllNotFoundException)
 			{
-				gpuMessage = "no OpenCL driver (OpenCL.dll) found; install the driver of the graphics card";
+				gpuMessage = OperatingSystem.IsMacOS()
+					? "the macOS OpenCL framework is unavailable; using the CPU engine"
+					: "no OpenCL runtime found; install a compatible graphics driver";
 			}
 			catch (BadImageFormatException)
 			{

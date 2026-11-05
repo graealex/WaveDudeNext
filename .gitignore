@@ -15,3 +15,13 @@ _tools/*.txt
 .claude/settings.local.json
 
 desktop.ini
+
+# Generated macOS bundles, publishes and corresponding-source archives
+/artifacts/
+
+# Python packaging-tool bytecode
+__pycache__/
+*.py[cod]
+
+# Python packaging verification caches
+__pycache__/
