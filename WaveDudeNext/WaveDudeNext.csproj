@@ -25,6 +25,7 @@
   <!-- the shipped colour schemes are part of the binary; the ColorSchemes folder of this project is their source (2026-10-15: one file per scheme, named like the scheme, with spaces) -->
   <ItemGroup>
     <EmbeddedResource Include="ColorSchemes\*.wdscheme" LogicalName="ColorSchemes/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Engine\VulkanShaders\*.spv" LogicalName="VulkanShaders/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,6 +34,7 @@
 
   <ItemGroup>
     <PackageReference Include="NLog" Version="6.2.1" />
+    <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
     <PackageReference Include="System.Numerics.Tensors" Version="10.0.12" />
   </ItemGroup>
 

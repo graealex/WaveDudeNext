@@ -23,7 +23,7 @@ namespace WaveDudeNext.Engine;
 
 /// <summary>
 /// The part of the OpenCL 1.2 C interface that the GPU simulation needs, called directly from the ICD loader
-/// (OpenCL.dll on Windows, libOpenCL.so elsewhere; the import name "OpenCL" resolves to either) plus a few
+/// (OpenCL.dll on Windows, libOpenCL.so.1 on Linux, the OpenCL framework on macOS) plus a few
 /// query helpers. OpenCL.dll is installed with the driver of the graphics card (NVIDIA, Intel and AMD all
 /// install it), so no extra package is needed. Names and parameters follow the C header
 /// (cl.h); <c>size_t</c> is an <see cref="IntPtr"/>, <c>cl_bitfield</c> a <c>ulong</c>, <c>cl_uint</c> a
@@ -34,6 +34,20 @@ namespace WaveDudeNext.Engine;
 /// </summary>
 internal static class OpenClApi
 {
+	static OpenClApi()
+	{
+		NativeLibrary.SetDllImportResolver(typeof(OpenClApi).Assembly, (name, assembly, searchPath) =>
+		{
+			if (name != "OpenCL")
+			{
+				return IntPtr.Zero;
+			}
+			string? path = OperatingSystem.IsLinux() ? "libOpenCL.so.1"
+				: OperatingSystem.IsMacOS() ? "/System/Library/Frameworks/OpenCL.framework/OpenCL" : null;
+			return path != null && NativeLibrary.TryLoad(path, assembly, searchPath, out IntPtr handle) ? handle : IntPtr.Zero;
+		});
+	}
+
 	// ---- platforms and devices
 
 	/// <summary>clGetPlatformIDs: with <paramref name="platforms"/> null only counts the platforms into <paramref name="numPlatforms"/>.</summary>

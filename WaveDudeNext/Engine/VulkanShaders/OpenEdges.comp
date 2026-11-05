@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+//
+// This file is part of WaveDude Next, a 2D wave simulator.
+//
+// Based on the work of
+//   Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+//     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+//   0x23 (Diffraction Limited), author of WaveSimulator2D
+//     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+//
+// WaveDude Next is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+// <https://www.gnu.org/licenses/>.
+
+#version 450
+
+// Mur's absorbing boundary on the padded ring, after the interior wave step.
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0, std430) readonly buffer Field { float u[]; };
+layout(set = 0, binding = 1, std430) buffer Next { float next[]; };
+layout(set = 0, binding = 2, std430) readonly buffer Speed { float speedSquared[]; };
+layout(push_constant) uniform Parameters
+{
+    int width;
+    int height;
+    int stride;
+    int trackIntensity;
+    float speedScale;
+    float intensityAlpha;
+} p;
+
+void absorb(int ring, int inner)
+{
+    float speed = sqrt(speedSquared[inner] * p.speedScale) * 0.56213877;
+    float k = (speed - 1.0) / (speed + 1.0);
+    next[ring] = u[inner] + k * (next[inner] - u[ring]);
+}
+
+void main()
+{
+    int id = int(gl_GlobalInvocationID.x);
+    if (id < p.width + 2)
+    {
+        int ix = clamp(id, 1, p.width);
+        absorb(id, p.stride + ix);
+        absorb((p.height + 1) * p.stride + id, p.height * p.stride + ix);
+    }
+    else
+    {
+        int y = id - (p.width + 2) + 1;
+        if (y > p.height) return;
+        absorb(y * p.stride, y * p.stride + 1);
+        absorb(y * p.stride + p.width + 1, y * p.stride + p.width);
+    }
+}

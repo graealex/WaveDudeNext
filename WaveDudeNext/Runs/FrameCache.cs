@@ -51,7 +51,9 @@ public static class FrameCache
 	public static void CheckSpace(long bytes)
 	{
 		System.IO.Directory.CreateDirectory(Directory);
-		var drive = new DriveInfo(Path.GetPathRoot(Directory) ?? Directory);
+		// On Unix the cache may be on a mount beneath /, so query the directory's filesystem, not the root's.
+		string drivePath = OperatingSystem.IsWindows() ? Path.GetPathRoot(Directory) ?? Directory : Directory;
+		var drive = new DriveInfo(drivePath);
 		long needed = bytes + (64L << 20);
 		if (drive.AvailableFreeSpace < needed)
 		{
@@ -65,8 +67,8 @@ public static class FrameCache
 	}
 
 	/// <summary>
-	/// Deletes leftover stores that no running process holds open (a live store is opened without sharing,
-	/// so deleting it fails and it is skipped). Call once at start-up.
+	/// Deletes leftover stores that no running process holds open. On Unix an open file can be unlinked, so
+	/// exclusive access must be acquired before deleting it; on Windows deletion itself checks sharing. Call once at start-up.
 	/// </summary>
 	public static void Sweep()
 	{
@@ -78,7 +80,15 @@ public static class FrameCache
 		{
 			try
 			{
-				File.Delete(file);
+				if (OperatingSystem.IsWindows())
+				{
+					File.Delete(file);
+				}
+				else
+				{
+					using var exclusive = new FileStream(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+					File.Delete(file);
+				}
 				Logger.Debug("Deleted leftover frame cache {0}", file);
 			}
 			catch (IOException)

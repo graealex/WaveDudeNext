@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+//
+// This file is part of WaveDude Next, a 2D wave simulator.
+//
+// Based on the work of
+//   Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+//     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+//   0x23 (Diffraction Limited), author of WaveSimulator2D
+//     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+//
+// WaveDude Next is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+// <https://www.gnu.org/licenses/>.
+
+#version 450
+
+// One work item per image source. SceneData supplies at most one source per pixel.
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0, std430) buffer Field { float u[]; };
+layout(set = 0, binding = 1, std430) readonly buffer Indices { int indices[]; };
+layout(set = 0, binding = 2, std430) readonly buffer Levels { int levels[]; };
+layout(set = 0, binding = 3, std430) readonly buffer Frequencies { float frequencies[]; };
+layout(push_constant) uniform Parameters
+{
+    int count;
+    float time;
+    float amplitude;
+} p;
+
+void main()
+{
+    int source = int(gl_GlobalInvocationID.x);
+    if (source >= p.count) return;
+    int pixel = indices[source];
+    u[pixel] = u[pixel] * 0.9 + sin(frequencies[levels[source]] * p.time) * p.amplitude * 0.1;
+}

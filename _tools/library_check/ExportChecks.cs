@@ -611,7 +611,7 @@ internal static class ExportChecks
 			{
 				byte[] inHouse = jpeg.Encode(frame);
 				byte[] wic = [];
-				Time("jpeg encode by WIC (q 85)", () => wic = WicEncode(frame, w, h, 85), 5);
+				Time("jpeg encode by WIC (q 85)", () => { if (OperatingSystem.IsWindows()) { wic = WicEncode(frame, w, h, 85); } }, 5);
 				File.WriteAllBytes(Path.Combine(folder, "wic.jpg"), wic);
 				File.WriteAllBytes(Path.Combine(folder, "inhouse.jpg"), inHouse);
 				double wicDb = 0;
@@ -651,7 +651,7 @@ internal static class ExportChecks
 			{
 				using var mp4 = new Mp4Writer(Path.Combine(folder, "b.mp4"), w, h, 30, 85);
 				Console.WriteLine("  mp4: " + (mp4.Nv12Input ? "NV12" : "RGB32") + " in, " + mp4.Transforms + (mp4.HasDirect3D ? ", Direct3D device shared" : ", system memory") + "; hardware H.264 encoders registered: " + string.Join(", ", Mp4Writer.AvailableEncoders(hardwareOnly: true).DefaultIfEmpty("none")));
-				Time("mp4 frame (Media Foundation)", () => mp4.Add(frame), 10);
+				Time("mp4 frame (Media Foundation)", () => { if (OperatingSystem.IsWindows()) { mp4.Add(frame); } }, 10);
 			}
 			// the sequence sink's workers: PNG with one worker and with the default, ten frames each
 			foreach (int workers in new[] { 1, ExportFormats.SequenceWorkers(encoderIsParallel: false) })
@@ -771,10 +771,10 @@ internal static class ExportChecks
 				("avi", () => ExportFormats.Open(ExportFormat.Avi, Path.Combine(folder, "j.avi"), w, h, 30, 85, 60)),
 				("mov (Animation)", () => ExportFormats.Open(ExportFormat.Mov, Path.Combine(folder, "j.mov"), w, h, 30, 85, 60)),
 				("mp4", () => ExportFormats.Open(ExportFormat.Mp4, Path.Combine(folder, "j.mp4"), w, h, 30, 85, 60)),
-				("mp4, writer not throttling", () => { Mp4Writer.Throttle = false; return ExportFormats.Open(ExportFormat.Mp4, Path.Combine(folder, "k.mp4"), w, h, 30, 85, 60); }),
+				("mp4, writer not throttling", () => { if (OperatingSystem.IsWindows()) { Mp4Writer.Throttle = false; } return ExportFormats.Open(ExportFormat.Mp4, Path.Combine(folder, "k.mp4"), w, h, 30, 85, 60); }),
 			})
 			{
-				if ((name == "mp4" && !(OperatingSystem.IsWindows() && ExportFormats.IsAvailable(ExportFormat.Mp4))) || (name.StartsWith("jpeg sequence (WIC", StringComparison.Ordinal) && preferredJpeg == null))
+				if ((name.StartsWith("mp4", StringComparison.Ordinal) && !(OperatingSystem.IsWindows() && ExportFormats.IsAvailable(ExportFormat.Mp4))) || (name.StartsWith("jpeg sequence (WIC", StringComparison.Ordinal) && preferredJpeg == null))
 				{
 					continue;
 				}
@@ -786,7 +786,10 @@ internal static class ExportChecks
 				string ratio = job.Targets[0].Sink is MovWriter movSink ? $", {(double)store.Count * w * h * 3 / Math.Max(1, movSink.FrameBytes):0.00} : 1 on the run's frames" : "";
 				Console.WriteLine($"  job to {name}: {clock.Elapsed.TotalMilliseconds / store.Count:0.0} ms per frame ({job.State}){ratio}");
 				ExportFormats.PreferredJpeg = preferredJpeg;
-				Mp4Writer.Throttle = true;
+				if (OperatingSystem.IsWindows())
+				{
+					Mp4Writer.Throttle = true;
+				}
 			}
 		}
 		finally

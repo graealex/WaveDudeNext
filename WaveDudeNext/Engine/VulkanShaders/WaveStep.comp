@@ -1,0 +1,65 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+//
+// This file is part of WaveDude Next, a 2D wave simulator.
+//
+// Based on the work of
+//   Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+//     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+//   0x23 (Diffraction Limited), author of WaveSimulator2D
+//     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+//
+// WaveDude Next is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+// <https://www.gnu.org/licenses/>.
+
+#version 450
+
+// Same 32 x 8 work groups and padded-grid layout as the existing engines.
+layout(local_size_x = 32, local_size_y = 8) in;
+layout(constant_id = 0) const bool fourthOrder = false;
+layout(set = 0, binding = 0, std430) readonly buffer Field { float u[]; };
+layout(set = 0, binding = 1, std430) buffer Previous { float previous[]; };
+layout(set = 0, binding = 2, std430) readonly buffer Speed { float speedSquared[]; };
+layout(set = 0, binding = 3, std430) readonly buffer Damping { float damping[]; };
+layout(set = 0, binding = 4, std430) buffer StageOne { float stageOne[]; };
+layout(set = 0, binding = 5, std430) buffer StageTwo { float stageTwo[]; };
+layout(push_constant) uniform Parameters
+{
+    int width;
+    int height;
+    int stride;
+    int trackIntensity;
+    float speedScale;
+    float intensityAlpha;
+} p;
+
+void main()
+{
+    int x = int(gl_GlobalInvocationID.x);
+    int y = int(gl_GlobalInvocationID.y);
+    if (x >= p.width || y >= p.height) return;
+    int i = (y + 1) * p.stride + x + 1;
+    float center = u[i];
+    float lap;
+    if (fourthOrder && x >= 1 && x <= p.width - 2 && y >= 1 && y <= p.height - 2)
+    {
+        lap = (-1.0 / 12.0) * (u[i - 2] + u[i + 2] + u[i - 2 * p.stride] + u[i + 2 * p.stride])
+            + (4.0 / 3.0) * (u[i - 1] + u[i + 1] + u[i - p.stride] + u[i + p.stride]) - 5.0 * center;
+    }
+    else
+    {
+        lap = 0.066 * (u[i - p.stride - 1] + u[i - p.stride + 1] + u[i + p.stride - 1] + u[i + p.stride + 1])
+            + 0.184 * (u[i - 1] + u[i + 1] + u[i - p.stride] + u[i + p.stride]) - center;
+    }
+    float next = center + (center - previous[i]) * damping[i] + lap * speedSquared[i] * p.speedScale;
+    previous[i] = next;
+    if (p.trackIntensity != 0)
+    {
+        float first = stageOne[i] * p.intensityAlpha + next * next * (1.0 - p.intensityAlpha);
+        stageOne[i] = first;
+        stageTwo[i] = stageTwo[i] * p.intensityAlpha + first * (1.0 - p.intensityAlpha);
+    }
+}

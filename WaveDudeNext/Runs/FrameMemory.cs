@@ -24,8 +24,8 @@ namespace WaveDudeNext.Runs;
 /// when a run starts, from what the machine has to spare at that moment: a share of the physical memory (the
 /// user's setting), but never more than what is available now minus a margin for the rest of the application
 /// and the system, so a run never pushes the machine into its page file. Windows answers through
-/// <c>GlobalMemoryStatusEx</c>; elsewhere the runtime's view of the total serves, with half of it taken as
-/// available. Thread-free.
+/// <c>GlobalMemoryStatusEx</c>; elsewhere half of the runtime's view of the total serves as a conservative
+/// upper bound, also capped by Linux's currently available physical memory when reported. Thread-free.
 /// </summary>
 public static class FrameMemory
 {
@@ -61,7 +61,40 @@ public static class FrameMemory
 		{
 			return (long)Math.Min(Math.Min(status.AvailPhys, status.AvailPageFile), long.MaxValue);
 		}
-		return PhysicalBytes() / 2;
+		long fallback = PhysicalBytes() / 2;
+		return OperatingSystem.IsLinux() && TryLinuxAvailable(out long available) ? Math.Min(fallback, available) : fallback;
+	}
+
+	/// <summary>Reads Linux's estimated available physical memory, including reclaimable caches, in bytes.</summary>
+	private static bool TryLinuxAvailable(out long bytes)
+	{
+		bytes = 0;
+		try
+		{
+			foreach (string line in File.ReadLines("/proc/meminfo"))
+			{
+				if (!line.StartsWith("MemAvailable:", StringComparison.Ordinal))
+				{
+					continue;
+				}
+				string[] fields = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+				if (fields.Length != 3 || fields[2] != "kB" || !long.TryParse(fields[1], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out long kibibytes) || kibibytes < 0 || kibibytes > long.MaxValue / 1024)
+				{
+					return false;
+				}
+				bytes = kibibytes * 1024;
+				return true;
+			}
+		}
+		catch (IOException)
+		{
+			// Keep the conservative fallback when the kernel's report cannot be read.
+		}
+		catch (UnauthorizedAccessException)
+		{
+			// Keep the conservative fallback when the kernel's report cannot be read.
+		}
+		return false;
 	}
 
 	/// <summary>

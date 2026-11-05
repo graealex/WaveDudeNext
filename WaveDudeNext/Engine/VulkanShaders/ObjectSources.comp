@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+//
+// This file is part of WaveDude Next, a 2D wave simulator.
+//
+// Based on the work of
+//   Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+//     <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+//   0x23 (Diffraction Limited), author of WaveSimulator2D
+//     <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+//
+// WaveDude Next is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+// <https://www.gnu.org/licenses/>.
+
+#version 450
+
+// One source element per work item; mutable cycle state stays with the element.
+layout(local_size_x = 64) in;
+struct Emitter
+{
+    int index;
+    float omega;
+    float amplitude;
+    float phase;
+    int mode;
+    int pulseShape;
+    int onWidth;
+    int offWidth;
+    int detachStep;
+    int offWidthBase;
+    int offWidthRandomizeAmount;
+    float cycleAnchor;
+    uint rngState;
+};
+layout(set = 0, binding = 0, std430) buffer Field { float u[]; };
+layout(set = 0, binding = 1, std430) buffer Emitters { Emitter emitters[]; };
+layout(push_constant) uniform Parameters { int count; float time; } p;
+const float pi = 3.14159265358979323846;
+
+uint xorshift32(uint x)
+{
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    return x;
+}
+
+void main()
+{
+    int k = int(gl_GlobalInvocationID.x);
+    if (k >= p.count) return;
+    Emitter e = emitters[k];
+    float detachFade = 1.0;
+    if (e.detachStep >= 0)
+    {
+        float sinceDetach = p.time - float(e.detachStep);
+        if (sinceDetach >= 30.0) return;
+        if (sinceDetach > 0.0) detachFade = 1.0 - sinceDetach / 30.0;
+    }
+    float envelope = 1.0;
+    if (e.mode != 0)
+    {
+        int ow = e.offWidth;
+        int period = e.onWidth + ow;
+        if (period > 0)
+        {
+            float cycleClock = e.omega * p.time / (2.0 * pi);
+            float pos;
+            bool firstCycle;
+            if (e.offWidthRandomizeAmount <= 0)
+            {
+                float adjustedClock = cycleClock + float(ow);
+                firstCycle = floor(adjustedClock / float(period)) == 0.0;
+                pos = adjustedClock - float(period) * floor(adjustedClock / float(period));
+            }
+            else
+            {
+                pos = cycleClock - e.cycleAnchor;
+                int guard = 0;
+                while (pos >= float(period) && guard < 1000)
+                {
+                    e.cycleAnchor += float(period);
+                    pos -= float(period);
+                    e.rngState = xorshift32(e.rngState);
+                    int amount = e.offWidthRandomizeAmount;
+                    int span = 2 * amount + 1;
+                    int delta = int(e.rngState % uint(span)) - amount;
+                    ow = max(e.offWidthBase + delta, 1);
+                    e.offWidth = ow;
+                    period = e.onWidth + ow;
+                    guard++;
+                }
+                pos = max(pos, 0.0);
+                firstCycle = e.cycleAnchor == 0.0;
+                emitters[k].cycleAnchor = e.cycleAnchor;
+                emitters[k].offWidth = e.offWidth;
+                emitters[k].rngState = e.rngState;
+            }
+            if (e.pulseShape == 0)
+            {
+                if (pos < float(ow)) envelope = 0.0;
+                else
+                {
+                    float onPos = pos - float(ow);
+                    float center = float(e.onWidth) / 2.0;
+                    float sigma = max(float(e.onWidth) / 6.0, 1.0e-6);
+                    float delta = (onPos - center) / sigma;
+                    envelope = exp(-0.5 * delta * delta);
+                }
+            }
+            else
+            {
+                float shifted = pos - float(ow);
+                if (shifted < 0.0 && !firstCycle) shifted += float(period);
+                float dFall = shifted - float(e.onWidth);
+                float dRise = shifted;
+                if (dRise > float(period) / 2.0) dRise -= float(period);
+                float rising = 0.5 + atan(dRise / 0.35) / pi;
+                float falling = 0.5 - atan(dFall / 0.35) / pi;
+                envelope = rising * falling;
+            }
+        }
+    }
+    float value = sin(e.phase + e.omega * p.time) * e.amplitude * envelope * detachFade;
+    u[e.index] = u[e.index] * 0.9 + value * 0.1;
+}
