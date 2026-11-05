@@ -18,6 +18,7 @@
 // Contributors: Vinicius Miguel
 
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -140,6 +141,15 @@ internal sealed class MainWindow : Window
 		var menu = new Menu { ItemsSource = new[] { file, simulation } };
 		var tree = new TreeView { Width = 250, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Left };
 		tree.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(WindowStateModel.Nodes)));
+		tree.Bind(TreeView.SelectedItemProperty, new Binding(nameof(WindowStateModel.SelectedNode)) { Mode = BindingMode.TwoWay });
+		var properties = new ItemsControl();
+		properties.Bind(ItemsControl.ItemsSourceProperty, new Binding(nameof(WindowStateModel.PropertyRows)));
+		var propertyTitle = new TextBlock();
+		propertyTitle.Bind(TextBlock.TextProperty, propertyTitle.GetResourceObservable("PaneProperties"));
+		var propertyPane = new DockPanel { Width = 260 };
+		DockPanel.SetDock(propertyTitle, Dock.Top);
+		propertyPane.Children.Add(propertyTitle);
+		propertyPane.Children.Add(new ScrollViewer { Content = properties });
 		var status = new TextBlock();
 		status.Bind(TextBlock.TextProperty, new Binding(nameof(WindowStateModel.Status)));
 		var timeline = new Slider { Minimum = 0, TickFrequency = 1, IsSnapToTickEnabled = true, SmallChange = 1, LargeChange = 10 };
@@ -231,11 +241,12 @@ internal sealed class MainWindow : Window
 		pictures.Children.Add(field);
 		pictures.Children.Add(intensity);
 		DockPanel.SetDock(tree, Dock.Left);
+		DockPanel.SetDock(propertyPane, Dock.Right);
 		DockPanel.SetDock(menu, Dock.Top);
 		DockPanel.SetDock(status, Dock.Bottom);
 		DockPanel.SetDock(transport, Dock.Bottom);
 		var preview = new PreviewPanel(state) { Children = { transport, pictures } };
-		Content = new DockPanel { Children = { menu, status, tree, preview } };
+		Content = new DockPanel { Children = { menu, status, tree, propertyPane, preview } };
 	}
 
 	private async Task<(Project Project, string Name, string? Folder)?> OpenProject()
@@ -314,6 +325,8 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private PresentationJob? _pendingPresentation;
 	private bool _presenting;
 	private long _presentationVersion;
+	private TreeViewItem? _selectedNode;
+	private IReadOnlyList<Control> _propertyRows = [];
 	private readonly Stopwatch _playClock = new();
 	private Timer? _playTimer;
 	private double _playCarry;
@@ -322,6 +335,13 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private int _playGeneration;
 	private bool _isLooping;
 	private decimal _playbackSpeed = 1m;
+	private ProjectWatcher? _watcher;
+	private DispatcherTimer? _scratchDelay;
+	private DispatcherTimer? _rerunDelay;
+	private bool _runStale;
+	private bool _scratchWaiting;
+	private int _editGeneration;
+	private ProjectChange? _lastEdit;
 
 	/// <summary>Creates state for a new project.</summary>
 	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder)?>> open, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
@@ -329,7 +349,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		_open = open;
 		_warn = warn;
 		OpenCommand = new OpenCommand(Open);
-		RunCommand = new OpenCommand(StartRun);
+		RunCommand = new OpenCommand(() => StartRun());
 		PlayPauseCommand = new OpenCommand(TogglePlayback);
 		_pauseRun = new ControlCommand(ToggleRunPause, () => _run?.IsActive == true);
 		_stopRun = new ControlCommand(() => _run?.Stop(), () => _run?.IsActive == true);
@@ -350,6 +370,20 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public string Status { get => _status; private set { _status = value; Changed(); } }
 	/// <summary>The displayed project nodes.</summary>
 	public IReadOnlyList<TreeViewItem> Nodes { get => _nodes; private set { _nodes = value; Changed(); } }
+	/// <summary>The selected tree row.</summary>
+	public TreeViewItem? SelectedNode
+	{
+		get => _selectedNode;
+		set
+		{
+			if (ReferenceEquals(_selectedNode, value)) return;
+			_selectedNode = value;
+			Changed();
+			PropertyRows = BuildPropertyRows(value?.Tag);
+		}
+	}
+	/// <summary>The selected object's visible scalar properties.</summary>
+	public IReadOnlyList<Control> PropertyRows { get => _propertyRows; private set { _propertyRows = value; Changed(); } }
 	/// <summary>The loaded project, retained for editing and simulation.</summary>
 	public Project Project { get => _project; private set { _project = value; Changed(); } }
 	/// <summary>Opens an existing project.</summary>
@@ -413,6 +447,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public void Dispose()
 	{
 		_disposed = true;
+		_editGeneration++;
+		_scratchDelay?.Stop();
+		_rerunDelay?.Stop();
+		_watcher?.Dispose();
 		StopPlayback();
 		_playTimer?.Dispose();
 		InvalidatePresentation();
@@ -434,14 +472,14 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			Changed(nameof(Frame));
 			Changed(nameof(Position));
 		}
-		if (_run is { } run)
+		if (_run is { } run && !_runStale)
 		{
 			if ((int)frame < run.FrameCount) Present(run.Frames, (int)frame);
 		}
 		else if (_requested != null) _scratch?.Request(_requested, (int)frame);
 	}
 
-	private async Task StartRun()
+	private async Task StartRun(bool automatic = false)
 	{
 		if (_requested == null) return;
 		try
@@ -468,9 +506,12 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			if (_disposed || !ReferenceEquals(original, _requested)) return;
 			_requested = spec;
 			var store = FrameStore.Create(FrameCache.NewPath(), spec.Shape, spec.Layers, spec.StoredFrameCount, spec.CaptureEvery, budget, memoryReleased);
-			var run = new SimulationRun(spec, store, SynchronizationContext.Current ?? throw new InvalidOperationException("No UI synchronisation context is available."), false);
+			var run = new SimulationRun(spec, store, SynchronizationContext.Current ?? throw new InvalidOperationException("No UI synchronisation context is available."), automatic);
 			_run = run;
-			_following = true;
+			_runStale = false;
+			_scratchWaiting = false;
+			_rerunDelay?.Stop();
+			_following = !automatic;
 			run.PropertyChanged += RunChanged;
 			run.Start();
 			UpdateRunControls();
@@ -545,7 +586,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private void RunChanged(object? sender, PropertyChangedEventArgs args)
 	{
 		if (_disposed || sender is not SimulationRun run || !ReferenceEquals(run, _run)) return;
-		if (args.PropertyName == nameof(SimulationRun.FrameCount) && _following && run.FrameCount > 0)
+		if (args.PropertyName == nameof(SimulationRun.FrameCount) && _following && !_runStale && run.FrameCount > 0)
 			SetFrame(run.FrameCount - 1);
 		if (args.PropertyName == nameof(SimulationRun.State))
 		{
@@ -619,6 +660,11 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		{
 			if (await _open() is { } result)
 			{
+				_editGeneration++;
+				_scratchDelay?.Stop();
+				_rerunDelay?.Stop();
+				_runStale = false;
+				_scratchWaiting = false;
 				StopPlayback();
 				_ = DiscardRun();
 				_requested = null;
@@ -636,7 +682,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	}
 
 
-	private void RequestPreview(string? folder)
+	private void RequestPreview(string? folder, bool resetPosition = true)
 	{
 		ScenePixels? scene = SceneComposer.Compose(Project, folder);
 		RunSpec spec = RunSpec.Create(Project, scene, preferGpu: true, trackIntensity: true, quality: _quality, preferVulkan: true);
@@ -647,7 +693,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		((ControlCommand)SetInCommand).Refresh();
 		((ControlCommand)SetOutCommand).Refresh();
 		((ControlCommand)ClearRangeCommand).Refresh();
-		_frame = 0;
+		_frame = resetPosition ? 0 : Math.Clamp(_frame, 0, LastFrame);
 		Changed(nameof(Frame));
 		Changed(nameof(Position));
 		if (_scratch == null)
@@ -655,15 +701,17 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			_scratch = new ScratchRunner(SynchronizationContext.Current ?? throw new InvalidOperationException("No UI synchronisation context is available."));
 			_scratch.Completed += ScratchCompleted;
 		}
-		_scratch.Request(spec, 0);
+		_scratchWaiting = true;
+		_scratch.Request(spec, (int)_frame);
 	}
 
 	private void ScratchCompleted(object? sender, ScratchResult result)
 	{
-		if (_disposed || _run != null || !ReferenceEquals(result.Spec, _requested) || result.Frame != (int)Frame)
+		if (_disposed || (_run != null && !_runStale) || !ReferenceEquals(result.Spec, _requested) || result.Frame != (int)Frame)
 		{
 			return;
 		}
+		_scratchWaiting = false;
 		Present(new CopiedFrameSource(result.Snapshot), 0);
 	}
 
@@ -758,24 +806,148 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void SetProject(Project project)
 	{
+		_watcher?.Dispose();
+		SelectedNode = null;
 		Project = project;
-		static TreeViewItem Group(string key, IEnumerable<string> names)
+		_watcher = new ProjectWatcher(project);
+		_watcher.Changed += ProjectChanged;
+		static TreeViewItem Group(string key, object? value, IEnumerable<(string Name, object Value)> children)
 		{
-			var item = new TreeViewItem { ItemsSource = names.Select(value => new TreeViewItem { Header = value }).ToArray() };
+			var item = new TreeViewItem { Tag = value, ItemsSource = children.Select(child => new TreeViewItem { Header = child.Name, Tag = child.Value }).ToArray() };
 			item.Bind(TreeViewItem.HeaderProperty, item.GetResourceObservable(key));
 			return item;
 		}
 		Nodes =
 		[
-			Group("TreeScene", []),
-			Group("TreeSimulation", []),
-			Group("TreeDisplay", []),
-			Group("TreeSources", project.Sources.Select(item => item.Name)),
-			Group("TreeParts", project.Parts.Select(item => item.Name)),
-			Group("TreeProbes", project.Probes.Select(item => item.Name)),
-			Group("TreeColorSchemes", project.ColorSchemes.Select(item => item.Name)),
+			Group("TreeScene", project.Scene, []),
+			Group("TreeSimulation", project.Simulation, []),
+			Group("TreeDisplay", project.Display, []),
+			Group("TreeSources", null, project.Sources.Select(item => (item.Name, (object)item))),
+			Group("TreeParts", null, project.Parts.Select(item => (item.Name, (object)item))),
+			Group("TreeProbes", null, project.Probes.Select(item => (item.Name, (object)item))),
+			Group("TreeColorSchemes", null, project.ColorSchemes.Select(item => (item.Name, (object)item))),
 		];
 	}
+
+	private void ProjectChanged(object? sender, ProjectChange change)
+	{
+		bool bakedBrightness = change.Item is DisplayLayer && change.Property == nameof(DisplayLayer.Brightness) && _quality.Format == FrameFormat.Index;
+		if (!change.AffectsSimulation && !bakedBrightness) return;
+		_lastEdit = change;
+		_editGeneration++;
+		_runStale |= _run != null;
+		StopPlayback();
+		_following = false;
+		_run?.Stop();
+		_requested = null;
+		_scratchWaiting = false;
+		InvalidatePresentation();
+		_scratchDelay ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+		_scratchDelay.Tick -= OnScratchDelay;
+		_scratchDelay.Tick += OnScratchDelay;
+		_scratchDelay.Stop();
+		_scratchDelay.Start();
+		if (_runStale) ScheduleRerun();
+	}
+
+	private async void OnScratchDelay(object? sender, EventArgs e)
+	{
+		_scratchDelay!.Stop();
+		int generation = _editGeneration;
+		if (_run is { IsActive: true } run) await run.Completion;
+		if (_disposed || generation != _editGeneration) return;
+		try
+		{
+			if (_lastEdit is { } edit)
+				LogManager.GetCurrentClassLogger().Debug("Preview requested after {Item}.{Property} = {Value}", edit.Item, edit.Property ?? "list", edit.NewValueText);
+			_lastEdit = null;
+			RequestPreview(_folder, resetPosition: false);
+		}
+		catch (Exception ex) { Status = ex.Message; }
+	}
+
+	private void ScheduleRerun()
+	{
+		_rerunDelay ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
+		_rerunDelay.Tick -= OnRerunDelay;
+		_rerunDelay.Tick += OnRerunDelay;
+		_rerunDelay.Stop();
+		_rerunDelay.Start();
+	}
+
+	private async void OnRerunDelay(object? sender, EventArgs e)
+	{
+		_rerunDelay!.Stop();
+		if (_disposed || !_runStale) return;
+		if (_scratchWaiting || _scratchDelay?.IsEnabled == true || _requested == null)
+		{
+			ScheduleRerun();
+			return;
+		}
+		await StartRun(automatic: true);
+	}
+
+	private static IReadOnlyList<Control> BuildPropertyRows(object? item)
+	{
+		if (item == null) return [];
+		var rows = new List<Control>();
+		foreach (PropertyDescriptor property in TypeDescriptor.GetProperties(item))
+		{
+			Type type = property.PropertyType;
+			if (!property.IsBrowsable || !(type.IsPrimitive || type.IsEnum || type == typeof(string) || type == typeof(decimal))) continue;
+			var label = new TextBlock { Text = property.DisplayName, TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
+			string key = $"Label.{property.ComponentType.Name}.{property.Name}";
+			if (Application.Current?.Resources.ContainsKey(key) == true) label.Bind(TextBlock.TextProperty, label.GetResourceObservable(key));
+			Control value;
+			var binding = new Binding(property.Name) { Source = item, Mode = BindingMode.TwoWay };
+			if (!property.IsReadOnly && type == typeof(bool))
+			{
+				var check = new CheckBox();
+				check.Bind(ToggleButton.IsCheckedProperty, binding);
+				value = check;
+			}
+			else if (!property.IsReadOnly && type.IsEnum)
+			{
+				var choice = new ComboBox { ItemsSource = Enum.GetValues(type) };
+				choice.Bind(SelectingItemsControl.SelectedItemProperty, binding);
+				value = choice;
+			}
+			else if (!property.IsReadOnly && type == typeof(string))
+			{
+				var text = new TextBox();
+				text.Bind(TextBox.TextProperty, binding);
+				value = text;
+			}
+			else if (!property.IsReadOnly && property.Attributes[typeof(RangeAttribute)] is RangeAttribute range && IsNumber(type))
+			{
+				var number = new NumericUpDown
+				{
+					Minimum = Convert.ToDecimal(range.Minimum, CultureInfo.InvariantCulture),
+					Maximum = Convert.ToDecimal(range.Maximum, CultureInfo.InvariantCulture),
+					Increment = type == typeof(float) || type == typeof(double) || type == typeof(decimal) ? 0.1m : 1m,
+				};
+				number.Bind(NumericUpDown.ValueProperty, binding);
+				value = number;
+			}
+			else
+			{
+				var text = new TextBlock { TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
+				text.Bind(TextBlock.TextProperty, new Binding(property.Name) { Source = item, Mode = BindingMode.OneWay });
+				value = text;
+			}
+			AutomationProperties.SetAutomationId(value, $"Property{property.ComponentType.Name}{property.Name}");
+			var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*") };
+			Grid.SetColumn(value, 1);
+			row.Children.Add(label);
+			row.Children.Add(value);
+			rows.Add(row);
+		}
+		return rows;
+	}
+
+	private static bool IsNumber(Type type) => type == typeof(byte) || type == typeof(sbyte) || type == typeof(short) || type == typeof(ushort)
+		|| type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong)
+		|| type == typeof(float) || type == typeof(double) || type == typeof(decimal);
 }
 
 /// <summary>The preview's keyboard transport scope; editable text retains its keys.</summary>
