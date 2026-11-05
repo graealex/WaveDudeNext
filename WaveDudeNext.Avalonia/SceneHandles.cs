@@ -38,7 +38,7 @@ internal sealed class SceneHandles : Panel
 	private readonly ProbeLayer _layer;
 	private readonly Dictionary<(object, MarkerRole, int), Marker> _markers = new();
 	private readonly Dictionary<Source, IReadOnlyList<SourceElement>> _emitters = new();
-	private enum MarkerRole { Centre, ProbeEnd, Angle, Grip, Surface1, Surface2, Point }
+	private enum MarkerRole { Centre, ProbeEnd, Angle, Grip, Surface1, Surface2, Point, FiberIn, FiberOut }
 	private static readonly IBrush Halo = new SolidColorBrush(Color.FromArgb(192, 0, 0, 0));
 
 	public SceneHandles(WindowStateModel state, ProbeLayer layer)
@@ -106,6 +106,15 @@ internal sealed class SceneHandles : Panel
 		}
 		if (_state.SelectedItem is OutlinePart outline)
 			for (int i = 0; i < outline.Points.Count; i++) wanted.Add((outline, MarkerRole.Point, i));
+		if (_state.SelectedItem is FiberPart fiber)
+		{
+			for (int i = 0; i < fiber.Nodes.Count; i++)
+			{
+				if (i > 0) wanted.Add((fiber, MarkerRole.FiberIn, i));
+				if (i < fiber.Nodes.Count - 1) wanted.Add((fiber, MarkerRole.FiberOut, i));
+				wanted.Add((fiber, MarkerRole.Point, i));
+			}
+		}
 		foreach (var key in _markers.Keys.Except(wanted).ToArray())
 		{
 			Children.Remove(_markers[key]);
@@ -261,6 +270,25 @@ internal sealed class SceneHandles : Panel
 				context.DrawGeometry(null, new Pen(SelectionBrush, 1), geometry);
 			}
 		}
+		if (selected is FiberPart fiber)
+		{
+			var (rect, scale) = Canvas(Bounds.Size);
+			var halo = new Pen(Halo, 3);
+			var line = new Pen(SelectionBrush, 1, dashStyle: DashStyle.Dot);
+			for (int i = 0; i < fiber.Nodes.Count; i++)
+			{
+				FiberNode node = fiber.Nodes[i];
+				Point centre = ViewDetail(fiber.ToCanvas(node.X, node.Y), rect, scale);
+				void DrawHandle((double X, double Y) position)
+				{
+					Point end = ViewDetail(fiber.ToCanvas(position.X, position.Y), rect, scale);
+					context.DrawLine(halo, centre, end);
+					context.DrawLine(line, centre, end);
+				}
+				if (i > 0) DrawHandle(node.In);
+				if (i < fiber.Nodes.Count - 1) DrawHandle(node.Out);
+			}
+		}
 		foreach (var entry in _markers.Where(entry => entry.Key.Item2 == MarkerRole.Centre && (display.LabelsInPreview || ReferenceEquals(entry.Key.Item1, selected))).OrderBy(entry => ReferenceEquals(entry.Key.Item1, selected)))
 		{
 			var marker = entry.Value;
@@ -296,6 +324,7 @@ internal sealed class SceneHandles : Panel
 		private (double X, double Y) _gripStart;
 		private (double X, double Y) _rimAnchor;
 		private (double X, double Y) _otherAnchor;
+		private double? _mirrorLength;
 		private double _startAngle;
 		public Marker(SceneHandles owner, object item, MarkerRole role, int index) { _owner = owner; _item = item; _role = role; _index = index; Focusable = true; }
 		public object Item => _item;
@@ -304,11 +333,15 @@ internal sealed class SceneHandles : Panel
 		public bool IsSurface => _role is MarkerRole.Surface1 or MarkerRole.Surface2;
 		private int Surface => _role == MarkerRole.Surface1 ? 1 : 2;
 		public bool IsPoint => _role == MarkerRole.Point;
-		public bool HasDetailPosition => IsGrip || IsSurface || IsPoint;
+		private bool IsFiberHandle => _role is MarkerRole.FiberIn or MarkerRole.FiberOut;
+		public bool HasDetailPosition => IsGrip || IsSurface || IsPoint || IsFiberHandle;
+		private FiberNode? Node => _item is FiberPart fiber && _index < fiber.Nodes.Count ? fiber.Nodes[_index] : null;
 		public (double X, double Y) DetailPosition => _item switch
 		{
 			LensPart lens when IsSurface => lens.ToCanvas(lens.VertexX(Surface), 0),
 			OutlinePart part when IsPoint && _index < part.Points.Count => part.ToCanvas(part.Points[_index].X, part.Points[_index].Y),
+			FiberPart part when Node is { } node && IsPoint => part.ToCanvas(node.X, node.Y),
+			FiberPart part when Node is { } node && IsFiberHandle => part.ToCanvas(_role == MarkerRole.FiberOut ? node.Out.X : node.In.X, _role == MarkerRole.FiberOut ? node.Out.Y : node.In.Y),
 			OpticalPart part when IsGrip => GripCanvas(part),
 			_ => default,
 		};
@@ -319,11 +352,12 @@ internal sealed class SceneHandles : Panel
 		public void UpdateName()
 		{
 			string name = ((WaveDudeNext.Model.INamed)_item).Name;
-			string id = _item switch { Source when IsAngle => $"SourceAngle:{name}", OpticalPart when IsAngle => $"PartAngle:{name}", OpticalPart when IsGrip => $"PartGrip:{name}", LensPart when IsSurface => $"PartSurface:{name}:{Surface}", OutlinePart when IsPoint => $"PartPoint:{name}:{_index}", Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_role == MarkerRole.ProbeEnd ? "B" : "A")}" };
+			string id = _item switch { Source when IsAngle => $"SourceAngle:{name}", OpticalPart when IsAngle => $"PartAngle:{name}", OpticalPart when IsGrip => $"PartGrip:{name}", LensPart when IsSurface => $"PartSurface:{name}:{Surface}", OpticalPart when IsPoint => $"PartPoint:{name}:{_index}", FiberPart when IsFiberHandle => $"{(_role == MarkerRole.FiberIn ? "FiberIn" : "FiberOut")}:{name}:{_index}", Source => $"Source:{name}", OpticalPart => $"Part:{name}", _ => $"Probe:{name}:{(_role == MarkerRole.ProbeEnd ? "B" : "A")}" };
 			AutomationProperties.SetAutomationId(this, id);
 			AutomationProperties.SetName(this, id);
-			string format = Application.Current?.Resources.TryGetValue(IsAngle ? "TipAngleMarkerFormat" : IsGrip ? "TipGripFormat" : IsSurface ? "TipSurfaceFormat" : IsPoint ? "TipPointFormat" : "TipMarkerFormat", out object? value) == true && value is string text ? text : "{0}";
-			ToolTip.SetTip(this, string.Format(CultureInfo.CurrentCulture, format, name, IsPoint ? _index : Surface));
+			string tip = IsAngle ? "TipAngleMarkerFormat" : IsGrip ? "TipGripFormat" : IsSurface ? "TipSurfaceFormat" : IsPoint && _item is FiberPart ? "TipNodeFormat" : IsPoint ? "TipPointFormat" : _role == MarkerRole.FiberIn ? "TipInHandleFormat" : _role == MarkerRole.FiberOut ? "TipOutHandleFormat" : "TipMarkerFormat";
+			string format = Application.Current?.Resources.TryGetValue(tip, out object? value) == true && value is string text ? text : "{0}";
+			ToolTip.SetTip(this, string.Format(CultureInfo.CurrentCulture, format, name, IsPoint || IsFiberHandle ? _index : Surface));
 		}
 		private void SetPoint(int x, int y)
 		{
@@ -340,6 +374,11 @@ internal sealed class SceneHandles : Panel
 				case OutlinePart p when IsPoint && _index < p.Points.Count:
 					(double pointX, double pointY) = p.ToFrame(x, y);
 					p.Points[_index].X = (int)Math.Round(pointX); p.Points[_index].Y = (int)Math.Round(pointY); break;
+				case FiberPart p when Node is { } node && (IsPoint || IsFiberHandle):
+					(double nodeX, double nodeY) = p.ToFrame(x, y);
+					if (IsPoint) { node.X = (int)Math.Round(nodeX); node.Y = (int)Math.Round(nodeY); }
+					else node.SetHandle(_role == MarkerRole.FiberOut, (int)Math.Round(nodeX) - node.X, (int)Math.Round(nodeY) - node.Y, _drag != null ? _mirrorLength : null);
+					break;
 				case OpticalPart p when IsGrip: SetGrip(p, x, y); break;
 				case OpticalPart p: p.X = x; p.Y = y; break;
 				case Probe p when _role == MarkerRole.ProbeEnd: p.BX = x; p.BY = y; break;
@@ -368,6 +407,7 @@ internal sealed class SceneHandles : Panel
 			if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
 			_owner._state.SelectItem(_item); Focus(); _start = Position; _startAngle = AngleOf(_item); if (HasDetailPosition) _gripStart = DetailPosition;
 			if (_item is LensPart lens && IsSurface) { _rimAnchor = lens.ToCanvas(lens.RimX(Surface), 0); _otherAnchor = lens.ToCanvas(lens.VertexX(Surface == 1 ? 2 : 1), 0); }
+			if (IsFiberHandle && Node is { } node) { int x = _role == MarkerRole.FiberOut ? node.InX : node.OutX, y = _role == MarkerRole.FiberOut ? node.InY : node.OutY; _mirrorLength = Math.Sqrt((double)x * x + (double)y * y); }
 			_drag = e.GetPosition(_owner); _pointer = e.Pointer; e.Pointer.Capture(this); e.Handled = true;
 		}
 		protected override void OnPointerMoved(PointerEventArgs e)
