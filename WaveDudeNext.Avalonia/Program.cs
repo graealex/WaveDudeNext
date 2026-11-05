@@ -111,14 +111,31 @@ internal sealed class MainWindow : Window
 	{
 		Width = 1000;
 		Height = 700;
-		var state = new WindowStateModel(OpenProject, (spec, budget, quality) => new MemoryWarningWindow(spec, budget, budget, quality).ShowDialog<MemoryWarningChoice?>(this));
+		var state = new WindowStateModel(OpenProject, SaveProjectAs, ConfirmSave, (spec, budget, quality) => new MemoryWarningWindow(spec, budget, budget, quality).ShowDialog<MemoryWarningChoice?>(this));
 		Opened += (_, _) => state.Initialise();
+		bool closeApproved = false, confirmingClose = false;
+		Closing += async (_, e) =>
+		{
+			if (closeApproved) return;
+			e.Cancel = true;
+			if (confirmingClose) return;
+			confirmingClose = true;
+			try
+			{
+				if (await state.ConfirmDiscard()) { closeApproved = true; Dispatcher.UIThread.Post(Close); }
+			}
+			finally { confirmingClose = false; }
+		};
 		Closed += (_, _) => state.Dispose();
 		DataContext = state;
 		this.Bind(TitleProperty, new Binding(nameof(WindowStateModel.Title)));
 		var open = new MenuItem { Command = state.OpenCommand, InputGesture = new global::Avalonia.Input.KeyGesture(global::Avalonia.Input.Key.O, global::Avalonia.Input.KeyModifiers.Control) };
 		open.Bind(MenuItem.HeaderProperty, open.GetResourceObservable("MenuFileOpen"));
-		var file = new MenuItem { ItemsSource = new[] { open } };
+		var save = new MenuItem { Command = state.SaveCommand, InputGesture = new KeyGesture(Key.S, KeyModifiers.Control) };
+		save.Bind(MenuItem.HeaderProperty, save.GetResourceObservable("MenuFileSave"));
+		var saveAs = new MenuItem { Command = state.SaveAsCommand, InputGesture = new KeyGesture(Key.S, KeyModifiers.Control | KeyModifiers.Shift) };
+		saveAs.Bind(MenuItem.HeaderProperty, saveAs.GetResourceObservable("MenuFileSaveAs"));
+		var file = new MenuItem { ItemsSource = new[] { open, save, saveAs } };
 		file.Bind(MenuItem.HeaderProperty, file.GetResourceObservable("MenuFile"));
 		var run = new MenuItem { Command = state.RunCommand, InputGesture = new global::Avalonia.Input.KeyGesture(global::Avalonia.Input.Key.F5) };
 		run.Bind(MenuItem.HeaderProperty, run.GetResourceObservable("MenuSimulationRun"));
@@ -249,7 +266,7 @@ internal sealed class MainWindow : Window
 		Content = new DockPanel { Children = { menu, status, tree, propertyPane, preview } };
 	}
 
-	private async Task<(Project Project, string Name, string? Folder)?> OpenProject()
+	private async Task<(Project Project, string Name, string? Folder, string? Path)?> OpenProject()
 	{
 		var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
 		{
@@ -277,7 +294,7 @@ internal sealed class MainWindow : Window
 				return ImportLegacy(path);
 			}
 			await using Stream stream = await files[0].OpenReadAsync();
-			return (Project.Load(stream), files[0].Name, path == null ? null : Path.GetDirectoryName(path));
+			return (Project.Load(stream), files[0].Name, path == null ? null : Path.GetDirectoryName(path), path);
 		}
 		catch (Exception ex)
 		{
@@ -287,7 +304,38 @@ internal sealed class MainWindow : Window
 		}
 	}
 
-	private static (Project Project, string Name, string? Folder) ImportLegacy(string path)
+	private async Task<string?> SaveProjectAs(string? name)
+	{
+		IStorageFile? file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+		{
+			SuggestedFileName = name,
+			DefaultExtension = "wdproj",
+			FileTypeChoices = [new FilePickerFileType("WaveDude Next projects") { Patterns = ["*.wdproj"] }],
+		});
+		if (file == null) return null;
+		return file.TryGetLocalPath() ?? throw new IOException("The project must be saved to a local folder.");
+	}
+
+	private Task<SaveDecision> ConfirmSave(string name)
+	{
+		var dialog = new Window { Width = 440, SizeToContent = SizeToContent.Height, CanResize = false, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+		dialog.Bind(TitleProperty, dialog.GetResourceObservable("Title"));
+		var message = new TextBlock { Text = string.Format(CultureInfo.CurrentCulture, (string)Application.Current!.Resources["SaveChangesFormat"]!, name), TextWrapping = global::Avalonia.Media.TextWrapping.Wrap };
+		var buttons = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right, Spacing = 8 };
+		void AddButton(string key, SaveDecision decision, bool isCancel = false)
+		{
+			var caption = new AccessText();
+			caption.Bind(AccessText.TextProperty, caption.GetResourceObservable(key));
+			buttons.Children.Add(new Button { Content = caption, IsCancel = isCancel, Command = new MemoryWarningCommand(() => dialog.Close(decision)) });
+		}
+		AddButton("DialogSave", SaveDecision.Save);
+		AddButton("DialogDiscard", SaveDecision.Discard);
+		AddButton("DialogCancel", SaveDecision.Cancel, true);
+		dialog.Content = new StackPanel { Margin = new Thickness(20), Spacing = 16, Children = { message, buttons } };
+		return dialog.ShowDialog<SaveDecision>(this);
+	}
+
+	private static (Project Project, string Name, string? Folder, string? Path) ImportLegacy(string path)
 	{
 		var notes = new List<string>();
 		Project imported = LegacyProject.Import(path, notes, out string name);
@@ -295,14 +343,16 @@ internal sealed class MainWindow : Window
 		{
 			Logger.Warn("{Note}", note);
 		}
-		return (imported, name.Length > 0 ? name : Path.GetFileName(path), Path.GetDirectoryName(path));
+		return (imported, name.Length > 0 ? name : Path.GetFileName(path), Path.GetDirectoryName(path), null);
 	}
 }
 
 /// <summary>Bound project state and commands, used on the UI thread.</summary>
 internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 {
-	private readonly Func<Task<(Project Project, string Name, string? Folder)?>> _open;
+	private readonly Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> _open;
+	private readonly Func<string?, Task<string?>> _saveAs;
+	private readonly Func<string, Task<SaveDecision>> _confirmSave;
 	private readonly Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> _warn;
 	private string _title = "WaveDude Next";
 	private string _status = "";
@@ -342,13 +392,21 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	private bool _scratchWaiting;
 	private int _editGeneration;
 	private ProjectChange? _lastEdit;
+	private string? _path;
+	private string _projectName = "Untitled";
+	private bool _dirty;
+	private bool _saving;
 
 	/// <summary>Creates state for a new project.</summary>
-	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder)?>> open, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
+	public WindowStateModel(Func<Task<(Project Project, string Name, string? Folder, string? Path)?>> open, Func<string?, Task<string?>> saveAs, Func<string, Task<SaveDecision>> confirmSave, Func<RunSpec, long, PreviewQuality, Task<MemoryWarningChoice?>> warn)
 	{
 		_open = open;
+		_saveAs = saveAs;
+		_confirmSave = confirmSave;
 		_warn = warn;
 		OpenCommand = new OpenCommand(Open);
+		SaveCommand = new OpenCommand(() => Save(false));
+		SaveAsCommand = new OpenCommand(() => Save(true));
 		RunCommand = new OpenCommand(() => StartRun());
 		PlayPauseCommand = new OpenCommand(TogglePlayback);
 		_pauseRun = new ControlCommand(ToggleRunPause, () => _run?.IsActive == true);
@@ -388,6 +446,10 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	public Project Project { get => _project; private set { _project = value; Changed(); } }
 	/// <summary>Opens an existing project.</summary>
 	public ICommand OpenCommand { get; }
+	/// <summary>Saves the current project.</summary>
+	public ICommand SaveCommand { get; }
+	/// <summary>Chooses a new path and saves the current project.</summary>
+	public ICommand SaveAsCommand { get; }
 	/// <summary>Starts a simulation run.</summary>
 	public ICommand RunCommand { get; }
 	/// <summary>Starts or pauses playback of the timeline.</summary>
@@ -658,6 +720,7 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 	{
 		try
 		{
+			if (!await ConfirmDiscard()) return;
 			if (await _open() is { } result)
 			{
 				_editGeneration++;
@@ -669,8 +732,11 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 				_ = DiscardRun();
 				_requested = null;
 				_folder = result.Folder;
+				_path = result.Path;
 				SetProject(result.Project);
-				Title = result.Name + " - WaveDude Next";
+				_projectName = result.Name;
+				_dirty = false;
+				UpdateTitle();
 				Status = "";
 				RequestPreview(_folder);
 			}
@@ -680,6 +746,54 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 			Status = ex.Message;
 		}
 	}
+
+	/// <summary>Asks to save or discard unsaved edits before replacing or closing the project.</summary>
+	public async Task<bool> ConfirmDiscard()
+	{
+		if (!_dirty) return true;
+		SaveDecision decision = await _confirmSave(_projectName);
+		if (decision == SaveDecision.Discard) return true;
+		if (decision != SaveDecision.Save) return false;
+		await Save(false);
+		return !_dirty;
+	}
+
+	private async Task Save(bool choosePath)
+	{
+		try
+		{
+			string? path = choosePath || _path == null ? await _saveAs(_path == null ? _projectName : Path.GetFileName(_path)) : _path;
+			if (path == null || _disposed) return;
+			path = Path.GetFullPath(path);
+			string? folder = Path.GetDirectoryName(path);
+			string oldImagePath = Project.Scene.ImagePath;
+			string imagePath = Project.Scene.ResolveImagePath(_folder);
+			_saving = true;
+			try
+			{
+				if (imagePath.Length > 0) Project.Scene.ImagePath = Scene.StoredImagePath(folder, imagePath);
+				Project.Save(path);
+			}
+			catch
+			{
+				Project.Scene.ImagePath = oldImagePath;
+				throw;
+			}
+			finally { _saving = false; }
+			_path = path;
+			_folder = folder;
+			_projectName = Path.GetFileName(path);
+			_dirty = false;
+			UpdateTitle();
+		}
+		catch (Exception ex)
+		{
+			LogManager.GetCurrentClassLogger().Error(ex, "Error while saving project");
+			Status = ex.Message;
+		}
+	}
+
+	private void UpdateTitle() => Title = _projectName + (_dirty ? "*" : "") + " - WaveDude Next";
 
 
 	private void RequestPreview(string? folder, bool resetPosition = true)
@@ -831,6 +945,11 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 
 	private void ProjectChanged(object? sender, ProjectChange change)
 	{
+		if (!_saving)
+		{
+			_dirty = true;
+			UpdateTitle();
+		}
 		bool bakedBrightness = change.Item is DisplayLayer && change.Property == nameof(DisplayLayer.Brightness) && _quality.Format == FrameFormat.Index;
 		if (!change.AffectsSimulation && !bakedBrightness) return;
 		_lastEdit = change;
@@ -949,6 +1068,9 @@ internal sealed class WindowStateModel : INotifyPropertyChanged, IDisposable
 		|| type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong)
 		|| type == typeof(float) || type == typeof(double) || type == typeof(decimal);
 }
+
+/// <summary>The user's answer to an unsaved-changes prompt.</summary>
+internal enum SaveDecision { Cancel, Save, Discard }
 
 /// <summary>The preview's keyboard transport scope; editable text retains its keys.</summary>
 internal sealed class PreviewPanel(WindowStateModel state) : DockPanel
