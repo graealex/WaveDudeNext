@@ -1,0 +1,83 @@
+[
+  {
+    "file": "Avalonia-11.3.22.LICENSE.txt",
+    "source_url": "https://github.com/AvaloniaUI/Avalonia/blob/627ae9ef921621e27e7aa58df2796fbadb50af88/licence.md",
+    "git_blob_sha": "41951805ac6a5cdb91373db7725fbaa9c004d912",
+    "repository": "AvaloniaUI/Avalonia",
+    "retrieved": "2026-11-05",
+    "packages": [
+      "Avalonia.Desktop/11.3.22",
+      "Avalonia.FreeDesktop/11.3.22",
+      "Avalonia.Native/11.3.22",
+      "Avalonia.Remote.Protocol/11.3.22",
+      "Avalonia.Skia/11.3.22",
+      "Avalonia.Themes.Fluent/11.3.22",
+      "Avalonia.Win32/11.3.22",
+      "Avalonia.X11/11.3.22",
+      "Avalonia/11.3.22"
+    ],
+    "sha256": "213814d306090074d234d760239ff0f67eb9b8d20eefb4d5631bb39dbe0b769b",
+    "version_evidence": "Repository commit recorded in the restored NuGet package .nuspec."
+  },
+  {
+    "file": "Avalonia.BuildServices-11.3.2.LICENSE.txt",
+    "source_url": "https://github.com/AvaloniaUI/Avalonia.BuildServices/blob/777f975b0a0cecf0311273711d56697212c558c0/LICENSE",
+    "git_blob_sha": "4a02b0b2ea96f3a8b9cb88af64a3c061c6ef4426",
+    "repository": "AvaloniaUI/Avalonia.BuildServices",
+    "retrieved": "2026-11-05",
+    "packages": [
+      "Avalonia.BuildServices/11.3.2"
+    ],
+    "sha256": "94162c40c663bd96ec1b870e6aba6ef0a43f44c9eb500807e7965e7078f6dc47",
+    "version_evidence": "Repository commit recorded in the restored NuGet package .nuspec."
+  },
+  {
+    "file": "NLog-6.2.1.LICENSE.txt",
+    "source_url": "https://github.com/NLog/NLog/blob/b058028290f245d12c30cb2910c2a574558ed9c6/LICENSE.txt",
+    "git_blob_sha": "a156fdde84abd24bf19a32ad63d15e0679c0ba4d",
+    "repository": "NLog/NLog",
+    "retrieved": "2026-11-05",
+    "packages": [
+      "NLog/6.2.1"
+    ],
+    "sha256": "0bf6ba2a9fc4e8b4b2fccbd712a9bf118989a60b8a1767551c23150f4154b08c",
+    "version_evidence": "Repository commit recorded in the restored NuGet package .nuspec."
+  },
+  {
+    "file": "Tmds.DBus.Protocol-0.21.3.LICENSE.txt",
+    "source_url": "https://github.com/tmds/Tmds.DBus/blob/8cb04f66c330b64244e996ff68f685f27f7381a0/COPYING",
+    "git_blob_sha": "d1060c2f634ad623ba500dff09ac3044c9747c82",
+    "repository": "tmds/Tmds.DBus",
+    "retrieved": "2026-11-05",
+    "packages": [
+      "Tmds.DBus.Protocol/0.21.3"
+    ],
+    "sha256": "aca3b49277abcc7886ccb2f115603a9f5b15fc3f96019a10c00f2974098b210c",
+    "version_evidence": "Repository commit recorded in the restored NuGet package .nuspec."
+  },
+  {
+    "file": "System.Numerics.Tensors-10.0.12.LICENSE.txt",
+    "source_url": "https://github.com/dotnet/dotnet/blob/95017c711e6afc1085133d440e42b4bd78155701/src/runtime/LICENSE.TXT",
+    "git_blob_sha": "984713a49622a96da110443c15477613bc12656b",
+    "repository": "dotnet/dotnet",
+    "retrieved": "2026-11-05",
+    "packages": [
+      "System.Numerics.Tensors/10.0.12"
+    ],
+    "sha256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+    "version_evidence": "Repository commit recorded in the restored NuGet package .nuspec."
+  },
+  {
+    "file": "MicroCom.Runtime-0.11.0.LICENSE.txt",
+    "source_url": "https://github.com/kekekeks/MicroCom/blob/7e773759cfc1012a5d080d4129c4718a662884b0/LICENSE",
+    "git_blob_sha": "6bcf96f0b4029b873c3d9b55d4c1117bbd157e28",
+    "repository": "kekekeks/MicroCom",
+    "retrieved": "2026-11-05",
+    "packages": [
+      "MicroCom.Runtime/0.11.0"
+    ],
+    "sha256": "6ee769c9ac4dac9abb16b98b1341e9528ff9f4ab685481410d3376d14148f3a9",
+    "version_evidence": "NuGet metadata supplies repository, version 0.11.0 and copyright, but no commit. Historical source Directory.Build.props at the pinned commit declares 0.11.0. This is matching version/license evidence, not proof of the package build commit.",
+    "version_evidence_url": "https://github.com/kekekeks/MicroCom/blob/7e773759cfc1012a5d080d4129c4718a662884b0/Directory.Build.props"
+  }
+]

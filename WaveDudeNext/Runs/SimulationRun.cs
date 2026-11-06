@@ -241,6 +241,7 @@ public sealed class SimulationRun : INotifyPropertyChanged, IDisposable
 	{
 		var stopwatch = Stopwatch.StartNew();
 		IWaveEngine? engine = null;
+		ProbeCollector? collector = null;
 		RunState final = RunState.Completed;
 		Exception? error = null;
 		int stepsDone = 0;
@@ -249,7 +250,7 @@ public sealed class SimulationRun : INotifyPropertyChanged, IDisposable
 			CancellationToken token = _cancel.Token;
 			SceneData scene = Spec.BuildScene();
 			ProbeSampler? sampler = Spec.Probes.Length > 0 ? ProbeSampler.Build(Spec.Probes, scene.CanvasWidth, scene.CanvasHeight, scene.Rim) : null;
-			ProbeCollector? collector = sampler != null ? new ProbeCollector(sampler) : null;
+			collector = sampler != null ? new ProbeCollector(sampler) : null;
 			engine = WaveEngineFactory.Create(scene, Spec.Engine, Spec.PreferGpu, Spec.Emitters, out string note);
 			Logger.Info("Engine: {0}", engine.Description);
 			if (note.Length > 0)
@@ -326,6 +327,9 @@ public sealed class SimulationRun : INotifyPropertyChanged, IDisposable
 					stopwatch.Start();
 				}
 				token.ThrowIfCancellationRequested();
+				// Reserve before advancing: cancellation during writer back pressure must not
+				// leave a completed step with a profile but no corresponding captured frame.
+				FrameSnapshot? snapshot = i % captureEvery == 0 && frame < Store.Capacity ? pool.Take(token) : null;
 				long t0 = Stopwatch.GetTimestamp();
 				engine.AdvanceOneStep();
 				if (sampler != null)
@@ -335,18 +339,10 @@ public sealed class SimulationRun : INotifyPropertyChanged, IDisposable
 				stepsDone = i + 1;
 				long t1 = Stopwatch.GetTimestamp();
 				computeTicks += t1 - t0;
-				if (i % every == 0)
+				if (snapshot != null)
 				{
-					// the series up to this step and the line profiles of this timeline frame (kept per frame, stored
-					// or not, so the preview shows the profile of the frame it scrubs to)
-					collector?.Collect(engine, stepsDone);
-					collector?.CollectProfiles(engine, stepsDone);
-				}
-				if (i % captureEvery == 0 && frame < Store.Capacity)
-				{
-					// a free snapshot (waiting here is the back pressure when the writer lags), captured
-					// without waiting for the copy; the writer awaits and stores it
-					FrameSnapshot snapshot = pool.Take(token);
+					// The reserved snapshot is captured without waiting for the copy;
+					// the writer awaits and stores it.
 					snapshot.Frame = frame;
 					snapshot.Step = i;
 					engine.CaptureFrame(snapshot, trackIntensity);
@@ -354,13 +350,19 @@ public sealed class SimulationRun : INotifyPropertyChanged, IDisposable
 					frame++;
 					captureTicks += Stopwatch.GetTimestamp() - t1;
 				}
+				if (i % every == 0)
+				{
+					// the series up to this step and the line profiles of this timeline frame (kept per frame, stored
+					// or not, so the preview shows the profile of the frame it scrubs to)
+					collector?.Collect(engine, stepsDone);
+					collector?.CollectProfiles(engine, stepsDone);
+				}
 				if (stopwatch.ElapsedMilliseconds - lastProgressMs >= HeartbeatIntervalMs)
 				{
 					lastProgressMs = stopwatch.ElapsedMilliseconds;
 					PublishHeartbeat(engine, collector, stepsDone);
 				}
 			}
-			PublishHeartbeat(engine, collector, stepsDone);
 			DrainWriter();
 			Logger.Debug("Run timing: {Compute:0.00} s stepping ({PerStep:0.00} ms/step), {Capture:0.00} s issuing captures; writer: {Wait:0.00} s waiting for frames, {Store:0.00} s storing ({PerFrame:0.0} ms/frame)",
 				computeTicks / (double)Stopwatch.Frequency, computeTicks * 1000.0 / Stopwatch.Frequency / Math.Max(1, stepsDone),
@@ -389,11 +391,20 @@ public sealed class SimulationRun : INotifyPropertyChanged, IDisposable
 			{
 				// captures still in flight must land before the engine goes (the writer stores them, cheaply)
 				DrainWriter();
-				(engine as IDisposable)?.Dispose();
+				// Cancellation can skip the normal end of the loop. Flush the final samples
+				// and collected profiles before releasing the engine, after captures land.
+				if (engine != null) PublishHeartbeat(engine, collector, stepsDone);
 			}
 			catch (Exception ex)
 			{
-				Logger.Warn(ex, "The engine could not be released cleanly.");
+				final = RunState.Failed;
+				error ??= ex;
+				Logger.Warn(ex, "The run could not be drained cleanly.");
+			}
+			finally
+			{
+				try { (engine as IDisposable)?.Dispose(); }
+				catch (Exception ex) { Logger.Warn(ex, "The engine could not be released cleanly."); }
 			}
 		}
 		stopwatch.Stop();

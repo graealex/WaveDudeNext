@@ -1,0 +1,91 @@
+name: Build experimental macOS port
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'WaveDudeNext/**'
+      - 'WaveDudeNext.Desktop/**'
+      - 'tests/WaveDudeNext.SmokeTests/**'
+      - 'tests/WaveDudeNext.DesktopTests/**'
+      - 'scripts/**'
+      - 'third-party-notices/**'
+      - 'Directory.Build.props'
+      - 'global.json'
+      - 'WaveDudeNext.CrossPlatform.sln'
+      - 'README.macOS.md'
+      - '.github/workflows/macos.yml'
+  pull_request:
+    paths:
+      - 'WaveDudeNext/**'
+      - 'WaveDudeNext.Desktop/**'
+      - 'tests/WaveDudeNext.SmokeTests/**'
+      - 'tests/WaveDudeNext.DesktopTests/**'
+      - 'scripts/**'
+      - 'third-party-notices/**'
+      - 'Directory.Build.props'
+      - 'global.json'
+      - 'WaveDudeNext.CrossPlatform.sln'
+      - 'README.macOS.md'
+      - '.github/workflows/macos.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: Native ${{ matrix.rid }} build and smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            rid: osx-arm64
+            machine: arm64
+          - runner: macos-15-intel
+            rid: osx-x64
+            machine: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Record native environment
+        run: |
+          test "$(uname -m)" = '${{ matrix.machine }}'
+          sw_vers
+          dotnet --info
+      - name: Headless simulation smoke
+        run: dotnet run --project tests/WaveDudeNext.SmokeTests -c Release
+      - name: Headless desktop interaction checks
+        run: dotnet run --project tests/WaveDudeNext.DesktopTests -c Release -- artifacts/desktop-ui-qa
+      - name: Build and statically verify self-contained bundle
+        run: bash scripts/build-macos.sh '${{ matrix.rid }}'
+      - name: Check bundle structure
+        run: |
+          plutil -lint 'artifacts/${{ matrix.rid }}/WaveDude Next.app/Contents/Info.plist'
+          test -x 'artifacts/${{ matrix.rid }}/WaveDude Next.app/Contents/MacOS/WaveDudeNext.Desktop'
+          test -f 'artifacts/${{ matrix.rid }}/WaveDude Next.app/Contents/Resources/LICENSE.md'
+      - name: Run packaged headless smoke (no GUI)
+        timeout-minutes: 3
+        run: '"artifacts/${{ matrix.rid }}/WaveDude Next.app/Contents/MacOS/WaveDudeNext.Desktop" --smoke-test'
+      - name: Retain bundles and corresponding source
+        uses: actions/upload-artifact@v4
+        with:
+          name: WaveDudeNext-${{ matrix.rid }}
+          path: |
+            artifacts/*.zip
+            artifacts/*-source.tar.gz
+          if-no-files-found: error
+      - name: Retain dependency graph
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependencies-${{ matrix.rid }}
+          path: WaveDudeNext.Desktop/obj/project.assets.json
+          if-no-files-found: ignore
