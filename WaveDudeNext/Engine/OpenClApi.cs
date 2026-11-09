@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -23,7 +24,7 @@ namespace WaveDudeNext.Engine;
 
 /// <summary>
 /// The part of the OpenCL 1.2 C interface that the GPU simulation needs, called directly from the ICD loader
-/// (OpenCL.dll on Windows, libOpenCL.so elsewhere; the import name "OpenCL" resolves to either) plus a few
+/// (OpenCL.dll on Windows, Apple’s OpenCL framework on macOS, libOpenCL.so on Linux) plus a few
 /// query helpers. OpenCL.dll is installed with the driver of the graphics card (NVIDIA, Intel and AMD all
 /// install it), so no extra package is needed. Names and parameters follow the C header
 /// (cl.h); <c>size_t</c> is an <see cref="IntPtr"/>, <c>cl_bitfield</c> a <c>ulong</c>, <c>cl_uint</c> a
@@ -34,6 +35,31 @@ namespace WaveDudeNext.Engine;
 /// </summary>
 internal static class OpenClApi
 {
+	static OpenClApi()
+	{
+		NativeLibrary.SetDllImportResolver(typeof(OpenClApi).Assembly, ResolveLibrary);
+	}
+
+	// Resolve only our OpenCL imports; all Windows-only codecs and system APIs keep the runtime default.
+	// Return zero on failure so callers receive the normal loader exception and can select the CPU engine.
+	private static IntPtr ResolveLibrary(string name, Assembly assembly, DllImportSearchPath? searchPath)
+	{
+		if (name != "OpenCL")
+		{
+			return IntPtr.Zero;
+		}
+		if (OperatingSystem.IsMacOS() && NativeLibrary.TryLoad(
+			"/System/Library/Frameworks/OpenCL.framework/OpenCL", out IntPtr framework))
+		{
+			return framework;
+		}
+		if (OperatingSystem.IsLinux() && NativeLibrary.TryLoad("libOpenCL.so.1", assembly, searchPath, out IntPtr library))
+		{
+			return library;
+		}
+		return IntPtr.Zero;
+	}
+
 	// ---- platforms and devices
 
 	/// <summary>clGetPlatformIDs: with <paramref name="platforms"/> null only counts the platforms into <paramref name="numPlatforms"/>.</summary>
