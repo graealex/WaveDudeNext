@@ -25,6 +25,7 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
@@ -191,6 +192,12 @@ public partial class ProjectTree : UserControl
 		tree.PointerMoved += OnTreePointerMoved;
 		tree.PointerReleased += OnTreePointerReleased;
 		tree.ContextRequested += OnTreeContextRequested;
+		// DragEnter as DragOver: AllowDrop is inherited in Avalonia as in WPF, so every element under the pointer is a drop
+		// target of its own, and where the pointer goes from one to the next the drag device raises DragLeave for the one and
+		// DragEnter for the other and no DragOver; a tree that heard DragOver alone had its mark hidden by the leave until
+		// the pointer's next move (2026-11-11, the user's report of a flickering line; measured through the device: the mark
+		// gone after each of 26 changes of the target in 244 moves about one slot, and not shown on entering)
+		tree.AddHandler(DragDrop.DragEnterEvent, OnDragOver);
 		tree.AddHandler(DragDrop.DragOverEvent, OnDragOver);
 		tree.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
 		tree.AddHandler(DragDrop.DropEvent, OnDrop);
@@ -920,16 +927,19 @@ public partial class ProjectTree : UserControl
 	/// </summary>
 	private void OnDragOver(object? sender, DragEventArgs e)
 	{
-		ClearInsertionLine();
 		Point position = e.GetPosition(tree);
 		if (_dragItem is { } item)
 		{
 			e.Handled = true;
-			e.DragEffects = DragDropEffects.None;
 			if (FindDropTarget(item, position) is { } target)
 			{
 				e.DragEffects = DragDropEffects.Move;
 				ShowInsertionLine(target.Header, target.Placement);
+			}
+			else
+			{
+				e.DragEffects = DragDropEffects.None;
+				ClearInsertionLine();
 			}
 			return;
 		}
@@ -938,7 +948,9 @@ public partial class ProjectTree : UserControl
 			e.Handled = true;
 			e.DragEffects = DragDropEffects.Copy;
 			ShowInsertionLine(paste.Header, paste.Placement);
+			return;
 		}
+		ClearInsertionLine();
 	}
 
 	private void OnDragLeave(object? sender, DragEventArgs e) => ClearInsertionLine();
@@ -1064,8 +1076,26 @@ public partial class ProjectTree : UserControl
 		_ => null,
 	};
 
-	private TreeViewItem? RowAt(Point position) =>
-		tree.GetVisualAt(position)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
+	/// <summary>
+	/// The row at the height of <paramref name="position"/> (in the tree's coordinates), wherever across the tree the
+	/// pointer is: the first row met from the pointer to the right. Under the pointer itself there is none in the gutter
+	/// left of a row, the room of its indent and of the chevron a leaf does not show, where a drag had lost its target
+	/// and its line (2026-11-10, the user's report on the WPF head, whose tree this one follows). A hit test, so only
+	/// what the tree shows counts.
+	/// </summary>
+	private TreeViewItem? RowAt(Point position)
+	{
+		// half the chevron's column: no row is narrower
+		const double Step = 8;
+		for (double x = Math.Max(0, position.X); x < tree.Bounds.Width; x += Step)
+		{
+			if (tree.GetVisualAt(new Point(x, position.Y))?.FindAncestorOfType<TreeViewItem>(includeSelf: true) is { } row)
+			{
+				return row;
+			}
+		}
+		return null;
+	}
 
 	/// <summary>The row's header line (the template's layout root), the element a drop is judged against and the insertion line drawn over.</summary>
 	private static Control? HeaderOf(TreeViewItem row) =>
@@ -1074,70 +1104,163 @@ public partial class ProjectTree : UserControl
 	private bool IsUpperHalf(Control header, Point position) =>
 		header.TranslatePoint(new Point(0, header.Bounds.Height / 2), tree) is { } middle && position.Y < middle.Y;
 
+	/// <summary>
+	/// Shows where a drop would go, on the tree's one mark (<see cref="Mark"/>): a line on the top or the bottom edge of
+	/// the row's header line, or an outline around it, given to the mark in the coordinates of the rows' panel it adorns.
+	/// "After this row" and "before the next" give the same numbers, so the mark does not even draw again when the
+	/// pointer crosses from one row to the other.
+	/// </summary>
 	private void ShowInsertionLine(Control header, InsertionPlacement placement)
 	{
-		if (AdornerLayer.GetAdornerLayer(header) is not { } layer
+		if (Mark() is not { } mark || AdornerLayer.GetAdornedElement(mark) is not { } rows || header.TranslatePoint(default, rows) is not { } corner
 			|| !this.TryFindResource("Accent", ActualThemeVariant, out object? value) || value is not IBrush brush)
 		{
 			return;
 		}
-		_insertionLine = new InsertionLine(brush, placement);
-		_insertionLayer = layer;
-		AdornerLayer.SetAdornedElement(_insertionLine, header);
-		AdornerLayer.SetIsClipEnabled(_insertionLine, false);
-		layer.Children.Add(_insertionLine);
+		var bounds = new Rect(corner, header.Bounds.Size);
+		// what the tree shows, in the rows' coordinates: the adorner layer is the window's and clips nothing to the tree,
+		// so a row wider than the tree, or one scrolled half out of it, had its line drawn over what lies beside the tree
+		// (2026-11-10, measured: 5 px past the edge with one long name). The layer sets an adorner's Clip itself, so the
+		// mark clips its own drawing
+		Rect? view = rows.GetVisualParent() is { } presenter && presenter.TranslatePoint(default, rows) is { } origin ? new Rect(origin, presenter.Bounds.Size) : null;
+		switch (placement)
+		{
+			case InsertionPlacement.Before:
+				mark.Show(brush, (bounds.Left, bounds.Right, bounds.Top), null, view);
+				break;
+			case InsertionPlacement.After:
+				mark.Show(brush, (bounds.Left, bounds.Right, bounds.Bottom), null, view);
+				break;
+			default:
+				mark.Show(brush, null, bounds, view);
+				break;
+		}
 	}
 
-	private void ClearInsertionLine()
+	/// <summary>
+	/// The tree's one drop mark, made at its first use and kept: an adorner over the rows' panel inside the tree's
+	/// scroll viewer, so it scrolls with the rows. Kept so that a drag never takes the mark out of the picture and puts
+	/// another in (2026-11-10, the user's report on the WPF head of a flickering line, whose tree this one follows: a
+	/// mark was made at every drag event); made again only when the tree's template has made another panel. Null while
+	/// the tree has no template.
+	/// </summary>
+	private InsertionLine? Mark()
 	{
+		if (tree.GetVisualDescendants().OfType<ScrollContentPresenter>().FirstOrDefault()?.Child is not { } rows)
+		{
+			return null;
+		}
+		if (_insertionLine is { } kept && ReferenceEquals(AdornerLayer.GetAdornedElement(kept), rows) && kept.GetVisualParent() != null)
+		{
+			return kept;
+		}
 		if (_insertionLine != null)
 		{
 			_insertionLayer?.Children.Remove(_insertionLine);
 			_insertionLine = null;
 			_insertionLayer = null;
 		}
+		if (AdornerLayer.GetAdornerLayer(rows) is { } layer)
+		{
+			_insertionLine = new InsertionLine();
+			_insertionLayer = layer;
+			AdornerLayer.SetAdornedElement(_insertionLine, rows);
+			// the mark lies half outside a row at the panel's first and last, and clips itself to the tree's view
+			AdornerLayer.SetIsClipEnabled(_insertionLine, false);
+			layer.Children.Add(_insertionLine);
+		}
+		return _insertionLine;
 	}
+
+	/// <summary>Hides the drop mark; the adorner stays (see <see cref="Mark"/>).</summary>
+	private void ClearInsertionLine() => _insertionLine?.Hide();
 
 	/// <summary>Position of the drop feedback relative to the row.</summary>
 	private enum InsertionPlacement
 	{
-		/// <summary>A line along the top edge: insert before this item.</summary>
+		/// <summary>A line on the top edge: insert before this item.</summary>
 		Before,
 
-		/// <summary>A line along the bottom edge: insert after this item.</summary>
+		/// <summary>A line on the bottom edge: insert after this item.</summary>
 		After,
 
 		/// <summary>An outline: append to this folder, or paste onto this node.</summary>
 		Into,
 	}
 
-	/// <summary>Drop feedback over a row's header (upstream's InsertionAdorner): a 2 px accent line above or below it, or an outline around it.</summary>
+	/// <summary>
+	/// The tree's drop feedback (upstream's InsertionAdorner), one mark over the rows' panel: a 2 px accent line between
+	/// two rows, centred on their common edge, or an outline around a row's header. It is told where its mark is, in the
+	/// panel's coordinates, and draws again only when the mark changes; it clips its drawing to the tree's view. UI thread.
+	/// </summary>
 	private sealed class InsertionLine : Control
 	{
-		private readonly IPen _pen;
-		private readonly InsertionPlacement _placement;
+		private IBrush? _brush;
+		private IPen? _pen;
+		private (double Left, double Right, double Y)? _line;
+		private Rect? _outline;
+		private Rect? _view;
 
-		public InsertionLine(IBrush brush, InsertionPlacement placement)
+		public InsertionLine() => IsHitTestVisible = false;
+
+		/// <summary>Shows a line (from left to right, centred on the height y) or an outline, in the adorned panel's coordinates.</summary>
+		/// <param name="brush">Colour of the line or outline.</param>
+		/// <param name="line">The line, or null for none.</param>
+		/// <param name="outline">The bounds an outline is drawn just inside, or null for none.</param>
+		/// <param name="view">What the tree shows, in the same coordinates: nothing is drawn outside it; null draws unclipped.</param>
+		public void Show(IBrush brush, (double Left, double Right, double Y)? line, Rect? outline, Rect? view)
 		{
-			_pen = new Pen(brush, 2);
-			_placement = placement;
-			IsHitTestVisible = false;
+			if (ReferenceEquals(brush, _brush) && line == _line && outline == _outline && view == _view)
+			{
+				return;
+			}
+			if (!ReferenceEquals(brush, _brush))
+			{
+				_brush = brush;
+				_pen = new Pen(brush, 2);
+			}
+			(_line, _outline, _view) = (line, outline, view);
+			InvalidateVisual();
+		}
+
+		/// <summary>Shows nothing; the adorner stays where it is.</summary>
+		public void Hide()
+		{
+			if (_line != null || _outline != null)
+			{
+				(_line, _outline) = (null, null);
+				InvalidateVisual();
+			}
 		}
 
 		public override void Render(DrawingContext context)
 		{
-			Size size = Bounds.Size;
-			switch (_placement)
+			if (_pen == null || (_line == null && _outline == null))
 			{
-				case InsertionPlacement.Before:
-					context.DrawLine(_pen, new Point(0, 1), new Point(size.Width, 1));
-					break;
-				case InsertionPlacement.After:
-					context.DrawLine(_pen, new Point(0, size.Height - 1), new Point(size.Width, size.Height - 1));
-					break;
-				default:
-					context.DrawRectangle(null, _pen, new Rect(1, 1, Math.Max(0, size.Width - 2), Math.Max(0, size.Height - 2)));
-					break;
+				return;
+			}
+			if (_view is { } view)
+			{
+				using (context.PushClip(view))
+				{
+					Draw(context, _pen);
+				}
+			}
+			else
+			{
+				Draw(context, _pen);
+			}
+		}
+
+		private void Draw(DrawingContext context, IPen pen)
+		{
+			if (_line is { } line)
+			{
+				context.DrawLine(pen, new Point(line.Left, line.Y), new Point(line.Right, line.Y));
+			}
+			else if (_outline is { } bounds)
+			{
+				context.DrawRectangle(null, pen, new Rect(bounds.X + 1, bounds.Y + 1, Math.Max(0, bounds.Width - 2), Math.Max(0, bounds.Height - 2)));
 			}
 		}
 	}

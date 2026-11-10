@@ -423,18 +423,24 @@ public partial class ProjectTree : UserControl
 	/// The tree claims a drag only when it takes it (an own row to reorder, project objects to paste); anything else, a
 	/// file above all, is left unhandled for the window, which opens a dropped file and refuses other data (2026-10-26,
 	/// the user's report: handling every drag here had refused a project file over the tree since 2026-10-23).
+	/// Handles DragEnter too: WPF takes every element under the pointer for a drop target of its own, since AllowDrop is
+	/// inherited, and at each crossing from one to the next raises DragLeave for the one and DragEnter for the other and
+	/// no DragOver, so a tree that hears DragOver alone shows nothing new until the pointer moves again (2026-11-10).
 	/// </summary>
 	private void OnDragOver(object sender, DragEventArgs e)
 	{
-		ClearAdorner();
 		if (_dragItem is { } item)
 		{
 			e.Handled = true;
-			e.Effects = DragDropEffects.None;
 			if (FindDropTarget(item, e.GetPosition(tree)) is { } target)
 			{
 				e.Effects = DragDropEffects.Move;
 				ShowAdorner(target.Row, target.Header, target.Placement);
+			}
+			else
+			{
+				e.Effects = DragDropEffects.None;
+				ClearAdorner();
 			}
 			return;
 		}
@@ -443,9 +449,17 @@ public partial class ProjectTree : UserControl
 			e.Handled = true;
 			e.Effects = DragDropEffects.Copy;
 			ShowAdorner(paste.Row, paste.Header, paste.Placement);
+			return;
 		}
+		ClearAdorner();
 	}
 
+	/// <summary>
+	/// The pointer has left an element of the tree, for another of the tree or for good: the mark is hidden, and where
+	/// the pointer went on inside the tree the DragEnter WPF raises next, before anything is drawn, shows it again (the
+	/// user's report of 2026-11-10, a flickering line: the adorner had been taken away here and made again at the
+	/// pointer's next move).
+	/// </summary>
 	private void OnDragLeave(object sender, DragEventArgs e) => ClearAdorner();
 
 	private void OnDrop(object sender, DragEventArgs e)
@@ -505,8 +519,7 @@ public partial class ProjectTree : UserControl
 	/// </summary>
 	private PasteTarget? FindPasteTarget(ProjectClipboard.Clip clip, Point position)
 	{
-		if (Project is not { } project || tree.InputHitTest(position) is not DependencyObject hit
-			|| FindAncestor<TreeViewItem>(hit) is not { } row
+		if (Project is not { } project || RowAt(position) is not { } row
 			|| row.Template.FindName("PART_Header", row) is not FrameworkElement header)
 		{
 			return null;
@@ -514,7 +527,7 @@ public partial class ProjectTree : UserControl
 		switch (row.DataContext)
 		{
 			case Source or OpticalPart or Probe or ColorScheme:
-				bool before = position.Y < header.TransformToAncestor(tree).Transform(new Point(0, header.ActualHeight / 2)).Y;
+				bool before = IsUpperHalf(row, header, position);
 				return clip.CanPaste(project, row.DataContext)
 					? new PasteTarget(row, header, before ? InsertionPlacement.Before : InsertionPlacement.After, row.DataContext, before)
 					: null;
@@ -528,23 +541,94 @@ public partial class ProjectTree : UserControl
 		}
 	}
 
+	/// <summary>
+	/// Shows where a drop would go: a folder or a node that takes it gets an outline around its header; a slot between
+	/// two rows a line on the edge of the row's strip (<see cref="StripOf"/>), which is the same line whether the slot
+	/// was reached as "after this row" or as "before the next" (2026-11-10, the user's report: the line had been drawn
+	/// inside the row under the pointer and so jumped as the pointer crossed from one row to the other).
+	/// </summary>
 	private void ShowAdorner(TreeViewItem row, FrameworkElement header, InsertionPlacement placement)
 	{
-		if (AdornerLayer.GetAdornerLayer(row) is { } layer && tree.TryFindResource("Accent") is Brush brush)
+		if (Mark() is not { } mark)
 		{
-			_adorner = new InsertionAdorner(header, brush, placement);
-			layer.Add(_adorner);
+			return;
+		}
+		FrameworkElement element = placement == InsertionPlacement.Into ? header : StripOf(row, header);
+		Rect bounds = element.TransformToAncestor((Visual)mark.AdornedElement).TransformBounds(new Rect(element.RenderSize));
+		switch (placement)
+		{
+			case InsertionPlacement.Before:
+				mark.ShowLine(bounds.Left, bounds.Right, bounds.Top);
+				break;
+			case InsertionPlacement.After:
+				mark.ShowLine(bounds.Left, bounds.Right, bounds.Bottom);
+				break;
+			default:
+				mark.ShowOutline(bounds);
+				break;
 		}
 	}
 
-	private void ClearAdorner()
+	/// <summary>
+	/// The tree's one drop mark, made at its first use and kept: an adorner over the rows' panel inside the tree's
+	/// scroll viewer, whose layer scrolls the mark with the rows and clips it to the view. Kept so that a drag never
+	/// takes the mark out of the picture and puts another in, which flickered (2026-11-10); made again only when the
+	/// tree's template has made another panel. Null while the tree has no template or no accent colour.
+	/// </summary>
+	private InsertionAdorner? Mark()
 	{
-		if (_adorner != null)
+		if (tree.TryFindResource("Accent") is not Brush brush)
 		{
-			AdornerLayer.GetAdornerLayer(_adorner.AdornedElement)?.Remove(_adorner);
-			_adorner = null;
+			return null;
 		}
+		if (_adorner is { } kept && kept.AdornedElement.IsDescendantOf(tree) && AdornerLayer.GetAdornerLayer(kept.AdornedElement) is not null)
+		{
+			kept.Brush = brush;
+			return kept;
+		}
+		_adorner = null;
+		if (FindDescendant<ScrollContentPresenter>(tree) is { } view && VisualTreeHelper.GetChildrenCount(view) > 0
+			&& VisualTreeHelper.GetChild(view, 0) is UIElement rows && AdornerLayer.GetAdornerLayer(rows) is { } layer)
+		{
+			_adorner = new InsertionAdorner(rows, brush);
+			layer.Add(_adorner);
+		}
+		return _adorner;
 	}
+
+	/// <summary>The row's strip: the template's border that is the row itself, from its indent to the rows' right edge and as high as the row; the header where a template has none.</summary>
+	private static FrameworkElement StripOf(TreeViewItem row, FrameworkElement header) => row.Template.FindName("Bd", row) as FrameworkElement ?? header;
+
+	/// <summary>Whether <paramref name="position"/> (in the tree's coordinates) lies in the upper half of the row.</summary>
+	private bool IsUpperHalf(TreeViewItem row, FrameworkElement header, Point position)
+	{
+		FrameworkElement strip = StripOf(row, header);
+		return position.Y < strip.TransformToAncestor(tree).Transform(new Point(0, strip.ActualHeight / 2)).Y;
+	}
+
+	/// <summary>
+	/// The row at the height of <paramref name="position"/> (in the tree's coordinates), wherever across the tree the
+	/// pointer is: the first row met from the pointer to the right. Under the pointer itself there is none in the gutter
+	/// left of a row, the room of its indent and of the chevron a leaf does not show, where a drag had lost its target
+	/// and its line (2026-11-10). A hit test, so only what the tree shows counts: no row scrolled out of view, none
+	/// under a scroll bar.
+	/// </summary>
+	private TreeViewItem? RowAt(Point position)
+	{
+		// half the chevron's column: no row is narrower
+		const double Step = 8;
+		for (double x = Math.Max(0, position.X); x < tree.ActualWidth; x += Step)
+		{
+			if (tree.InputHitTest(new Point(x, position.Y)) is DependencyObject hit && FindAncestor<TreeViewItem>(hit) is { } row)
+			{
+				return row;
+			}
+		}
+		return null;
+	}
+
+	/// <summary>Hides the drop mark; the adorner stays (see <see cref="Mark"/>).</summary>
+	private void ClearAdorner() => _adorner?.Hide();
 
 	/// <summary>Row under the mouse, where a drop would put the item, and how to show it.</summary>
 	private sealed record DropTarget(TreeViewItem Row, FrameworkElement Header, InsertionPlacement Placement, int Index);
@@ -557,8 +641,7 @@ public partial class ProjectTree : UserControl
 	private DropTarget? FindDropTarget(object item, Point position)
 	{
 		IList? list = ListOf(item);
-		if (list == null || tree.InputHitTest(position) is not DependencyObject hit
-			|| FindAncestor<TreeViewItem>(hit) is not { } row
+		if (list == null || RowAt(position) is not { } row
 			|| row.Template.FindName("PART_Header", row) is not FrameworkElement header)
 		{
 			return null;
@@ -574,7 +657,7 @@ public partial class ProjectTree : UserControl
 			return null;
 		}
 		int targetIndex = list.IndexOf(row.DataContext);
-		bool before = position.Y < header.TransformToAncestor(tree).Transform(new Point(0, header.ActualHeight / 2)).Y;
+		bool before = IsUpperHalf(row, header, position);
 		int insert = targetIndex + (before ? 0 : 1);           // slot in the list as it is now
 		int final = insert - (current < insert ? 1 : 0);       // index after the item left its slot
 		return final == current ? null : new DropTarget(row, header, before ? InsertionPlacement.Before : InsertionPlacement.After, final);
@@ -588,6 +671,20 @@ public partial class ProjectTree : UserControl
 		ColorScheme => Project?.ColorSchemes,
 		_ => null,
 	};
+
+	/// <summary>The first element of type <typeparamref name="T"/> below <paramref name="root"/> in the visual tree, depth first.</summary>
+	private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+	{
+		for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+		{
+			DependencyObject child = VisualTreeHelper.GetChild(root, i);
+			if (child is T match || (match = FindDescendant<T>(child)!) != null)
+			{
+				return match;
+			}
+		}
+		return null;
+	}
 
 	private static T? FindAncestor<T>(DependencyObject? start) where T : DependencyObject
 	{

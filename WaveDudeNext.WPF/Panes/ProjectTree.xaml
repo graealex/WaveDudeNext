@@ -221,7 +221,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		          ItemsSource="{Binding Project, RelativeSource={RelativeSource AncestorType={x:Type local:ProjectTree}}, Converter={StaticResource Enumerate}}"
 		          SelectedItemChanged="OnSelectedItemChanged"
 		          PreviewMouseLeftButtonDown="OnPreviewMouseLeftButtonDown" PreviewMouseMove="OnPreviewMouseMove"
-		          DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop">
+		          DragEnter="OnDragOver" DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop">
 
 			<!-- keys act on the selection; only while the tree has focus. Insert and Ctrl+Space put the row into the selection or
 			     take it out, Ctrl+A selects every item (2026-10-19); Shift with the arrows extends a range through the TreeView's own

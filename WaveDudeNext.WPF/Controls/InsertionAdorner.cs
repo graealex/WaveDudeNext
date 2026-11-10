@@ -22,53 +22,103 @@ using System.Windows.Media;
 namespace WaveDudeNext.WPF.Controls;
 
 /// <summary>
-/// Drop feedback for reordering: a horizontal line above or below the adorned element, or an
-/// outline around it when dropping appends to a folder.
+/// Drop feedback for reordering, one mark over the rows of a list for as long as the list lives: a horizontal line
+/// between two rows, or an outline around a row's header when dropping appends to a folder. It adorns the element that
+/// holds the rows and is told where its mark is, in that element's coordinates (<see cref="ShowLine"/>,
+/// <see cref="ShowOutline"/>, <see cref="Hide"/>); it draws again only when the mark changes.
+/// <para>
+/// Two reports of the user's, 2026-11-10. The line had been drawn inside the row under the pointer, so the slot between
+/// two rows stood 2 px higher over the lower half of the upper row than over the upper half of the lower: the line is
+/// centred on the height it is given, the rows' common edge, so "after this row" and "before the next" are one mark.
+/// And it flickered: an adorner was made for every drag event and taken away at every DragLeave, which WPF raises for
+/// each element the pointer leaves inside the list, so the line was gone until the pointer's next move; one adorner
+/// that stays and changes its mark is never out of the picture.
+/// </para>
+/// UI thread.
 /// </summary>
 public sealed class InsertionAdorner : Adorner
 {
-	private readonly Pen _pen;
+	private const double Thickness = 2;
 
-	/// <param name="adorned">The row the feedback is drawn over.</param>
+	private Pen _pen;
+	private Brush _brush;
+	private (double Left, double Right, double Y)? _line;
+	private Rect? _outline;
+
+	/// <param name="adorned">The element holding the rows; the mark's coordinates are its.</param>
 	/// <param name="brush">Colour of the line or outline.</param>
-	/// <param name="placement">Where to draw relative to the row.</param>
-	public InsertionAdorner(UIElement adorned, Brush brush, InsertionPlacement placement) : base(adorned)
+	public InsertionAdorner(UIElement adorned, Brush brush) : base(adorned)
 	{
-		_pen = new Pen(brush, 2);
-		_pen.Freeze();
-		Placement = placement;
+		_brush = brush;
+		_pen = MakePen(brush);
 		IsHitTestVisible = false;
 	}
 
-	/// <summary>Where the feedback is drawn.</summary>
-	public InsertionPlacement Placement { get; }
+	/// <summary>Colour of the line or outline; a theme change gives another.</summary>
+	public Brush Brush
+	{
+		get => _brush;
+		set
+		{
+			if (!ReferenceEquals(_brush, value))
+			{
+				_brush = value;
+				_pen = MakePen(value);
+				InvalidateVisual();
+			}
+		}
+	}
+
+	/// <summary>Shows a line from <paramref name="left"/> to <paramref name="right"/>, centred on the height <paramref name="y"/>, in the adorned element's coordinates.</summary>
+	public void ShowLine(double left, double right, double y) => Set((left, right, y), null);
+
+	/// <summary>Shows an outline just inside <paramref name="bounds"/>, in the adorned element's coordinates.</summary>
+	public void ShowOutline(Rect bounds) => Set(null, bounds);
+
+	/// <summary>Shows nothing; the adorner stays where it is.</summary>
+	public void Hide() => Set(null, null);
+
+	private void Set((double Left, double Right, double Y)? line, Rect? outline)
+	{
+		if (line != _line || outline != _outline)
+		{
+			_line = line;
+			_outline = outline;
+			InvalidateVisual();
+		}
+	}
+
+	private static Pen MakePen(Brush brush)
+	{
+		var pen = new Pen(brush, Thickness);
+		pen.Freeze();
+		return pen;
+	}
 
 	/// <inheritdoc/>
 	protected override void OnRender(DrawingContext drawingContext)
 	{
-		Size size = AdornedElement.RenderSize;
-		switch (Placement)
+		if (_line is { } line)
 		{
-			case InsertionPlacement.Before:
-				drawingContext.DrawLine(_pen, new Point(0, 1), new Point(size.Width, 1));
-				break;
-			case InsertionPlacement.After:
-				drawingContext.DrawLine(_pen, new Point(0, size.Height - 1), new Point(size.Width, size.Height - 1));
-				break;
-			default:
-				drawingContext.DrawRectangle(null, _pen, new Rect(1, 1, Math.Max(0, size.Width - 2), Math.Max(0, size.Height - 2)));
-				break;
+			// half the thickness to either side of the height, the two edges on whole device pixels at any scale
+			drawingContext.PushGuidelineSet(new GuidelineSet(null, [line.Y - Thickness / 2, line.Y + Thickness / 2]));
+			drawingContext.DrawLine(_pen, new Point(line.Left, line.Y), new Point(line.Right, line.Y));
+			drawingContext.Pop();
+		}
+		else if (_outline is { } bounds)
+		{
+			drawingContext.DrawRectangle(null, _pen, new Rect(bounds.X + 1, bounds.Y + 1, Math.Max(0, bounds.Width - 2), Math.Max(0, bounds.Height - 2)));
 		}
 	}
 }
 
-/// <summary>Position of the drop feedback relative to the adorned row.</summary>
+/// <summary>Position of the drop feedback relative to a row.</summary>
 public enum InsertionPlacement
 {
-	/// <summary>Line along the top edge: insert before this item.</summary>
+	/// <summary>Line on the row's top edge: insert before this item.</summary>
 	Before,
-	/// <summary>Line along the bottom edge: insert after this item.</summary>
+	/// <summary>Line on the row's bottom edge: insert after this item.</summary>
 	After,
-	/// <summary>Outline: append to this folder.</summary>
+	/// <summary>Outline around the row's header: append to this folder.</summary>
 	Into,
 }

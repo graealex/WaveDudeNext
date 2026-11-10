@@ -468,6 +468,34 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   the clipboard and parses each text once; the window reads the clipboard once per change of Windows' clipboard
   sequence number. The tree and the pictures claim a drag only when they take it; a file dropped anywhere is the window's,
   which opens it (2026-10-26, Jeroen's report: for three days a file over the tree or a picture was refused).
+  **The tree's drop mark is one adorner for the whole drag, its line on the boundary of the two rows** (2026-11-10/11,
+  two reports of the user's). It jumped: drawn inside the row under the pointer, the slot between two rows showed 2 px
+  higher over the lower half of the upper row than over the upper half of the lower, never on the boundary, and in the
+  gutter left of a row, the room of its indent and of the chevron a leaf does not show, no row was under the pointer and
+  the drag lost its target and its line. Then, steady, it flickered: WPF takes every element under the pointer for a
+  drop target of its own (`AllowDrop` is inherited; `OleDragOver` in WPF's `DragDrop.cs`, read at the source) and at
+  each crossing from one to the next raises DragLeave and DragEnter and no DragOver, so the tree, which heard DragOver
+  alone, took its line away at the leave and showed it again only at the pointer's next move; and it made a new adorner
+  at every event. Now `InsertionAdorner` adorns the rows' panel inside the tree's scroll viewer, is made once and
+  kept (`ProjectTree.Mark`), and is told its mark in the panel's coordinates, a line centred on the edge of the row's
+  strip (the template's `Bd`, Avalonia's `PART_LayoutRoot`) or an outline around a folder's header; "after this row"
+  and "before the next" are the same numbers, so it is not even drawn again while the pointer stays about a slot. The
+  tree handles DragEnter as DragOver, a DragLeave only hides the mark, and the row is found by the pointer's height, the
+  first met from the pointer to the right (`RowAt`). Never the DragLeave's position: WPF gives it relative to the new
+  target. The Avalonia tree has the same one mark; there the adorner layer is the window's and sets an adorner's `Clip`
+  itself, so the mark clips its own drawing to the tree's view (a row wider than the tree had its line drawn past the
+  tree's edge). **Avalonia inherits `AllowDrop` too** (`DragDrop.AllowDropProperty.Inherits`, read by reflection from
+  the 12.1.5 assembly) and its drag device raises DragLeave and DragEnter without a DragOver at a change of the target
+  as WPF does; assumed otherwise on 2026-11-10, with the leave-and-enter case reported as "not applicable", the
+  Avalonia tree went on flickering until the user said so the next day, and now hears DragEnter as well. Proven in both heads by a startup-hook probe that puts the tree through a drag's events: WPF before, y
+  184–185 or 186–187 about a boundary at 186 and nothing in the gutter; after, y 185–186, and over 60 events about one
+  slot the same adorner, asked to draw again at none, never without its line, kept through a DragLeave followed by a
+  DragEnter and hidden by a DragLeave alone. A real drag cannot be made by a probe in WPF (OLE reads the real mouse
+  button), so the user tries it by hand. **In Avalonia a probe drives the real drag device**: a startup hook sets the
+  tree's `_dragItem` and gives `DragDropDevice.Instance.ProcessRawEvent` a `RawDragEvent` per pointer position (the
+  window as the input root, an empty data transfer made by reflection), and the device finds the target and raises the
+  events as in a drag. Over 244 moves about one slot the target changed at 26: before, the mark was gone after each of
+  the 26 and did not show on entering; after, never gone.
 - **Icons** (2026-10-22/23): a menu entry gets one through the attached `MenuIcon.Drawing`, the name of an `Icon<Name>` (and
   `Icon<Name>Fill`) `StreamGeometry` in **`WaveDudeNext.WPF/Themes/Icons.xaml`, the one icon dictionary of both heads**
   (2026-11-10, the user's choice: merged into `Controls.xaml`, and the Avalonia head builds its `Themes/Icons.axaml` from it
