@@ -273,6 +273,24 @@ The File > Examples submenu: the shipped example projects.
 Includes the use of two probes, an A-B (line) field probe and a single point intensity probe.
 24. **24. Fibre cross over**  
    Two single-mode fibres side by side, their cores a dozen pixels apart: the evanescent field of one reaches into the other, so light launched into fibre A crosses over into fibre B and back along the length, a directional coupler. The probe along A shows the beating, the cross-fibre probe the field across both cores. Switch source A off and B on to launch from the other fibre.
+25. **25. Lens vs Fresnel lens**  
+   The example shows the difference between a Fresnel lens and a standard lens. Both lenses have a short focal distance. The Fresnel lens is much thinner and thus much lighter; however, its beam is not as clean as that of a standard lens.
+26. **26. Three diffusers in a row**  
+   The example shows a beam passing through 3 diffusers, each with a different characteristic spatial wavelength of its roughness (1: shortest, 3: longest). You can see the effects of the individual diffusers by switching them on or off individually.
+27. **27. Interference filter**  
+   A quarter-wavelength stack interference filter reflects most of the energy in a pulse of frequency 100 (wavelength 16 px) but transmits frequency 50 (wavelength 32 px) almost completely.
+28. **28. Blazed grating spectrometer**  
+   Spectrometer containing a blazed (or "echelette") grating, which diffracts the waves from a source that emits 2 wavelengths under 2 slightly different angles. The lens performs a Fourier transform by separating the 2 wavelengths into two spatially separated focal points. You can switch on either source (or rotate the grating) to see the effect of either wavelength.
+29. **29. Diffraction on a crystal lattice**  
+   A high-frequency source irradiates a diffractive lattice. The lattice diffracts the radiation preferentially in specific directions, similar to a crystal structure in an X-ray beam. By rotating the "crystal" lattice, the diffraction angles change. By measuring the angles of the diffracted beams, the lattice structure can in principle be solved.
+30. **30. Meta prism**  
+   A directional source is irradiating a meta surface prism. In the Field image you can clearly see the direction of the wavefront change; however, because the number of diffractive elements is small, the intensity distribution is somewhat messy.
+31. **31. Meta lens with photomultiplier**  
+   The intensity of a weak pulsing source is detected with a photomultiplier, which is probabilistic and dependent on the intensity. In the focus, the intensity is high during a pulse and this leads to a high probability of detection events for Photomultiplier 2. The other one (Photomultiplier 1) is placed in an area with relatively low intensity and hardly triggers.
+32. **32. Multi Pixel Photon Counter**  
+   2 coherent weak sources create a diffraction pattern that is then detected by a Multi Pixel Photon Counter.
+33. **33. Fibre splitter with 2 PMs**  
+   Pulses travelling through a multi-mode fibre are detected by 2 probabilistic detectors, one at each end of the fibre split.
 
 ## The Add probe menu
 
@@ -1615,11 +1633,11 @@ A point probe of the field.
 18. **Box height**  
    Height of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.
 19. **Step axis**  
-   Sliding window of the last steps, or the whole run; point probes only.
+   Sliding window of the last steps, or the whole run; point probes and counting detectors only.
 20. **Window**  
    Width of the sliding step window, in steps.
 21. **Auto-scale steps**  
-   Let the step axis follow the samples recorded so far; point probes only.
+   Let the step axis follow the samples recorded so far; point probes and counting detectors only.
 22. **Auto-scale values**  
    Fit the value axis to the data instead of the fixed minimum and maximum.
 23. **Value axis**  
@@ -1674,11 +1692,11 @@ A line probe of the intensity, logarithmic.
 18. **Box height**  
    Height of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.
 19. **Step axis**  
-   Sliding window of the last steps, or the whole run; point probes only.
+   Sliding window of the last steps, or the whole run; point probes and counting detectors only.
 20. **Window**  
    Width of the sliding step window, in steps.
 21. **Auto-scale steps**  
-   Let the step axis follow the samples recorded so far; point probes only.
+   Let the step axis follow the samples recorded so far; point probes and counting detectors only.
 22. **Auto-scale values**  
    Fit the value axis to the data instead of the fixed minimum and maximum.
 23. **Value axis**  
@@ -1733,11 +1751,11 @@ A counting detector: the detections of its line, step by step.
 18. **Box height**  
    Height of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.
 19. **Step axis**  
-   Sliding window of the last steps, or the whole run; point probes only.
+   Sliding window of the last steps, or the whole run; point probes and counting detectors only.
 20. **Window**  
    Width of the sliding step window, in steps.
 21. **Auto-scale steps**  
-   Let the step axis follow the samples recorded so far; point probes only.
+   Let the step axis follow the samples recorded so far; point probes and counting detectors only.
 22. **Auto-scale values**  
    Fit the value axis to the data instead of the fixed minimum and maximum.
 23. **Value axis**  
@@ -1792,11 +1810,11 @@ An imaging detector: the detections along its line, added up.
 18. **Box height**  
    Height of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.
 19. **Step axis**  
-   Sliding window of the last steps, or the whole run; point probes only.
+   Sliding window of the last steps, or the whole run; point probes and counting detectors only.
 20. **Window**  
    Width of the sliding step window, in steps.
 21. **Auto-scale steps**  
-   Let the step axis follow the samples recorded so far; point probes only.
+   Let the step axis follow the samples recorded so far; point probes and counting detectors only.
 22. **Auto-scale values**  
    Fit the value axis to the data instead of the fixed minimum and maximum.
 23. **Value axis**  

@@ -1294,16 +1294,21 @@ upscale in exports; HEVC;
 dropping the 9-point Laplacian (undecided);
 **optical parts**: the open points at the end of `OpticalParts.md` (a `PartCheck.ps1` harness, example projects,
 Bragg thicknesses in pixels) wait for the user; **after Jeroen's drop of 2026-11-08**: an example project for the
-meta axicon (the other new kinds have theirs since 2026-11-10, Examples 25 to 33), the figure of the File > Examples
-submenu, which with `Assets/Legend.md` still shows 24 entries beside the manual's list of 33 until a figure run on the
-user's word (the same run retakes the counting detector's form, drawn with Step axis and Auto-scale steps greyed, and
-the legend's two hints), and by hand, since no harness presses the mouse: the caret in a new item's name after a pick from "+ Part" and
+meta axicon (the other new kinds have theirs since 2026-11-10, Examples 25 to 33), and by hand, since no harness presses the mouse: the caret in a new item's name after a pick from "+ Part" and
 "+ Probe" with the window active, a filter layer dragged by its grip as one undo step, and the emitter dots after a
 drag on Jeroen's machine with and without the cache renewal. The figures were retaken that afternoon with the user's word (51, 14 of them new; of the 37 there before, 22 came out
 byte for byte as committed and 15 differ where the change shows: the "+ Probe" arrow in the toolbar, in the tree, the
 main window and behind the menus, the Add part menu's entries, format version 4, the outline ticked in the Display
 form, the probes' three new rows, the zone plate's defaults). The script's restart of a session that comes
-up active and the pointer's move when it does lie on the app's window had no occasion in those runs.
+up active and the pointer's move when it does lie on the app's window had no occasion in those runs. **Retaken again
+on 2026-11-10** with the user's word (51 figures, no problem, under six minutes, the app's log clean): 33 byte for byte
+as committed, 18 and `main-window.png` changed, each compared pixel by pixel with the committed picture: the Examples
+submenu with its 33 entries, the counting detector's form with Step axis and Auto-scale steps enabled, and sixteen that
+show what three commits of that day had changed without a figure run, the icons drawn instead of glyphs (the menus'
+icon columns, the tree's folder icons in the tree, the window and behind the Add menus, the scene form's save button)
+and the timeline's ticks. **A figure run shows every look change since the last one**: before saying which figures
+will change, read the log of commits since the last one that touched `Assets` (that evening the prediction named two
+figures and eighteen changed).
 
 **Unsolved: clicks on the intensity picture selected nothing** (2026-10-22, seen once, not reproduced). In
 Jeroen's `logical_elements_example.wdproj` (git history up to 02d0e2d; Example 18 is its curated form), after several
