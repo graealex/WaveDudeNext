@@ -37,13 +37,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<converters:LensIconConverter x:Key="LensIcon" />
 		<converters:ProbeIconConverter x:Key="ProbeIcon" />
 
-		<StreamGeometry x:Key="PlusGeometry">M4,0 L4,8 M0,4 L8,4</StreamGeometry>
-		<StreamGeometry x:Key="MinusGeometry">M0,4 L8,4</StreamGeometry>
-		<StreamGeometry x:Key="ChevronUpGeometry">M0,6 L4,2 L8,6</StreamGeometry>
-		<StreamGeometry x:Key="ChevronDownGeometry">M0,2 L4,6 L8,2</StreamGeometry>
-
 		<!-- stroked-glyph button for the rows (out of the Tab cycle: the toolbar and the context menu do the same) and,
-		     through ToolGlyphButton, for the toolbar; Content is the geometry -->
+		     through ToolGlyphButton, for the toolbar; Content is the geometry (the plus, the minus and the two row arrows of
+		     Themes/Icons.xaml: RowUpGeometry and RowDownGeometry, smaller than the chevrons of the expanders) -->
 		<Style x:Key="GlyphButton" TargetType="{x:Type Button}">
 			<Setter Property="Width" Value="18" />
 			<Setter Property="Height" Value="18" />
@@ -207,9 +203,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					</StackPanel>
 				</Button>
 				<Rectangle Width="1" Margin="4,2" Fill="{DynamicResource ToolWindowBorder}" />
-				<Button Style="{StaticResource ToolGlyphButton}" Content="{StaticResource ChevronUpGeometry}" ToolTip="{DynamicResource TipMoveUp}" AutomationProperties.Name="{DynamicResource TipMoveUp}"
+				<Button Style="{StaticResource ToolGlyphButton}" Content="{StaticResource RowUpGeometry}" ToolTip="{DynamicResource TipMoveUp}" AutomationProperties.Name="{DynamicResource TipMoveUp}"
 				        Command="{x:Static commands:ProjectCommands.MoveUp}" AutomationProperties.AutomationId="ToolMoveUp" />
-				<Button Style="{StaticResource ToolGlyphButton}" Content="{StaticResource ChevronDownGeometry}" ToolTip="{DynamicResource TipMoveDown}" AutomationProperties.Name="{DynamicResource TipMoveDown}"
+				<Button Style="{StaticResource ToolGlyphButton}" Content="{StaticResource RowDownGeometry}" ToolTip="{DynamicResource TipMoveDown}" AutomationProperties.Name="{DynamicResource TipMoveDown}"
 				        Command="{x:Static commands:ProjectCommands.MoveDown}" AutomationProperties.AutomationId="ToolMoveDown" />
 				<Button Style="{StaticResource ToolGlyphButton}" Content="{StaticResource MinusGeometry}" ToolTip="{DynamicResource TipRemove}" AutomationProperties.Name="{DynamicResource TipRemove}"
 				        Command="{x:Static commands:ProjectCommands.Remove}" AutomationProperties.AutomationId="ToolRemove" />
@@ -375,9 +371,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					<DockPanel Style="{StaticResource DisabledRow}">
 						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource MinusGeometry}"
 						        ToolTip="{DynamicResource TipRemove}" AutomationProperties.Name="{DynamicResource TipRemove}" Command="{x:Static commands:ProjectCommands.Remove}" CommandParameter="{Binding}" />
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronDownGeometry}"
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource RowDownGeometry}"
 						        ToolTip="{DynamicResource TipMoveDown}" AutomationProperties.Name="{DynamicResource TipMoveDown}" Command="{x:Static commands:ProjectCommands.MoveDown}" CommandParameter="{Binding}" />
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronUpGeometry}"
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource RowUpGeometry}"
 						        ToolTip="{DynamicResource TipMoveUp}" AutomationProperties.Name="{DynamicResource TipMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" CommandParameter="{Binding}" />
 						<!-- the enabled check box (Space on the selected row toggles it too); the icon and the name grey out when off (the row style) -->
 						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"
@@ -392,9 +388,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					<DockPanel Style="{StaticResource DisabledRow}">
 						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource MinusGeometry}"
 						        ToolTip="{DynamicResource TipRemove}" AutomationProperties.Name="{DynamicResource TipRemove}" Command="{x:Static commands:ProjectCommands.Remove}" CommandParameter="{Binding}" />
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronDownGeometry}"
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource RowDownGeometry}"
 						        ToolTip="{DynamicResource TipMoveDown}" AutomationProperties.Name="{DynamicResource TipMoveDown}" Command="{x:Static commands:ProjectCommands.MoveDown}" CommandParameter="{Binding}" />
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronUpGeometry}"
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource RowUpGeometry}"
 						        ToolTip="{DynamicResource TipMoveUp}" AutomationProperties.Name="{DynamicResource TipMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" CommandParameter="{Binding}" />
 						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"
 						          IsChecked="{Binding Enabled}" ToolTip="{DynamicResource TipPartEnabled}"
@@ -432,9 +428,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					<DockPanel>
 						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource MinusGeometry}"
 						        ToolTip="{DynamicResource TipRemove}" AutomationProperties.Name="{DynamicResource TipRemove}" Command="{x:Static commands:ProjectCommands.Remove}" CommandParameter="{Binding}" />
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronDownGeometry}"
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource RowDownGeometry}"
 						        ToolTip="{DynamicResource TipMoveDown}" AutomationProperties.Name="{DynamicResource TipMoveDown}" Command="{x:Static commands:ProjectCommands.MoveDown}" CommandParameter="{Binding}" />
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronUpGeometry}"
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource RowUpGeometry}"
 						        ToolTip="{DynamicResource TipMoveUp}" AutomationProperties.Name="{DynamicResource TipMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" CommandParameter="{Binding}" />
 						<Rectangle DockPanel.Dock="Left" Width="36" Height="10" Margin="0,0,6,0" VerticalAlignment="Center" StrokeThickness="0.5"
 						           Stroke="{DynamicResource TextBoxBorder}" Fill="{Binding Stops, Converter={StaticResource ColorSchemeBrush}}" />
@@ -445,9 +441,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					<DockPanel Style="{StaticResource InactiveRow}">
 						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource MinusGeometry}"
 						        ToolTip="{DynamicResource TipRemove}" AutomationProperties.Name="{DynamicResource TipRemove}" Command="{x:Static commands:ProjectCommands.Remove}" CommandParameter="{Binding}" />
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronDownGeometry}"
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource RowDownGeometry}"
 						        ToolTip="{DynamicResource TipMoveDown}" AutomationProperties.Name="{DynamicResource TipMoveDown}" Command="{x:Static commands:ProjectCommands.MoveDown}" CommandParameter="{Binding}" />
-						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource ChevronUpGeometry}"
+						<Button DockPanel.Dock="Right" Style="{StaticResource GlyphButton}" Content="{StaticResource RowUpGeometry}"
 						        ToolTip="{DynamicResource TipMoveUp}" AutomationProperties.Name="{DynamicResource TipMoveUp}" Command="{x:Static commands:ProjectCommands.MoveUp}" CommandParameter="{Binding}" />
 						<!-- the enabled check box (Space on the selected row toggles it too); the icon and the name grey out when off (the row style) -->
 						<CheckBox DockPanel.Dock="Left" Focusable="False" IsTabStop="False" MinHeight="0" Margin="0,0,4,0" VerticalAlignment="Center"

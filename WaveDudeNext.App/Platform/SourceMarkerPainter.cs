@@ -20,6 +20,7 @@ using System.Runtime.InteropServices;
 using SkiaSharp;
 using WaveDudeNext.Export;
 using WaveDudeNext.Model;
+using WaveDudeNext.UI.Rendering;
 
 namespace WaveDudeNext.App.Platform;
 
@@ -42,9 +43,6 @@ public sealed class SourceMarkerPainter
 {
 	/// <summary>The preview's label size in pixels, the reference of the scale.</summary>
 	private const float PreviewLabelSize = 11f;
-
-	/// <summary>The preview's marker glyph (SceneOverlay's SourceMarker style): a ring of radius 6 and four ticks in a 20 × 20 box.</summary>
-	private const string GlyphData = "M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10";
 
 	private static readonly SKColor Halo = new(0, 0, 0, 191);
 	private static readonly SKColor Disc = new(0, 0, 0, 0x60);
@@ -95,7 +93,7 @@ public sealed class SourceMarkerPainter
 		using (var fill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill })
 		using (var stroke = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round })
 		using (var outline = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeJoin = SKStrokeJoin.Round, Color = Halo, StrokeWidth = 3f * scale })
-		using (SKPath glyph = SKPath.ParseSvgPathData(GlyphData) ?? throw new InvalidOperationException("The source marker glyph did not parse."))
+		using (SKPath glyph = SKPath.ParseSvgPathData(ExportGlyphs.SourceMarker) ?? throw new InvalidOperationException("The source marker glyph did not parse."))
 		using (var labelFont = new SKFont(SKTypeface.Default, PreviewLabelSize * scale))
 		{
 			canvas.Clear(SKColors.Transparent);

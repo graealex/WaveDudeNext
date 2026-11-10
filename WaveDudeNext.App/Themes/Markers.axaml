@@ -26,16 +26,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
      its point at the centre pixel (the 21 x 21 glyphs at (10.5, 10.5)), the shapes inside odd too, because the point
      marks a pixel's centre and the layout rounding rounds the thumb and each shape to whole pixels: a 20 px thumb put its
      origin on a half pixel, and the 3 px dot, its 5 px halo and the crosshair came out half a pixel apart (2026-10-26,
-     Jeroen's report). The path data is upstream's, unchanged. Cursors: SizeAll for a point that moves, the diagonal
+     Jeroen's report). The glyphs are the shared geometries of Themes/Icons.axaml. Cursors: SizeAll for a point that moves, the diagonal
      corner cursor for a grip (Avalonia has no SizeNWSE; BottomRightCorner is its diagonal resize cursor), Hand for a
      lever or a Bézier handle. -->
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:controls="using:WaveDudeNext.App.Controls">
-	<StreamGeometry x:Key="SourceGlyph">M4.5,10.5 A6,6 0 1 1 16.5,10.5 A6,6 0 1 1 4.5,10.5 M10.5,0.5 L10.5,3 M10.5,18 L10.5,20.5 M0.5,10.5 L3,10.5 M18,10.5 L20.5,10.5</StreamGeometry>
-	<StreamGeometry x:Key="ProbeGlyph">M5,5 L16,5 L16,16 L5,16 Z M10.5,0.5 L10.5,3 M10.5,18 L10.5,20.5 M0.5,10.5 L3,10.5 M18,10.5 L20.5,10.5</StreamGeometry>
-	<StreamGeometry x:Key="PartGlyph">M4.5,10.5 A6,6 0 1 1 16.5,10.5 A6,6 0 1 1 4.5,10.5 M8,10.5 A2.5,2.5 0 1 1 13,10.5 A2.5,2.5 0 1 1 8,10.5 M10.5,0.5 L10.5,3 M10.5,18 L10.5,20.5 M0.5,10.5 L3,10.5 M18,10.5 L20.5,10.5</StreamGeometry>
-	<StreamGeometry x:Key="AngleGlyph">M15.5,10.5 A5,5 0 1 1 13,6.17 M13,6.17 L9.7,5.8 M13,6.17 L13.5,9.5</StreamGeometry>
 
 	<!-- the shared look and states: PictureHandle grey, the selection yellow for the selected item (:selected), the
 	     accent fill and a thicker stroke under keyboard focus (:focus), the thicker stroke under the pointer -->

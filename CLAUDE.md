@@ -499,7 +499,7 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
 - **Icons** (2026-10-22/23): a menu entry gets one through the attached `MenuIcon.Drawing`, the name of an `Icon<Name>` (and
   `Icon<Name>Fill`) `StreamGeometry` in **`WaveDudeNext.WPF/Themes/Icons.xaml`, the one icon dictionary of both heads**
   (2026-11-10, the user's choice: merged into `Controls.xaml`, and the Avalonia head builds its `Themes/Icons.axaml` from it
-  at build, see Port), which makes an `IconView`, which the tree's rows and toolbar use directly (`PlusBadge` on the add
+  at build, see Port; since 2026-11-11 the home of every other keyed geometry too), which makes an `IconView`, which the tree's rows and toolbar use directly (`PlusBadge` on the add
   buttons) and which draws in the inherited text colour, so a disabled row's icon greys with its name through one trigger
   on the row. **Every icon is a drawing** (2026-11-10, the user's choice, option A of two: an icon font Linux and macOS do
   not have against drawings for both heads): the 36 Segoe Fluent glyphs the WPF menus, the tree's folders, the Messages
@@ -1249,17 +1249,32 @@ questions, the menu glyphs and the duplicated geometries): `Build/SharedXaml.tar
 (the former `StringTables.targets`, generalised) converts the `SharedXaml` items of the project file, each with a `Folder`
 metadata, into `obj/.../Shared/<Folder>/<name>.axaml`, added as `AvaloniaXaml` with the Link `<Folder>/<name>.axaml`:
 `WaveDudeNext.WPF/Strings/Strings.*.xaml` under `Strings`, `WaveDudeNext.WPF/Themes/Icons.xaml`, `Dark.xaml` and
-`Light.xaml` under `Themes`, so `avares://WaveDudeNext.App/Themes/Icons.axaml` (loaded by `IconView`) and the two theme
+`Light.xaml` under `Themes`, so `avares://WaveDudeNext.App/Themes/Icons.axaml` (merged by `App.axaml`) and the two theme
 dictionaries of `App.axaml` are the WPF files; the App's copies of the three are gone (the port's 92-key tables were the
 WPF ones key for key, its icons 48 of the WPF 53 plus its five folder drawings, now in the WPF file). The conversion is
-the same three substitutions, of which the theme files need the namespace alone. `WaveDudeNext.WPF/Themes/Icons.xaml`
-holds every `StreamGeometry` the WPF `Controls.xaml` had (the chrome's arrows and chevrons too, which the App's
-`Controls.axaml` still declares for itself), merged into `Controls.xaml` at its top; `IconPlusBadgeStyle` stays in
-`Controls.xaml`. The App's `Controls/MenuIcon` is the attached `Drawing` property the WPF head has, on its menus in the
-markup and on the code-built context menus (the tree's rows, the pictures, the graph boxes, the Messages pane); the
-scene form's save button is the shared Save drawing in both. Not shared: the control-local geometries each head's panes
-declare for their own chrome (the timeline's buttons, the tree's plus and minus, the markers), the port's translations of
-the WPF ones. **A probe captures the app's own
+the same three substitutions, of which the theme files need the namespace alone. The App's `Controls/MenuIcon` is the
+attached `Drawing` property the WPF head has, on its menus in the markup and on the code-built context menus (the
+tree's rows, the pictures, the graph boxes, the Messages pane); the scene form's save button is the shared Save drawing
+in both. **`WaveDudeNext.WPF/Themes/Icons.xaml` holds every keyed geometry of both heads** (2026-11-11, the user's
+report that vectors were still duplicated: the transport bar's glyphs, the spinner, the pictures' handle glyphs, the
+tree's plus, minus and row arrows, the chain, the Messages bin and the chrome's arrows stood as 51 declarations in the
+App's seven theme files and 32 in the WPF panes and editors, the port's copies of the WPF ones): 31 moved in, and a pane
+or a theme of either head declares none and names them by key. The WPF head finds them through `Controls.xaml`, which
+merges the file at its top (`IconPlusBadgeStyle` stays there); the Avalonia head through `App.axaml`, which merges the
+converted file once, before `Docking.axaml`: a `StaticResource` not found in its own document ends at the
+application, `IconView` asks from its place in the tree and loads no copy of its own any more, and code that runs
+before its control has joined a window asks `Application.Current` (the preview pane's spinner and its Run and Stop
+glyphs, set in the constructor: a lookup from the pane ends at the pane). Three keys took the port's names, one
+dictionary needing each name once: `RowUpGeometry` and `RowDownGeometry` (the WPF tree had overridden
+`ChevronUpGeometry` and `ChevronDownGeometry` for its rows) and `MessagesClearGeometry`; `DockGripGeometry` is the
+two dots both heads' grip brushes tile. The export's source marker, a path text each head's `SourceMarkerPainter` had
+carried, is `WaveDudeNext.UI`'s `Rendering.ExportGlyphs.SourceMarker`. Left to each head: one inline path (the WPF
+status bar's resize grip, the App's Messages check mark, neither in the other head) and what the controls draw in
+code. Proven by captures of both heads on `figures.wdproj` at each of its 36 tree rows, before and after, 37 of 37
+the same pixel for pixel in each (the walk is `Common.ps1`'s on both heads: the Avalonia window answers UI Automation
+with the same ids, its tree rows `Tree:<name>`, and takes posted keys), and by `KeyboardCheck`, which opens the
+Messages pane (14 of 14). **A probe captures
+the app's own
 windows with PrintWindow, never the screen** (2026-11-09: a capture through
 `CopyFromScreen` at the app's rectangle caught another window the user had over it, deleted unread; a popup is a window
 of its own, found by enumerating the process's visible windows, since UI Automation files none of them under the root).

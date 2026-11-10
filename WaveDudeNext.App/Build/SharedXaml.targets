@@ -19,10 +19,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 -->
 
 <!-- Build action: the resource dictionaries both heads share (the SharedXaml items of the project file: the WPF head's
-     string tables WaveDudeNext.WPF/Strings/Strings.XX.xaml, its icon geometries Themes/Icons.xaml and its colour tables
+     string tables WaveDudeNext.WPF/Strings/Strings.XX.xaml, its geometries Themes/Icons.xaml and its colour tables
      Themes/Dark.xaml and Light.xaml) become Avalonia resource dictionaries under obj/<Configuration>/Shared/<Folder>/ and
      are compiled into this assembly under the item's Folder (avares://WaveDudeNext.App/Strings/Strings.XX.axaml,
-     avares://WaveDudeNext.App/Themes/Icons.axaml, ...), where App.axaml, the language switch and IconView find them. The
+     avares://WaveDudeNext.App/Themes/Icons.axaml, ...), where App.axaml and the language switch find them. The
      files hold s:String, StreamGeometry and SolidColorBrush entries and nothing else, so the conversion is textual: the
      default namespace, the System namespace declaration, the string element's prefix (2026-11-09, the user's choice for
      the tables, 2026-11-10 for the icons and the colours: one source for both heads, each loading a compiled dictionary;

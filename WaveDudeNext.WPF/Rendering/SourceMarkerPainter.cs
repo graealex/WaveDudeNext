@@ -21,6 +21,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using WaveDudeNext.Export;
 using WaveDudeNext.Model;
+using WaveDudeNext.UI.Rendering;
 
 namespace WaveDudeNext.WPF.Rendering;
 
@@ -42,7 +43,7 @@ public sealed class SourceMarkerPainter
 	private const double PreviewLabelSize = 11.0;
 
 	private static readonly Typeface LabelTypeface = new("Segoe UI");
-	private static readonly Geometry Glyph = Frozen(Geometry.Parse("M4,10 A6,6 0 1 1 16,10 A6,6 0 1 1 4,10 M10,0 L10,2.5 M10,17.5 L10,20 M0,10 L2.5,10 M17.5,10 L20,10"));
+	private static readonly Geometry Glyph = Frozen(Geometry.Parse(ExportGlyphs.SourceMarker));
 	private static readonly Brush Halo = Frozen(new SolidColorBrush(Color.FromArgb(191, 0, 0, 0)));
 	private static readonly Brush Disc = Frozen(new SolidColorBrush(Color.FromArgb(0x60, 0, 0, 0)));
 

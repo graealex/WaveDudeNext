@@ -22,26 +22,25 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
      (DockToolTabStripStyle, 766-826), the 16x16 title bar buttons (DockHeaderButtonStyle, 718-739), the dotted grip
      (57-66) and the splitters between panes (668-678). Every colour is a DynamicResource from the variant tables
      (Themes/Dark.axaml, Light.axaml), so the theme switch recolours the panes live. Square everywhere, 1 px borders, no
-     shadows, as upstream. Merged by App.axaml; a test window merges it itself. -->
+     shadows, as upstream. Merged by App.axaml after Themes/Icons.axaml, whose geometries it names; a test window merges both itself. -->
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:docking="using:WaveDudeNext.App.Docking">
 
-	<!-- the glyphs of the two title bar buttons (upstream Controls.xaml:54-55) -->
-	<StreamGeometry x:Key="DockCloseGeometry">M0,1 L1,0 L4,3 L7,0 L8,1 L5,4 L8,7 L7,8 L4,5 L1,8 L0,7 L3,4 Z</StreamGeometry>
-	<StreamGeometry x:Key="DockDropDownGeometry">M0,0 L8,0 L4,4 Z</StreamGeometry>
+	<!-- the glyphs of the two title bar buttons and the grip's two dots are the shared CloseGeometry, DropDownGeometry
+	     and DockGripGeometry of Themes/Icons.axaml, which the application merges before this dictionary -->
 
 	<!-- the grip beside the title: a 4 px tile with two 1 px dots, in the drag-handle colour of the pane's state -->
 	<DrawingBrush x:Key="DockGripInactiveBrush" TileMode="Tile" DestinationRect="0,0,4,4" SourceRect="0,0,4,4"
 	              AlignmentX="Left" AlignmentY="Top" Stretch="None">
 		<DrawingBrush.Drawing>
-			<GeometryDrawing Brush="{DynamicResource TitleBarDragHandleInactive}" Geometry="M0,0 L1,0 L1,1 L0,1 Z M2,2 L3,2 L3,3 L2,3 Z" />
+			<GeometryDrawing Brush="{DynamicResource TitleBarDragHandleInactive}" Geometry="{StaticResource DockGripGeometry}" />
 		</DrawingBrush.Drawing>
 	</DrawingBrush>
 	<DrawingBrush x:Key="DockGripActiveBrush" TileMode="Tile" DestinationRect="0,0,4,4" SourceRect="0,0,4,4"
 	              AlignmentX="Left" AlignmentY="Top" Stretch="None">
 		<DrawingBrush.Drawing>
-			<GeometryDrawing Brush="{DynamicResource TitleBarDragHandleActive}" Geometry="M0,0 L1,0 L1,1 L0,1 Z M2,2 L3,2 L3,3 L2,3 Z" />
+			<GeometryDrawing Brush="{DynamicResource TitleBarDragHandleActive}" Geometry="{StaticResource DockGripGeometry}" />
 		</DrawingBrush.Drawing>
 	</DrawingBrush>
 
@@ -161,7 +160,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 							<DockPanel Margin="5,0,2,0">
 								<StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
 									<Button x:Name="PART_MenuButton" Theme="{StaticResource DockHeaderButtonTheme}"
-									        Content="{StaticResource DockDropDownGeometry}"
+									        Content="{StaticResource DropDownGeometry}"
 									        ToolTip.Tip="{DynamicResource DockWindowPosition}"
 									        AutomationProperties.Name="{DynamicResource DockWindowPosition}"
 									        Foreground="{DynamicResource TitleBarInactiveForeground}"
@@ -179,7 +178,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 										</Button.ContextMenu>
 									</Button>
 									<Button x:Name="PART_CloseButton" Theme="{StaticResource DockHeaderButtonTheme}"
-									        Content="{StaticResource DockCloseGeometry}"
+									        Content="{StaticResource CloseGeometry}"
 									        ToolTip.Tip="{DynamicResource DockClose}"
 									        AutomationProperties.Name="{DynamicResource DockClose}"
 									        Foreground="{DynamicResource TitleBarInactiveForeground}"

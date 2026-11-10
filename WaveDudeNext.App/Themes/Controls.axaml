@@ -37,19 +37,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         xmlns:converters="using:Avalonia.Controls.Converters">
 	<Styles.Resources>
 		<ResourceDictionary>
-			<!-- glyphs (upstream Controls.xaml:45-55): 8x4 scroll arrows, the 4x8 submenu arrow, the check mark stroked at
-			     1.5, the 5x10 tree chevrons stroked at 1 -->
-			<StreamGeometry x:Key="ArrowUpGeometry">M0,4 L4,0 L8,4 Z</StreamGeometry>
-			<StreamGeometry x:Key="ArrowDownGeometry">M0,0 L8,0 L4,4 Z</StreamGeometry>
-			<StreamGeometry x:Key="ArrowLeftGeometry">M4,0 L4,8 L0,4 Z</StreamGeometry>
-			<StreamGeometry x:Key="ArrowRightGeometry">M0,0 L4,4 L0,8 Z</StreamGeometry>
-			<StreamGeometry x:Key="SubmenuArrowGeometry">M0,0 L4,4 L0,8 Z</StreamGeometry>
-			<StreamGeometry x:Key="CheckGeometry">M0,4 L3,7 L8,1</StreamGeometry>
-			<StreamGeometry x:Key="ChevronRightGeometry">M0,0 L5,5 L0,10</StreamGeometry>
-			<StreamGeometry x:Key="ChevronDownGeometry">M0,0 L5,5 L10,0</StreamGeometry>
-			<StreamGeometry x:Key="ChevronUpGeometry">M0,5 L5,0 L10,5</StreamGeometry>
-			<StreamGeometry x:Key="CloseGeometry">M0,1 L1,0 L4,3 L7,0 L8,1 L5,4 L8,7 L7,8 L4,5 L1,8 L0,7 L3,4 Z</StreamGeometry>
-			<StreamGeometry x:Key="DropDownGeometry">M0,0 L8,0 L4,4 Z</StreamGeometry>
+			<!-- the glyphs of these templates (8x4 scroll arrows, the 4x8 submenu arrow, the check mark stroked at 1.5, the
+			     5x10 tree chevrons stroked at 1) are the shared geometries of Themes/Icons.axaml, which the application
+			     merges (App.axaml) -->
 			<!-- the gesture text of a menu entry ("Ctrl+N"), from the KeyGesture the way the platform writes it -->
 			<converters:PlatformKeyGestureConverter x:Key="KeyGestureConverter" />
 			<!-- a tree row's indent: 16 px per level (upstream's column width), from the item's Level -->

@@ -32,18 +32,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         xmlns:controls="using:WaveDudeNext.App.Controls"
         xmlns:converters="using:WaveDudeNext.App.Converters">
 	<Styles.Resources>
-		<!-- glyphs, upstream's Controls.xaml geometries (the generic control styles carry the same keys; the nearest wins) -->
-		<StreamGeometry x:Key="CheckGeometry">M0,4 L3,7 L8,1</StreamGeometry>
-		<StreamGeometry x:Key="ChevronRightGeometry">M0,0 L5,5 L0,10</StreamGeometry>
-		<StreamGeometry x:Key="ChevronDownGeometry">M0,0 L5,5 L10,0</StreamGeometry>
-		<StreamGeometry x:Key="ChevronUpGeometry">M0,5 L5,0 L10,5</StreamGeometry>
-		<StreamGeometry x:Key="CloseGeometry">M0,1 L1,0 L4,3 L7,0 L8,1 L5,4 L8,7 L7,8 L4,5 L1,8 L0,7 L3,4 Z</StreamGeometry>
-		<StreamGeometry x:Key="DropDownGeometry">M0,0 L8,0 L4,4 Z</StreamGeometry>
-		<StreamGeometry x:Key="MinusGeometry">M0,4 L8,4</StreamGeometry>
-		<!-- the chain between two number boxes: two linked rings, parted when off -->
-		<StreamGeometry x:Key="ChainLinkedGeometry">M8,1 h2 a3,3 0 0 1 3,3 v2 a3,3 0 0 1 -3,3 h-2 a3,3 0 0 1 -3,-3 v-2 a3,3 0 0 1 3,-3 z M8,7 h2 a3,3 0 0 1 3,3 v2 a3,3 0 0 1 -3,3 h-2 a3,3 0 0 1 -3,-3 v-2 a3,3 0 0 1 3,-3 z</StreamGeometry>
-		<StreamGeometry x:Key="ChainPartedGeometry">M8,0 h2 a3,3 0 0 1 3,3 v1 a3,3 0 0 1 -3,3 h-2 a3,3 0 0 1 -3,-3 v-1 a3,3 0 0 1 3,-3 z M8,9 h2 a3,3 0 0 1 3,3 v1 a3,3 0 0 1 -3,3 h-2 a3,3 0 0 1 -3,-3 v-1 a3,3 0 0 1 3,-3 z</StreamGeometry>
-
+		<!-- the glyphs (the check mark, the chevrons, the close cross, the drop-down arrow, the minus and the chain's two
+		     rings, linked or parted) are the shared geometries of Themes/Icons.axaml, which the application merges -->
 		<converters:EnumNameConverter x:Key="EnumName" />
 		<converters:ColorSchemeBrushConverter x:Key="ColorSchemeBrush" />
 		<converters:RgbBrushConverter x:Key="RgbBrush" />

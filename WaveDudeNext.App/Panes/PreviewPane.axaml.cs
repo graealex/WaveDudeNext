@@ -511,7 +511,7 @@ public partial class PreviewPane : UserControl
 			VerticalAlignment = VerticalAlignment.Center,
 			RenderTransform = new RotateTransform(),
 			RenderTransformOrigin = RelativePoint.Center,
-			Data = this.TryFindResource("SpinnerGeometry", out object? spinnerGeometry) ? spinnerGeometry as Geometry : null,
+			Data = SharedGeometry("SpinnerGeometry"),
 		};
 		// a frame for this position is being computed (longer than a moment): the stale picture dims and a spinner turns
 		var busy = new Grid { IsHitTestVisible = false, IsVisible = false, Children = { new Rectangle { Fill = Brushes.Black, Opacity = 0.45 }, spinner } };
@@ -578,6 +578,14 @@ public partial class PreviewPane : UserControl
 	private PictureCell CellOf(ProbeLayer layer) => layer == ProbeLayer.Field ? _fieldCell : _intensityCell;
 
 	private static FrameLayer FrameLayerOf(ProbeLayer layer) => layer == ProbeLayer.Field ? FrameLayer.Field : FrameLayer.Intensity;
+
+	/// <summary>
+	/// A geometry of the shared dictionary (Themes/Icons.axaml, which the application merges), asked of the application
+	/// itself: the pane builds its pictures and sets its Run button in its constructor, before it has joined a window,
+	/// where a lookup from the pane would end at the pane. Null when the application has none under that key.
+	/// </summary>
+	private static Geometry? SharedGeometry(string key) =>
+		Application.Current?.TryGetResource(key, null, out object? value) == true ? value as Geometry : null;
 
 	private PictureCell CellOf(FrameLayer layer) => layer == FrameLayer.Field ? _fieldCell : _intensityCell;
 
@@ -1776,7 +1784,7 @@ public partial class PreviewPane : UserControl
 	private void UpdateRunButton()
 	{
 		bool active = Run?.IsActive == true;
-		runButton.Content = this.TryFindResource(active ? "StopGeometry" : "RunGeometry", out object? glyph) ? glyph : null;
+		runButton.Content = SharedGeometry(active ? "StopGeometry" : "RunGeometry");
 		runButton.Command = active ? Commands.Stop : Commands.Run;
 		Rebind(ref _runTip, runButton, ToolTip.TipProperty, active ? "TipPreviewStop" : "TipPreviewRun");
 		Rebind(ref _runName, runButton, AutomationProperties.NameProperty, active ? "TipPreviewStop" : "TipPreviewRun");

@@ -29,7 +29,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<UserControl.Resources>
 		<converters:ColorSchemeBrushConverter x:Key="ColorSchemeBrush" />
 		<converters:RgbBrushConverter x:Key="RgbBrush" />
-		<StreamGeometry x:Key="MinusGeometry">M0,4 L8,4</StreamGeometry>
 		<!-- the "reduce" step applies to a sampled table only -->
 		<Style x:Key="RemoveStopButton" TargetType="{x:Type Button}">
 			<Setter Property="Width" Value="18" />

@@ -31,16 +31,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<Styles.Resources>
 		<converters:TreeIdConverter x:Key="TreeId" />
 
-		<!-- the glyphs of the row and toolbar buttons, 8 px, stroked; the move chevrons are the rows' own, smaller than the
-		     10 px ChevronUp/DownGeometry of Themes/Controls.axaml (upstream ProjectTree.xaml:39-42 and Controls.xaml:52-53) -->
-		<StreamGeometry x:Key="PlusGeometry">M4,0 L4,8 M0,4 L8,4</StreamGeometry>
-		<StreamGeometry x:Key="MinusGeometry">M0,4 L8,4</StreamGeometry>
-		<StreamGeometry x:Key="RowUpGeometry">M0,6 L4,2 L8,6</StreamGeometry>
-		<StreamGeometry x:Key="RowDownGeometry">M0,2 L4,6 L8,2</StreamGeometry>
-		<!-- the expander's chevrons (upstream Controls.xaml:51-52); the Part button's drop-down arrow and the check mark are
-		     the application's DropDownGeometry and CheckGeometry (Themes/Controls.axaml), reached by DynamicResource -->
-		<StreamGeometry x:Key="TreeChevronRightGeometry">M0,0 L5,5 L0,10</StreamGeometry>
-		<StreamGeometry x:Key="TreeChevronDownGeometry">M0,0 L5,5 L10,0</StreamGeometry>
+		<!-- the glyphs of the row and toolbar buttons (PlusGeometry, MinusGeometry and the two that move a row, RowUpGeometry
+		     and RowDownGeometry, smaller than the 10 px chevrons), the expander's chevrons, the Part button's drop-down
+		     arrow and the check mark are the shared geometries of Themes/Icons.axaml, which the application merges -->
 
 		<!-- the tree: no border, 2 px padding, the tool window's colours -->
 		<ControlTheme x:Key="ProjectTreeTheme" TargetType="TreeView">
@@ -70,13 +63,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="Template">
 				<ControlTemplate>
 					<Border Background="Transparent" Margin="0,0,0,1">
-						<Path Name="Glyph" Data="{StaticResource TreeChevronRightGeometry}" Stroke="{DynamicResource TreeViewGlyph}" StrokeThickness="1"
+						<Path Name="Glyph" Data="{StaticResource ChevronRightGeometry}" Stroke="{DynamicResource TreeViewGlyph}" StrokeThickness="1"
 						      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0" />
 					</Border>
 				</ControlTemplate>
 			</Setter>
 			<Style Selector="^:checked /template/ Path#Glyph">
-				<Setter Property="Data" Value="{StaticResource TreeChevronDownGeometry}" />
+				<Setter Property="Data" Value="{StaticResource ChevronDownGeometry}" />
 				<Setter Property="Margin" Value="0,2,0,0" />
 			</Style>
 			<Style Selector="^:pointerover /template/ Path#Glyph">

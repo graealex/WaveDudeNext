@@ -20,7 +20,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.LogicalTree;
-using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 
 namespace WaveDudeNext.App.Controls;
@@ -54,9 +53,6 @@ public sealed class IconView : Control
 
 	private const string BadgeKey = "IconPlusBadge";
 	private const string AccentKey = "Accent";
-
-	/// <summary>Icons.axaml, loaded once for every IconView: the geometries need no entry in App.axaml.</summary>
-	private static ResourceDictionary? _icons;
 
 	private Geometry? _stroke;
 	private Geometry? _fill;
@@ -173,19 +169,14 @@ public sealed class IconView : Control
 		}
 	}
 
-	/// <summary>The geometry under <paramref name="key"/>: the application's, when it merged Icons.axaml, else the dictionary's own copy.</summary>
-	private Geometry? FindGeometry(string key)
-	{
-		if (this.TryFindResource(key, ActualThemeVariant, out object? fromTree) && fromTree is Geometry geometry)
-		{
-			return geometry;
-		}
-		return Icons.TryGetResource(key, null, out object? own) && own is Geometry ownGeometry ? ownGeometry : null;
-	}
+	/// <summary>
+	/// The geometry under <paramref name="key"/> in the shared Themes/Icons.axaml, which the application merges
+	/// (App.axaml, 2026-11-11; the icon had loaded a copy of its own before): found from the icon's place in the tree,
+	/// whose last stop is the application.
+	/// </summary>
+	private Geometry? FindGeometry(string key) =>
+		this.TryFindResource(key, ActualThemeVariant, out object? value) && value is Geometry geometry ? geometry : null;
 
 	private IBrush? FindBrush(string key) =>
 		this.TryFindResource(key, ActualThemeVariant, out object? value) && value is IBrush brush ? brush : null;
-
-	private static ResourceDictionary Icons =>
-		_icons ??= (ResourceDictionary)AvaloniaXamlLoader.Load(new Uri("avares://WaveDudeNext.App/Themes/Icons.axaml"));
 }

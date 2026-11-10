@@ -35,6 +35,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</ResourceDictionary.ThemeDictionaries>
 			<ResourceDictionary.MergedDictionaries>
 				<ResourceInclude Source="avares://WaveDudeNext.App/Strings/Strings.EN.axaml" />
+				<!-- every geometry of the application: the WPF head's Themes/Icons.xaml converted at build. Merged here, once,
+				     so the theme files, the panes and IconView name a geometry by its key and declare none (2026-11-11);
+				     before the dock chrome, whose brushes and templates name three of them -->
+				<ResourceInclude Source="avares://WaveDudeNext.App/Themes/Icons.axaml" />
 				<!-- the control themes of the dock chrome (DockGroupControl, its tabs, header buttons and splitters) -->
 				<ResourceInclude Source="avares://WaveDudeNext.App/Themes/Docking.axaml" />
 			</ResourceDictionary.MergedDictionaries>

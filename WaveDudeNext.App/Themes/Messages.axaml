@@ -29,9 +29,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 	<Styles.Resources>
 		<ResourceDictionary>
-			<!-- upstream's ClearGeometry: a bin, drawn as a 1.2 px stroke -->
-			<StreamGeometry x:Key="MessagesClearGeometry">M1,2 L9,2 M3,2 L3,9 L7,9 L7,2 M4,0 L6,0</StreamGeometry>
-
 			<!-- Fluent's rounding and placeholder dimming, switched off under the pane: upstream has no corner radius
 			     anywhere and shows the search hint in GrayText at full opacity -->
 			<CornerRadius x:Key="ControlCornerRadius">0</CornerRadius>
