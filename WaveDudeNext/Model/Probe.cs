@@ -444,24 +444,24 @@ public sealed class Probe : ObservableObject, IMovable, INamed
 		set => SetProperty(ref _boxHeight, value);
 	}
 
-	/// <summary>Sliding window of the last steps, or the whole run; point probes only.</summary>
+	/// <summary>Sliding window of the last steps, or the whole run; for a graph over time, a point probe's or a counting detector's (not <see cref="ShowsProfile"/>).</summary>
 	[XmlAttribute]
 	[DefaultValue(ProbeScaleMode.Running)]
 	[Category("Axes")]
 	[DisplayName("Step axis")]
-	[Description("Sliding window of the last steps, or the whole run; point probes only.")]
+	[Description("Sliding window of the last steps, or the whole run; point probes and counting detectors only.")]
 	public ProbeScaleMode ScaleMode
 	{
 		get => _scaleMode;
 		set => SetProperty(ref _scaleMode, value);
 	}
 
-	/// <summary>Whether the step axis follows the samples recorded so far; point probes only.</summary>
+	/// <summary>Whether the step axis follows the samples recorded so far; for a graph over time, a point probe's or a counting detector's (not <see cref="ShowsProfile"/>).</summary>
 	[XmlAttribute]
 	[DefaultValue(true)]
 	[Category("Axes")]
 	[DisplayName("Auto-scale steps")]
-	[Description("Let the step axis follow the samples recorded so far; point probes only.")]
+	[Description("Let the step axis follow the samples recorded so far; point probes and counting detectors only.")]
 	public bool AutoScaleX
 	{
 		get => _autoScaleX;

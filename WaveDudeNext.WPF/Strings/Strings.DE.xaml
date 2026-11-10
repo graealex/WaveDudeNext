@@ -514,9 +514,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Probe.BoxHeight">Kastenhöhe</s:String>
 	<s:String x:Key="Hint.Probe.BoxHeight">Höhe des Diagrammkastens in Leinwandpixeln; nur bei eigener Kastengröße. Ein Kasten größer als die Leinwand wird seitenverhältnistreu auf sie verkleinert.</s:String>
 	<s:String x:Key="Label.Probe.ScaleMode">Schrittachse</s:String>
-	<s:String x:Key="Hint.Probe.ScaleMode">Gleitendes Fenster der letzten Schritte oder der ganze Lauf; nur Punktsonden.</s:String>
+	<s:String x:Key="Hint.Probe.ScaleMode">Gleitendes Fenster der letzten Schritte oder der ganze Lauf; nur Punktsonden und zählende Detektoren.</s:String>
 	<s:String x:Key="Label.Probe.AutoScaleX">Schritte automatisch skalieren</s:String>
-	<s:String x:Key="Hint.Probe.AutoScaleX">Die Schrittachse den bisher aufgezeichneten Messwerten folgen lassen; nur Punktsonden.</s:String>
+	<s:String x:Key="Hint.Probe.AutoScaleX">Die Schrittachse den bisher aufgezeichneten Messwerten folgen lassen; nur Punktsonden und zählende Detektoren.</s:String>
 	<s:String x:Key="Label.Probe.AutoScaleY">Werte automatisch skalieren</s:String>
 	<s:String x:Key="Hint.Probe.AutoScaleY">Die Werteachse an die Daten anpassen statt an festes Minimum und Maximum.</s:String>
 	<s:String x:Key="Label.Probe.YMin">Wert Minimum</s:String>

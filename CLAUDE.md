@@ -368,7 +368,19 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   normal approximation). A counting detector's series: the frame's increase of the line's total, shared evenly over its
   steps, each step the process's events in its share (the scratch runner collects profiles frame by frame when one
   exists, `ProbeSampler.HasCounting`); an imaging detector's profile: each pixel's process up to its total. The graph,
-  the CSV and the layout choose series or profile by `Probe.ShowsProfile`, not the kind. `AddProbe(x, y, detector)`
+  the CSV and the layout choose series or profile by `Probe.ShowsProfile`, not the kind, **and so does the form**
+  (2026-11-10, Jeroen's report that "Full" could not be chosen for a detector: Step axis and Auto-scale steps were greyed
+  by the kind, a line for every detector, though a counting detector's graph runs over the steps and honoured both; the
+  WPF styles `SeriesOnlyCombo` and `SeriesOnlyCheck` and the Avalonia form's `!ShowsProfile`, the two hints and the
+  manual now say "point probes and counting detectors only"; proven by a keyboard probe on `tiny_probes.wdproj`, the
+  point probe stepped through the Detector box: enabled as Standard and Counting, greyed as Imaging). Going back to
+  Standard changes the detector alone: the kind, the layer and the measurement stay what the detector set, a standard
+  line probe of the integrated intensity, whose graph is a profile, so the two stay greyed until the kind is set to
+  Point (his report's second half). **That stays** (2026-11-10, the user's choice of three: the probe left behind
+  measures what the detector's counts are drawn from, on the same line; remembering the earlier kind, layer and
+  measurement would be lost on save and undo or become file format, and a reset to a point probe on the field would
+  discard the line).
+  `AddProbe(x, y, detector)`
   names a detector "Detector n"; the "+ Probe" button and the Probes folder's plus open a menu of kinds as the parts' do
   (`ProbeMenuEntries`; `ProjectItems.HasKinds` and `AddProbe(x, y, detector)`). The default sensitivity is 20 (2026-11-08, Jeroen's report: 0.05, set from a plane
   wave's 0.175 intensity a pixel, showed nothing, since a point source's wave at a hundred pixels is a few hundredths
@@ -1284,7 +1296,8 @@ dropping the 9-point Laplacian (undecided);
 Bragg thicknesses in pixels) wait for the user; **after Jeroen's drop of 2026-11-08**: an example project for the
 meta axicon (the other new kinds have theirs since 2026-11-10, Examples 25 to 33), the figure of the File > Examples
 submenu, which with `Assets/Legend.md` still shows 24 entries beside the manual's list of 33 until a figure run on the
-user's word, and by hand, since no harness presses the mouse: the caret in a new item's name after a pick from "+ Part" and
+user's word (the same run retakes the counting detector's form, drawn with Step axis and Auto-scale steps greyed, and
+the legend's two hints), and by hand, since no harness presses the mouse: the caret in a new item's name after a pick from "+ Part" and
 "+ Probe" with the window active, a filter layer dragged by its grip as one undo step, and the emitter dots after a
 drag on Jeroen's machine with and without the cache renewal. The figures were retaken that afternoon with the user's word (51, 14 of them new; of the 37 there before, 22 came out
 byte for byte as committed and 15 differ where the change shows: the "+ Probe" arrow in the toolbar, in the tree, the

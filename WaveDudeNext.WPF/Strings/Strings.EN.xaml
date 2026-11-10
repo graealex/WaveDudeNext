@@ -516,9 +516,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Probe.BoxHeight">Box height</s:String>
 	<s:String x:Key="Hint.Probe.BoxHeight">Height of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.</s:String>
 	<s:String x:Key="Label.Probe.ScaleMode">Step axis</s:String>
-	<s:String x:Key="Hint.Probe.ScaleMode">Sliding window of the last steps, or the whole run; point probes only.</s:String>
+	<s:String x:Key="Hint.Probe.ScaleMode">Sliding window of the last steps, or the whole run; point probes and counting detectors only.</s:String>
 	<s:String x:Key="Label.Probe.AutoScaleX">Auto-scale steps</s:String>
-	<s:String x:Key="Hint.Probe.AutoScaleX">Let the step axis follow the samples recorded so far; point probes only.</s:String>
+	<s:String x:Key="Hint.Probe.AutoScaleX">Let the step axis follow the samples recorded so far; point probes and counting detectors only.</s:String>
 	<s:String x:Key="Label.Probe.AutoScaleY">Auto-scale values</s:String>
 	<s:String x:Key="Hint.Probe.AutoScaleY">Fit the value axis to the data instead of the fixed minimum and maximum.</s:String>
 	<s:String x:Key="Label.Probe.YMin">Value minimum</s:String>

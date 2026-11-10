@@ -106,18 +106,19 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionAxes}" />
 			<controls:FormPanel>
-				<!-- the step axis only applies to a point probe -->
+				<!-- the step axis only applies to a graph over time: a point probe's, and a counting detector's, whose line gives
+				     one count a step (Probe.ShowsProfile, which the graph goes by; by the kind until 2026-11-10, as in the WPF form) -->
 				<TextBlock Classes="FormLabel" Text="{meta:Label model:Probe.ScaleMode}" />
 				<ComboBox Theme="{DynamicResource EnumComboBox}" ItemsSource="{meta:EnumValues model:ProbeScaleMode}"
-				          SelectedItem="{Binding ScaleMode}" ToolTip.Tip="{meta:Hint model:Probe.ScaleMode}"
-				          IsEnabled="{Binding Kind, Converter={StaticResource EnumBoolean}, ConverterParameter={x:Static model:ProbeKind.Point}}" />
+				          SelectedItem="{Binding ScaleMode}" ToolTip.Tip="{meta:Hint model:Probe.ScaleMode}" AutomationProperties.AutomationId="ProbeScaleMode"
+				          IsEnabled="{Binding !ShowsProfile}" />
 
 				<TextBlock Classes="FormLabel" Text="{meta:Label model:Probe.Window}" />
 				<controls:NumberBox Text="{Binding Window, UpdateSourceTrigger=LostFocus}" Minimum="10" Maximum="1000000" Increment="10" ToolTip.Tip="{meta:Hint model:Probe.Window}" />
 
 				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Probe.AutoScaleX}"
-				          IsChecked="{Binding AutoScaleX}" ToolTip.Tip="{meta:Hint model:Probe.AutoScaleX}"
-				          IsEnabled="{Binding Kind, Converter={StaticResource EnumBoolean}, ConverterParameter={x:Static model:ProbeKind.Point}}" />
+				          IsChecked="{Binding AutoScaleX}" ToolTip.Tip="{meta:Hint model:Probe.AutoScaleX}" AutomationProperties.AutomationId="ProbeAutoScaleX"
+				          IsEnabled="{Binding !ShowsProfile}" />
 				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Probe.AutoScaleY}"
 				          IsChecked="{Binding AutoScaleY}" ToolTip.Tip="{meta:Hint model:Probe.AutoScaleY}" />
 

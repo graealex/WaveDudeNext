@@ -514,9 +514,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="Label.Probe.BoxHeight">Kaderhoogte</s:String>
 	<s:String x:Key="Hint.Probe.BoxHeight">Hoogte van het grafiekkader in canvaspixels; alleen bij een eigen kadermaat. Een kader groter dan het canvas wordt met behoud van de verhouding tot het canvas verkleind.</s:String>
 	<s:String x:Key="Label.Probe.ScaleMode">Stappenas</s:String>
-	<s:String x:Key="Hint.Probe.ScaleMode">Schuivend venster van de laatste stappen, of de hele run; alleen puntsondes.</s:String>
+	<s:String x:Key="Hint.Probe.ScaleMode">Schuivend venster van de laatste stappen, of de hele run; alleen puntsondes en tellende detectoren.</s:String>
 	<s:String x:Key="Label.Probe.AutoScaleX">Stappen automatisch schalen</s:String>
-	<s:String x:Key="Hint.Probe.AutoScaleX">De stappenas de tot nu toe opgenomen monsters laten volgen; alleen puntsondes.</s:String>
+	<s:String x:Key="Hint.Probe.AutoScaleX">De stappenas de tot nu toe opgenomen monsters laten volgen; alleen puntsondes en tellende detectoren.</s:String>
 	<s:String x:Key="Label.Probe.AutoScaleY">Waarden automatisch schalen</s:String>
 	<s:String x:Key="Hint.Probe.AutoScaleY">De waardenas aan de gegevens aanpassen in plaats van aan het vaste minimum en maximum.</s:String>
 	<s:String x:Key="Label.Probe.YMin">Minimumwaarde</s:String>

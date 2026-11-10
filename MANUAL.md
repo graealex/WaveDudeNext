@@ -797,9 +797,9 @@ The form of a point probe of the field.
 16. **Box y**: Top edge of the graph box in canvas pixels. A box placed on the probe's point A moves with the probe; dragging it close snaps it on.
 17. **Box width**: Width of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.
 18. **Box height**: Height of the graph box in canvas pixels; custom box size only. A box larger than the canvas is shrunk to fit it, aspect kept.
-19. **Step axis**: Running, a sliding window of the last steps, or Full, the whole run; point probes only.
+19. **Step axis**: Running, a sliding window of the last steps, or Full, the whole run; point probes and counting detectors only.
 20. **Window**: Width of the sliding step window, in steps.
-21. **Auto-scale steps**: Lets the step axis follow the samples recorded so far; point probes only.
+21. **Auto-scale steps**: Lets the step axis follow the samples recorded so far; point probes and counting detectors only.
 22. **Auto-scale values**: Fits the value axis to the data instead of the fixed minimum and maximum.
 23. **Value axis**: A linear or a logarithmic value axis; intensity probes only, the field is always linear, its amplitude axis symmetric about zero.
 24. **Decades**: Decades a logarithmic value axis spans below its top; smaller values, zero included, sit on the bottom line.

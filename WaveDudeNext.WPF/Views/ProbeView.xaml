@@ -27,7 +27,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 	<UserControl.Resources>
 		<converters:MeasurementsForLayerConverter x:Key="MeasurementsForLayer" />
-		<!-- point B and the step axis only apply to line and point probes respectively -->
+		<!-- point B only applies to a line probe -->
 		<Style x:Key="LineOnly" TargetType="{x:Type controls:NumberBox}" BasedOn="{StaticResource {x:Type controls:NumberBox}}">
 			<Style.Triggers>
 				<DataTrigger Binding="{Binding Kind}" Value="Point">
@@ -35,16 +35,19 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</DataTrigger>
 			</Style.Triggers>
 		</Style>
-		<Style x:Key="PointOnlyCombo" TargetType="{x:Type ComboBox}" BasedOn="{StaticResource EnumComboBox}">
+		<!-- the step axis only applies to a graph over time: a point probe's, and a counting detector's, whose line gives one
+		     count a step (Probe.ShowsProfile, which the graph goes by; 2026-11-10, Jeroen's report: the two were greyed by the
+		     kind, a line for every detector, so a counting detector could not be given the whole run) -->
+		<Style x:Key="SeriesOnlyCombo" TargetType="{x:Type ComboBox}" BasedOn="{StaticResource EnumComboBox}">
 			<Style.Triggers>
-				<DataTrigger Binding="{Binding Kind}" Value="Line">
+				<DataTrigger Binding="{Binding ShowsProfile}" Value="True">
 					<Setter Property="IsEnabled" Value="False" />
 				</DataTrigger>
 			</Style.Triggers>
 		</Style>
-		<Style x:Key="PointOnlyCheck" TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
+		<Style x:Key="SeriesOnlyCheck" TargetType="{x:Type CheckBox}" BasedOn="{StaticResource {x:Type CheckBox}}">
 			<Style.Triggers>
-				<DataTrigger Binding="{Binding Kind}" Value="Line">
+				<DataTrigger Binding="{Binding ShowsProfile}" Value="True">
 					<Setter Property="IsEnabled" Value="False" />
 				</DataTrigger>
 			</Style.Triggers>
@@ -181,14 +184,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Label Style="{StaticResource FormSection}" Content="{DynamicResource SectionAxes}" />
 			<controls:FormPanel>
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Probe.ScaleMode}" />
-				<ComboBox Style="{StaticResource PointOnlyCombo}" ItemsSource="{meta:EnumValues model:ProbeScaleMode}"
-				          SelectedItem="{Binding ScaleMode}" ToolTip="{meta:Hint model:Probe.ScaleMode}" />
+				<ComboBox Style="{StaticResource SeriesOnlyCombo}" ItemsSource="{meta:EnumValues model:ProbeScaleMode}"
+				          SelectedItem="{Binding ScaleMode}" ToolTip="{meta:Hint model:Probe.ScaleMode}" AutomationProperties.AutomationId="ProbeScaleMode" />
 
 				<TextBlock Style="{StaticResource FormLabel}" Text="{meta:Label model:Probe.Window}" />
 				<controls:NumberBox Text="{Binding Window}" Minimum="10" Maximum="1000000" Increment="10" ToolTip="{meta:Hint model:Probe.Window}" />
 
-				<CheckBox controls:FormPanel.FullWidth="True" Style="{StaticResource PointOnlyCheck}" Content="{meta:Label model:Probe.AutoScaleX}"
-				          IsChecked="{Binding AutoScaleX}" ToolTip="{meta:Hint model:Probe.AutoScaleX}" />
+				<CheckBox controls:FormPanel.FullWidth="True" Style="{StaticResource SeriesOnlyCheck}" Content="{meta:Label model:Probe.AutoScaleX}"
+				          IsChecked="{Binding AutoScaleX}" ToolTip="{meta:Hint model:Probe.AutoScaleX}" AutomationProperties.AutomationId="ProbeAutoScaleX" />
 				<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:Probe.AutoScaleY}"
 				          IsChecked="{Binding AutoScaleY}" ToolTip="{meta:Hint model:Probe.AutoScaleY}" />
 
