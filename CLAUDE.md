@@ -395,7 +395,19 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   (`PictureHandle`, `PictureSelection` in `Controls.xaml`, 2026-10-26, Jeroen's tester: the accent blue was duller than
   the rest and lost on a blue scheme and to colour-blind eyes; the keyboard focus keeps the accent); a probe's handles and line appear only on the picture of
   the layer it measures (2026-10-18), sources on both; graph boxes lie over every handle and dot, the selected
-  item is drawn last among its kind, except the handles themselves (Panel.ZIndex breaks the Tab cycle, 2026-10-18);
+  item is drawn last among its kind, except the handles themselves (Panel.ZIndex breaks the Tab cycle, 2026-10-18).
+  **A graph box's two thumbs are clipped by the boxes drawn in front of it** (2026-11-10, the user's report: a box's
+  resize grip was drawn on a box in front): the boxes are one drawing under all the thumbs, the selected probe's last,
+  while the thumbs stay children in the project's order for the Tab cycle, so a rear box's grip showed through the front
+  box's transparent thumb, and with the front box the earlier one in the project a press on its own grip or anywhere on
+  the overlap took the box behind. `ProbeGraphOverlay.DrawnBoxes` is the one order for the drawing and the clips
+  (`Uncovered`, set in `ArrangeOverride`, re-arranged at a selection change); a clip counts for drawing and hit testing
+  in WPF and in Avalonia, both heads the same. Proven in both by a startup-hook probe on `tiny_probes.wdproj` with two
+  overlapping boxes, asking the framework what a press hits (`InputHitTest`) for no selection and for each probe
+  selected, and rendering the picture's cell: before, the grip on the front box and "Probe 2" hit on the selected
+  Probe 1's grip and overlap; after, no grip there and Probe 1's own thumbs hit (the Avalonia "before" by taking the
+  clips away in the probe). A thumb covered altogether is reached with Tab, which selects its probe and brings its box
+  to the front;
   arrows nudge, Del on a handle or a graph box removes its item or the selection it belongs to as the tree's Del does
   (2026-10-26), selection syncs with the tree, a click on empty space deselects. **Display > Handles in the preview and
   Labels in the preview** (2026-10-29, the user's request, both on by default) hide every item's handles, lines, emitter

@@ -275,6 +275,11 @@ public sealed class ProbeGraphOverlay : Panel
 		else if (change.Property == ScratchProperty || change.Property == FrameProperty || change.Property == AccentBrushProperty
 			|| change.Property == SelectedItemProperty || change.Property == CanvasWidthProperty || change.Property == CanvasHeightProperty)
 		{
+			if (change.Property == SelectedItemProperty)
+			{
+				// the selected box comes to the front: the thumbs' clips follow the new order
+				InvalidateArrange();
+			}
 			InvalidateGraphs();
 		}
 	}
@@ -393,22 +398,73 @@ public sealed class ProbeGraphOverlay : Panel
 		return new Size(Math.Max(1, CanvasWidth) * scale, Math.Max(1, CanvasHeight) * scale);
 	}
 
-	/// <inheritdoc/>
+	/// <summary>
+	/// The boxes that are drawn, in the order they are drawn, the last in front: the shown probes in the project's order,
+	/// the selected one last, so its box lies over any box it overlaps; a box too small to draw
+	/// (<see cref="ProbeGraph.MinVisibleWidth"/> × <see cref="ProbeGraph.MinVisibleHeight"/>) is left out.
+	/// <see cref="DrawBoxes"/> draws by it and <see cref="ArrangeOverride"/> clips the thumbs by it.
+	/// </summary>
+	/// <param name="project">The project whose probes are shown.</param>
+	/// <param name="size">This element's size (see <see cref="ScaleFor"/>).</param>
+	private List<(Probe Probe, Rect Box)> DrawnBoxes(Project project, Size size)
+	{
+		object? selected = SelectedItem;
+		var boxes = new List<(Probe, Rect)>();
+		foreach (Probe probe in project.Probes.OrderBy(probe => ReferenceEquals(probe, selected)))
+		{
+			if (IsShown(probe) && BoxOf(probe, size) is { Width: >= ProbeGraph.MinVisibleWidth, Height: >= ProbeGraph.MinVisibleHeight } box)
+			{
+				boxes.Add((probe, box));
+			}
+		}
+		return boxes;
+	}
+
+	/// <summary>
+	/// The clip of a thumb of <paramref name="probe"/> placed at <paramref name="place"/>: what the boxes drawn in front
+	/// of its probe's box leave of it, in the thumb's own coordinates; null when none of them covers any of it, an empty
+	/// geometry when they cover all of it.
+	/// </summary>
+	private static Geometry? Uncovered(Rect place, List<(Probe Probe, Rect Box)> drawn, Probe probe)
+	{
+		Geometry? clip = null;
+		// a box too small to be drawn is not in the list (-1): every drawn box is in front of its thumbs
+		for (int i = drawn.FindIndex(entry => ReferenceEquals(entry.Probe, probe)) + 1; i < drawn.Count; i++)
+		{
+			Rect covered = place.Intersect(drawn[i].Box);
+			if (covered.Width <= 0 || covered.Height <= 0)
+			{
+				continue;
+			}
+			clip = new CombinedGeometry(GeometryCombineMode.Exclude, clip ?? new RectangleGeometry(new Rect(place.Size)), new RectangleGeometry(covered.Translate(new Vector(-place.X, -place.Y))));
+		}
+		return clip;
+	}
+
+	/// <summary>
+	/// Places each box's two thumbs and clips them by the boxes drawn in front of theirs (2026-11-10, the user's report
+	/// on the WPF head, whose overlay this one follows: a box's resize grip was drawn on a box lying in front of it).
+	/// The boxes are one drawing under all the thumbs, in <see cref="DrawnBoxes"/>' order, while the thumbs are children
+	/// in the project's order, which the Tab cycle goes by: so a rear box's grip showed through the front box's
+	/// transparent thumb, and with the front box the earlier one in the project a press on its own grip, or anywhere on
+	/// the overlap, took the box behind. A clip counts for drawing and for hit testing alike, so what is seen in front
+	/// is what is grabbed; a thumb covered altogether is still reached with Tab, which selects its probe and so brings
+	/// its box to the front.
+	/// </summary>
 	protected override Size ArrangeOverride(Size finalSize)
 	{
 		_canvas.Arrange(new Rect(finalSize));
+		List<(Probe Probe, Rect Box)> drawn = Project is { } project ? DrawnBoxes(project, finalSize) : [];
 		foreach (BoxThumb thumb in Children.OfType<BoxThumb>())
 		{
-			Rect box = BoxOf(thumb.Probe, finalSize);
+			Rect place = BoxOf(thumb.Probe, finalSize);
 			if (thumb.IsCorner)
 			{
 				Size grip = thumb.DesiredSize;
-				thumb.Arrange(new Rect(box.Right - grip.Width, box.Bottom - grip.Height, grip.Width, grip.Height));
+				place = new Rect(place.Right - grip.Width, place.Bottom - grip.Height, grip.Width, grip.Height);
 			}
-			else
-			{
-				thumb.Arrange(box);
-			}
+			thumb.Arrange(place);
+			thumb.Clip = Uncovered(place, drawn, thumb.Probe);
 		}
 		return finalSize;
 	}
@@ -463,13 +519,8 @@ public sealed class ProbeGraphOverlay : Panel
 		double scale = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
 		ProbeGraphStyle style = _style ??= ProbeGraphDrawing.MakeStyle(scale);
 		object? selected = SelectedItem;
-		foreach (Probe probe in project.Probes.OrderBy(probe => ReferenceEquals(probe, selected)))
+		foreach ((Probe probe, Rect box) in DrawnBoxes(project, size))
 		{
-			if (!IsShown(probe))
-			{
-				continue;
-			}
-			Rect box = BoxOf(probe, size);
 			ProbeGraphData data = DataFor(probe, out int totalSteps);
 			ProbeGraphLayout layout = ProbeGraph.Layout(probe, data, totalSteps, (float)box.Width, (float)box.Height, style, CultureInfo.CurrentCulture);
 			if (!layout.IsVisible)
