@@ -283,10 +283,11 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   automatically **when the edit has finished** (setting, default on; 2026-11-07, the user's choice, replacing a 120 ms
   debounce of the requests and 1.5 s of quiet before the re-run: **nothing in the live rules keeps time**). "Finished"
   is the undo history's boundary, `Platform/EditBoundaries` (a mouse button released or pressed, the focus leaving,
-  Enter in a text box, a command before and after, a drop, the two edits that arrive without input), handed to
+  Enter in a text box, a toggle button's click, a command before and after, a drop, the two edits that arrive without
+  input), handed to
   `LivePreview.EditFinished` by the window's `OnEditFinished`; a re-run due while a frame computes, a run is active or an
   export writes follows that thing's completion event. So arrow-key nudges on a handle or in a number box re-run when
-  the focus leaves or Enter is pressed, a drag's release or Ctrl+Z at once, a View menu change at the command's end.
+  the focus leaves or Enter is pressed, a drag's release, Ctrl+Z or a check box ticked with Space at once, a View menu change at the command's end.
   Every change asks for its frame and the runner coalesces: **the frame in flight is finished and the newest request
   taken after it** (2026-11-09, the user's decision, dropping the 2026-10-16 rule that a request arriving while one
   computed abandoned it within 16 steps: that served the one request a pause of the hand made under the debounce, but
@@ -432,7 +433,12 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   its scrub and the property editors for Enter), a mouse button pressed (before it changes anything: what the keys or the
   wheel were editing is finished), the focus leaving the element (so arrow keys on a handle, taps or held, the keys and
   the wheel on a number box and typing in a text box are one step for as long as the focus stays), Enter in a
-  single-line text box, a command before and after it (not a text box's own editing commands), a drop; and the window
+  single-line text box, a check box or another toggle button clicked (2026-11-10, the user's rule: it has written its
+  value and nothing more can follow, yet ticked with a key it had waited for the focus to leave, while the mouse's
+  release finished it at once; heard as the button's Click, raised after the toggle by the mouse, Space or the access
+  key, and never by a change from the model; a check box's + and - go by its key handler and are heard there; a combo
+  box stepped with the arrows still waits for the focus to leave), a command before and after it (not a text box's
+  own editing commands), a drop; and the window
   ends the step itself where an edit comes without input (a brightness fit computed later, the scene image file
   changed on disk). Undo and Redo end a step in progress first, so an edit can be undone while it is going on. Undo and Redo (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z; a text
   box keeps its own) write the step back into the same project object, the lists refilled and the settings objects
@@ -841,7 +847,14 @@ keeps the name the row was made with: after a rename find the row by its Name. T
 selected row, behind its toolbar; another row is reached with the arrows from there, never by more Tabs (Tab from a
 handle on the preview passes the other handles, and each selects its own item, so `FocusOn "Tree:<name>"` only works
 while that item is the selection). Space on + Part opens the menu of kinds with no entry taken: Down first. `Type` is PowerShell's alias of
-`Get-Content` and wins over a function of that name. Known flake: a second app start in one
+`Get-Content` and wins over a function of that name. **`ProbeGraphCheck` had failed one check of 39 since the live rules lost their timers** (found 2026-11-10): it ticks
+Probe 2's Active box with Space and waits for the automatic re-run with the focus still on the box, and a74c04a, which
+changed `RunCheck` and `PreviewQualityCheck` for the rule that the re-run comes when the edit has finished, had left
+this script: the re-run came 21 s later, when the script moved the focus on. The user's choice of the two ways out:
+the rule changed, a box ticked with a key is an edit that has finished (see Undo and redo). With it the re-run starts
+at the tick and the status bar's "edited since" lasts milliseconds, so the check before it reads the log for "the run
+is stale" as the others read it for "Re-run started"; 39 of 39, and `PreviewCheck`, which ticks the intensity toggle
+with Space, 43 of 43. Known flake: a second app start in one
 script sometimes comes up active; only the foreground guard fails then. UI Automation files an owned dialog (the message
 window, the memory warning) under its owner, not among the root's children: find its content below the main window and
 walk up to the Window element for its handle (2026-11-03, half an hour lost to a root search).
@@ -1253,7 +1266,8 @@ the models as the WPF window does (the same constructor, the same hub `MainWindo
 the dialog step made possible; the Save dialog does not say which filter was chosen, so the format is read from the
 path's extension), **`AvaloniaClipboard`** (reads asynchronously and answers "nothing known" until the read has landed,
 as the interface foresees; Windows' clipboard sequence number as the change count) and **`EditBoundaries`** (pointer
-pressed on the tunnelling pass, released, focus lost, Enter in a single-line text box, a drop, all heard at the window
+pressed on the tunnelling pass, released, focus lost, Enter in a single-line text box, a toggle button's click, a drop,
+all heard at the window
 with the handled events too; a command before and after through `Command(action)`, since Avalonia has no routed commands
 to hear). The window is its own data context (`x:DataType`): the panes bind `Document.Project`, `Selection.Current`
 (two-way) and `Items`, `RunHost.Run` and its flags, `Live.ScratchFrame`, `SceneComposer.Pixels`, `Busy.IsComputingFrame`,

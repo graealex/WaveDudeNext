@@ -155,11 +155,14 @@ try {
 	Key $VK_SPACE 20
 	Check "Play makes a run without it" (WaitFor { (RunStatus) -like "Completed: 100 / 100*" -and (RunStatus) -notlike "*edited*" } 20000 100) (RunStatus)
 	Key $VK_SPACE 100   # stop playback
-	# Probe 2 on again: this run has no recording for it, so the edit counts as a simulation edit (the user's choice, 2026-10-18)
+	# Probe 2 on again: this run has no recording for it, so the edit counts as a simulation edit (the user's choice, 2026-10-18).
+	# A box ticked with a key is an edit that has finished (2026-11-10, the user's rule), so the re-run starts at the tick
+	# with the focus still on the box, and the status bar's "edited since" lasts milliseconds: the log says both
 	FocusOn "ProbeActive"
+	$mark = LogMark
 	Key $VK_SPACE 300
-	Check "switching on a probe the run does not record marks the run stale" (WaitFor { (RunStatus) -like "*edited*" } 3000) (RunStatus)
-	Check "and the automatic re-run records it" (WaitFor { (RunStatus) -like "Completed: 100 / 100*" -and (RunStatus) -notlike "*edited*" } 20000 200) (RunStatus)
+	Check "switching on a probe the run does not record marks the run stale" (WaitFor { (LogSince $mark) -match "an active probe has no recording in the run, so the run is stale" } 3000 50) (RunStatus)
+	Check "and the automatic re-run records it, the focus still on the box" ((WaitFor { (LogSince $mark) -match "Re-run started" } 5000 50) -and (Focused "ProbeActive") -and (WaitFor { (RunStatus) -like "Completed: 100 / 100*" -and (RunStatus) -notlike "*edited*" } 20000 200)) (RunStatus)
 	Check "its box is back" ((FindAll "ProbeBox:Probe 2").Count -eq 1)
 	# the composite source's rotation handle: only while the source is selected; on the row axis right of the centre at
 	# 0 degrees; arrows turn the array

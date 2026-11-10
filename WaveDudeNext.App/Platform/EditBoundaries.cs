@@ -17,6 +17,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 
@@ -36,6 +37,10 @@ namespace WaveDudeNext.App.Platform;
 /// text box all edit the focused element's value for as long as the focus stays. Heard after a text box has written
 /// its text on leaving.</item>
 /// <item>Enter is pressed in a single-line text box, which writes its value there and then.</item>
+/// <item>a check box or another toggle button is clicked: it has written its value and nothing more can follow
+/// (2026-11-10, the user's rule: ticked with a key, a box had waited for the focus to leave, while the pointer's
+/// release finished it at once). Heard as the button's Click, which it raises after it has toggled, whatever clicked
+/// it, the pointer, Space or Enter; a box changed from the model raises none.</item>
 /// <item>a command is carried out, before and after it: the application's commands say so themselves through
 /// <see cref="Command"/>, since Avalonia has no routed commands to hear at the root.</item>
 /// <item>something is dropped.</item>
@@ -56,7 +61,17 @@ public sealed class EditBoundaries
 		root.AddHandler(InputElement.PointerReleasedEvent, (_, _) => _finished(), RoutingStrategies.Bubble, handledEventsToo: true);
 		root.AddHandler(InputElement.LostFocusEvent, (_, _) => _finished(), RoutingStrategies.Bubble, handledEventsToo: true);
 		root.AddHandler(InputElement.KeyDownEvent, OnKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
+		root.AddHandler(Button.ClickEvent, OnClick, RoutingStrategies.Bubble, handledEventsToo: true);
 		root.AddHandler(DragDrop.DropEvent, (_, _) => _finished(), RoutingStrategies.Bubble, handledEventsToo: true);
+	}
+
+	/// <summary>A toggle button's click, whatever raised it: the button has toggled and written its value before it says so.</summary>
+	private void OnClick(object? sender, RoutedEventArgs e)
+	{
+		if (e.Source is ToggleButton)
+		{
+			_finished();
+		}
 	}
 
 	/// <summary>Wraps a command's action so that the editing counts as finished before it and after it.</summary>

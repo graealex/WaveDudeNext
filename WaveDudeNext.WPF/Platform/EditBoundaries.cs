@@ -16,6 +16,7 @@
 // <https://www.gnu.org/licenses/>.
 
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -39,6 +40,11 @@ namespace WaveDudeNext.WPF.Platform;
 /// its text on leaving.</item>
 /// <item>Enter is pressed in a single-line text box, which writes its value there and then; heard like the release,
 /// since the property editors handle the preview event.</item>
+/// <item>a check box or another toggle button is clicked: it has written its value and nothing more can follow
+/// (2026-11-10, the user's rule: ticked with a key, a box had waited for the focus to leave, while the mouse's release
+/// finished it at once). Heard as the button's Click, which it raises after it has toggled, whatever clicked it, the
+/// mouse, Space or its access key; a box changed from the model raises none. A check box also takes + and - as
+/// "ticked" and "cleared" in its key handler without a click, heard like Enter.</item>
 /// <item>a command is carried out, before it (it is something new) and after it (it is complete in itself): one of
 /// the menus, the buttons or the shortcuts. Not the keys a text box turns into its own editing commands, which are
 /// typing.</item>
@@ -63,6 +69,7 @@ public sealed class EditBoundaries
 		root.AddHandler(UIElement.LostFocusEvent, new RoutedEventHandler((_, _) => finished()), handledEventsToo: true);
 		root.AddHandler(CommandManager.PreviewExecutedEvent, new ExecutedRoutedEventHandler(OnCommand), handledEventsToo: true);
 		root.AddHandler(CommandManager.ExecutedEvent, new ExecutedRoutedEventHandler(OnCommand), handledEventsToo: true);
+		root.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler(OnClick), handledEventsToo: true);
 		root.AddHandler(DragDrop.DropEvent, new DragEventHandler((_, _) => finished()), handledEventsToo: true);
 		InputManager.Current.PostProcessInput += OnPostProcessInput;
 	}
@@ -78,7 +85,19 @@ public sealed class EditBoundaries
 		bool released = routed == Mouse.MouseUpEvent || (routed == Mouse.PreviewMouseUpEvent && input.Handled);
 		bool entered = (routed == Keyboard.KeyDownEvent || (routed == Keyboard.PreviewKeyDownEvent && input.Handled))
 			&& input is KeyEventArgs { Key: Key.Enter } && input.OriginalSource is TextBoxBase { AcceptsReturn: false };
-		if (released || entered)
+		// a two-state check box sets itself on + and clears itself on - in its own key handler, raising no Click
+		bool ticked = routed == Keyboard.KeyDownEvent && input is KeyEventArgs { Key: Key.Add or Key.OemPlus or Key.Subtract or Key.OemMinus }
+			&& input.OriginalSource is CheckBox { IsThreeState: false };
+		if (released || entered || ticked)
+		{
+			_finished();
+		}
+	}
+
+	/// <summary>A toggle button's click, whatever raised it: the button has toggled and written its value before it says so.</summary>
+	private void OnClick(object sender, RoutedEventArgs e)
+	{
+		if (e.OriginalSource is ToggleButton)
 		{
 			_finished();
 		}
