@@ -180,6 +180,7 @@ public partial class ProjectTree : UserControl
 		_exportProbeCsv = Entry("MenuExportProbeCsv", nameof(AppCommands.ExportProbeCsv), null, "ContextExportProbeCsv", "Export");
 		_rowMenu = BuildRowMenu();
 		addPartButton.Flyout = CreatePartKindsFlyout();
+		addProbeButton.Flyout = CreateProbeKindsFlyout();
 
 		tree.SelectionChanged += OnTreeSelectionChanged;
 		tree.ContainerPrepared += OnContainerPrepared;
@@ -651,7 +652,12 @@ public partial class ProjectTree : UserControl
 			addPart.Items.Add(entry);
 		}
 		menu.Items.Add(addPart);
-		menu.Items.Add(Entry("MenuProjectAddProbe", nameof(AppCommands.AddProbe), drawing: "Add"));
+		MenuItem addProbe = Entry("MenuProjectAddProbe", null, drawing: "Add");
+		foreach (Control entry in ProbeKindEntries())
+		{
+			addProbe.Items.Add(entry);
+		}
+		menu.Items.Add(addProbe);
 		menu.Items.Add(new Separator());
 		menu.Items.Add(Entry("MenuProjectToggleSelected", nameof(AppCommands.ToggleSelected), "Insert", "ContextToggleSelected", "ToggleSelected"));
 		menu.Items.Add(Entry("MenuProjectSelectAll", nameof(AppCommands.SelectAll), "Ctrl+A", "ContextSelectAll"));
@@ -708,6 +714,50 @@ public partial class ProjectTree : UserControl
 		return flyout;
 	}
 
+	/// <summary>The menu of probe kinds for an add button (the "+ Probe" button, the Probes folder's plus): one instance per button, as the parts'.</summary>
+	private MenuFlyout CreateProbeKindsFlyout()
+	{
+		var flyout = new MenuFlyout { Placement = PlacementMode.BottomEdgeAlignedLeft };
+		foreach (Control entry in ProbeKindEntries())
+		{
+			flyout.Items.Add(entry);
+		}
+		return flyout;
+	}
+
+	/// <summary>
+	/// The probe entries in the WPF head's order (its ProbeMenuEntries, 2026-11-07): a standard probe, and the Probabilistic
+	/// submenu with the counting and the imaging detector; each runs <see cref="AppCommands.AddProbe"/> with the
+	/// <see cref="ProbeDetector"/> as the parameter and shows the kind's icon and, as its tooltip, the kind's description
+	/// (the Detector.&lt;Member&gt; string). A fresh set per call: a control has one parent.
+	/// </summary>
+	private IEnumerable<Control> ProbeKindEntries()
+	{
+		yield return ProbeEntry(ProbeDetector.Standard, "MenuAddStandardProbe", "Probe");
+		var probabilistic = new MenuItem { Icon = new IconView { Drawing = "CountingDetector" } };
+		probabilistic[!HeaderedSelectingItemsControl.HeaderProperty] = new DynamicResourceExtension("MenuAddProbabilistic");
+		AutomationProperties.SetAutomationId(probabilistic, "AddProbe:Probabilistic");
+		probabilistic.Items.Add(ProbeEntry(ProbeDetector.Counting, "MenuAddCountingDetector", "CountingDetector"));
+		probabilistic.Items.Add(ProbeEntry(ProbeDetector.Imaging, "MenuAddImagingDetector", "ImagingDetector"));
+		yield return probabilistic;
+	}
+
+	private MenuItem ProbeEntry(ProbeDetector detector, string header, string drawing)
+	{
+		var item = new MenuItem
+		{
+			Icon = new IconView { Drawing = drawing },
+			CommandParameter = detector,
+			// the detector marks a kind entry, as a part entry's Type does: the context menu leaves its parameter alone
+			Tag = detector,
+		};
+		item.Bind(MenuItem.CommandProperty, CommandBinding(nameof(AppCommands.AddProbe)));
+		item[!HeaderedSelectingItemsControl.HeaderProperty] = new DynamicResourceExtension(header);
+		item[!ToolTip.TipProperty] = new DynamicResourceExtension("Detector." + detector);
+		AutomationProperties.SetAutomationId(item, "AddProbe:" + detector);
+		return item;
+	}
+
 	/// <summary>
 	/// The part entries, the optics first and the plain shapes after a separator, then the Optical logic submenu with the
 	/// three gates; each runs <see cref="AppCommands.AddPart"/> with the class as the parameter, shows the kind's icon and, as its
@@ -750,7 +800,8 @@ public partial class ProjectTree : UserControl
 		{
 			Icon = new IconView { Drawing = kind.Drawing },
 			CommandParameter = kind.Type,
-			// the Type marks a kind entry: the context menu passes its row's node to every other entry
+			// the Type marks a kind entry (a probe entry carries its detector): the context menu passes its row's node to
+			// every other entry
 			Tag = kind.Type,
 		};
 		item.Bind(MenuItem.CommandProperty, CommandBinding(nameof(AppCommands.AddPart)));
@@ -760,7 +811,10 @@ public partial class ProjectTree : UserControl
 		return item;
 	}
 
-	/// <summary>A folder's plus button, once it is in place: the Parts folder's opens the menu of kinds, the others run Add with their folder.</summary>
+	/// <summary>
+	/// A folder's plus button, once it is in place: the Parts folder's and the Probes folder's open their menu of kinds, the
+	/// others run Add with their folder.
+	/// </summary>
 	private void OnFolderAddLoaded(object? sender, RoutedEventArgs e)
 	{
 		if (sender is not Button { DataContext: NamedCollection folder } button)
@@ -770,6 +824,11 @@ public partial class ProjectTree : UserControl
 		if (folder.Key == Folders[1].Key)
 		{
 			button.Flyout ??= CreatePartKindsFlyout();
+			button.ClearValue(Button.CommandProperty);
+		}
+		else if (folder.Key == Folders[2].Key)
+		{
+			button.Flyout ??= CreateProbeKindsFlyout();
 			button.ClearValue(Button.CommandProperty);
 		}
 		else
@@ -800,7 +859,8 @@ public partial class ProjectTree : UserControl
 		_exportProbeCsv.IsVisible = probe;
 		foreach (MenuItem item in Entries(_rowMenu.Items))
 		{
-			if (item.Tag is not Type)
+			// a kind entry keeps its own parameter, the part's class or the probe's detector
+			if (item.Tag is null)
 			{
 				item.CommandParameter = node;
 			}

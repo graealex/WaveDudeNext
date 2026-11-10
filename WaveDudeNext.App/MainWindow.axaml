@@ -188,6 +188,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					                   ScenePixels="{Binding SceneComposer.Pixels}" IsComputing="{Binding Busy.IsComputingFrame}"
 					                   Position="{Binding Preview.Position, Mode=TwoWay}" IsPlaying="{Binding Preview.IsPlaying, Mode=TwoWay}" IsPlaybackHeld="{Binding Preview.IsPlaybackHeld}"
 					                   ColorsVersion="{Binding Preview.ColorsVersion}"
+					                   CanvasWidth="{Binding Preview.CanvasWidth, Mode=OneWayToSource}" CanvasHeight="{Binding Preview.CanvasHeight, Mode=OneWayToSource}"
 					                   Orientation="{Binding Source={x:Static ui:Settings.Default}, Path=PreviewOrientation, Mode=TwoWay, Converter={StaticResource EnumByName}}"
 					                   DitherBits="{Binding Source={x:Static ui:Settings.Default}, Path=PreviewDitherBits}" />
 				</Border>

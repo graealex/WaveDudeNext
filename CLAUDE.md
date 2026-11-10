@@ -1285,7 +1285,8 @@ are unbound and the menus do nothing yet; a project file argument is logged, not
 UI Automation found no menu items in the Avalonia window (Avalonia's peers differ from WPF's); how this head is driven by
 a harness is open (the port's tests use `Avalonia.Headless`). Next: the models wired as the WPF window wires them and the
 panes bound to them, the menus bound to `AppCommands` in the markup, the dialogs behind the five interfaces plus an
-Avalonia `EditBoundaries`; then the new part forms and the detectors' rows; then the tests.
+Avalonia `EditBoundaries`; then the new part forms and the detectors' rows (the detectors' on 2026-11-11, see below);
+then the tests.
 **The second step, the window on the models** (2026-11-09, the same evening): `MainWindow.axaml.cs` constructs and wires
 the models as the WPF window does (the same constructor, the same hub `MainWindow.Live.cs`, `OnProjectReplaced`,
 `OnDocumentOpened`, `DiscardRun`), on the Avalonia implementations of the five interfaces under `Platform/`:
@@ -1327,8 +1328,22 @@ and the first scratch frame in the log, nine tree rows, "0 / 99", F5's run compl
 and pausing, a nudge staling the run and asking for its frame, the re-run when the handle is left, the nudge one undo
 step; the capture showed both pictures with the source's marker and label, the form of Source 1, the red edge line and
 the run's status. Not yet: `RevealRequest` on the tree and the properties pane (a new item's row and caret),
-`ShownFrame` for the brightness fit of the shown 16-bit frame (the fit computes the frame instead), the new part forms
-and the detectors' rows, the export's busy text and taskbar, the tests. UI Automation gives the Avalonia tree's rows no
+`ShownFrame` for the brightness fit of the shown 16-bit frame (the fit computes the frame instead), the new part forms,
+the export's busy text and taskbar, the tests. **The probe kinds are in the Avalonia head** (2026-11-11, the user's
+report that they were missing): the "+ Probe" button, the Probes folder's plus and the row menu's Add probe entry open
+the WPF head's menu of kinds (`ProjectTree.ProbeKindEntries`: Standard probe, and Probabilistic with the counting and
+the imaging detector, each running `AppCommands.AddProbe` with its `ProbeDetector`, the icon and the `Detector.<Member>`
+tooltip; a kind entry carries its parameter in `Tag`, a part's class or a probe's detector, which the row menu leaves
+alone); a probe's row shows its detector's icon (`ProbeIconConverter`); the form has the Detector, Detector sensitivity
+and Bin size rows and greys the layer, the measurement and the kind for a detector, as the WPF form does. The graphs
+needed nothing: no drawing code of either head knows a detector, the library's layout does. **The canvas size reaches
+the model there too**: the window had not bound the pane's `CanvasWidth` and `CanvasHeight` to `Preview`, so every new
+source, probe and part landed at (0, 0), the corner Jeroen's report of 2026-10-26 was about; bound `OneWayToSource` in
+the markup, which Avalonia takes on a read-only direct property. Proven by a startup-hook probe: the three menus'
+entries with texts, icons and tooltips, each entry's probe (a counting and an imaging detector, a point probe) at the
+canvas centre, the rows' icons, and each kind's form (which rows are greyed). **A fix made in both heads is proven in
+both by the same reproduction, and a difference between the frameworks is looked up, not assumed** (the rule of that
+day's flicker). UI Automation gives the Avalonia tree's rows no
 names.
 
 ## People, name, license

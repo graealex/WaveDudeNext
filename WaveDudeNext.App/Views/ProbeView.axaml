@@ -50,18 +50,38 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 
 			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionMeasurement}" />
 			<controls:FormPanel>
+				<!-- a probabilistic detector (the WPF head's rows of 2026-11-07/08) is a line of the integrated intensity: the
+				     layer, the measurement and the kind are its own and greyed, the sensitivity is only a detector's and the bin
+				     only the imaging one's -->
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:Probe.Detector}" />
+				<ComboBox Theme="{DynamicResource EnumComboBox}" ItemsSource="{meta:EnumValues model:ProbeDetector}"
+				          SelectedItem="{Binding Detector}" ToolTip.Tip="{meta:Hint model:Probe.Detector}" AutomationProperties.AutomationId="ProbeDetector" />
+
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:Probe.Sensitivity}" />
+				<controls:NumberBox Text="{Binding Sensitivity, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="1000000" DragStep="0.5" Decimals="2"
+				                    ToolTip.Tip="{meta:Hint model:Probe.Sensitivity}" AutomationProperties.AutomationId="ProbeSensitivity"
+				                    IsEnabled="{Binding IsDetector}" />
+
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:Probe.BinSize}" />
+				<controls:NumberBox Text="{Binding BinSize, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="20"
+				                    ToolTip.Tip="{meta:Hint model:Probe.BinSize}" AutomationProperties.AutomationId="ProbeBinSize"
+				                    IsEnabled="{Binding Detector, Converter={StaticResource EnumBoolean}, ConverterParameter={x:Static model:ProbeDetector.Imaging}}" />
+
 				<TextBlock Classes="FormLabel" Text="{meta:Label model:Probe.Layer}" />
 				<ComboBox Theme="{DynamicResource EnumComboBox}" ItemsSource="{meta:EnumValues model:ProbeLayer}"
-				          SelectedItem="{Binding Layer}" ToolTip.Tip="{meta:Hint model:Probe.Layer}" AutomationProperties.AutomationId="ProbeLayer" />
+				          SelectedItem="{Binding Layer}" ToolTip.Tip="{meta:Hint model:Probe.Layer}" AutomationProperties.AutomationId="ProbeLayer"
+				          IsEnabled="{Binding !IsDetector}" />
 
 				<TextBlock Classes="FormLabel" Text="{meta:Label model:Probe.Measurement}" />
 				<!-- only the measurements the layer offers: amplitude for the field, value / integrated value for the intensity -->
 				<ComboBox Theme="{DynamicResource EnumComboBox}" ItemsSource="{Binding Layer, Converter={StaticResource MeasurementsForLayer}}"
-				          SelectedItem="{Binding Measurement}" ToolTip.Tip="{meta:Hint model:Probe.Measurement}" AutomationProperties.AutomationId="ProbeMeasurement" />
+				          SelectedItem="{Binding Measurement}" ToolTip.Tip="{meta:Hint model:Probe.Measurement}" AutomationProperties.AutomationId="ProbeMeasurement"
+				          IsEnabled="{Binding !IsDetector}" />
 
 				<TextBlock Classes="FormLabel" Text="{meta:Label model:Probe.Kind}" />
 				<ComboBox Theme="{DynamicResource EnumComboBox}" ItemsSource="{meta:EnumValues model:ProbeKind}"
-				          SelectedItem="{Binding Kind}" ToolTip.Tip="{meta:Hint model:Probe.Kind}" AutomationProperties.AutomationId="ProbeKind" />
+				          SelectedItem="{Binding Kind}" ToolTip.Tip="{meta:Hint model:Probe.Kind}" AutomationProperties.AutomationId="ProbeKind"
+				          IsEnabled="{Binding !IsDetector}" />
 			</controls:FormPanel>
 
 			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionPosition}" />

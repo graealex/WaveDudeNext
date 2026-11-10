@@ -39,6 +39,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<UserControl.Resources>
 		<converters:PartIconConverter x:Key="PartIcon" />
 		<converters:LensIconConverter x:Key="LensIcon" />
+		<converters:ProbeIconConverter x:Key="ProbeIcon" />
 	</UserControl.Resources>
 
 	<DockPanel>
@@ -56,12 +57,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						<TextBlock Text="{DynamicResource ToolAddSource}" VerticalAlignment="Center" />
 					</StackPanel>
 				</Button>
+				<!-- the Flyout, the menu of kinds, is set in the code-behind: a standard probe or a probabilistic detector, as the
+				     WPF head's button opens it (2026-11-11, the user's report: the button had added a standard probe at once) -->
 				<Button x:Name="addProbeButton" Theme="{StaticResource TextButton}" ToolTip.Tip="{DynamicResource TipAddProbe}"
-				        AutomationProperties.Name="{DynamicResource TipAddProbe}" AutomationProperties.AutomationId="ToolAddProbe"
-				        Command="{Binding #root.Commands.AddProbe}">
+				        AutomationProperties.Name="{DynamicResource TipAddProbe}" AutomationProperties.AutomationId="ToolAddProbe">
 					<StackPanel Orientation="Horizontal">
 						<controls:IconView Drawing="Probe" PlusBadge="True" Margin="0,0,4,0" VerticalAlignment="Center" />
 						<TextBlock Text="{DynamicResource ToolAddProbe}" VerticalAlignment="Center" />
+						<Path Data="{DynamicResource DropDownGeometry}" Fill="{Binding $parent[Button].Foreground}" Margin="5,0,0,0" VerticalAlignment="Center" />
 					</StackPanel>
 				</Button>
 				<!-- the Flyout, the menu of kinds, is set in the code-behind -->
@@ -208,7 +211,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 						<CheckBox DockPanel.Dock="Left" Theme="{StaticResource RowCheckBox}" Margin="0,0,4,0" VerticalAlignment="Center"
 						          IsChecked="{Binding Active}" ToolTip.Tip="{DynamicResource TipProbeActive}"
 						          AutomationProperties.Name="{DynamicResource TipProbeActive}" AutomationProperties.AutomationId="{Binding Name, StringFormat='Enabled:{0}'}" />
-						<controls:IconView DockPanel.Dock="Left" Drawing="Probe" Margin="0,0,4,0" VerticalAlignment="Center" />
+						<!-- the probe's icon by what it is: a detector shows its own, as in the WPF head -->
+						<controls:IconView DockPanel.Dock="Left" Drawing="{Binding Detector, Converter={StaticResource ProbeIcon}}" Margin="0,0,4,0" VerticalAlignment="Center" />
 						<TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
 					</DockPanel>
 				</DataTemplate>
