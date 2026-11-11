@@ -1541,6 +1541,30 @@ keyboard probe: on `tiny.wdproj` with 16-bit samples Auto on the field at the st
 once, 30 → 24.8, no computation; on Example 16 eight bursts of Home and forty PageUp each ended with a presenter source
 and a render for frame 400, 8 of 8 (the WPF figure before its fix was 0 and 1 of 8; the App's "before" was not measured,
 the fix being the WPF one ported).
+**The Avalonia head's title bar follows the theme on Windows 10** (2026-11-11, the user's report: its inactive title bar
+stayed white whatever the theme, where the WPF head's is grey in the dark theme and white in the light, as Explorer's):
+Avalonia 12.1.5 sets `DWMWA_USE_IMMERSIVE_DARK_MODE` from a window's `ActualThemeVariant` only on builds from 22000,
+Windows 11 (`WindowImpl.SetFrameThemeVariant`, read at the tag), and this workstation is 19045. `Theming/TitleBar`,
+attached to every window by `WindowZoom.Attach`, sets the attribute itself on the Windows 10 builds before that (20 from
+19041, 19 on 17763 to 19040, nothing older or on Windows 11) at the attach and at each change of the variant, as the WPF
+`ThemeController.ApplyTitleBar` does on every theme change. Measured once before and once after on both heads with the
+window inactive, as the harnesses leave it: before, the App's attribute read 0 and its title bar pixel #FFFFFF against
+WPF's 1 and #2B2B2B; after, both read 1 and #2B2B2B in the dark theme, and both switch the attribute to 0 the moment
+Light is chosen, while the captured frame pixel stays until Windows repaints the inactive frame — in both heads alike,
+so that is Windows' and not ours. **The rule of both heads** (the user's question that morning): System follows the
+desktop's app mode (Settings > Colours > default app mode, the registry's `AppsUseLightTheme`, the value Explorer's
+title bar follows; WPF reads the key, the App goes through Avalonia's `ThemeVariant.Default`, resolved from the same
+setting), Light is always light, Dark always dark, whatever the desktop does. **And System follows a change of the
+desktop's mode while the app runs, in both heads** (the user's request the same morning, for WPF): Windows sends every
+top-level window `WM_SETTINGCHANGE` with "ImmersiveColorSet" at a switch; Avalonia's hidden message window hears it
+(`Win32Platform.WndProc` → `Win32PlatformSettings.OnColorValuesChanged` → the Application's `ActualThemeVariant`, read at
+the tag), and the WPF `ThemeController` now hears it on the main window's handle (`HwndSource.AddHook` from
+`ApplyTitleBar`, the first window with a handle), re-reads the mode and restyles when it differs from the one applied;
+the fixed themes ignore it. Proven on both heads without touching the desktop: the registry value flipped and the
+message sent to the app's own windows alone (the hidden ones included, found by `EnumWindows` on the process), never
+broadcast, then put back the same way: WPF's attribute 1 → 0 → 1 with "The desktop's app mode is light now; the
+System theme follows" and its opposite in the log, the App's the same with `TitleBar`'s dark → light → dark lines; and
+by the user by hand, the desktop's mode switched system-wide with both heads open, both following.
 
 ## People, name, license
 

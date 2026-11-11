@@ -31,7 +31,12 @@ namespace WaveDudeNext.WPF.Theming;
 /// <summary>
 /// Application theme state. Switches between the colour tables in <c>Themes/Dark.xaml</c> and
 /// <c>Themes/Light.xaml</c> and keeps native window title bars in step. Bind menus to
-/// <see cref="Options"/>, <see cref="Current"/> and <see cref="SelectCommand"/>.
+/// <see cref="Options"/>, <see cref="Current"/> and <see cref="SelectCommand"/>. The System theme follows the
+/// desktop's app mode (Settings > Colours > default app mode, the registry's <c>AppsUseLightTheme</c>), live since
+/// 2026-11-11 (the user's request): Windows sends every top-level window WM_SETTINGCHANGE "ImmersiveColorSet" at a
+/// switch, heard on the main window's handle, and the theme is applied again when the mode read differs from the
+/// one applied; Light and Dark stand whatever the desktop does. The Avalonia head does the same through its framework,
+/// whose hidden message window hears the same message.
 /// </summary>
 /// <remarks>
 /// The colour table is the first merged dictionary of the application resources; every style in
@@ -43,10 +48,14 @@ public sealed class ThemeController : INotifyPropertyChanged
 	private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
 	private const string PersonalizeKey = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
 	private const int DwmwaUseImmersiveDarkMode = 20;
+	private const int WmSettingChange = 0x001A;
+	private const string ImmersiveColorSet = "ImmersiveColorSet";
 	private const string DarkSource = "/WaveDudeNext.WPF;component/Themes/Dark.xaml";
 	private const string LightSource = "/WaveDudeNext.WPF;component/Themes/Light.xaml";
 
 	private AppTheme _current = AppTheme.System;
+	private bool _appliedDark;
+	private bool _listening;
 
 	private ThemeController()
 	{
@@ -111,11 +120,45 @@ public sealed class ThemeController : INotifyPropertyChanged
 		}
 		int dark = IsDark ? 1 : 0;
 		_ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref dark, sizeof(int));
+		// the first window with a handle is the main window, which lives as long as the application: its messages tell of
+		// a change of the desktop's app mode (2026-11-11, the user's request, so the System theme follows it live, as the
+		// Avalonia head's does by its framework)
+		if (!_listening && HwndSource.FromHwnd(hwnd) is { } source)
+		{
+			source.AddHook(OnWindowMessage);
+			_listening = true;
+		}
+	}
+
+	/// <summary>
+	/// Windows says a setting changed: for the desktop's colours ("ImmersiveColorSet", sent with WM_SETTINGCHANGE when the
+	/// app mode or the accent is switched) the System theme re-reads the app mode and restyles when it has changed; the
+	/// fixed themes ignore it.
+	/// </summary>
+	private IntPtr OnWindowMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+	{
+		if (message == WmSettingChange && lParam != IntPtr.Zero && Marshal.PtrToStringUni(lParam) == ImmersiveColorSet)
+		{
+			OnDesktopColorsChanged();
+		}
+		return IntPtr.Zero;
+	}
+
+	private void OnDesktopColorsChanged()
+	{
+		if (_current != AppTheme.System || IsDark == _appliedDark)
+		{
+			return;
+		}
+		Logger.Info("The desktop's app mode is {Mode} now; the System theme follows", IsDark ? "dark" : "light");
+		ApplyResources();
+		OnPropertyChanged(nameof(IsDark));
 	}
 
 	private void ApplyResources()
 	{
-		var table = new ResourceDictionary { Source = new Uri(IsDark ? DarkSource : LightSource, UriKind.Relative) };
+		_appliedDark = IsDark;
+		var table = new ResourceDictionary { Source = new Uri(_appliedDark ? DarkSource : LightSource, UriKind.Relative) };
 		var merged = Application.Current.Resources.MergedDictionaries;
 		int index = -1;
 		for (int i = 0; i < merged.Count; i++)
