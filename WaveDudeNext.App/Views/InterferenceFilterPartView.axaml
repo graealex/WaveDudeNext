@@ -1,0 +1,98 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  0x23 (Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+  Mark <mark@pab-ai.com>, co-author of the AvaloniaUI port
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:WaveDudeNext.App.Controls"
+             xmlns:converters="using:WaveDudeNext.App.Converters"
+             xmlns:meta="using:WaveDudeNext.App.Markup"
+             xmlns:panes="using:WaveDudeNext.App.Panes"
+             xmlns:views="using:WaveDudeNext.App.Views"
+             xmlns:model="using:WaveDudeNext.Model"
+             xmlns:rendering="using:WaveDudeNext.Rendering"
+             x:Class="WaveDudeNext.App.Views.InterferenceFilterPartView"
+             x:DataType="model:InterferenceFilterPart">
+	<UserControl.Resources>
+		<converters:PixelsConverter x:Key="Pixels" />
+		<converters:OrdinalConverter x:Key="Ordinal" />
+		<converters:IntGreaterThanConverter x:Key="GreaterThan" />
+	</UserControl.Resources>
+	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+		<StackPanel Margin="8">
+			<views:PartCommonView />
+			<!-- the plate's material; its coating on the back alone, the front carrying the layers -->
+			<views:ShapeMaterialView BackOnly="True" />
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionShape}" />
+			<controls:FormPanel>
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:InterferenceFilterPart.Length}" />
+				<controls:NumberBox Text="{Binding Length, UpdateSourceTrigger=LostFocus}" Minimum="1" Increment="10" ToolTip.Tip="{meta:Hint model:InterferenceFilterPart.Length}" AutomationProperties.AutomationId="PartLength" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:InterferenceFilterPart.Width}" />
+				<controls:NumberBox Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Minimum="1" Increment="10" ToolTip.Tip="{meta:Hint model:InterferenceFilterPart.Width}" AutomationProperties.AutomationId="PartWidth" />
+				<!-- read-only: the layers' thicknesses added up -->
+				<TextBlock Classes="FormLabel" Text="{DynamicResource LabelStackThickness}" />
+				<TextBlock Classes="FormReadout" Text="{Binding StackThickness, Converter={StaticResource Pixels}}" ToolTip.Tip="{DynamicResource TipStackThickness}" AutomationProperties.AutomationId="PartStackThickness" />
+			</controls:FormPanel>
+			<!-- the layers, the outermost first: a row each with a grip to drag it by, its number, thickness and index, up, down
+			     and remove; an add button below. Inside the template the string keys are referenced directly, as upstream does.
+			     The row's number and whether it is the last come from two attached properties the view sets on each container
+			     (Avalonia has no AlternationIndex); the buttons are the view's own handlers, as the point list's are -->
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionLayers}" />
+			<TextBlock Classes="FormHint" Text="{DynamicResource HintFilterLayers}" />
+			<Grid Margin="0,0,0,2" ColumnDefinitions="14,20,*,*,66">
+				<TextBlock Grid.Column="2" Classes="FormLabel" Text="{meta:Label model:FilterLayer.Thickness}" Margin="2,0" />
+				<TextBlock Grid.Column="3" Classes="FormLabel" Text="{meta:Label model:FilterLayer.RefractiveIndex}" Margin="2,0" />
+			</Grid>
+			<ItemsControl x:Name="list" ItemsSource="{Binding Layers}" Focusable="False" AutomationProperties.AutomationId="PartLayers">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="model:FilterLayer">
+						<Grid Margin="0,0,0,4" Background="Transparent" ColumnDefinitions="14,20,*,*,66">
+							<!-- the grip: a drag by it moves the row through the list -->
+							<Border Grid.Column="0" Background="Transparent" Cursor="SizeNorthSouth" ToolTip.Tip="{DynamicResource TipDragLayer}"
+							        PointerPressed="OnGripPressed" PointerMoved="OnGripMoved" PointerReleased="OnGripReleased">
+								<Path Data="{StaticResource GripGeometry}" Stroke="{DynamicResource GrayText}" StrokeThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" />
+							</Border>
+							<TextBlock Grid.Column="1" Classes="FormLabel" Foreground="{DynamicResource GrayText}"
+							           Text="{Binding $parent[ContentPresenter].(views:InterferenceFilterPartView.Index), Converter={StaticResource Ordinal}}" />
+							<controls:NumberBox Grid.Column="2" Margin="0,0,2,0" Text="{Binding Thickness, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="1000" DragStep="0.1" Decimals="2"
+							                    ToolTip.Tip="{DynamicResource Hint.FilterLayer.Thickness}" AutomationProperties.Name="{DynamicResource Label.FilterLayer.Thickness}" />
+							<controls:NumberBox Grid.Column="3" Margin="2,0,0,0" Text="{Binding RefractiveIndex, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="2.55" Increment="0.01"
+							                    ToolTip.Tip="{DynamicResource Hint.FilterLayer.RefractiveIndex}" AutomationProperties.Name="{DynamicResource Label.FilterLayer.RefractiveIndex}" />
+							<StackPanel Grid.Column="4" Orientation="Horizontal">
+								<Button Theme="{DynamicResource RowGlyphButton}" Content="{StaticResource ChevronUpGeometry}" Tag="Up"
+								        ToolTip.Tip="{DynamicResource TipLayerUp}" AutomationProperties.Name="{DynamicResource TipLayerUp}" Click="OnMoveLayerUp"
+								        IsEnabled="{Binding $parent[ContentPresenter].(views:InterferenceFilterPartView.Index), Converter={StaticResource GreaterThan}, ConverterParameter=0}" />
+								<Button Theme="{DynamicResource RowGlyphButton}" Content="{StaticResource ChevronDownGeometry}" Tag="Down"
+								        ToolTip.Tip="{DynamicResource TipLayerDown}" AutomationProperties.Name="{DynamicResource TipLayerDown}" Click="OnMoveLayerDown"
+								        IsEnabled="{Binding !$parent[ContentPresenter].(views:InterferenceFilterPartView.IsLast)}" />
+								<Button Theme="{DynamicResource RemovePointButton}" ToolTip.Tip="{DynamicResource TipRemoveLayer}" AutomationProperties.Name="{DynamicResource TipRemoveLayer}"
+								        Click="OnRemoveLayer" />
+							</StackPanel>
+						</Grid>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+			<StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+				<Button Padding="8,2" Margin="0,2,6,0" Content="{DynamicResource ButtonAddLayer}" ToolTip.Tip="{DynamicResource TipAddLayer}"
+				        Click="OnAddLayer" AutomationProperties.AutomationId="PartAddLayer" />
+				<Button Padding="8,2" Margin="0,2,6,0" Content="{DynamicResource ButtonRemoveAllLayers}" ToolTip.Tip="{DynamicResource TipRemoveAllLayers}"
+				        Click="OnRemoveAllLayers" IsEnabled="{Binding Layers.Count, Converter={StaticResource GreaterThan}, ConverterParameter=0}" AutomationProperties.AutomationId="PartRemoveAllLayers" />
+			</StackPanel>
+		</StackPanel>
+	</ScrollViewer>
+</UserControl>

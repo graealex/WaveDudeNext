@@ -596,6 +596,18 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Setter Property="Opacity" Value="0.4" />
 			</Style>
 		</ControlTheme>
+		<!-- a row button drawing the geometry it holds as content (an interference filter's layer row: up, down), the remove button's look -->
+		<ControlTheme x:Key="RowGlyphButton" TargetType="Button" BasedOn="{StaticResource RemovePointButton}">
+			<Setter Property="Margin" Value="2,0,0,0" />
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
+						<Path Data="{TemplateBinding Content}" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.2"
+						      HorizontalAlignment="Center" VerticalAlignment="Center" />
+					</Border>
+				</ControlTemplate>
+			</Setter>
+		</ControlTheme>
 	</Styles.Resources>
 
 	<!-- the form's text blocks and the gap under a group: the gap comes after a group's rows, not before its header, so

@@ -29,6 +29,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
              xmlns:rendering="using:WaveDudeNext.Rendering"
              x:Class="WaveDudeNext.App.Views.ShapeMaterialView"
              x:DataType="model:ShapePart">
+	<!-- the rows a kind's form hides, by a class the view puts on itself (upstream: DataTriggers on the switches): the coating
+	     rows altogether (the simple grating's dots take no band, 2026-11-07), the front and sides boxes (an interference
+	     filter's plate is coated on its back alone), the sides box alone (a meta lens coats its pattern's tops and its back, 2026-11-08) -->
+	<UserControl.Styles>
+		<Style Selector="views|ShapeMaterialView.coatingHidden :is(Control).coating">
+			<Setter Property="IsVisible" Value="False" />
+		</Style>
+		<Style Selector="views|ShapeMaterialView.backOnly :is(Control).face">
+			<Setter Property="IsVisible" Value="False" />
+		</Style>
+		<Style Selector="views|ShapeMaterialView.sidesHidden :is(Control).sides">
+			<Setter Property="IsVisible" Value="False" />
+		</Style>
+	</UserControl.Styles>
 	<!-- the material of a shape part (polygon, rectangle, ellipse, triangle, outline): mirror or glass, the index, the
 	     coating, the absorption; a mirror has no index, no coating and no absorption -->
 	<StackPanel>
@@ -41,20 +55,20 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<controls:NumberBox Text="{Binding RefractiveIndex, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="2.55" Increment="0.01" IsEnabled="{Binding !Mirror}"
 			                    ToolTip.Tip="{meta:Hint model:ShapePart.RefractiveIndex}" AutomationProperties.AutomationId="PartIndex" />
 
-			<TextBlock Classes="FormLabel" Text="{meta:Label model:ShapePart.Coating}" />
-			<controls:NumberBox Text="{Binding Coating, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="50" IsEnabled="{Binding !Mirror}"
+			<TextBlock Classes="FormLabel coating" Text="{meta:Label model:ShapePart.Coating}" />
+			<controls:NumberBox Classes="coating" Text="{Binding Coating, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="50" IsEnabled="{Binding !Mirror}"
 			                    ToolTip.Tip="{meta:Hint model:ShapePart.Coating}" AutomationProperties.AutomationId="PartCoating" />
 
-			<TextBlock Classes="FormLabel" Text="{meta:Label model:CoatedPart.CoatingProfile}" />
-			<ComboBox Theme="{DynamicResource EnumComboBox}" ItemsSource="{meta:EnumValues model:CoatingProfile}" SelectedItem="{Binding CoatingProfile}" IsEnabled="{Binding !Mirror}"
+			<TextBlock Classes="FormLabel coating" Text="{meta:Label model:CoatedPart.CoatingProfile}" />
+			<ComboBox Classes="coating" Theme="{DynamicResource EnumComboBox}" ItemsSource="{meta:EnumValues model:CoatingProfile}" SelectedItem="{Binding CoatingProfile}" IsEnabled="{Binding !Mirror}"
 			          ToolTip.Tip="{meta:Hint model:CoatedPart.CoatingProfile}" AutomationProperties.AutomationId="PartCoatingProfile" />
 
 			<!-- the faces by their outward normal: front toward a source on the left, back away from it, the rest sides -->
-			<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.FrontCoated}" IsEnabled="{Binding !Mirror}"
+			<CheckBox Classes="coating face" controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.FrontCoated}" IsEnabled="{Binding !Mirror}"
 			          IsChecked="{Binding FrontCoated}" ToolTip.Tip="{meta:Hint model:CoatedPart.FrontCoated}" AutomationProperties.AutomationId="PartFrontCoated" />
-			<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.BackCoated}" IsEnabled="{Binding !Mirror}"
+			<CheckBox Classes="coating" controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.BackCoated}" IsEnabled="{Binding !Mirror}"
 			          IsChecked="{Binding BackCoated}" ToolTip.Tip="{meta:Hint model:CoatedPart.BackCoated}" AutomationProperties.AutomationId="PartBackCoated" />
-			<CheckBox controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.SidesCoated}" IsEnabled="{Binding !Mirror}"
+			<CheckBox Classes="coating face sides" controls:FormPanel.FullWidth="True" Content="{meta:Label model:CoatedPart.SidesCoated}" IsEnabled="{Binding !Mirror}"
 			          IsChecked="{Binding SidesCoated}" ToolTip.Tip="{meta:Hint model:CoatedPart.SidesCoated}" AutomationProperties.AutomationId="PartSidesCoated" />
 
 			<TextBlock Classes="FormLabel" Text="{meta:Label model:ShapePart.Absorption}" />

@@ -1,0 +1,76 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  0x23 (Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+  Mark <mark@pab-ai.com>, co-author of the AvaloniaUI port
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:WaveDudeNext.App.Controls"
+             xmlns:converters="using:WaveDudeNext.App.Converters"
+             xmlns:meta="using:WaveDudeNext.App.Markup"
+             xmlns:panes="using:WaveDudeNext.App.Panes"
+             xmlns:views="using:WaveDudeNext.App.Views"
+             xmlns:model="using:WaveDudeNext.Model"
+             xmlns:rendering="using:WaveDudeNext.Rendering"
+             x:Class="WaveDudeNext.App.Views.MetaLensPartView"
+             x:DataType="model:MetaLensPart">
+	<UserControl.Resources>
+		<converters:PixelsConverter x:Key="Pixels" />
+	</UserControl.Resources>
+	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+		<StackPanel Margin="8">
+			<views:PartCommonView />
+			<!-- the plate's material; the band on the pattern's tops (front) and the plate's back, no sides -->
+			<views:ShapeMaterialView SidesHidden="True" />
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionShape}" />
+			<controls:FormPanel>
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:MetaSurfacePart.Length}" />
+				<controls:NumberBox Text="{Binding Length, UpdateSourceTrigger=LostFocus}" Minimum="1" Increment="10" ToolTip.Tip="{meta:Hint model:MetaSurfacePart.Length}" AutomationProperties.AutomationId="PartLength" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:MetaSurfacePart.Width}" />
+				<controls:NumberBox Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Minimum="2" Increment="10" ToolTip.Tip="{meta:Hint model:MetaSurfacePart.Width}" AutomationProperties.AutomationId="PartWidth" />
+			</controls:FormPanel>
+			<!-- the lens: the wavelength it is cut for, the focus, and which way the fill runs -->
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionLens}" />
+			<controls:FormPanel>
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:MetaSurfacePart.DesignFrequency}" />
+				<controls:NumberBox Text="{Binding DesignFrequency, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="255" DragStep="0.1" Decimals="2" ToolTip.Tip="{meta:Hint model:MetaSurfacePart.DesignFrequency}" AutomationProperties.AutomationId="PartDesignFrequency" />
+				<TextBlock Classes="FormLabel" Text="{DynamicResource LabelWavelength}" />
+				<TextBlock Classes="FormReadout" Text="{Binding Wavelength, Converter={StaticResource Pixels}}" ToolTip.Tip="{DynamicResource TipGateWavelength}" AutomationProperties.AutomationId="PartWavelength" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:MetaLensPart.FocalLength}" />
+				<controls:NumberBox Text="{Binding FocalLength, UpdateSourceTrigger=LostFocus}" Minimum="1" Increment="10" ToolTip.Tip="{meta:Hint model:MetaLensPart.FocalLength}" AutomationProperties.AutomationId="PartFocalLength" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:MetaLensPart.LensType}" />
+				<ComboBox Theme="{DynamicResource EnumComboBox}" ItemsSource="{meta:EnumValues model:MetaLensType}" SelectedItem="{Binding LensType}"
+				          ToolTip.Tip="{meta:Hint model:MetaLensPart.LensType}" AutomationProperties.AutomationId="PartLensType" />
+				<!-- read-only: the zones, each a turn of phase, from the centre to the rim -->
+				<TextBlock Classes="FormLabel" Text="{DynamicResource LabelMetaZones}" />
+				<TextBlock Classes="FormReadout" Text="{Binding ZoneCount}" ToolTip.Tip="{DynamicResource TipMetaZones}" AutomationProperties.AutomationId="PartZoneCount" />
+			</controls:FormPanel>
+			<!-- the pattern: the ridges' index, cell and height, and the height a full turn needs -->
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionPattern}" />
+			<controls:FormPanel>
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:MetaSurfacePart.PatternIndex}" />
+				<controls:NumberBox Text="{Binding PatternIndex, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="2.55" Increment="0.01" ToolTip.Tip="{meta:Hint model:MetaSurfacePart.PatternIndex}" AutomationProperties.AutomationId="PartPatternIndex" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:MetaSurfacePart.Pitch}" />
+				<controls:NumberBox Text="{Binding Pitch, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="10000" DragStep="0.1" Decimals="2" ToolTip.Tip="{meta:Hint model:MetaSurfacePart.Pitch}" AutomationProperties.AutomationId="PartPitch" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:MetaSurfacePart.Height}" />
+				<controls:NumberBox Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="10000" DragStep="0.1" Decimals="2" ToolTip.Tip="{meta:Hint model:MetaSurfacePart.Height}" AutomationProperties.AutomationId="PartHeight" />
+				<TextBlock Classes="FormLabel" Text="{DynamicResource LabelFullTurnHeight}" />
+				<TextBlock Classes="FormReadout" Text="{Binding FullTurnHeight, Converter={StaticResource Pixels}}" ToolTip.Tip="{DynamicResource TipFullTurnHeight}" AutomationProperties.AutomationId="PartFullTurnHeight" />
+			</controls:FormPanel>
+		</StackPanel>
+	</ScrollViewer>
+</UserControl>

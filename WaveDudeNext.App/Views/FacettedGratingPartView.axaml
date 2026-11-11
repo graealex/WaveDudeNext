@@ -1,0 +1,56 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  0x23 (Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+  Mark <mark@pab-ai.com>, co-author of the AvaloniaUI port
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:WaveDudeNext.App.Controls"
+             xmlns:converters="using:WaveDudeNext.App.Converters"
+             xmlns:meta="using:WaveDudeNext.App.Markup"
+             xmlns:panes="using:WaveDudeNext.App.Panes"
+             xmlns:views="using:WaveDudeNext.App.Views"
+             xmlns:model="using:WaveDudeNext.Model"
+             xmlns:rendering="using:WaveDudeNext.Rendering"
+             x:Class="WaveDudeNext.App.Views.FacettedGratingPartView"
+             x:DataType="model:FacettedGratingPart">
+	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+		<StackPanel Margin="8">
+			<views:PartCommonView />
+			<!-- the plate's material; its coating on the back alone, the front carrying the facets -->
+			<views:ShapeMaterialView BackOnly="True" />
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionShape}" />
+			<controls:FormPanel>
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:FacettedGratingPart.Length}" />
+				<controls:NumberBox Text="{Binding Length, UpdateSourceTrigger=LostFocus}" Minimum="1" Increment="10" ToolTip.Tip="{meta:Hint model:FacettedGratingPart.Length}" AutomationProperties.AutomationId="PartLength" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:FacettedGratingPart.Width}" />
+				<controls:NumberBox Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Minimum="2" Increment="10" ToolTip.Tip="{meta:Hint model:FacettedGratingPart.Width}" AutomationProperties.AutomationId="PartWidth" />
+			</controls:FormPanel>
+			<!-- the relief of the front face: a pattern repeated every pitch, so high either side of the mean -->
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionFacets}" />
+			<controls:FormPanel>
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:FacettedGratingPart.Pattern}" />
+				<ComboBox Theme="{DynamicResource EnumComboBox}" ItemsSource="{meta:EnumValues model:FacetPattern}" SelectedItem="{Binding Pattern}"
+				          ToolTip.Tip="{meta:Hint model:FacettedGratingPart.Pattern}" AutomationProperties.AutomationId="PartPattern" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:FacettedGratingPart.Pitch}" />
+				<controls:NumberBox Text="{Binding Pitch, UpdateSourceTrigger=LostFocus}" Minimum="2" Maximum="10000" DragStep="0.1" Decimals="2" ToolTip.Tip="{meta:Hint model:FacettedGratingPart.Pitch}" AutomationProperties.AutomationId="PartPitch" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:FacettedGratingPart.Amplitude}" />
+				<controls:NumberBox Text="{Binding Amplitude, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="10000" DragStep="0.1" Decimals="2" ToolTip.Tip="{meta:Hint model:FacettedGratingPart.Amplitude}" AutomationProperties.AutomationId="PartAmplitude" />
+			</controls:FormPanel>
+		</StackPanel>
+	</ScrollViewer>
+</UserControl>

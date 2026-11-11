@@ -82,6 +82,27 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<DataTemplate DataType="{x:Type model:LogicGatePart}">
 			<views:LogicGatePartView />
 		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:DiffuserPart}">
+			<views:DiffuserPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:SimpleGratingPart}">
+			<views:SimpleGratingPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:FacettedGratingPart}">
+			<views:FacettedGratingPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:InterferenceFilterPart}">
+			<views:InterferenceFilterPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:MetaPrismPart}">
+			<views:MetaPrismPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:MetaLensPart}">
+			<views:MetaLensPartView />
+		</DataTemplate>
+		<DataTemplate DataType="{x:Type model:MetaAxiconPart}">
+			<views:MetaAxiconPartView />
+		</DataTemplate>
 		<DataTemplate DataType="{x:Type model:Probe}">
 			<views:ProbeView />
 		</DataTemplate>

@@ -1,0 +1,62 @@
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+Copyright (C) 2026 Alexander Graef <alex@graef.cc>
+
+This file is part of WaveDude Next, a 2D wave simulator.
+
+Based on the work of
+  Jeroen Vleggaar (Huygens Optics), author of Wave Dude 2D, Copyright (C) 2026
+    <https://www.youtube.com/@HuygensOptics>, <https://www.huygensoptics.com>
+  0x23 (Diffraction Limited), author of WaveSimulator2D
+    <https://www.youtube.com/@DiffractionLimited>, <https://github.com/0x23/WaveSimulator2D>
+  Mark <mark@pab-ai.com>, co-author of the AvaloniaUI port
+
+WaveDude Next is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
+<https://www.gnu.org/licenses/>.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:WaveDudeNext.App.Controls"
+             xmlns:converters="using:WaveDudeNext.App.Converters"
+             xmlns:meta="using:WaveDudeNext.App.Markup"
+             xmlns:panes="using:WaveDudeNext.App.Panes"
+             xmlns:views="using:WaveDudeNext.App.Views"
+             xmlns:model="using:WaveDudeNext.Model"
+             xmlns:rendering="using:WaveDudeNext.Rendering"
+             x:Class="WaveDudeNext.App.Views.DiffuserPartView"
+             x:DataType="model:DiffuserPart">
+	<UserControl.Resources>
+		<converters:PixelsConverter x:Key="Pixels" />
+	</UserControl.Resources>
+	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+		<StackPanel Margin="8">
+			<views:PartCommonView />
+			<views:ShapeMaterialView />
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionShape}" />
+			<controls:FormPanel>
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:DiffuserPart.Length}" />
+				<controls:NumberBox Text="{Binding Length, UpdateSourceTrigger=LostFocus}" Minimum="1" Increment="10" ToolTip.Tip="{meta:Hint model:DiffuserPart.Length}" AutomationProperties.AutomationId="PartLength" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:DiffuserPart.Width}" />
+				<controls:NumberBox Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Minimum="2" Increment="10" ToolTip.Tip="{meta:Hint model:DiffuserPart.Width}" AutomationProperties.AutomationId="PartWidth" />
+			</controls:FormPanel>
+			<!-- the roughness of the front face: a spectrum of ripples about a centre wavelength, their sum the face -->
+			<Label Theme="{DynamicResource FormSection}" Content="{DynamicResource SectionRoughness}" />
+			<controls:FormPanel>
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:DiffuserPart.CenterWavelength}" />
+				<controls:NumberBox Text="{Binding CenterWavelength, UpdateSourceTrigger=LostFocus}" Minimum="2" Maximum="10000" DragStep="0.1" Decimals="2" ToolTip.Tip="{meta:Hint model:DiffuserPart.CenterWavelength}" AutomationProperties.AutomationId="PartCenterWavelength" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:DiffuserPart.Amplitude}" />
+				<controls:NumberBox Text="{Binding Amplitude, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="10000" DragStep="0.1" Decimals="2" ToolTip.Tip="{meta:Hint model:DiffuserPart.Amplitude}" AutomationProperties.AutomationId="PartAmplitude" />
+				<TextBlock Classes="FormLabel" Text="{meta:Label model:DiffuserPart.Sigma}" />
+				<controls:NumberBox Text="{Binding Sigma, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="10000" DragStep="0.1" Decimals="2" ToolTip.Tip="{meta:Hint model:DiffuserPart.Sigma}" AutomationProperties.AutomationId="PartSigma" />
+				<!-- read-only: what the ripples add up to, and how many there are -->
+				<TextBlock Classes="FormLabel" Text="{DynamicResource LabelProfileHeight}" />
+				<TextBlock Classes="FormReadout" Text="{Binding ProfileHeight, Converter={StaticResource Pixels}}" ToolTip.Tip="{DynamicResource TipProfileHeight}" AutomationProperties.AutomationId="PartProfileHeight" />
+				<TextBlock Classes="FormLabel" Text="{DynamicResource LabelComponentCount}" />
+				<TextBlock Classes="FormReadout" Text="{Binding ComponentCount}" ToolTip.Tip="{DynamicResource TipComponentCount}" AutomationProperties.AutomationId="PartComponentCount" />
+			</controls:FormPanel>
+		</StackPanel>
+	</ScrollViewer>
+</UserControl>
