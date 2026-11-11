@@ -21,7 +21,7 @@ using WaveDudeNext.Model;
 
 namespace WaveDudeNext.UI;
 
-/// <summary>What the application is busy with: what its status bar's indicator and its taskbar button show (<see cref="BusyState.Kind"/>).</summary>
+/// <summary>What the application is busy with: what its status bar's indicator shows (<see cref="BusyState.Kind"/>).</summary>
 public enum BusyKind
 {
 	/// <summary>Nothing the user waits for; no indicator.</summary>
@@ -37,8 +37,9 @@ public enum BusyKind
 /// <summary>
 /// The application's busy indicator (2026-10-14, the user's rule: whenever the application computes something the
 /// user waits for, a bar shows it; a model of this library since 2026-11-06, properties of the main window before):
-/// what the application is busy with and how far it is, for the status bar's text and bar and for the taskbar
-/// button. Three things are told in: the export whose progress is shown (<see cref="Export"/>, followed to its end),
+/// what the application is busy with and how far it is, for the status bar's text and bar (the Windows taskbar button
+/// showed it too until 2026-11-11, the user's decision: little benefit). Three things are told in: the export whose
+/// progress is shown (<see cref="Export"/>, followed to its end),
 /// whether an export waits for its run (<see cref="IsWaitingForRun"/>) and the frame being computed for the preview
 /// (<see cref="ComputingFrame"/>). When several are so at once the export comes first, then its wait, then the
 /// frame, which shows again once the export is over. The words are the application's: it binds the kind and the

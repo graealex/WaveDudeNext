@@ -239,8 +239,7 @@ public partial class MainWindow : Window
 
 	/// <summary>
 	/// What the application is busy with (an export, its wait for a run, a frame computed for the preview): the status
-	/// bar's indicator, the taskbar button and the preview's dimming bind it in the XAML; the export flow and the scratch
-	/// requests tell it.
+	/// bar's indicator and the preview's dimming bind it in the XAML; the export flow and the scratch requests tell it.
 	/// </summary>
 	public BusyState Busy { get; } = new();
 

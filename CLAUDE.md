@@ -105,7 +105,8 @@ harnesses run.
   proposed and refused (2026-11-03, the user's decision: nobody would find that file, which is exactly why its text is in
   the log).
 - **Do not resurrect**: a probe signal lane, timeline tracks, zoom and pan of the axis, thumbnails, a run progress
-  bar, the scratch budget and its "not computed" note, a GPU JPEG front end, a Direct3D display path, a bent
+  bar, the taskbar button's progress (2026-11-11, the user's decision: little benefit), the scratch budget and its "not
+  computed" note, a GPU JPEG front end, a Direct3D display path, a bent
   rotation lever, an unreadable settings file moved aside (2026-11-03: nobody would find it, the log quotes it), a quiet
   period or any other timer that decides when an undo step ends (2026-11-06: an edit is a step when it has finished), a
   debounce before a scratch frame or a quiet period before the automatic re-run (2026-11-07: a frame is asked for at
@@ -317,7 +318,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   runner has reused meanwhile (`ScratchResult.Snapshot` is valid until the next outcome), so a re-render of it before
   the burst's last frame arrives, a resize in mid-scrub, would read the newer frame.
 - **A picture changes only when a frame for its position arrives**; otherwise the last picture stays. A long wait
-  dims the pictures under a spinner, mirrored on the taskbar.
+  dims the pictures under a spinner (mirrored on the Windows taskbar button until 2026-11-11, the user's decision: little
+  benefit; `TaskbarItemInfo` and `TaskbarProgressConverter` are gone, the jump list of recent files stays).
 - **Brightness** (2026-10-20, Jeroen's point 9) sits in each picture's header strip (`HeaderStrip`: title, a caption that
   gives way first, the box and **Auto** at the far end; turned on its side with the title); Auto fits once to the frame
   shown (the 99.5th percentile of |field| or √intensity at the palette's top, the user's choice of the variants), an
@@ -1115,7 +1117,7 @@ the frame, which shows again when the export is over), `IsBusy`, `IsIndeterminat
 done and their count and `Share` (0 to 1). No words in the model: `BusyTextConverter` builds the text from the kind,
 the numbers and the language, as the run status does, and `TaskbarProgressConverter` the taskbar's state, so the
 `TaskbarItemInfo` is bound in the XAML like everything else (a Freezable set on the window resolves the window's
-DataContext). Gone with it: the three busy dependency properties, `IsExportWaiting` and `IsComputingFrame` as
+DataContext; both gone on 2026-11-11 with the taskbar progress, the user's decision). Gone with it: the three busy dependency properties, `IsExportWaiting` and `IsComputingFrame` as
 dependency properties nothing bound (the first a private forwarder to the model now), `MainWindow.Busy.cs`,
 `MainWindow.Taskbar.cs`, the `UpdateBusy` call of the language switch. Proven by a WPF probe without a shown window
 (21 checks: the rules, a real export job of 20 frames followed on the way and to its end, the app's own markup for the
@@ -1410,8 +1412,9 @@ port (`MainWindow.Status.cs`). Proven by a keyboard probe on `tiny.wdproj` by ar
 and the first scratch frame in the log, nine tree rows, "0 / 99", F5's run completed and followed to 99, Space playing
 and pausing, a nudge staling the run and asking for its frame, the re-run when the handle is left, the nudge one undo
 step; the capture showed both pictures with the source's marker and label, the form of Source 1, the red edge line and
-the run's status. Not yet: the taskbar's progress, the tests (the new part forms, the export's busy text,
-`RevealRequest` and `ShownFrame` came on 2026-11-11, see below). **The probe kinds are in the Avalonia head** (2026-11-11, the user's
+the run's status. Not yet: the tests (the new part forms, the export's busy text, `RevealRequest` and `ShownFrame`
+came on 2026-11-11, see below; the taskbar's progress, the one WPF feature left, went from the WPF head the same day,
+the user's decision: little benefit, so neither head has it). **The probe kinds are in the Avalonia head** (2026-11-11, the user's
 report that they were missing): the "+ Probe" button, the Probes folder's plus and the row menu's Add probe entry open
 the WPF head's menu of kinds (`ProjectTree.ProbeKindEntries`: Standard probe, and Probabilistic with the counting and
 the imaging detector, each running `AppCommands.AddProbe` with its `ProbeDetector`, the icon and the `Detector.<Member>`

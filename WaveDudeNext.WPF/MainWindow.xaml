@@ -57,7 +57,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<converters:TitleConverter x:Key="TitleConverter" />
 		<converters:RunStatusConverter x:Key="RunStatus" />
 		<converters:BusyTextConverter x:Key="BusyText" />
-		<converters:TaskbarProgressConverter x:Key="TaskbarProgress" />
 
 		<RoutedUICommand x:Key="FileOpenRecent" />
 		<RoutedUICommand x:Key="FileOpenExample" />
@@ -159,11 +158,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</Setter>
 		</Style>
 	</Window.Resources>
-
-	<!-- the taskbar button shows the status bar's busy state too: the export's progress, or the marquee while an export waits or a frame is computed -->
-	<Window.TaskbarItemInfo>
-		<TaskbarItemInfo ProgressState="{Binding Busy.Kind, Converter={StaticResource TaskbarProgress}}" ProgressValue="{Binding Busy.Share}" />
-	</Window.TaskbarItemInfo>
 
 	<!-- "WaveDude Next - <file>", just the name while no file is open; an asterisk after the file (or "Untitled") marks unsaved edits -->
 	<Window.Title>
