@@ -44,10 +44,6 @@ public partial class MainWindow
 	/// <summary>The choices of Simulation > RAM cache size: automatic and 10 % to 100 % of the RAM as an upper bound (2026-10-15, the user's design).</summary>
 	public static int[] FrameMemoryOptions { get; } = [FrameMemory.Automatic, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
-	private static readonly double[] ZoomOptions = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
-	private static readonly int[] DitherOptions = [0, 10, 12, 14, 16];
-
-	private readonly List<(MenuItem Item, Func<bool> IsChecked)> _checkedMenus = [];
 	private ManualWindow? _manual;
 
 	/// <summary>Where on the shown canvas a new item lands: its centre (2026-10-26, Jeroen's report).</summary>
@@ -133,9 +129,29 @@ public partial class MainWindow
 		c.Exit = Command(_ => Close());
 		c.About = Command(_ => Fire(new AboutWindow().ShowDialog(this)));
 		c.Manual = Command(_ => ShowManual());
+		// the settings menus, bound in the markup as the WPF head's are: each entry's command carries its value, the check
+		// marks follow the settings and the controllers through bindings (2026-11-11; the port had filled these menus in
+		// code and set their check marks by hand)
+		c.SetUiZoom = Command(parameter => SetDoubleSetting(parameter, factor => Settings.Default.UiZoom = factor));
+		c.SetPreviewResolution = Command(parameter => SetIntSetting(parameter, divisor => Settings.Default.PreviewResolution = divisor));
+		c.SetPreviewFrames = Command(parameter => SetIntSetting(parameter, divisor => Settings.Default.PreviewFrames = divisor));
+		c.SetPreviewSamples = Command(parameter => SetIntSetting(parameter, bytes => Settings.Default.PreviewSampleBytes = bytes));
+		c.SetPreviewDither = Command(parameter => SetIntSetting(parameter, bits => Settings.Default.PreviewDitherBits = bits));
+		c.SetFrameMemory = Command(parameter => SetIntSetting(parameter, percent => Settings.Default.FrameMemoryPercent = percent));
+		// the three toggles flip their setting by a command and show it through a one-way mark, as the panes' entries do: a
+		// menu item's click runs its command in every path (a pointer, a key, a probe), while whether it flips its own mark
+		// is the framework's affair
+		c.ToggleUseGpu = Command(_ => ToggleSetting(() => Settings.Default.UseGpu = !Settings.Default.UseGpu));
+		c.ToggleAutoRerun = Command(_ => ToggleSetting(() => Settings.Default.AutoRerun = !Settings.Default.AutoRerun));
+		c.ToggleMemoryWarning = Command(_ => ToggleSetting(() => Settings.Default.WarnWhenRamInsufficient = !Settings.Default.WarnWhenRamInsufficient));
+		c.TogglePane = dockHost.ToggleCommand;
 		RegisterHotKeys(menu);
 		// Ctrl+Shift+Z is Redo's second gesture (the WPF head has both); the menu shows Ctrl+Y
 		KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Z, KeyModifiers.Control | KeyModifiers.Shift), Command = c.Redo });
+		// Escape is Stop's second gesture, the usual "stop what you are doing" key and the one without a modifier (the WPF
+		// head has both; 2026-11-11, found by RunCheck against this head); the menu shows Shift+F5. A text box lets an
+		// Escape through only when it changed nothing (EditBehavior), as in WPF
+		KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Escape), Command = c.Stop });
 	}
 
 	/// <summary>
@@ -209,7 +225,46 @@ public partial class MainWindow
 
 	// ---- the menus whose entries come from data
 
-	/// <summary>Fills the recent files, the examples, the panes, the theme, the zoom, the language, the preview quality and the RAM cache.</summary>
+	/// <summary>A menu choice carried as a number in the command parameter (an int, or digits as text): stores it and saves the settings.</summary>
+	private static void SetIntSetting(object? parameter, Action<int> apply)
+	{
+		int value;
+		if (parameter is int number)
+		{
+			value = number;
+		}
+		else if (parameter is not string text || !int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+		{
+			return;
+		}
+		apply(value);
+		Settings.Default.TrySave();
+	}
+
+	/// <summary>A menu toggle: flips its setting and saves the settings.</summary>
+	private static void ToggleSetting(Action flip)
+	{
+		flip();
+		Settings.Default.TrySave();
+	}
+
+	/// <summary>A menu choice carried as a factor in the command parameter (a double, or text with a decimal point): stores it and saves the settings.</summary>
+	private static void SetDoubleSetting(object? parameter, Action<double> apply)
+	{
+		double value;
+		if (parameter is double number)
+		{
+			value = number;
+		}
+		else if (parameter is not string text || !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+		{
+			return;
+		}
+		apply(value);
+		Settings.Default.TrySave();
+	}
+
+	/// <summary>Fills the two menus whose entries are files: the recent files and the examples. The others bind their entries in the markup.</summary>
 	private void BuildMenus()
 	{
 		mnuRecent.SubmenuOpened += (_, _) => FillRecentMenu();
@@ -222,101 +277,7 @@ public partial class MainWindow
 			Avalonia.Automation.AutomationProperties.SetAutomationId(item, example.AutomationId);
 			mnuExamples.Items.Add(item);
 		}
-		foreach (Docking.DockItem dock in dockHost.Items)
-		{
-			var item = new MenuItem { Header = dock.Title, Command = dockHost.ToggleCommand, CommandParameter = dock, ToggleType = MenuItemToggleType.CheckBox, IsChecked = dock.IsShown };
-			dock.PropertyChanged += (_, args) =>
-			{
-				if (args.PropertyName == nameof(Docking.DockItem.IsShown))
-				{
-					item.IsChecked = dock.IsShown;
-				}
-				else if (args.PropertyName == nameof(Docking.DockItem.Title))
-				{
-					item.Header = dock.Title;
-				}
-			};
-			mnuPanes.Items.Add(item);
-		}
-		foreach (AppTheme theme in ThemeController.Instance.Options)
-		{
-			var item = new MenuItem { Command = ThemeController.Instance.SelectCommand, CommandParameter = theme, ToggleType = MenuItemToggleType.Radio };
-			// the enum's member texts, as the WPF menu names them through EnumNameConverter (the port had asked for MenuViewTheme<Member>, keys no table has)
-			item.Bind(MenuItem.HeaderProperty, item.GetResourceObservable("Enum.AppTheme." + theme));
-			_checkedMenus.Add((item, () => ThemeController.Instance.Current == theme));
-			mnuTheme.Items.Add(item);
-		}
-		foreach (double zoom in ZoomOptions)
-		{
-			var item = new MenuItem { Command = Command(_ => SetSetting(() => Settings.Default.UiZoom = zoom)), ToggleType = MenuItemToggleType.Radio };
-			item.Bind(MenuItem.HeaderProperty, item.GetResourceObservable("MenuViewUiZoom" + (zoom * 100).ToString("0", CultureInfo.InvariantCulture)));
-			_checkedMenus.Add((item, () => Math.Abs(Settings.Default.UiZoom - zoom) < 0.001));
-			mnuUiZoom.Items.Add(item);
-		}
-		foreach (LanguageOption language in LanguageController.Instance.Options)
-		{
-			var item = new MenuItem { Command = LanguageController.Instance.SelectCommand, CommandParameter = language.Code, ToggleType = MenuItemToggleType.Radio };
-			if (language.Code.Length == 0)
-			{
-				item.Bind(MenuItem.HeaderProperty, item.GetResourceObservable("LanguageSystem"));
-			}
-			else
-			{
-				item.Header = language.Name;
-			}
-			_checkedMenus.Add((item, () => LanguageController.Instance.Current == language.Code));
-			mnuLanguage.Items.Add(item);
-		}
-		AddChoice(mnuResolution, "MenuViewResolutionFull", 1, () => Settings.Default.PreviewResolution, value => Settings.Default.PreviewResolution = value);
-		AddChoice(mnuResolution, "MenuViewResolutionHalf", 2, () => Settings.Default.PreviewResolution, value => Settings.Default.PreviewResolution = value);
-		AddChoice(mnuResolution, "MenuViewResolutionQuarter", 4, () => Settings.Default.PreviewResolution, value => Settings.Default.PreviewResolution = value);
-		AddChoice(mnuFrames, "MenuViewFramesFull", 1, () => Settings.Default.PreviewFrames, value => Settings.Default.PreviewFrames = value);
-		AddChoice(mnuFrames, "MenuViewFramesHalf", 2, () => Settings.Default.PreviewFrames, value => Settings.Default.PreviewFrames = value);
-		AddChoice(mnuFrames, "MenuViewFramesQuarter", 4, () => Settings.Default.PreviewFrames, value => Settings.Default.PreviewFrames = value);
-		AddChoice(mnuSamples, "MenuViewSamples16", 2, () => Settings.Default.PreviewSampleBytes, value => Settings.Default.PreviewSampleBytes = value);
-		AddChoice(mnuSamples, "MenuViewSamples8", 1, () => Settings.Default.PreviewSampleBytes, value => Settings.Default.PreviewSampleBytes = value);
-		foreach (int bits in DitherOptions)
-		{
-			AddChoice(mnuDither, bits == 0 ? "MenuViewDitherOff" : "MenuViewDither" + bits.ToString(CultureInfo.InvariantCulture), bits, () => Settings.Default.PreviewDitherBits, value => Settings.Default.PreviewDitherBits = value);
-		}
-		foreach (int percent in FrameMemoryOptions)
-		{
-			var item = new MenuItem { Command = Command(_ => SetSetting(() => Settings.Default.FrameMemoryPercent = percent)), ToggleType = MenuItemToggleType.Radio };
-			if (percent == FrameMemory.Automatic)
-			{
-				item.Bind(MenuItem.HeaderProperty, item.GetResourceObservable("MenuSimulationFrameMemoryAuto"));
-			}
-			else
-			{
-				item.Header = percent.ToString(CultureInfo.CurrentCulture) + " %";
-			}
-			_checkedMenus.Add((item, () => Settings.Default.FrameMemoryPercent == percent));
-			mnuFrameMemory.Items.Add(item);
-		}
-		_checkedMenus.Add((mnuUseGpu, () => Settings.Default.UseGpu));
-		_checkedMenus.Add((mnuAutoRerun, () => Settings.Default.AutoRerun));
-		_checkedMenus.Add((mnuWarnMemory, () => Settings.Default.WarnWhenRamInsufficient));
-		mnuUseGpu.Command = Command(_ => SetSetting(() => Settings.Default.UseGpu = !Settings.Default.UseGpu));
-		mnuAutoRerun.Command = Command(_ => SetSetting(() => Settings.Default.AutoRerun = !Settings.Default.AutoRerun));
-		mnuWarnMemory.Command = Command(_ => SetSetting(() => Settings.Default.WarnWhenRamInsufficient = !Settings.Default.WarnWhenRamInsufficient));
-		UpdateCheckedMenus();
 		ApplyLanguageTexts();
-	}
-
-	private void AddChoice(MenuItem menu, string key, int value, Func<int> current, Action<int> set)
-	{
-		var item = new MenuItem { Command = Command(_ => SetSetting(() => set(value))), ToggleType = MenuItemToggleType.Radio };
-		item.Bind(MenuItem.HeaderProperty, item.GetResourceObservable(key));
-		_checkedMenus.Add((item, () => current() == value));
-		menu.Items.Add(item);
-	}
-
-	/// <summary>A menu entry's setting: changed, saved, the check marks refreshed.</summary>
-	private void SetSetting(Action change)
-	{
-		change();
-		Settings.Default.TrySave();
-		UpdateCheckedMenus();
 	}
 
 	private void FillRecentMenu()
@@ -327,15 +288,6 @@ public partial class MainWindow
 			mnuRecent.Items.Add(new MenuItem { Header = path, Command = Command(_ => Fire(OpenRecentAsync(path))) });
 		}
 		mnuRecent.IsEnabled = mnuRecent.Items.Count > 0;
-	}
-
-	/// <summary>Refreshes every check mark from the settings and the controllers.</summary>
-	private void UpdateCheckedMenus()
-	{
-		foreach ((MenuItem item, Func<bool> isChecked) in _checkedMenus)
-		{
-			item.IsChecked = isChecked();
-		}
 	}
 
 	/// <summary>Re-reads the texts that are not DynamicResources: the dock titles (plain properties).</summary>
@@ -366,6 +318,5 @@ public partial class MainWindow
 				Live.PreviewQualityChanged();
 				break;
 		}
-		UpdateCheckedMenus();
 	}
 }

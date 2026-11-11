@@ -414,6 +414,98 @@ public sealed class AppCommands : INotifyPropertyChanged
 
 	private ICommand _about = RelayCommand.Disabled;
 
+	// ---- the settings menus (upstream ViewCommands and SimulationCommands)
+
+	/// <summary>View > UI zoom: the factor as the parameter, text with a decimal point or a number.</summary>
+	public ICommand SetUiZoom
+	{
+		get => _setUiZoom;
+		set => Set(ref _setUiZoom, value);
+	}
+
+	private ICommand _setUiZoom = RelayCommand.Disabled;
+
+	/// <summary>View > Preview resolution: the canvas divisor (1, 2, 4) as the parameter.</summary>
+	public ICommand SetPreviewResolution
+	{
+		get => _setPreviewResolution;
+		set => Set(ref _setPreviewResolution, value);
+	}
+
+	private ICommand _setPreviewResolution = RelayCommand.Disabled;
+
+	/// <summary>View > Preview frames: the multiplier of the project's visualisation interval (1, 2, 4) as the parameter.</summary>
+	public ICommand SetPreviewFrames
+	{
+		get => _setPreviewFrames;
+		set => Set(ref _setPreviewFrames, value);
+	}
+
+	private ICommand _setPreviewFrames = RelayCommand.Disabled;
+
+	/// <summary>View > Preview samples: the bytes per sample (2 halves, 1 palette indices) as the parameter.</summary>
+	public ICommand SetPreviewSamples
+	{
+		get => _setPreviewSamples;
+		set => Set(ref _setPreviewSamples, value);
+	}
+
+	private ICommand _setPreviewSamples = RelayCommand.Disabled;
+
+	/// <summary>View > Preview dithering: the bits per channel (0 none, 10, 12, 14, 16) as the parameter.</summary>
+	public ICommand SetPreviewDither
+	{
+		get => _setPreviewDither;
+		set => Set(ref _setPreviewDither, value);
+	}
+
+	private ICommand _setPreviewDither = RelayCommand.Disabled;
+
+	/// <summary>Simulation > RAM cache size: the share of the RAM in percent, or <see cref="WaveDudeNext.Runs.FrameMemory.Automatic"/>, as the parameter.</summary>
+	public ICommand SetFrameMemory
+	{
+		get => _setFrameMemory;
+		set => Set(ref _setFrameMemory, value);
+	}
+
+	private ICommand _setFrameMemory = RelayCommand.Disabled;
+
+	/// <summary>Simulation > Use the GPU: flips the setting.</summary>
+	public ICommand ToggleUseGpu
+	{
+		get => _toggleUseGpu;
+		set => Set(ref _toggleUseGpu, value);
+	}
+
+	private ICommand _toggleUseGpu = RelayCommand.Disabled;
+
+	/// <summary>Simulation > Re-run automatically after an edit: flips the setting.</summary>
+	public ICommand ToggleAutoRerun
+	{
+		get => _toggleAutoRerun;
+		set => Set(ref _toggleAutoRerun, value);
+	}
+
+	private ICommand _toggleAutoRerun = RelayCommand.Disabled;
+
+	/// <summary>Simulation > Warn when a run does not fit in RAM: flips the setting.</summary>
+	public ICommand ToggleMemoryWarning
+	{
+		get => _toggleMemoryWarning;
+		set => Set(ref _toggleMemoryWarning, value);
+	}
+
+	private ICommand _toggleMemoryWarning = RelayCommand.Disabled;
+
+	/// <summary>View > Panes: shows or hides the dock item given as the parameter (the dock host's own command).</summary>
+	public ICommand TogglePane
+	{
+		get => _togglePane;
+		set => Set(ref _togglePane, value);
+	}
+
+	private ICommand _togglePane = RelayCommand.Disabled;
+
 	/// <summary>Help > Manual (F1).</summary>
 	public ICommand Manual
 	{
@@ -469,6 +561,16 @@ public sealed class AppCommands : INotifyPropertyChanged
 			yield return PlayPause;
 			yield return About;
 			yield return Manual;
+			yield return SetUiZoom;
+			yield return SetPreviewResolution;
+			yield return SetPreviewFrames;
+			yield return SetPreviewSamples;
+			yield return SetPreviewDither;
+			yield return SetFrameMemory;
+			yield return ToggleUseGpu;
+			yield return ToggleAutoRerun;
+			yield return ToggleMemoryWarning;
+			yield return TogglePane;
 		}
 	}
 

@@ -87,11 +87,14 @@ public sealed class LanguageController : INotifyPropertyChanged
 	public static LanguageController Instance { get; } = new();
 
 	/// <summary>
-	/// Menu entries: "System" (in the current language, the <c>LanguageSystem</c> key) first, then every string table.
-	/// A fresh list on each read, so a menu bound to it re-labels after a change.
+	/// Menu entries: "System" first (its name the English word; the menu shows the <c>LanguageSystem</c> text of the
+	/// language in use through <c>LanguageNameConverter</c>), then every string table. One list for the controller's
+	/// life (2026-11-11): a fresh list per change, as the WPF head's controller gives, made Avalonia re-create the
+	/// open menu's entries under the one being clicked, and the menu stayed open, since its handler closes the menu by
+	/// the clicked entry's parent after the click, and the entry had none any more.
 	/// </summary>
-	public IReadOnlyList<LanguageOption> Options =>
-		[new LanguageOption("", SystemName()), .. Tables.Select(t => new LanguageOption(t.Code, t.Name))];
+	public IReadOnlyList<LanguageOption> Options { get; } =
+		[new LanguageOption("", "System"), .. Tables.Select(t => new LanguageOption(t.Code, t.Name))];
 
 	/// <summary>Selects the language of its parameter: a <see cref="LanguageOption"/> or its code.</summary>
 	public ICommand SelectCommand { get; }
@@ -113,7 +116,6 @@ public sealed class LanguageController : INotifyPropertyChanged
 			ApplyResources();
 			OnPropertyChanged();
 			OnPropertyChanged(nameof(Effective));
-			OnPropertyChanged(nameof(Options));
 		}
 	}
 
@@ -138,15 +140,11 @@ public sealed class LanguageController : INotifyPropertyChanged
 		ApplyResources();
 		OnPropertyChanged(nameof(Current));
 		OnPropertyChanged(nameof(Effective));
-		OnPropertyChanged(nameof(Options));
 	}
 
 	/// <summary>The address of a string table's XAML in the application assembly.</summary>
 	public static Uri TableUri(string code) =>
 		new($"avares://WaveDudeNext.App/Strings/Strings.{code.ToUpperInvariant()}.axaml");
-
-	private static string SystemName() =>
-		Application.Current?.TryGetResource("LanguageSystem", null, out object? value) == true && value is string name ? name : "System";
 
 	private void ApplyResources()
 	{
