@@ -38,8 +38,12 @@ namespace WaveDudeNext.App.Controls;
 /// (<see cref="ColorScheme.MoveStop"/>); a press on the gradient adds a stop there in the gradient's colour
 /// (<see cref="ColorScheme.AddStop(double)"/>) and drags it on; either selects the marker, which is then the
 /// accent's colour as a whole. A marker is taken within <see cref="MarkerReach"/> pixels of its tip, from the
-/// gradient's lowest rows down; a press that does not move the pointer changes no position. Keyboard, the bar being
-/// one tab stop: Left and Right move the selected stop by a hundredth, by a tenth with Shift; Page Up and Page Down
+/// gradient's lowest rows down; a press that does not move the pointer changes no position. A marker dragged more
+/// than <see cref="PullAway"/> pixels above or below the bar fades, and released there its stop is removed; a double
+/// click on a marker removes its stop as well (2026-11-11, the user's choice of the mouse's ways to remove one; the
+/// last stop stays). Both go to the scheme itself, not through <see cref="RemoveCommand"/>: the press and the release
+/// bound the edit, so a stop dragged and then pulled away is one undo step, which brings it back where it was.
+/// Keyboard, the bar being one tab stop: Left and Right move the selected stop by a hundredth, by a tenth with Shift; Page Up and Page Down
 /// select the stop before and after it along the gradient; Del removes it through <see cref="RemoveCommand"/>, a
 /// command, so the removal is an undo step of its own, while a drag ends its step at the button's release and the
 /// arrow keys' when the focus leaves, as everywhere. Positions set here are thousandths: finer than a pixel of the
@@ -63,6 +67,12 @@ public sealed class GradientBar : Control
 	/// <summary>How far left and right of its tip, and how far up into the gradient, a press takes a marker, in pixels.</summary>
 	private const double MarkerReach = 7.0;
 	private const double MarkerReachUp = 4.0;
+
+	/// <summary>How far above or below the bar a dragged marker is pulled away, in pixels: released there, its stop is removed.</summary>
+	private const double PullAway = 24.0;
+
+	/// <summary>How much of a pulled-away marker shows.</summary>
+	private const double PulledAwayOpacity = 0.35;
 
 	/// <summary>What an arrow key moves a stop by, and with Shift.</summary>
 	private const double KeyStep = 0.01;
@@ -99,6 +109,7 @@ public sealed class GradientBar : Control
 	private bool _attached;
 	private bool _dragging;
 	private bool _moved;
+	private bool _pulledAway;
 	private double _pressX;
 	private double _grab;
 	private double _scale = 1.0;
@@ -326,7 +337,11 @@ public sealed class GradientBar : Control
 		double tip = Snap(GradientHeight + 1.0) + half;
 		double baseTop = Snap(GradientHeight + 1.0 + MarkerHeight);
 		IBrush? fill = selected ? AccentBrush : new ImmutableSolidColorBrush(Color.FromRgb(stop.Color.R, stop.Color.G, stop.Color.B));
-		dc.DrawGeometry(fill, PenFor(selected ? AccentBrush : MarkerBrush, t), Triangle(x, tip, baseTop + half, MarkerHalfWidth));
+		// a marker pulled away from the bar is on its way out: faded until it is released or comes back
+		using (dc.PushOpacity(selected && _pulledAway ? PulledAwayOpacity : 1.0))
+		{
+			dc.DrawGeometry(fill, PenFor(selected ? AccentBrush : MarkerBrush, t), Triangle(x, tip, baseTop + half, MarkerHalfWidth));
+		}
 	}
 
 	/// <summary>A triangle with its tip at (<paramref name="x"/>, <paramref name="tip"/>) and its base <paramref name="reach"/> to either side at <paramref name="bottom"/>.</summary>
@@ -378,6 +393,16 @@ public sealed class GradientBar : Control
 		}
 		Point at = e.GetPosition(this);
 		ColorStop? stop = MarkerAt(at);
+		if (e.ClickCount > 1)
+		{
+			// a double click on a marker removes its stop; on the gradient its first click has added a stop there, and
+			// the second adds no other
+			if (e.ClickCount == 2 && stop != null)
+			{
+				Remove(stop, byCommand: false);
+			}
+			return;
+		}
 		_grab = stop != null ? at.X - XOf(stop.Position) : 0.0;
 		if (stop == null && at.Y < GradientHeight && at.X >= Inset && at.X <= Bounds.Width - Inset)
 		{
@@ -410,9 +435,20 @@ public sealed class GradientBar : Control
 		// the stop follows from the pointer's first step away from the press: a click on a marker selects it and changes
 		// nothing, where the marker's place taken back from its pixel would round the position
 		_moved |= at.X != _pressX;
-		if (_moved && SelectedStop is { } stop)
+		if (SelectedStop is not { } stop || Scheme is not { } scheme)
 		{
-			Scheme?.MoveStop(stop, PositionAt(at.X - _grab));
+			return;
+		}
+		// pulled away above or below the bar: the marker fades and its stop goes at the release; back in reach it stays
+		bool away = scheme.Stops.Count > 1 && (at.Y < -PullAway || at.Y > Bounds.Height + PullAway);
+		if (away != _pulledAway)
+		{
+			_pulledAway = away;
+			InvalidateVisual();
+		}
+		if (_moved)
+		{
+			scheme.MoveStop(stop, PositionAt(at.X - _grab));
 		}
 	}
 
@@ -422,7 +458,12 @@ public sealed class GradientBar : Control
 		base.OnPointerReleased(e);
 		if (_dragging)
 		{
+			ColorStop? pulledAway = _pulledAway ? SelectedStop : null;
 			EndDrag();
+			if (pulledAway != null)
+			{
+				Remove(pulledAway, byCommand: false);
+			}
 			e.Handled = true;
 		}
 	}
@@ -434,16 +475,57 @@ public sealed class GradientBar : Control
 		// another control took the pointer mid-drag (a popup, a window switch): the drag ends there
 		_dragging = false;
 		_pointer = null;
+		if (_pulledAway)
+		{
+			_pulledAway = false;
+			InvalidateVisual();
+		}
 	}
 
 	private void EndDrag()
 	{
+		if (_pulledAway)
+		{
+			_pulledAway = false;
+			InvalidateVisual();
+		}
 		if (_dragging)
 		{
 			_dragging = false;
 			IPointer? pointer = _pointer;
 			_pointer = null;
 			pointer?.Capture(null);
+		}
+	}
+
+	/// <summary>
+	/// Removes a stop, by the command (the keyboard: a step of its own) or from the scheme itself (the mouse, whose press
+	/// and release bound the step), and selects the stop that took its place along the gradient, the last one after the
+	/// last. Nothing happens to the scheme's last stop.
+	/// </summary>
+	private void Remove(ColorStop stop, bool byCommand)
+	{
+		if (Scheme is not { } scheme)
+		{
+			return;
+		}
+		List<ColorStop> sorted = Sorted(scheme);
+		int index = sorted.IndexOf(stop);
+		if (byCommand)
+		{
+			if (RemoveCommand is { } command && command.CanExecute(stop))
+			{
+				command.Execute(stop);
+			}
+		}
+		else
+		{
+			scheme.RemoveStop(stop);
+		}
+		if (index >= 0 && !scheme.Stops.Contains(stop))
+		{
+			sorted.RemoveAt(index);
+			Select(sorted.Count > 0 ? sorted[Math.Min(index, sorted.Count - 1)] : null);
 		}
 	}
 
@@ -478,16 +560,7 @@ public sealed class GradientBar : Control
 			case Key.Delete when modifiers == KeyModifiers.None:
 				// handled whether or not a stop goes: Del must never reach the window's Delete from here, which removes the scheme
 				Select(stop);
-				if (RemoveCommand is { } command && command.CanExecute(stop))
-				{
-					command.Execute(stop);
-				}
-				if (!scheme.Stops.Contains(stop))
-				{
-					// the stop that took its place along the gradient, the last one after the last
-					sorted.RemoveAt(index);
-					Select(sorted.Count > 0 ? sorted[Math.Min(index, sorted.Count - 1)] : null);
-				}
+				Remove(stop, byCommand: true);
 				break;
 			default:
 				return;

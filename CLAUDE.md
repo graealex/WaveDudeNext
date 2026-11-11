@@ -563,7 +563,14 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   with Shift, Page Up and Page Down select the stop before and after it along the gradient, Del removes it through a
   command (`ColorSchemeCommands.RemoveStop`, the Avalonia head's `AppCommands.RemoveStop`), so the removal is an undo
   step of its own and never reaches the window's Delete, which would remove the scheme. A drag is one step, the arrow
-  keys' moves one when the focus leaves, as everywhere. Positions the bar sets are thousandths. **Not the port's**: the
+  keys' moves one when the focus leaves, as everywhere. **The mouse removes a stop in two ways** (the same day, the
+  user's choice of three offered, a context menu the one not taken): a marker dragged more than 24 px above or below
+  the bar fades and, released there, its stop is removed, brought back into reach it stays; and a double click on a
+  marker removes its stop. Both call the scheme itself, not the command, the press and the release being the edit's
+  bounds: a stop dragged and then pulled away is one undo step, which brings it back where it was. A double click on
+  the gradient adds one stop, its second press nothing; the last stop survives both. Proven in each head by an in-app
+  probe of five flows (a press sent in the same dispatcher operation as the pointer's arrival was not taken by WPF;
+  with 60 ms between, as before, it was). Positions the bar sets are thousandths. **Not the port's**: the
   gradient keeps the fields' width (the bar is wider than the form by its 8 px inset at either end, a negative margin
   in the form, so a marker at 0 or 1 overhangs into the form's margin; the port insets the gradient); the selected
   marker is the accent's colour as a whole, fill and outline (the user's word that night, after a line of the accent

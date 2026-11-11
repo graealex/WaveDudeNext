@@ -432,7 +432,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipStopPosition">Positie in het verloop: 0 bij de laagste waarde, 1 bij de hoogste</s:String>
 	<s:String x:Key="TipStopColor">Kleur als #RRGGBB; Enter past hem toe</s:String>
 	<s:String x:Key="TipStopSwatch">Kleur kiezen: spatie opent de kiezer, Enter houdt hem, Escape zet de oude kleur terug</s:String>
-	<s:String x:Key="TipSchemeGradient">Sleep een markering om het bijbehorende punt te verplaatsen; een klik op het verloop voegt daar een punt in. Met toetsenbordfocus verplaatsen Links en Rechts het gekozen punt een honderdste, een tiende met Shift, PageUp en PageDown kiezen het punt ervoor of erna, en Del verwijdert het</s:String>
+	<s:String x:Key="TipSchemeGradient">Sleep een markering om het bijbehorende punt te verplaatsen; van het verloop wegslepen of dubbelklikken verwijdert het punt; een klik op het verloop voegt daar een punt in. Met toetsenbordfocus verplaatsen Links en Rechts het gekozen punt een honderdste, een tiende met Shift, PageUp en PageDown kiezen het punt ervoor of erna, en Del verwijdert het</s:String>
 	<s:String x:Key="TipColorSquare">Verzadiging (links, rechts) en helderheid (omhoog, omlaag); Shift verplaatst tien stappen</s:String>
 	<s:String x:Key="TipColorHue">Tint: omhoog en omlaag verplaatsen een graad, tien met Shift</s:String>
 	<s:String x:Key="TipColorChannel">Kanaal 0 tot 255; omhoog en omlaag veranderen het</s:String>

@@ -432,7 +432,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipStopPosition">Position im Verlauf: 0 beim kleinsten Wert, 1 beim größten</s:String>
 	<s:String x:Key="TipStopColor">Farbe als #RRGGBB; Eingabe übernimmt sie</s:String>
 	<s:String x:Key="TipStopSwatch">Farbe wählen: Leertaste öffnet die Auswahl, Eingabe übernimmt, Escape stellt die alte Farbe wieder her</s:String>
-	<s:String x:Key="TipSchemeGradient">Eine Marke ziehen, um ihren Stützpunkt zu verschieben; ein Klick auf den Verlauf fügt dort einen Stützpunkt ein. Mit Tastaturfokus verschieben Links und Rechts den gewählten Stützpunkt um ein Hundertstel, mit Umschalt um ein Zehntel, Bild auf und Bild ab wählen den Stützpunkt davor oder danach, und Entf entfernt ihn</s:String>
+	<s:String x:Key="TipSchemeGradient">Eine Marke ziehen, um ihren Stützpunkt zu verschieben; vom Verlauf wegziehen oder ein Doppelklick entfernt ihn; ein Klick auf den Verlauf fügt dort einen Stützpunkt ein. Mit Tastaturfokus verschieben Links und Rechts den gewählten Stützpunkt um ein Hundertstel, mit Umschalt um ein Zehntel, Bild auf und Bild ab wählen den Stützpunkt davor oder danach, und Entf entfernt ihn</s:String>
 	<s:String x:Key="TipColorSquare">Sättigung (Links, Rechts) und Helligkeit (Auf, Ab); Umschalt bewegt um zehn Schritte</s:String>
 	<s:String x:Key="TipColorHue">Farbton: Auf und Ab bewegen um ein Grad, zehn mit Umschalt</s:String>
 	<s:String x:Key="TipColorChannel">Kanal 0 bis 255; Auf und Ab verändern ihn</s:String>

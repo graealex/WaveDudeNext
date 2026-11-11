@@ -432,7 +432,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipStopPosition">Position dans le dégradé : 0 à la valeur la plus basse, 1 à la plus haute</s:String>
 	<s:String x:Key="TipStopColor">Couleur en #RRGGBB ; Entrée l'applique</s:String>
 	<s:String x:Key="TipStopSwatch">Choisir la couleur : Espace ouvre le sélecteur, Entrée la garde, Échap remet l'ancienne couleur</s:String>
-	<s:String x:Key="TipSchemeGradient">Glisser un repère pour déplacer son point ; un clic sur le dégradé y ajoute un point. Avec le focus clavier, Gauche et Droite déplacent le point sélectionné d'un centième, d'un dixième avec Maj, Page haut et Page bas sélectionnent le point précédent ou suivant, et Suppr le supprime</s:String>
+	<s:String x:Key="TipSchemeGradient">Glisser un repère pour déplacer son point ; l'éloigner du dégradé ou un double clic supprime le point ; un clic sur le dégradé y ajoute un point. Avec le focus clavier, Gauche et Droite déplacent le point sélectionné d'un centième, d'un dixième avec Maj, Page haut et Page bas sélectionnent le point précédent ou suivant, et Suppr le supprime</s:String>
 	<s:String x:Key="TipColorSquare">Saturation (Gauche, Droite) et luminosité (Haut, Bas) ; Maj déplace de dix pas</s:String>
 	<s:String x:Key="TipColorHue">Teinte : Haut et Bas déplacent d'un degré, dix avec Maj</s:String>
 	<s:String x:Key="TipColorChannel">Canal de 0 à 255 ; Haut et Bas le modifient</s:String>
