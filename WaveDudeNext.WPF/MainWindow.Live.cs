@@ -54,8 +54,13 @@ public partial class MainWindow
 		}
 		if (change.Item is ColorScheme or ObservableCollection<ColorScheme>)
 		{
-			// a project scheme edited, added or removed: recolour the frame shown
-			Preview.RefreshColors();
+			// a project scheme edited, added or removed: recolour the frame shown. Not while Undo or Redo writes a step
+			// back, which empties the scheme list before it refills it: the colours are asked for once, when the project
+			// is whole again (the history's Restored, wired in the constructor)
+			if (!_history.IsRestoring)
+			{
+				Preview.RefreshColors();
+			}
 			return;
 		}
 		Live.Edited(change);

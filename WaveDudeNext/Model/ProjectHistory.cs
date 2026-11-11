@@ -133,7 +133,9 @@ public sealed class ProjectHistory
 	/// <summary>
 	/// Writes <paramref name="snapshot"/> into the project: read into a project of its own (normalised, so the sources'
 	/// emitters are generated again), then each persisted top-level property moved over: a list's contents replaced (the
-	/// list objects stay, and with them what is bound to them), any other value set.
+	/// list objects stay, and with them what is bound to them), any other value set. A list is empty for a moment on
+	/// the way, so the project is whole only when this returns: who looks things up in it by name waits for that
+	/// (<c>UndoHistory.IsRestoring</c> and <c>Restored</c> in the application).
 	/// </summary>
 	private void Apply(Snapshot snapshot)
 	{
@@ -144,7 +146,9 @@ public sealed class ProjectHistory
 		}
 		state.Scene.ImageData = snapshot.Image;
 		state.Normalize();
-		foreach (PropertyInfo property in Persisted)
+		// the display settings last: they name colour schemes, and what follows them (the preview looks its colours up
+		// the moment they are set) must find the scheme list whole (2026-11-11)
+		foreach (PropertyInfo property in Persisted.OrderBy(property => property.PropertyType == typeof(Display)))
 		{
 			object? value = property.GetValue(state);
 			if (value is IList items && property.GetValue(_project) is IList target)

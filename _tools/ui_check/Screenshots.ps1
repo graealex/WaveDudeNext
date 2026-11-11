@@ -29,9 +29,14 @@
 # window (parked outside it for the captures, so no hover state gets into a figure).
 #
 #   powershell -ExecutionPolicy Bypass -File _tools\ui_check\Screenshots.ps1 [-Exe <path>] [-Example <wdproj>]
-#       [-Out <folder>] [-Frame <n>] [-PngFolder <folder>] [-Zoom <factor>]
+#       [-Out <folder>] [-Frame <n>] [-PngFolder <folder>] [-Zoom <factor>] [-Only <figure>[,<figure>...]]
 #
 # -PngFolder also writes each figure's PNG (without badges) there, for a look at the captures.
+# -Only makes the named figures alone (2026-11-11, the user's request: one form had changed, and a whole run takes six
+# minutes and the machine): a session none of them belongs to is not started (the "properties-" figures are the second
+# session's), of the forms only the named ones are opened, no other figure's file is written, and Legend.md keeps every
+# other figure's section as it is. A named figure of the first session runs that session whole, as its figures follow
+# from one another's state.
 # -Zoom puts the UI zoom setting (View > UI zoom, 2026-11-01, the user's choice) into the figures' settings: the
 # windows' content and size at that scale, so the figures come out at that many times the pixels, as from a monitor
 # at that scale (the title bar excepted, which is Windows' and stays at the monitor's). The pixel constants below
@@ -48,7 +53,8 @@ param(
 	[int]$Frame = 1200,
 	[string]$PngFolder = "",
 	[double]$Zoom = 1.25,
-	[string]$TextSwitch = "--greyscale-text"
+	[string]$TextSwitch = "--greyscale-text",
+	[string[]]$Only = @()
 )
 . (Join-Path $PSScriptRoot "Common.ps1")
 
@@ -146,6 +152,12 @@ $Headings = @{
 $script:legend = New-Object System.Text.StringBuilder
 $script:figureCount = 0
 $script:problems = 0
+# -Only: a list given to -File arrives as one string with its commas
+$Only = @($Only | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
+$script:written = New-Object System.Collections.ArrayList
+function Wanted([string]$name) { return $Only.Count -eq 0 -or $Only -contains $name }
+$firstSession = $Only.Count -eq 0 -or @($Only | Where-Object { $_ -notlike "properties-*" }).Count -gt 0
+$secondSession = $Only.Count -eq 0 -or @($Only | Where-Object { $_ -like "properties-*" }).Count -gt 0
 
 function Problem([string]$text) { $script:problems++; Write-Output ("PROBLEM  " + $text) }
 # a number for the SVG or the command line, in the invariant culture (a zoomed figure has halves)
@@ -342,6 +354,8 @@ function Badge-Centre($fig, $item) {
 	return @([int][math]::Round($cx), [int][math]::Round($cy))
 }
 function Save-Figure($fig) {
+	if (-not (Wanted $fig.Name)) { $fig.Bitmap.Dispose(); return }
+	$null = $script:written.Add($fig.Name)
 	$R = $BadgeRadius * $Zoom
 	$W = $fig.Bitmap.Width; $H = $fig.Bitmap.Height
 	# a zoomed figure's PNG declares its pixel density; at 1 the bitmap is left alone, so the bytes stay the same
@@ -553,280 +567,303 @@ function Start-Inactive([string]$project) {
 
 try {
 	# ----- session 1: the example project ---------------------------------------------------------------------
-	Set-FigureSettings 475 563
-	Start-Inactive $Example
-	try {
-		# waves in the pictures: a scratch frame at the wanted position (PageUp moves ten frames)
-		FocusOn "PreviewTimeline"
-		Key $VK_HOME 100
-		for ($i = 0; $i -lt [int]($Frame / 10); $i++) { Key $VK_PRIOR 10 }
-		Start-Sleep -Milliseconds 300
-		if (-not (WaitFor { (Position) -eq $Frame } 5000 100)) { Problem ("position is {0}, wanted {1}" -f (Position), $Frame) }
-		# the frame has arrived when the picture stops changing (the busy dimming and spinner move until then)
-		$h0 = FieldHash
-		$settled = WaitFor { Start-Sleep -Milliseconds 700; $h1 = FieldHash; ($h1 -ne $h0) -and ($h1 -eq (FieldHash)) } 60000 100
-		if (-not $settled) { Problem "the scratch frame did not arrive" }
-		# the Project row selected, as after opening, with the focus on it
-		Select-TreeRow "Tree:Project"
+	if ($firstSession) {
+		Set-FigureSettings 475 563
+		Start-Inactive $Example
+		try {
+			# waves in the pictures: a scratch frame at the wanted position (PageUp moves ten frames)
+			FocusOn "PreviewTimeline"
+			Key $VK_HOME 100
+			for ($i = 0; $i -lt [int]($Frame / 10); $i++) { Key $VK_PRIOR 10 }
+			Start-Sleep -Milliseconds 300
+			if (-not (WaitFor { (Position) -eq $Frame } 5000 100)) { Problem ("position is {0}, wanted {1}" -f (Position), $Frame) }
+			# the frame has arrived when the picture stops changing (the busy dimming and spinner move until then)
+			$h0 = FieldHash
+			$settled = WaitFor { Start-Sleep -Milliseconds 700; $h1 = FieldHash; ($h1 -ne $h0) -and ($h1 -eq (FieldHash)) } 60000 100
+			if (-not $settled) { Problem "the scratch frame did not arrive" }
+			# the Project row selected, as after opening, with the focus on it
+			Select-TreeRow "Tree:Project"
 
-		$capture = Capture-Window
-		# the README's picture (2026-10-30, the user's request): the same capture as a plain PNG, without badges
-		if ($Zoom -ne 1) { $capture.Bitmap.SetResolution(96 * $Zoom, 96 * $Zoom) }
-		$capture.Bitmap.Save((Join-Path $Out "main-window.png"), [System.Drawing.Imaging.ImageFormat]::Png)
-		$fig = New-Figure "main-window" "The main window with the example project at frame $Frame." $capture.Bitmap $capture.Left $capture.Top
-		$headers = @(ByType @(ByType $script:win "Menu")[0] "MenuItem")
-		Add-Badge $fig (Rect $headers[$headers.Count - 1]) "right" "Menu bar"
-		Add-BadgeFor $fig "DockTitle:project" "right" "Project pane: the tree of the project's objects"
-		Add-BadgeFor $fig "DockTitle:properties" "right" "Properties pane: the selected object's form"
-		Add-BadgeFor $fig "PreviewFieldImage" "tl" "Field picture"
-		Add-BadgeFor $fig "PreviewIntensityImage" "tl" "Intensity picture"
-		Add-BadgeFor $fig "PreviewFieldImageBrightness" "on" "Header strip of a picture: title, brightness, Auto"
-		Add-BadgeFor $fig "PreviewTimeline" "on" "Timeline"
-		Add-BadgeFor $fig "PreviewFrame" "on" "Transport controls, position readout, speed, layout"
-		Add-BadgeFor $fig "StatusMessage" "right" "Status bar"
-		Save-Figure $fig
+			$capture = Capture-Window
+			# the README's picture (2026-10-30, the user's request): the same capture as a plain PNG, without badges
+			if ($Zoom -ne 1) { $capture.Bitmap.SetResolution(96 * $Zoom, 96 * $Zoom) }
+			if (Wanted "main-window") { $capture.Bitmap.Save((Join-Path $Out "main-window.png"), [System.Drawing.Imaging.ImageFormat]::Png) }
+			$fig = New-Figure "main-window" "The main window with the example project at frame $Frame." $capture.Bitmap $capture.Left $capture.Top
+			$headers = @(ByType @(ByType $script:win "Menu")[0] "MenuItem")
+			Add-Badge $fig (Rect $headers[$headers.Count - 1]) "right" "Menu bar"
+			Add-BadgeFor $fig "DockTitle:project" "right" "Project pane: the tree of the project's objects"
+			Add-BadgeFor $fig "DockTitle:properties" "right" "Properties pane: the selected object's form"
+			Add-BadgeFor $fig "PreviewFieldImage" "tl" "Field picture"
+			Add-BadgeFor $fig "PreviewIntensityImage" "tl" "Intensity picture"
+			Add-BadgeFor $fig "PreviewFieldImageBrightness" "on" "Header strip of a picture: title, brightness, Auto"
+			Add-BadgeFor $fig "PreviewTimeline" "on" "Timeline"
+			Add-BadgeFor $fig "PreviewFrame" "on" "Transport controls, position readout, speed, layout"
+			Add-BadgeFor $fig "StatusMessage" "right" "Status bar"
+			Save-Figure $fig
 
-		# the project tree: pane title, toolbar, every row, and the controls of one group row and one item row
-		$capture = Capture-Window
-		$rect = Pane-Rect "project" "ProjectTree"
-		# cropped below the last row (the root row's rectangle spans every row)
-		$lastRow = (ByType (ByType $script:win "Tree")[0] "TreeItem" | ForEach-Object { $_.Current.BoundingRectangle.Bottom } | Measure-Object -Maximum).Maximum
-		$fig = Crop-Figure "project-tree" "The Project pane with the example project." $capture $rect[0] $rect[1] $rect[2] ([math]::Min($rect[3], $lastRow + 9 * $Zoom))
-		$capture.Bitmap.Dispose()
-		Add-BadgeFor $fig "DockTitle:project" "right" "Pane title"
-		Add-BadgeFor $fig "ToolAddSource" "corner" "Add a source"
-		Add-BadgeFor $fig "ToolAddProbe" "corner" "Add a probe"
-		Add-BadgeFor $fig "ToolAddPart" "corner" "Add a part (a menu of the kinds)"
-		Add-BadgeFor $fig "ToolMoveUp" "corner" "Move the selected object up"
-		Add-BadgeFor $fig "ToolMoveDown" "corner" "Move the selected object down"
-		Add-BadgeFor $fig "ToolRemove" "corner" "Remove the selected object"
-		# the rows as concepts, not the example's objects (2026-10-30, the user's request): the root, the three settings
-		# rows, the Sources group with its expander and its plus, one object row with its controls, the other groups
-		Add-BadgeFor $fig "Tree:Project" "gutter" "Project: the root row"
-		Add-BadgeFor $fig "Tree:Scene" "gutter" "Scene"
-		Add-BadgeFor $fig "Tree:Simulation" "gutter" "Simulation"
-		Add-BadgeFor $fig "Tree:Display" "gutter" "Display"
-		Add-BadgeFor $fig "Tree:TreeSources" "gutter" "Sources group"
-		$group = Find "Tree:TreeSources"
-		$groupTop = (Rect $group).Top
-		# the group row's own buttons lie on its first line: the expander at the left, the plus at the right
-		$groupButtons = @(ByType $group "Button" | Where-Object { $_.Current.BoundingRectangle.Top -lt $groupTop + 23 * $Zoom } | Sort-Object { $_.Current.BoundingRectangle.Left })
-		if ($groupButtons.Count -ge 2) {
-			Add-Badge $fig (Rect $groupButtons[0]) "on" "Expand or collapse a group" $groupButtons[0].Current.HelpText
-			Add-Badge $fig (Rect $groupButtons[$groupButtons.Count - 1]) "on" "Add to this group" $groupButtons[$groupButtons.Count - 1].Current.HelpText
-		}
-		else { Problem ("project-tree: {0} buttons on the Sources row, expected the expander and the plus" -f $groupButtons.Count) }
-		# the controls of one object row (the row itself needs no badge, 2026-10-30, the user's call)
-		$item = @(ByType $group "TreeItem")
-		if ($item.Count -gt 0) {
-			$row = $item[0]
-			Add-BadgeFor $fig ("Enabled:" + $row.Current.Name) "on" "Enabled"
-			$buttons = @(ByType $row "Button" | Sort-Object { $_.Current.BoundingRectangle.Left })
-			$labels = "Move up", "Move down", "Remove"
-			for ($i = 0; $i -lt [math]::Min(3, $buttons.Count); $i++) { Add-Badge $fig (Rect $buttons[$i]) "on" $labels[$i] $buttons[$i].Current.HelpText }
-		}
-		else { Problem "project-tree: the Sources group has no object row" }
-		Add-BadgeFor $fig "Tree:TreeParts" "gutter" "Parts group"
-		Add-BadgeFor $fig "Tree:TreeProbes" "gutter" "Probes group"
-		Add-BadgeFor $fig "Tree:TreeColorSchemes" "gutter" "Colour schemes group"
-		Save-Figure $fig
+			# the project tree: pane title, toolbar, every row, and the controls of one group row and one item row
+			$capture = Capture-Window
+			$rect = Pane-Rect "project" "ProjectTree"
+			# cropped below the last row (the root row's rectangle spans every row)
+			$lastRow = (ByType (ByType $script:win "Tree")[0] "TreeItem" | ForEach-Object { $_.Current.BoundingRectangle.Bottom } | Measure-Object -Maximum).Maximum
+			$fig = Crop-Figure "project-tree" "The Project pane with the example project." $capture $rect[0] $rect[1] $rect[2] ([math]::Min($rect[3], $lastRow + 9 * $Zoom))
+			$capture.Bitmap.Dispose()
+			Add-BadgeFor $fig "DockTitle:project" "right" "Pane title"
+			Add-BadgeFor $fig "ToolAddSource" "corner" "Add a source"
+			Add-BadgeFor $fig "ToolAddProbe" "corner" "Add a probe"
+			Add-BadgeFor $fig "ToolAddPart" "corner" "Add a part (a menu of the kinds)"
+			Add-BadgeFor $fig "ToolMoveUp" "corner" "Move the selected object up"
+			Add-BadgeFor $fig "ToolMoveDown" "corner" "Move the selected object down"
+			Add-BadgeFor $fig "ToolRemove" "corner" "Remove the selected object"
+			# the rows as concepts, not the example's objects (2026-10-30, the user's request): the root, the three settings
+			# rows, the Sources group with its expander and its plus, one object row with its controls, the other groups
+			Add-BadgeFor $fig "Tree:Project" "gutter" "Project: the root row"
+			Add-BadgeFor $fig "Tree:Scene" "gutter" "Scene"
+			Add-BadgeFor $fig "Tree:Simulation" "gutter" "Simulation"
+			Add-BadgeFor $fig "Tree:Display" "gutter" "Display"
+			Add-BadgeFor $fig "Tree:TreeSources" "gutter" "Sources group"
+			$group = Find "Tree:TreeSources"
+			$groupTop = (Rect $group).Top
+			# the group row's own buttons lie on its first line: the expander at the left, the plus at the right
+			$groupButtons = @(ByType $group "Button" | Where-Object { $_.Current.BoundingRectangle.Top -lt $groupTop + 23 * $Zoom } | Sort-Object { $_.Current.BoundingRectangle.Left })
+			if ($groupButtons.Count -ge 2) {
+				Add-Badge $fig (Rect $groupButtons[0]) "on" "Expand or collapse a group" $groupButtons[0].Current.HelpText
+				Add-Badge $fig (Rect $groupButtons[$groupButtons.Count - 1]) "on" "Add to this group" $groupButtons[$groupButtons.Count - 1].Current.HelpText
+			}
+			else { Problem ("project-tree: {0} buttons on the Sources row, expected the expander and the plus" -f $groupButtons.Count) }
+			# the controls of one object row (the row itself needs no badge, 2026-10-30, the user's call)
+			$item = @(ByType $group "TreeItem")
+			if ($item.Count -gt 0) {
+				$row = $item[0]
+				Add-BadgeFor $fig ("Enabled:" + $row.Current.Name) "on" "Enabled"
+				$buttons = @(ByType $row "Button" | Sort-Object { $_.Current.BoundingRectangle.Left })
+				$labels = "Move up", "Move down", "Remove"
+				for ($i = 0; $i -lt [math]::Min(3, $buttons.Count); $i++) { Add-Badge $fig (Rect $buttons[$i]) "on" $labels[$i] $buttons[$i].Current.HelpText }
+			}
+			else { Problem "project-tree: the Sources group has no object row" }
+			Add-BadgeFor $fig "Tree:TreeParts" "gutter" "Parts group"
+			Add-BadgeFor $fig "Tree:TreeProbes" "gutter" "Probes group"
+			Add-BadgeFor $fig "Tree:TreeColorSchemes" "gutter" "Colour schemes group"
+			Save-Figure $fig
 
-		# the preview: both pictures with their header strips, handles, a graph box and the splitter
-		$capture = Capture-Window
-		$fieldImage = Rect (Find "PreviewFieldImage"); $intensityImage = Rect (Find "PreviewIntensityImage")
-		$fieldStrip = Rect (Find "PreviewFieldImageBrightness"); $intensityStrip = Rect (Find "PreviewIntensityImageBrightness")
-		$left = [math]::Min($fieldStrip.Left, $intensityStrip.Left) - 6 * $Zoom
-		$top = [math]::Min($fieldImage.Top, $fieldStrip.Top) - 10 * $Zoom
-		$fig = Crop-Figure "preview" "The preview: field and intensity pictures of the example project at frame $Frame." $capture $left $top ($fieldImage.Right + 8 * $Zoom) ($intensityImage.Bottom + 8 * $Zoom)
-		$capture.Bitmap.Dispose()
-		Add-BadgeFor $fig "PreviewFieldImage" "tl" "Field picture"
-		Add-BadgeFor $fig "PreviewFieldImageBrightness" "on" "Brightness of the field picture"
-		Add-BadgeFor $fig "PreviewFieldImageAutoBrightness" "on" "Auto brightness (fit to the frame shown)"
-		Add-BadgeFor $fig "PreviewIntensityImage" "tl" "Intensity picture"
-		Add-BadgeFor $fig "PreviewIntensityImageBrightness" "on" "Brightness of the intensity picture"
-		Add-BadgeFor $fig "PreviewIntensityImageAutoBrightness" "on" "Auto brightness of the intensity picture"
-		Add-BadgeFor $fig "PreviewSplitter" "on" "Splitter between the pictures"
-		$handles = @($script:win.FindAll($TS::Descendants, (Cond "ControlTypeProperty" $CT::Thumb)) | Where-Object { $_.Current.AutomationId -like "Source:*" -or $_.Current.AutomationId -like "Part:*" -or $_.Current.AutomationId -like "Probe:*" -or $_.Current.AutomationId -like "ProbeBox:*" })
-		$kindsDone = @{}
-		foreach ($h in $handles) {
-			$kind = $h.Current.AutomationId.Split(":")[0]
-			if ($kindsDone.ContainsKey($kind)) { continue }
-			$kindsDone[$kind] = $true
-			$name = $h.Current.AutomationId.Substring($kind.Length + 1) -replace ":([AB])$", ', end $1'
-			$label = switch ($kind) { "Source" { "Source handle ($name)" } "Part" { "Part handle ($name)" } "Probe" { "Probe handle ($name)" } "ProbeBox" { "Probe graph box ($name)" } }
-			Add-Badge $fig (Rect $h) $(if ($kind -eq "ProbeBox") { "above" } else { "right" }) $label $h.Current.HelpText
-		}
-		Save-Figure $fig
+			# the preview: both pictures with their header strips, handles, a graph box and the splitter
+			$capture = Capture-Window
+			$fieldImage = Rect (Find "PreviewFieldImage"); $intensityImage = Rect (Find "PreviewIntensityImage")
+			$fieldStrip = Rect (Find "PreviewFieldImageBrightness"); $intensityStrip = Rect (Find "PreviewIntensityImageBrightness")
+			$left = [math]::Min($fieldStrip.Left, $intensityStrip.Left) - 6 * $Zoom
+			$top = [math]::Min($fieldImage.Top, $fieldStrip.Top) - 10 * $Zoom
+			$fig = Crop-Figure "preview" "The preview: field and intensity pictures of the example project at frame $Frame." $capture $left $top ($fieldImage.Right + 8 * $Zoom) ($intensityImage.Bottom + 8 * $Zoom)
+			$capture.Bitmap.Dispose()
+			Add-BadgeFor $fig "PreviewFieldImage" "tl" "Field picture"
+			Add-BadgeFor $fig "PreviewFieldImageBrightness" "on" "Brightness of the field picture"
+			Add-BadgeFor $fig "PreviewFieldImageAutoBrightness" "on" "Auto brightness (fit to the frame shown)"
+			Add-BadgeFor $fig "PreviewIntensityImage" "tl" "Intensity picture"
+			Add-BadgeFor $fig "PreviewIntensityImageBrightness" "on" "Brightness of the intensity picture"
+			Add-BadgeFor $fig "PreviewIntensityImageAutoBrightness" "on" "Auto brightness of the intensity picture"
+			Add-BadgeFor $fig "PreviewSplitter" "on" "Splitter between the pictures"
+			$handles = @($script:win.FindAll($TS::Descendants, (Cond "ControlTypeProperty" $CT::Thumb)) | Where-Object { $_.Current.AutomationId -like "Source:*" -or $_.Current.AutomationId -like "Part:*" -or $_.Current.AutomationId -like "Probe:*" -or $_.Current.AutomationId -like "ProbeBox:*" })
+			$kindsDone = @{}
+			foreach ($h in $handles) {
+				$kind = $h.Current.AutomationId.Split(":")[0]
+				if ($kindsDone.ContainsKey($kind)) { continue }
+				$kindsDone[$kind] = $true
+				$name = $h.Current.AutomationId.Substring($kind.Length + 1) -replace ":([AB])$", ', end $1'
+				$label = switch ($kind) { "Source" { "Source handle ($name)" } "Part" { "Part handle ($name)" } "Probe" { "Probe handle ($name)" } "ProbeBox" { "Probe graph box ($name)" } }
+				Add-Badge $fig (Rect $h) $(if ($kind -eq "ProbeBox") { "above" } else { "right" }) $label $h.Current.HelpText
+			}
+			Save-Figure $fig
 
-		# the timeline and the transport row
-		$capture = Capture-Window
-		$timeline = Rect (Find "PreviewTimeline"); $run = Rect (Find "PreviewRun"); $stacked = Rect (Find "PreviewStacked")
-		$fig = Crop-Figure "timeline" "The timeline with the playhead and the in and out points, and the transport controls." $capture ($run.Left - 6 * $Zoom) ($timeline.Top - 22 * $Zoom) ($stacked.Right + 6 * $Zoom) ($run.Bottom + 5 * $Zoom)
-		$capture.Bitmap.Dispose()
-		# the playhead and the brackets, placed by the bar's own mapping: a one-pixel inset at both ends, then
-		# frame × track width / maximum; the bar reports the playhead and the maximum through its range value and the
-		# in and out points through its item status
-		$bar = Find "PreviewTimeline"
-		$range = Pattern $bar "RangeValue"
-		$maximum = [math]::Max(1, $range.Current.Maximum)
-		$marks = New-Object System.Collections.ArrayList
-		$null = $marks.Add(@("Playhead: the position shown", $range.Current.Value))
-		if ($bar.Current.ItemStatus -match "^range (\d+)\.\.(\d+)$") { $null = $marks.Add(@("In point", [int]$Matches[1])); $null = $marks.Add(@("Out point", [int]$Matches[2])) }
-		else { Problem "the timeline reports no in/out range" }
-		foreach ($mark in $marks) {
-			$x = $timeline.Left + $Zoom + $mark[1] * ($timeline.Width - 2 * $Zoom) / $maximum
-			Add-Badge $fig (New-Object System.Windows.Rect(($x - $Zoom), $timeline.Top, (2 * $Zoom), $timeline.Height)) "above" $mark[0]
-		}
-		foreach ($pair in @(
-			@("PreviewRun", "Run the simulation"), @("PreviewPauseRun", "Pause the simulation"), @("PreviewPlay", "Play"), @("PreviewPause", "Pause"),
-			@("PreviewStepBack", "One frame back"), @("PreviewStepForward", "One frame forward"),
-			@("PreviewSetIn", "Set the in point"), @("PreviewSetOut", "Set the out point"), @("PreviewClearRange", "Clear the in and out points"),
-			@("PreviewLoop", "Loop"), @("PreviewLive", "Live: follow a running run"),
-			@("PreviewFrame", "Position: frame of frames"), @("PreviewStep", "Step of the position"),
-			@("PreviewSpeed", "Playback speed"), @("PreviewShowField", "Show the field"), @("PreviewShowIntensity", "Show the intensity"),
-			@("PreviewSideBySide", "Pictures side by side"), @("PreviewStacked", "Pictures stacked"))) {
-			Add-BadgeFor $fig $pair[0] "bottom" $pair[1]
-		}
-		Save-Figure $fig
+			# the timeline and the transport row
+			$capture = Capture-Window
+			$timeline = Rect (Find "PreviewTimeline"); $run = Rect (Find "PreviewRun"); $stacked = Rect (Find "PreviewStacked")
+			$fig = Crop-Figure "timeline" "The timeline with the playhead and the in and out points, and the transport controls." $capture ($run.Left - 6 * $Zoom) ($timeline.Top - 22 * $Zoom) ($stacked.Right + 6 * $Zoom) ($run.Bottom + 5 * $Zoom)
+			$capture.Bitmap.Dispose()
+			# the playhead and the brackets, placed by the bar's own mapping: a one-pixel inset at both ends, then
+			# frame × track width / maximum; the bar reports the playhead and the maximum through its range value and the
+			# in and out points through its item status
+			$bar = Find "PreviewTimeline"
+			$range = Pattern $bar "RangeValue"
+			$maximum = [math]::Max(1, $range.Current.Maximum)
+			$marks = New-Object System.Collections.ArrayList
+			$null = $marks.Add(@("Playhead: the position shown", $range.Current.Value))
+			if ($bar.Current.ItemStatus -match "^range (\d+)\.\.(\d+)$") { $null = $marks.Add(@("In point", [int]$Matches[1])); $null = $marks.Add(@("Out point", [int]$Matches[2])) }
+			else { Problem "the timeline reports no in/out range" }
+			foreach ($mark in $marks) {
+				$x = $timeline.Left + $Zoom + $mark[1] * ($timeline.Width - 2 * $Zoom) / $maximum
+				Add-Badge $fig (New-Object System.Windows.Rect(($x - $Zoom), $timeline.Top, (2 * $Zoom), $timeline.Height)) "above" $mark[0]
+			}
+			foreach ($pair in @(
+				@("PreviewRun", "Run the simulation"), @("PreviewPauseRun", "Pause the simulation"), @("PreviewPlay", "Play"), @("PreviewPause", "Pause"),
+				@("PreviewStepBack", "One frame back"), @("PreviewStepForward", "One frame forward"),
+				@("PreviewSetIn", "Set the in point"), @("PreviewSetOut", "Set the out point"), @("PreviewClearRange", "Clear the in and out points"),
+				@("PreviewLoop", "Loop"), @("PreviewLive", "Live: follow a running run"),
+				@("PreviewFrame", "Position: frame of frames"), @("PreviewStep", "Step of the position"),
+				@("PreviewSpeed", "Playback speed"), @("PreviewShowField", "Show the field"), @("PreviewShowIntensity", "Show the intensity"),
+				@("PreviewSideBySide", "Pictures side by side"), @("PreviewStacked", "Pictures stacked"))) {
+				Add-BadgeFor $fig $pair[0] "bottom" $pair[1]
+			}
+			Save-Figure $fig
 
-		# the menus
-		$menuNames = "File", "Edit", "View", "Simulation", "Help"
-		for ($m = 0; $m -lt $menuNames.Count; $m++) {
-			Open-Menu $m
-			Menu-Figure ("menu-" + $menuNames[$m].ToLower()) ("The " + $menuNames[$m] + " menu.")
+			# the menus
+			$menuNames = "File", "Edit", "View", "Simulation", "Help"
+			for ($m = 0; $m -lt $menuNames.Count; $m++) {
+				Open-Menu $m
+				Menu-Figure ("menu-" + $menuNames[$m].ToLower()) ("The " + $menuNames[$m] + " menu.")
+				Close-Menus
+			}
+			Open-Menu 0
+			for ($i = 0; $i -lt 12 -and (PopupFocusedId) -ne "MenuExport"; $i++) { Key $VK_DOWN 120 }
+			if ((PopupFocusedId) -eq "MenuExport") {
+				Key $VK_RIGHT 400
+				Menu-Figure "menu-file-export" "The File > Export submenu."
+			}
+			else { Problem "the Export entry of the File menu was not reached" }
+			Close-Menus
+			Open-Menu 0
+			for ($i = 0; $i -lt 12 -and (PopupFocusedId) -ne "MenuExamples"; $i++) { Key $VK_DOWN 120 }
+			if ((PopupFocusedId) -eq "MenuExamples") {
+				Key $VK_RIGHT 400
+				# each entry's description is its project's Description element (the entries have no tooltip)
+				Menu-Figure "menu-file-examples" "The File > Examples submenu: the shipped example projects." { param($item) Example-Description $item.Current.Name }
+			}
+			else { Problem "the Examples entry of the File menu was not reached" }
+			Close-Menus
+
+			# the Add probe menu of the tree's toolbar (2026-11-07): a standard probe, and the detectors in a submenu
+			FocusOn "ToolAddProbe"
+			Key $VK_SPACE 400
+			if (WaitFor { (Menu-Popups).Count -gt 0 } 1500 100) {
+				Menu-Figure "menu-add-probe" "The Add probe menu of the project tree: a standard probe, or a probabilistic detector."
+				for ($i = 0; $i -lt 4 -and (PopupFocusedId) -ne "AddProbe:Probabilistic"; $i++) { Key $VK_DOWN 120 }
+				if ((PopupFocusedId) -eq "AddProbe:Probabilistic") {
+					Key $VK_RIGHT 400
+					Menu-Figure "menu-add-probe-probabilistic" "The Probabilistic submenu of the Add probe menu: the detectors."
+				}
+				else { Problem "the Probabilistic entry of the Add probe menu was not reached" }
+			}
+			else { Problem "the Add probe menu did not open" }
+			Close-Menus
+
+			# the Add part menu of the tree's toolbar: the kinds, each entry's tooltip its description; Space on the button
+			# runs its command, which opens the menu under the button as a click does (the Apps key would centre it on the
+			# button, above the window's top), Down then walks its entries
+			FocusOn "ToolAddPart"
+			Key $VK_SPACE 400
+			if (WaitFor { (Menu-Popups).Count -gt 0 } 1500 100) {
+				Menu-Figure "menu-add-part" "The Add part menu of the project tree: the kinds of optical parts."
+				# the gratings submenu on the way down (2026-11-07), Left closes it again
+				for ($i = 0; $i -lt 16 -and (PopupFocusedId) -ne "AddPart:DiffractionGratings"; $i++) { Key $VK_DOWN 120 }
+				if ((PopupFocusedId) -eq "AddPart:DiffractionGratings") {
+					Key $VK_RIGHT 400
+					Menu-Figure "menu-add-part-gratings" "The Diffraction gratings submenu of the Add part menu."
+					Key $VK_LEFT 400
+				}
+				else { Problem "the Diffraction gratings entry of the Add part menu was not reached" }
+				# the meta surfaces submenu below it (2026-11-08)
+				for ($i = 0; $i -lt 16 -and (PopupFocusedId) -ne "AddPart:MetaSurfaces"; $i++) { Key $VK_DOWN 120 }
+				if ((PopupFocusedId) -eq "AddPart:MetaSurfaces") {
+					Key $VK_RIGHT 400
+					Menu-Figure "menu-add-part-metasurfaces" "The Meta surfaces submenu of the Add part menu."
+					Key $VK_LEFT 400
+				}
+				else { Problem "the Meta surfaces entry of the Add part menu was not reached" }
+				for ($i = 0; $i -lt 16 -and (PopupFocusedId) -ne "AddPart:OpticalLogic"; $i++) { Key $VK_DOWN 120 }
+				if ((PopupFocusedId) -eq "AddPart:OpticalLogic") {
+					Key $VK_RIGHT 400
+					Menu-Figure "menu-add-part-logic" "The Optical logic submenu of the Add part menu: the gates."
+				}
+				else { Problem "the Optical logic entry of the Add part menu was not reached" }
+			}
+			else { Problem "the Add part menu did not open" }
 			Close-Menus
 		}
-		Open-Menu 0
-		for ($i = 0; $i -lt 12 -and (PopupFocusedId) -ne "MenuExport"; $i++) { Key $VK_DOWN 120 }
-		if ((PopupFocusedId) -eq "MenuExport") {
-			Key $VK_RIGHT 400
-			Menu-Figure "menu-file-export" "The File > Export submenu."
-		}
-		else { Problem "the Export entry of the File menu was not reached" }
-		Close-Menus
-		Open-Menu 0
-		for ($i = 0; $i -lt 12 -and (PopupFocusedId) -ne "MenuExamples"; $i++) { Key $VK_DOWN 120 }
-		if ((PopupFocusedId) -eq "MenuExamples") {
-			Key $VK_RIGHT 400
-			# each entry's description is its project's Description element (the entries have no tooltip)
-			Menu-Figure "menu-file-examples" "The File > Examples submenu: the shipped example projects." { param($item) Example-Description $item.Current.Name }
-		}
-		else { Problem "the Examples entry of the File menu was not reached" }
-		Close-Menus
-
-		# the Add probe menu of the tree's toolbar (2026-11-07): a standard probe, and the detectors in a submenu
-		FocusOn "ToolAddProbe"
-		Key $VK_SPACE 400
-		if (WaitFor { (Menu-Popups).Count -gt 0 } 1500 100) {
-			Menu-Figure "menu-add-probe" "The Add probe menu of the project tree: a standard probe, or a probabilistic detector."
-			for ($i = 0; $i -lt 4 -and (PopupFocusedId) -ne "AddProbe:Probabilistic"; $i++) { Key $VK_DOWN 120 }
-			if ((PopupFocusedId) -eq "AddProbe:Probabilistic") {
-				Key $VK_RIGHT 400
-				Menu-Figure "menu-add-probe-probabilistic" "The Probabilistic submenu of the Add probe menu: the detectors."
-			}
-			else { Problem "the Probabilistic entry of the Add probe menu was not reached" }
-		}
-		else { Problem "the Add probe menu did not open" }
-		Close-Menus
-
-		# the Add part menu of the tree's toolbar: the kinds, each entry's tooltip its description; Space on the button
-		# runs its command, which opens the menu under the button as a click does (the Apps key would centre it on the
-		# button, above the window's top), Down then walks its entries
-		FocusOn "ToolAddPart"
-		Key $VK_SPACE 400
-		if (WaitFor { (Menu-Popups).Count -gt 0 } 1500 100) {
-			Menu-Figure "menu-add-part" "The Add part menu of the project tree: the kinds of optical parts."
-			# the gratings submenu on the way down (2026-11-07), Left closes it again
-			for ($i = 0; $i -lt 16 -and (PopupFocusedId) -ne "AddPart:DiffractionGratings"; $i++) { Key $VK_DOWN 120 }
-			if ((PopupFocusedId) -eq "AddPart:DiffractionGratings") {
-				Key $VK_RIGHT 400
-				Menu-Figure "menu-add-part-gratings" "The Diffraction gratings submenu of the Add part menu."
-				Key $VK_LEFT 400
-			}
-			else { Problem "the Diffraction gratings entry of the Add part menu was not reached" }
-			# the meta surfaces submenu below it (2026-11-08)
-			for ($i = 0; $i -lt 16 -and (PopupFocusedId) -ne "AddPart:MetaSurfaces"; $i++) { Key $VK_DOWN 120 }
-			if ((PopupFocusedId) -eq "AddPart:MetaSurfaces") {
-				Key $VK_RIGHT 400
-				Menu-Figure "menu-add-part-metasurfaces" "The Meta surfaces submenu of the Add part menu."
-				Key $VK_LEFT 400
-			}
-			else { Problem "the Meta surfaces entry of the Add part menu was not reached" }
-			for ($i = 0; $i -lt 16 -and (PopupFocusedId) -ne "AddPart:OpticalLogic"; $i++) { Key $VK_DOWN 120 }
-			if ((PopupFocusedId) -eq "AddPart:OpticalLogic") {
-				Key $VK_RIGHT 400
-				Menu-Figure "menu-add-part-logic" "The Optical logic submenu of the Add part menu: the gates."
-			}
-			else { Problem "the Optical logic entry of the Add part menu was not reached" }
-		}
-		else { Problem "the Add part menu did not open" }
-		Close-Menus
+		finally { Stop-App }
 	}
-	finally { Stop-App }
 
 	# ----- session 2: one object of every kind, a short tree, the properties pane at full height ------------------
-	Restore-Settings
-	Set-FigureSettings 140 1172 1400
-	Start-Inactive (Join-Path $PSScriptRoot "figures.wdproj")
-	try {
-		$tree = (ByType $script:win "Tree")[0]
-		$ids = @(ByType $tree "TreeItem" | ForEach-Object { $_.Current.AutomationId })
-		Write-Output ("tree rows: " + ($ids -join ", "))
-		# tree row, figure name, title, extras (element key and label, badges in the right gutter)
-		foreach ($spec in @(
-			@("Tree:Project", "properties-project", "The project's own properties.", @(, @("ProjectNewSeed", "New seed: a fresh random seed"))),
-			@("Tree:Scene", "properties-scene", "The Scene form (an image scene).", @(, @("SceneBrowse", "The image buttons: the dots pick an image file, the save glyph writes the embedded image out, the X drops it"))),
-			@("Tree:Simulation", "properties-simulation", "The Simulation form.", @()),
-			@("Tree:Display", "properties-display", "The Display form.", @()),
-			@("Tree:Source 1", "properties-source", "A point source.", @()),
-			@("Tree:Source 2", "properties-composite-source", "A composite (array) source, pulsed.", @()),
-			@("Tree:Lens*", "properties-lens", (En-String "Kind.LensPart"), @()),
-			@("Tree:Fresnel*", "properties-fresnel-lens", (En-String "Kind.FresnelLensPart"), @()),
-			@("Tree:Polygon*", "properties-polygon", (En-String "Kind.PolygonPart"), @()),
-			@("Tree:Rectangle*", "properties-rectangle", (En-String "Kind.RectanglePart"), @(, @("PartLinked", "Linked: the chain keeps the width equal to the length"))),
-			@("Tree:Ellipse*", "properties-ellipse", (En-String "Kind.EllipsePart"), @(, @("PartLinked", "Linked: the chain keeps the width equal to the length"))),
-			@("Tree:Triangle*", "properties-triangle", (En-String "Kind.TrianglePart"), @()),
-			@("Tree:Outline*", "properties-outline", (En-String "Kind.OutlinePart"), @(@("key:TipRemovePoint", "A point: X, Y, remove"), @("PartAddPoint", "Add a point"))),
-			@("Tree:Fib*", "properties-fibre", (En-String "Kind.FiberPart"), @(@("key:TipRemoveNode", "Per node: smooth, remove"), @("PartAddNode", "Add a node"))),
-			@("Tree:Bragg*", "properties-bragg-reflector", (En-String "Kind.BraggReflectorPart"), @()),
-			@("Tree:GRIN*", "properties-grin-lens", (En-String "Kind.GrinLensPart"), @()),
-			@("Tree:XOR*", "properties-xor-gate", (En-String "Kind.XorGatePart"), @()),
-			@("Tree:AND*", "properties-and-gate", (En-String "Kind.AndGatePart"), @()),
-			@("Tree:OR *", "properties-or-gate", (En-String "Kind.OrGatePart"), @()),
-			@("Tree:Zone*", "properties-zone-plate", (En-String "Kind.ZonePlatePart"), @()),
-			@("Tree:Diffuser*", "properties-diffuser", (En-String "Kind.DiffuserPart"), @()),
-			@("Tree:Interference*", "properties-interference-filter", (En-String "Kind.InterferenceFilterPart"), @(@("key:TipRemoveLayer", "Per layer: grip, number, thickness, index, up, down, remove"), @("PartAddLayer", "Add a layer"), @("PartRemoveAllLayers", "Remove all layers"))),
-			@("Tree:Grating*", "properties-simple-grating", (En-String "Kind.SimpleGratingPart"), @()),
-			@("Tree:Facetted*", "properties-facetted-grating", (En-String "Kind.FacettedGratingPart"), @()),
-			@("Tree:Meta lens*", "properties-meta-lens", (En-String "Kind.MetaLensPart"), @()),
-			@("Tree:Meta prism*", "properties-meta-prism", (En-String "Kind.MetaPrismPart"), @()),
-			@("Tree:Meta axicon*", "properties-meta-axicon", (En-String "Kind.MetaAxiconPart"), @()),
-			@("Tree:Probe 1", "properties-probe", "A point probe of the field.", @()),
-			@("Tree:Probe 2", "properties-line-probe", "A line probe of the intensity, logarithmic.", @()),
-			@("Tree:Detector 1", "properties-counting-detector", "A counting detector: the detections of its line, step by step.", @()),
-			@("Tree:Detector 2", "properties-imaging-detector", "An imaging detector: the detections along its line, added up.", @()),
-			@("Tree:Scheme*", "properties-colour-scheme", "A colour scheme of the project.", @(@("StopSwatch:0", "A stop: position, colour swatch (opens the picker), hex value, remove"), @("SchemeAddStop", "Add a stop"))))) {
-			$id = @($ids | Where-Object { $_ -like $spec[0] })
-			if ($id.Count -eq 0) { Problem ("no tree row matches '{0}'" -f $spec[0]); continue }
-			Select-TreeRow $id[0]
-			Properties-Figure $spec[1] $spec[2] $spec[3]
+	if ($secondSession) {
+		Restore-Settings
+		Set-FigureSettings 140 1172 1400
+		Start-Inactive (Join-Path $PSScriptRoot "figures.wdproj")
+		try {
+			$tree = (ByType $script:win "Tree")[0]
+			$ids = @(ByType $tree "TreeItem" | ForEach-Object { $_.Current.AutomationId })
+			Write-Output ("tree rows: " + ($ids -join ", "))
+			# tree row, figure name, title, extras (element key and label, badges in the right gutter)
+			foreach ($spec in @(
+				@("Tree:Project", "properties-project", "The project's own properties.", @(, @("ProjectNewSeed", "New seed: a fresh random seed"))),
+				@("Tree:Scene", "properties-scene", "The Scene form (an image scene).", @(, @("SceneBrowse", "The image buttons: the dots pick an image file, the save glyph writes the embedded image out, the X drops it"))),
+				@("Tree:Simulation", "properties-simulation", "The Simulation form.", @()),
+				@("Tree:Display", "properties-display", "The Display form.", @()),
+				@("Tree:Source 1", "properties-source", "A point source.", @()),
+				@("Tree:Source 2", "properties-composite-source", "A composite (array) source, pulsed.", @()),
+				@("Tree:Lens*", "properties-lens", (En-String "Kind.LensPart"), @()),
+				@("Tree:Fresnel*", "properties-fresnel-lens", (En-String "Kind.FresnelLensPart"), @()),
+				@("Tree:Polygon*", "properties-polygon", (En-String "Kind.PolygonPart"), @()),
+				@("Tree:Rectangle*", "properties-rectangle", (En-String "Kind.RectanglePart"), @(, @("PartLinked", "Linked: the chain keeps the width equal to the length"))),
+				@("Tree:Ellipse*", "properties-ellipse", (En-String "Kind.EllipsePart"), @(, @("PartLinked", "Linked: the chain keeps the width equal to the length"))),
+				@("Tree:Triangle*", "properties-triangle", (En-String "Kind.TrianglePart"), @()),
+				@("Tree:Outline*", "properties-outline", (En-String "Kind.OutlinePart"), @(@("key:TipRemovePoint", "A point: X, Y, remove"), @("PartAddPoint", "Add a point"))),
+				@("Tree:Fib*", "properties-fibre", (En-String "Kind.FiberPart"), @(@("key:TipRemoveNode", "Per node: smooth, remove"), @("PartAddNode", "Add a node"))),
+				@("Tree:Bragg*", "properties-bragg-reflector", (En-String "Kind.BraggReflectorPart"), @()),
+				@("Tree:GRIN*", "properties-grin-lens", (En-String "Kind.GrinLensPart"), @()),
+				@("Tree:XOR*", "properties-xor-gate", (En-String "Kind.XorGatePart"), @()),
+				@("Tree:AND*", "properties-and-gate", (En-String "Kind.AndGatePart"), @()),
+				@("Tree:OR *", "properties-or-gate", (En-String "Kind.OrGatePart"), @()),
+				@("Tree:Zone*", "properties-zone-plate", (En-String "Kind.ZonePlatePart"), @()),
+				@("Tree:Diffuser*", "properties-diffuser", (En-String "Kind.DiffuserPart"), @()),
+				@("Tree:Interference*", "properties-interference-filter", (En-String "Kind.InterferenceFilterPart"), @(@("key:TipRemoveLayer", "Per layer: grip, number, thickness, index, up, down, remove"), @("PartAddLayer", "Add a layer"), @("PartRemoveAllLayers", "Remove all layers"))),
+				@("Tree:Grating*", "properties-simple-grating", (En-String "Kind.SimpleGratingPart"), @()),
+				@("Tree:Facetted*", "properties-facetted-grating", (En-String "Kind.FacettedGratingPart"), @()),
+				@("Tree:Meta lens*", "properties-meta-lens", (En-String "Kind.MetaLensPart"), @()),
+				@("Tree:Meta prism*", "properties-meta-prism", (En-String "Kind.MetaPrismPart"), @()),
+				@("Tree:Meta axicon*", "properties-meta-axicon", (En-String "Kind.MetaAxiconPart"), @()),
+				@("Tree:Probe 1", "properties-probe", "A point probe of the field.", @()),
+				@("Tree:Probe 2", "properties-line-probe", "A line probe of the intensity, logarithmic.", @()),
+				@("Tree:Detector 1", "properties-counting-detector", "A counting detector: the detections of its line, step by step.", @()),
+				@("Tree:Detector 2", "properties-imaging-detector", "An imaging detector: the detections along its line, added up.", @()),
+				@("Tree:Scheme*", "properties-colour-scheme", "A colour scheme of the project.", @(@("SchemeGradient", "The gradient, with a marker under each stop"), @("StopSwatch:0", "A stop: position, colour swatch (opens the picker), hex value, remove"), @("SchemeAddStop", "Add a stop"))))) {
+				if (-not (Wanted $spec[1])) { continue }
+				$id = @($ids | Where-Object { $_ -like $spec[0] })
+				if ($id.Count -eq 0) { Problem ("no tree row matches '{0}'" -f $spec[0]); continue }
+				Select-TreeRow $id[0]
+				Properties-Figure $spec[1] $spec[2] $spec[3]
+			}
+			# two crops of the rectangle's form (2026-10-30, the user's request), for the manual's sections on the settings
+			# several forms share: the top of the form down to the Angle row, the badges 1 to 6 of every part's figure; the
+			# Material section, the badges 7 to 15 of the shape figures
+			$rectangle = @($ids | Where-Object { $_ -like "Tree:Rectangle*" })
+			$crops = (Wanted "properties-part-common") -or (Wanted "properties-part-material")
+			if ($crops -and $rectangle.Count -gt 0) {
+				Select-TreeRow $rectangle[0]
+				Properties-Figure "properties-part-common" "The settings every part shares: the top of every part's form, here the rectangle's." @() "" (En-String "Label.OpticalPart.Angle")
+				Properties-Figure "properties-part-material" "The glass and mirror settings: the Material section of a shape's form, here the rectangle's." @() (En-String "Label.ShapePart.Mirror") (En-String "Label.ShapePart.AbsorptionRamp") "SectionMaterial" 7
+			}
+			elseif ($crops) { Problem "no tree row matches 'Tree:Rectangle*' for the crops" }
 		}
-		# two crops of the rectangle's form (2026-10-30, the user's request), for the manual's sections on the settings
-		# several forms share: the top of the form down to the Angle row, the badges 1 to 6 of every part's figure; the
-		# Material section, the badges 7 to 15 of the shape figures
-		$rectangle = @($ids | Where-Object { $_ -like "Tree:Rectangle*" })
-		if ($rectangle.Count -gt 0) {
-			Select-TreeRow $rectangle[0]
-			Properties-Figure "properties-part-common" "The settings every part shares: the top of every part's form, here the rectangle's." @() "" (En-String "Label.OpticalPart.Angle")
-			Properties-Figure "properties-part-material" "The glass and mirror settings: the Material section of a shape's form, here the rectangle's." @() (En-String "Label.ShapePart.Mirror") (En-String "Label.ShapePart.AbsorptionRamp") "SectionMaterial" 7
-		}
-		else { Problem "no tree row matches 'Tree:Rectangle*' for the crops" }
+		finally { Stop-App }
 	}
-	finally { Stop-App }
 }
 finally {
 	Restore-Pointer
 	Restore-Settings
-	[IO.File]::WriteAllText((Join-Path $Out "Legend.md"), $script:legend.ToString())
+	$legendPath = Join-Path $Out "Legend.md"
+	$legendText = $script:legend.ToString()
+	if ($Only.Count -gt 0 -and (Test-Path $legendPath)) {
+		# a section runs from its "## " heading to the next; the sections of the figures made now take the place of
+		# theirs, a new figure's section goes to the end, every other byte of the file stays
+		$made = @{}
+		foreach ($section in @([regex]::Split($legendText, "(?m)(?=^## )") | Select-Object -Skip 1)) { $made[($section -split "\r?\n")[0]] = $section }
+		$kept = New-Object System.Text.StringBuilder
+		foreach ($section in [regex]::Split([IO.File]::ReadAllText($legendPath), "(?m)(?=^## )")) {
+			$heading = ($section -split "\r?\n")[0]
+			if ($made.ContainsKey($heading)) { $null = $kept.Append($made[$heading]); $made.Remove($heading) }
+			else { $null = $kept.Append($section) }
+		}
+		foreach ($heading in $made.Keys) { $null = $kept.Append($made[$heading]) }
+		$legendText = $kept.ToString()
+	}
+	[IO.File]::WriteAllText($legendPath, $legendText)
 }
+foreach ($name in $Only) { if (-not $script:written.Contains($name)) { Problem ("figure '{0}' was asked for and not made" -f $name) } }
 Write-Output ("{0} figures written to {1}; {2} problems" -f $script:figureCount, (Resolve-Path $Out), $script:problems)

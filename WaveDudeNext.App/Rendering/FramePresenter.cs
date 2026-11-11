@@ -62,6 +62,14 @@ public sealed class FramePresenter
 	private readonly (int Width, int Height)[] _targets = new (int, int)[2];
 	/// <summary>The screen renderer of each layer, kept while the sizes stay; the render thread's alone.</summary>
 	private readonly ScreenRenderer?[] _screens = new ScreenRenderer?[2];
+	/// <summary>
+	/// The plane read from the source, as halves or as palette indices, and each layer's rendered pixels: kept from one
+	/// job to the next while their sizes fit, made anew for another size, let go when there is nothing to show. The
+	/// render loop's alone (one frame is rendered at a time).
+	/// </summary>
+	private Half[]? _halves;
+	private byte[]? _indices;
+	private readonly int[]?[] _pixels = new int[]?[2];
 	private int _ditherBits;
 	private (int Width, int Height) _shownSize;
 	private IFrameSource? _source;
@@ -92,7 +100,12 @@ public sealed class FramePresenter
 		public bool Enabled { get; init; } = true;
 	}
 
-	/// <summary>An immutable snapshot of everything one render needs, replaced wholesale on every change.</summary>
+	/// <summary>
+	/// An immutable snapshot of everything one render needs, replaced wholesale on every change. It holds no buffers
+	/// (2026-11-11, with the WPF head, after the user's report of a stuttering drag of a colour stop: every change of a
+	/// layer's colours made a job with a plane of its own, megabytes a mouse move and a full garbage collection every
+	/// few moves); the buffers are the presenter's, see <see cref="_halves"/>.
+	/// </summary>
 	private sealed class Job(IFrameSource source, WriteableBitmap? field, WriteableBitmap? intensity, LayerSettings[] settings, (int Width, int Height)[] targets, int ditherBits)
 	{
 		public IFrameSource Source { get; } = source;
@@ -103,12 +116,8 @@ public sealed class FramePresenter
 		public (int Width, int Height)[] Sizes { get; } = [.. targets.Select(target =>
 			source.Format == FrameFormat.Half && target.Width > 0 && target.Height > 0 ? target : (source.Width, source.Height))];
 		public int DitherBits { get; } = ditherBits;
-		/// <summary>The plane read from the source as halves (a <see cref="FrameFormat.Half"/> source), else null.</summary>
-		public Half[]? Halves { get; } = source.Format == FrameFormat.Half ? new Half[source.Width * source.Height] : null;
-		/// <summary>The plane read from the source as palette indices (a <see cref="FrameFormat.Index"/> source), else null.</summary>
-		public byte[]? Indices { get; } = source.Format == FrameFormat.Index ? new byte[source.Width * source.Height] : null;
-		/// <summary>Each layer's rendered pixels, made on first use by the render thread.</summary>
-		public int[]?[] Pixels { get; } = new int[]?[2];
+		/// <summary>Whether the source's planes are palette indices (a <see cref="FrameFormat.Index"/> source), else 16-bit samples.</summary>
+		public bool Indexed { get; } = source.Format == FrameFormat.Index;
 	}
 
 	/// <summary>
@@ -205,7 +214,14 @@ public sealed class FramePresenter
 	/// <param name="enabled">False leaves the bitmap untouched (the picture is hidden anyway).</param>
 	public void SetLayer(FrameLayer layer, ColorLut lut, float brightness, bool enabled)
 	{
-		_settings[(int)layer] = new LayerSettings { Lut = lut, Brightness = brightness, Enabled = enabled };
+		var settings = new LayerSettings { Lut = lut, Brightness = brightness, Enabled = enabled };
+		if (settings == _settings[(int)layer])
+		{
+			// the same table, brightness and visibility: nothing to draw again (a scheme edit asks for both layers'
+			// colours, and the layer that does not use the scheme gets the table it has)
+			return;
+		}
+		_settings[(int)layer] = settings;
 		Rebuild();
 	}
 
@@ -288,6 +304,13 @@ public sealed class FramePresenter
 				{
 					await RenderOne(job, frame).ConfigureAwait(false);
 				}
+				else
+				{
+					// nothing to show: the buffers go with the source
+					_halves = null;
+					_indices = null;
+					_pixels[0] = _pixels[1] = null;
+				}
 				Volatile.Write(ref _busy, 0);
 				if (Volatile.Read(ref _version) == version || Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
 				{
@@ -323,6 +346,8 @@ public sealed class FramePresenter
 		}
 		int width = job.Source.Width;
 		int height = job.Source.Height;
+		Half[]? halves = job.Indexed ? null : _halves?.Length == width * height ? _halves : _halves = new Half[width * height];
+		byte[]? indices = !job.Indexed ? null : _indices?.Length == width * height ? _indices : _indices = new byte[width * height];
 		Logger.Trace("Presenter render: frame {Frame} of {Source} (job {Job})", frame, job.Source.GetType().Name, job.GetHashCode());
 		double renderBefore = _renderClock.Elapsed.TotalMilliseconds;
 		_renderClock.Start();
@@ -332,26 +357,26 @@ public sealed class FramePresenter
 			foreach (FrameLayer layer in Layers)
 			{
 				LayerSettings settings = job.Settings[(int)layer];
-				if (!settings.Enabled || !job.Source.Has(layer) || (job.Indices != null && job.Bitmaps[(int)layer] == null))
+				if (!settings.Enabled || !job.Source.Has(layer) || (job.Indexed && job.Bitmaps[(int)layer] == null))
 				{
 					continue;
 				}
-				bool copied = job.Indices != null ? job.Source.CopyLayer(frame, layer, job.Indices.AsSpan()) : job.Source.CopyLayer(frame, layer, job.Halves.AsSpan());
+				bool copied = indices != null ? job.Source.CopyLayer(frame, layer, indices.AsSpan()) : job.Source.CopyLayer(frame, layer, halves.AsSpan());
 				if (!copied)
 				{
 					continue;
 				}
 				(int outWidth, int outHeight) = job.Sizes[(int)layer];
-				int[] pixels = job.Pixels[(int)layer] ??= new int[outWidth * outHeight];
-				if (job.Indices != null)
+				int[] pixels = _pixels[(int)layer]?.Length == outWidth * outHeight ? _pixels[(int)layer]! : _pixels[(int)layer] = new int[outWidth * outHeight];
+				if (indices != null)
 				{
 					// palette indices: the brightness was applied when the frame was captured, only the palette is looked up
-					FrameRenderer.RenderIndexed(job.Indices, width, height, settings.Lut, pixels);
+					FrameRenderer.RenderIndexed(indices, width, height, settings.Lut, pixels);
 				}
 				else
 				{
 					// 16-bit samples: resampled to the picture's size on screen, every level of the gradient, dithered if chosen
-					Screen(layer, width, height, outWidth, outHeight).Render(job.Halves, settings.Lut, job.Source.KindOf(layer), settings.Brightness, job.DitherBits, pixels);
+					Screen(layer, width, height, outWidth, outHeight).Render(halves, settings.Lut, job.Source.KindOf(layer), settings.Brightness, job.DitherBits, pixels);
 				}
 				_shownSize = (outWidth, outHeight);
 				// the UI thread picks the bitmap: a 16-bit picture of another size is made there and shown once written; the
@@ -396,9 +421,9 @@ public sealed class FramePresenter
 	/// <summary>UI thread: the bitmap a layer is written into, made anew for a 16-bit picture of another size; the pool thread locks it for the copy alone.</summary>
 	private (WriteableBitmap? Bitmap, bool IsNew) TargetBitmap(Job job, FrameLayer layer, int outWidth, int outHeight)
 	{
-		WriteableBitmap? target = job.Indices != null ? job.Bitmaps[(int)layer] : layer == FrameLayer.Field ? FieldBitmap : IntensityBitmap;
+		WriteableBitmap? target = job.Indexed ? job.Bitmaps[(int)layer] : layer == FrameLayer.Field ? FieldBitmap : IntensityBitmap;
 		bool fresh = false;
-		if (job.Indices == null && (target == null || target.PixelSize.Width != outWidth || target.PixelSize.Height != outHeight))
+		if (!job.Indexed && (target == null || target.PixelSize.Width != outWidth || target.PixelSize.Height != outHeight))
 		{
 			target = NewBitmap(outWidth, outHeight);
 			fresh = true;

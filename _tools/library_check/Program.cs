@@ -2564,6 +2564,25 @@ internal static class Program
 				"stops at any position interpolate between their neighbours (0, 0.25, 1), a stop's own position gives its colour, the 255-entry sampling the same");
 			ColorStop added = uneven.AddStop();
 			Check(uneven.Stops.Count == 4 && Math.Abs(added.Position - 0.625) < 1e-9 && uneven.Stops.IndexOf(added) == 2, "AddStop fills the widest gap, in position order");
+			// the editor's gradient bar (2026-11-11): a click on the gradient adds a stop there in the gradient's colour, a
+			// dragged marker changes places with the neighbours it passes; the stops are 0, 0.25, 0.625 and 1 here
+			Rgb[] before = ColorScheme.Interpolate(uneven.Stops, 255);
+			ColorStop clicked = uneven.AddStop(0.125);
+			// the new stop's colour is the gradient's rounded to a level, so the gradient beside it moves by a level at most
+			bool sameLook = ColorScheme.Interpolate(uneven.Stops, 255).Zip(before).All(pair =>
+				Math.Abs(pair.First.R - pair.Second.R) <= 1 && Math.Abs(pair.First.G - pair.Second.G) <= 1 && Math.Abs(pair.First.B - pair.Second.B) <= 1);
+			Check(uneven.Stops.IndexOf(clicked) == 1 && clicked.Position == 0.125 && clicked.Color == new Rgb(128, 128, 128) && sameLook
+				&& uneven.AddStop(7.0).Position == 1.0 && uneven.Stops.Count == 6 && uneven.RemoveStop(uneven.Stops[^1]),
+				"AddStop at a position takes the gradient's colour there, in position order, the gradient within a level of what it was; a position beyond the end is the end");
+			int raised = 0;
+			uneven.PropertyChanged += (_, e) => raised += e.PropertyName == nameof(ColorScheme.Stops) ? 1 : 0;
+			bool passed = uneven.MoveStop(clicked, 0.7) && uneven.Stops.IndexOf(clicked) == 3 && clicked.Position == 0.7 && raised == 1;
+			bool reached = uneven.MoveStop(clicked, 0.25) && uneven.Stops.IndexOf(clicked) == 2 && uneven.Stops[1].Position == 0.25 && raised == 2;
+			bool clamped = uneven.MoveStop(clicked, 1.5) && uneven.Stops.IndexOf(clicked) == 3 && clicked.Position == 1.0 && uneven.Stops[4].Position == 1.0 && raised == 3;
+			bool back0 = uneven.MoveStop(clicked, -1.0) && uneven.Stops.IndexOf(clicked) == 1 && clicked.Position == 0.0 && uneven.Stops[0].Position == 0.0 && raised == 4;
+			bool still = uneven.MoveStop(clicked, 0.0) && raised == 4 && !uneven.MoveStop(new ColorStop(0.5, new Rgb(1, 2, 3)), 0.5) && uneven.Stops.Count == 5;
+			Check(passed && reached && clamped && back0 && still && uneven.Stops.Zip(uneven.Stops.Skip(1)).All(pair => pair.First.Position <= pair.Second.Position),
+				$"MoveStop changes places with the neighbours a stop passes, stays on its side of one it only reaches, clamps to 0..1 and raises Stops once a move (passed {passed}, reached {reached}, clamped {clamped}, back {back0}, still {still}, raised {raised})");
 			bool hsvRoundTrip = true;
 			for (int r = 0; r < 256; r += 5)
 			{

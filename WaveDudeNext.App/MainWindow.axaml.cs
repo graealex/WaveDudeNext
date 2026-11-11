@@ -70,6 +70,8 @@ public partial class MainWindow : Window
 		_clipboard = new ObjectClipboard(Document, Selection, _items, new AvaloniaClipboard(this));
 		_history = new UndoHistory(Document, Selection);
 		_history.PropertyChanged += (_, _) => Commands.Requery();
+		// a step written back by Undo or Redo: the colours of the project as it is now (see OnProjectChanged)
+		_history.Restored += (_, _) => Preview.RefreshColors();
 		// the run's progress lands on the UI thread at Loaded priority, as in the WPF head (2026-11-04): ahead of queued input
 		RunHost = new RunHost(Document, SceneComposer, new AvaloniaMemoryWarning(this), new AvaloniaSynchronizationContext(DispatcherPriority.Loaded));
 		RunHost.PropertyChanged += (_, args) =>

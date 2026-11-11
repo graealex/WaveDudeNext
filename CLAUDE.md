@@ -553,6 +553,47 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   never picked (`has_position` false) stays enabled at its x/y, since his program simulated it there (Example 11's
   lattice came in disabled and ran black until 2026-10-16).
   **Languages**: four string tables, live switch; converter output needs the language as an extra binding input.
+- **The scheme form's gradient has a marker under each stop** (2026-11-11, the user's request: the gradient editor of a
+  contributed port replicated, `C:\Work\WaveDudeNext-PRs\WaveDudeRust`, `crates/wavedude-widgets/src/gradient_editor.rs`):
+  `GradientBar` in both heads, where the gradient's rectangle stood. A triangle in the stop's colour points at the stop's
+  place; dragged, it moves the stop, which changes places with the stops it passes, the rows following
+  (`ColorScheme.MoveStop`: the list stays in position order, `Stops` is raised once a move); a press on the gradient adds
+  a stop there in the gradient's colour and drags it on (`AddStop(position)`); a press that does not move the pointer
+  selects the marker and changes nothing. The bar is one tab stop: Left and Right move the selected stop by 0.01, by 0.1
+  with Shift, Page Up and Page Down select the stop before and after it along the gradient, Del removes it through a
+  command (`ColorSchemeCommands.RemoveStop`, the Avalonia head's `AppCommands.RemoveStop`), so the removal is an undo
+  step of its own and never reaches the window's Delete, which would remove the scheme. A drag is one step, the arrow
+  keys' moves one when the focus leaves, as everywhere. Positions the bar sets are thousandths. **Not the port's**: the
+  gradient keeps the fields' width (the bar is wider than the form by its 8 px inset at either end, a negative margin
+  in the form, so a marker at 0 or 1 overhangs into the form's margin; the port insets the gradient); the selected
+  marker is the accent's colour as a whole, fill and outline (the user's word that night, after a line of the accent
+  around the outlined marker: "there shouldn't be an outline, rather the whole arrow should change color"); a dragged
+  marker keeps the offset it was taken at. Proven: `library_check` (the two model methods); a
+  keyboard probe of the WPF app on `tiny_scheme.wdproj` reading the bar's item status ("stops 0 0.5 1; selected 0.5"),
+  13 of 13, Del's removal and the arrow keys' moves undone as two steps; an in-app probe in each head (see Harnesses)
+  with six mouse flows: a drag of 40 px (+0.117) and one undo back, a click on the gradient adding a stop and one undo
+  removing it, a click on a marker changing nothing, a drag past a neighbour with the rows in the new order, a press
+  between the markers doing nothing, the first marker taken on its overhanging half; `ColorPickerCheck` 13 of 13 past
+  the new tab stop. The form's figure was retaken alone that night on the user's word (`Screenshots.ps1 -Only`, see
+  Harnesses): the gradient has the fifth of its seven badges, the manual's list with it; at the figures' zoom of 1.25
+  the gradient's outline, the markers' tips and their base lines are whole pixels, seen enlarged. **An Undo does not ask for colours from a half-written project** (the same night, the user's choice of three
+  ways out): the first Undo or Redo of a session in a project whose picture used a project scheme had logged "Colour
+  scheme '…' not found; showing greyscale", since `ProjectHistory.Apply` empties each list before it refills it and the
+  window's hub asked for the colours at every change of the scheme list. The hub now skips that while
+  `UndoHistory.IsRestoring` and asks once at its `Restored`, and `Apply` writes the display settings last, so the
+  preview, which looks its colours up the moment they are set, finds the scheme list whole. Proven for a stop edit
+  undone (the log's Undo line and no warning, where both probe sessions before had one); an undone rename rests on the
+  order alone, not probed. **A stop's drag stuttered** (the user's report the same night): every change of a layer's
+  colours made a presenter job with a plane of its own, and a stop edit raised `IsStopScheme` beside `Stops`, so the
+  hub recoloured twice: four jobs and 12 MB a mouse move on Example 16 (1500 × 900, 16-bit, dithered), a full
+  collection every sixth move, moves that waited 70 to 84 ms for one. Now a stop edit raises `Stops` alone,
+  `FramePresenter.SetLayer` takes no unchanged layer, and the plane and pixel buffers are the presenter's, kept from
+  job to job (both heads). Measured by an in-app probe, 600 one-pixel moves, each sent when the UI thread was through
+  with the one before: 12.1 → 0.3 MB a move, 97 → 0 to 2 full collections, moves over 33 ms 13 → 1, the median 4.6 →
+  3.2 ms; the user found it fixed. Left as it is: one move in eight waits 12 to 14 ms at the bitmap's lock for the
+  screen's refresh, and about one in 400 takes 50 to 65 ms at a collection (the colour tables, 0.5 MB a rendered
+  frame). The colour picker's drag and the brightness box went the same way. **He stopped the measuring there**
+  ("maybe don't overthink these things toooo much"): a report of this kind is measured once before and once after.
 - **Export**: field, intensity or both, a still of the shown frame, from the current run when fresh and full,
   else a run is made first. **The Save dialog starts where the session's last export of its kind went** (2026-10-28,
   Jeroen's report, the user's rule: the first export after a project is opened starts in the project's folder under the
@@ -840,7 +881,7 @@ machine has), no Direct3D display path.
 
 ## Harnesses
 
-`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, the smoothed square's envelope, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard, the project file's DTD, the first start's tiers, the engine's page-locked snapshots, scene replacement, the memory warning's store bytes, the painter's runs and the glowing edges' lanes byte for byte against pixel by pixel, the diffuser, the interference filter, the simple and the facetted grating, the Fresnel lens, the meta surfaces' fills and the detectors' statistics).
+`library_check` (100+ checks: engines, store, renderer, half tables, screen path, schemes, probes, scratch, reduced preview, importer, export, parts, group move, the smoothed square's envelope, open edges, work groups on a prime grid, ranges, XOR gate, zone plate, gate port follower, history, clipboard, the project file's DTD, the first start's tiers, the engine's page-locked snapshots, scene replacement, the memory warning's store bytes, the painter's runs and the glowing edges' lanes byte for byte against pixel by pixel, the diffuser, the interference filter, the simple and the facetted grating, the Fresnel lens, the meta surfaces' fills, the detectors' statistics and a colour scheme's stops added at a position and moved past their neighbours).
 UI, all on `Common.ps1`, with their check counts: `PreviewCheck` 43, `RunCheck` 71, `LanguageCheck` 11,
 `ProbeGraphCheck` 39, `ImportCheck` 10, `ExportCheck` 44, `PreviewQualityCheck` 35, `SceneImageCheck` 8,
 `ColorPickerCheck` 13, `KeyboardCheck` 13, `AboutCheck` 18, `SelectionCheck` 10. Test projects `tiny*.wdproj` sit beside them. The
@@ -860,7 +901,16 @@ window `Topmost` for the moment, as the in-process probe of 2026-11-06 found), t
 `PrintWindow` from that thread: the app's whole path from the press to the composed picture, the process path the
 Debug exe's, so the file types stay registered to it. The first run's press was not taken (the window had just
 started); a diagnostic line per condition (capture, `WindowFromPoint`, `Mouse.DirectlyOver`, the button state) tells
-which is missing. **The figure runs can leave a runaway thumbnail cache** (2026-11-04:
+which is missing. **The in-app probe drives the Avalonia head too** (2026-11-11, for
+the gradient bar; it worked at the first run): the hook is a `net10.0` library against the App's assemblies and the
+`Avalonia.Base`, `Avalonia.Controls` and `SkiaSharp` of its output folder (`Private` false); its thread waits for
+`Application.Current.ApplicationLifetime`'s main window and touches `Dispatcher.UIThread` only then (asked for before
+the platform is up, a dispatcher without one is made and kept); keys and mouse are messages the UI thread sends the
+window's handle (`TryGetPlatformHandle`): WM_KEYDOWN and WM_KEYUP, which reach the focused control after its
+`Focus()` in a window never activated, and WM_MOUSEMOVE, WM_LBUTTONDOWN and WM_LBUTTONUP with client coordinates in
+device pixels and MK_LBUTTON in wParam while the button is down, `SetCapture` first, no key state needed; the window
+is captured with PrintWindow into a DIB and encoded with SkiaSharp. So a keyboard or mouse flow of that head can be
+proven where UI Automation names nothing. **The figure runs can leave a runaway thumbnail cache** (2026-11-04:
 a `dllhost.exe` hosting `thumbcache.dll` had used 81,000 s of CPU, 1.3 cores for seventeen hours, after the night's
 rewrites of the 38 files under Assets; a sampling of every process's CPU while the user moved the mouse found it; the
 user ended it, Windows starts it again when needed). **Run only the harnesses listed above**: `ProjectTreeCheck`,
@@ -910,7 +960,13 @@ times at most) and a figure taken with the window active is a PROBLEM line. **A 
 six minutes, no other WaveDude start (it takes the harness window's keyboard focus: "tree row not reached; focus is at
 (none)") and no click on its window; with the user at the machine it is announced and waits for his word, and a
 failed run is reported, not started again (2026-11-09: three runs in a row collided with his work). A figure must come out byte for byte the same
-from an unchanged app. `-Zoom <factor>` (2026-11-01; 1.25 is the default and the figures' zoom, 1 for figures at the
+from an unchanged app. **`-Only <figure>[,<figure>...]` makes the named figures alone** (2026-11-11, the user's word for
+the gradient bar's figure: "limit the run to just this figure"): a session none of them belongs to is not started (the
+`properties-` figures are the second session's), only the named forms are opened, no other figure's file is written and
+`Legend.md` keeps every other section byte for byte; a named figure of the first session runs that session whole. The
+colour scheme form alone took half a minute, the legend's diff its six lines. It still starts the app and wants the
+user's word.
+`-Zoom <factor>` (2026-11-01; 1.25 is the default and the figures' zoom, 1 for figures at the
 monitor's own pixels) puts the UI zoom
 setting into the figures' settings, scales the script's pixel constants, takes 16-bit samples (the 8-bit picture is a
 bitmap WPF scales) and writes the SVG with its size in CSS pixels over a view box in the figure's pixels, which the

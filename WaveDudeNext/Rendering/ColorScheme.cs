@@ -177,8 +177,8 @@ public sealed class ColorScheme : ObservableObject, INamed
 
 	/// <summary>
 	/// The stops, each a colour at a position 0..1; kept in position order by <see cref="Normalize"/>
-	/// (a renderer sorts a copy, so an editor may leave them unsorted while typing). Edit a stop, or add and
-	/// remove through <see cref="AddStop"/> / <see cref="RemoveStop"/>; replace all with <see cref="SetStops"/>
+	/// (a renderer sorts a copy, so an editor may leave them unsorted while typing). Edit a stop, or add, move and
+	/// remove through <see cref="AddStop()"/> / <see cref="MoveStop"/> / <see cref="RemoveStop"/>; replace all with <see cref="SetStops"/>
 	/// or <see cref="SetColors"/>. Every change raises <see cref="INotifyPropertyChanged.PropertyChanged"/> for <c>Stops</c>.
 	/// </summary>
 	[XmlElement("Stop")]
@@ -286,10 +286,74 @@ public sealed class ColorScheme : ObservableObject, INamed
 		{
 			at = 0.0;
 		}
+		return AddStop(at);
+	}
+
+	/// <summary>
+	/// Adds a stop at <paramref name="position"/> (clamped to 0..1) with the gradient's colour there, so the gradient
+	/// looks as before, behind the stops at or before that position, and returns it (2026-11-11, for the editor's
+	/// gradient bar: a click on the gradient).
+	/// </summary>
+	public ColorStop AddStop(double position)
+	{
+		double at = Math.Clamp(position, 0.0, 1.0);
 		var stop = new ColorStop(at, ColorAt(at));
-		int index = Stops.Count(s => s.Position <= at);
-		Stops.Insert(index, stop);
+		Stops.Insert(Stops.Count(s => s.Position <= at), stop);
 		return stop;
+	}
+
+	/// <summary>
+	/// Moves a stop to <paramref name="position"/> (clamped to 0..1) and keeps the list in position order (2026-11-11,
+	/// for the editor's gradient bar: a marker dragged): the stop changes places with every neighbour it has passed and
+	/// stays on its own side of one whose position it only reaches (two stops at one position make a hard edge, the
+	/// first of them the colour on the left). One change notification for <c>Stops</c>. False when the stop is not here.
+	/// </summary>
+	public bool MoveStop(ColorStop stop, double position)
+	{
+		int from = Stops.IndexOf(stop);
+		if (from < 0)
+		{
+			return false;
+		}
+		position = Math.Clamp(position, 0.0, 1.0);
+		int to = from;
+		if (to > 0 && Stops[to - 1].Position > position)
+		{
+			do
+			{
+				to--;
+			}
+			while (to > 0 && Stops[to - 1].Position > position);
+		}
+		else
+		{
+			while (to < Stops.Count - 1 && Stops[to + 1].Position < position)
+			{
+				to++;
+			}
+		}
+		if (to != from)
+		{
+			// the list says so itself (an editor's rows follow); the scheme's own notification is the position's below
+			_replacing = true;
+			try
+			{
+				Stops.Move(from, to);
+			}
+			finally
+			{
+				_replacing = false;
+			}
+		}
+		if (stop.Position != position)
+		{
+			stop.Position = position;
+		}
+		else if (to != from)
+		{
+			OnPropertyChanged(nameof(Stops));
+		}
+		return true;
 	}
 
 	/// <summary>Removes a stop; false when it is not here or the last one.</summary>
@@ -501,8 +565,14 @@ public sealed class ColorScheme : ObservableObject, INamed
 		}
 	}
 
-	private void OnStopChanged(object? sender, PropertyChangedEventArgs e) => Invalidate();
+	/// <summary>
+	/// A stop's position or colour: the gradient changed, the number of stops did not (2026-11-11: each stop edit had
+	/// raised <c>IsStopScheme</c> too, and everything that follows a scheme's changes, the preview's colours first, did
+	/// its work twice a mouse move of a dragged stop).
+	/// </summary>
+	private void OnStopChanged(object? sender, PropertyChangedEventArgs e) => OnPropertyChanged(nameof(Stops));
 
+	/// <summary>The list changed: its stops, and perhaps their number.</summary>
 	private void Invalidate()
 	{
 		OnPropertyChanged(nameof(Stops));

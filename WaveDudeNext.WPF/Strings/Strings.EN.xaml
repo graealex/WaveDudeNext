@@ -434,6 +434,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="TipStopPosition">Position along the gradient: 0 at the lowest value, 1 at the highest</s:String>
 	<s:String x:Key="TipStopColor">Colour as #RRGGBB; Enter applies it</s:String>
 	<s:String x:Key="TipStopSwatch">Pick the colour: Space opens the picker, Enter keeps it, Escape puts the old colour back</s:String>
+	<s:String x:Key="TipSchemeGradient">Drag a marker to move its stop; a click on the gradient adds a stop there. With keyboard focus Left and Right move the selected stop by a hundredth, a tenth with Shift, Page Up and Page Down select the stop before or after it, and Del removes it</s:String>
 	<s:String x:Key="TipColorSquare">Saturation (Left, Right) and brightness (Up, Down); Shift moves by ten steps</s:String>
 	<s:String x:Key="TipColorHue">Hue: Up and Down move by a degree, ten with Shift</s:String>
 	<s:String x:Key="TipColorChannel">Channel 0 to 255; Up and Down step it</s:String>

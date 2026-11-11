@@ -67,11 +67,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					</ComboBox.ItemTemplate>
 				</ComboBox>
 			</controls:FormPanel>
-			<!-- the whole gradient; the binding to Stops re-evaluates on every edit -->
-			<Rectangle Height="18" Margin="0,0,0,6" Stroke="{DynamicResource TextBoxBorder}" StrokeThickness="1"
-			           Fill="{Binding Stops, Converter={StaticResource ColorSchemeBrush}}" AutomationProperties.AutomationId="SchemeGradient" />
+			<!-- the whole gradient with a marker under each stop: a marker dragged moves its stop, a click on the gradient adds one
+			     (2026-11-11). The bar is wider than the form by its inset at either end, the room of the half marker under a stop
+			     at 0 or 1, so the gradient itself keeps the width of the fields. -->
+			<controls:GradientBar Margin="-8,0,-8,4" Scheme="{Binding}" RemoveCommand="{Binding $parent[panes:PropertiesPane].Commands.RemoveStop}"
+			                      OutlineBrush="{DynamicResource TextBoxBorder}" MarkerBrush="{DynamicResource WindowForeground}"
+			                      AccentBrush="{DynamicResource Accent}" ToolTip.Tip="{DynamicResource TipSchemeGradient}"
+			                      AutomationProperties.AutomationId="SchemeGradient" />
 
-			<!-- one row per stop: position (0..1), swatch (the picker), colour as #RRGGBB, remove (while more than one stop remains) -->
+			<!-- one row per stop, along the gradient: position (0..1), swatch (the picker), colour as #RRGGBB, remove (while more than one stop remains) -->
 			<ItemsControl x:Name="stops" ItemsSource="{Binding Stops}" Focusable="False">
 				<ItemsControl.ItemTemplate>
 					<DataTemplate x:DataType="rendering:ColorStop">

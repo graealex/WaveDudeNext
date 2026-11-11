@@ -1840,9 +1840,11 @@ A colour scheme of the project.
    Free text: what the scheme is, where it comes from.
 4. **Based on**  
    Copy the stops of an existing scheme into this one, then change them
-5. **A stop: position, colour swatch (opens the picker), hex value, remove**  
+5. **The gradient, with a marker under each stop**  
+   Drag a marker to move its stop; a click on the gradient adds a stop there. With keyboard focus Left and Right move the selected stop by a hundredth, a tenth with Shift, Page Up and Page Down select the stop before or after it, and Del removes it
+6. **A stop: position, colour swatch (opens the picker), hex value, remove**  
    Pick the colour: Space opens the picker, Enter keeps it, Escape puts the old colour back
-6. **Add a stop**  
+7. **Add a stop**  
    Insert a stop in the widest gap, with the gradient's colour there
 
 ## Settings every part shares

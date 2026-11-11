@@ -41,10 +41,12 @@ public sealed class ColorSchemeBrushConverter : IValueConverter
 			IReadOnlyList<Rgb> colors => colors.Select((c, k) => new ColorStop(colors.Count == 1 ? 0.0 : k / (double)(colors.Count - 1), c)).ToList(),
 			_ => null,
 		};
-		if (stops == null || stops.Count == 0)
-		{
-			return Brushes.Transparent;
-		}
+		return stops == null || stops.Count == 0 ? Brushes.Transparent : BrushOf(stops);
+	}
+
+	/// <summary>The horizontal gradient brush of these stops (at least one, in any order), frozen; the editor's gradient bar draws with it.</summary>
+	public static LinearGradientBrush BrushOf(IReadOnlyList<ColorStop> stops)
+	{
 		var collection = new GradientStopCollection();
 		if (stops.Count <= MaxStops)
 		{

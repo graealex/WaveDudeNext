@@ -26,6 +26,7 @@ using WaveDudeNext.App.Localization;
 using WaveDudeNext.App.Theming;
 using WaveDudeNext.UI.Theming;
 using WaveDudeNext.Model;
+using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
 using WaveDudeNext.UI;
 
@@ -94,6 +95,13 @@ public partial class MainWindow
 		c.BrowseSceneImage = Command(_ => Fire(BrowseSceneImageAsync()));
 		c.SaveSceneImage = Command(_ => Fire(SaveSceneImageAsync()), _ => SceneImage.CanSave);
 		c.RemoveSceneImage = Command(_ => SceneImage.Remove(), _ => SceneImage.CanRemove);
+		c.RemoveStop = Command(parameter =>
+		{
+			if (parameter is ColorStop stop)
+			{
+				Document.Project.ColorSchemes.FirstOrDefault(scheme => scheme.Stops.Contains(stop))?.RemoveStop(stop);
+			}
+		});
 		// the run (the WPF SimulationCommands)
 		c.Run = Command(_ => Fire(RunAsync()), _ => !RunHost.IsActive && !RunHost.IsStarting && !Busy.IsExporting);
 		c.TogglePause = Command(_ => RunHost.TogglePause(), _ => RunHost.IsActive);

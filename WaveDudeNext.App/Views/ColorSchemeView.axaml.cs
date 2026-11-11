@@ -27,9 +27,11 @@ using WaveDudeNext.UI.Rendering;
 namespace WaveDudeNext.App.Views;
 
 /// <summary>
-/// Editor of one project colour scheme: name, kind, description, the gradient, and one row per stop with its position
-/// (0..1), a swatch and the colour as <c>#RRGGBB</c>; stops can be added (in the widest gap) and removed. A "Based on"
-/// combo copies any existing scheme's stops into this one. Edits reach the preview through the project watcher.
+/// Editor of one project colour scheme: name, kind, description, the gradient with a marker under each stop
+/// (<see cref="Controls.GradientBar"/>, 2026-11-11: a marker dragged moves its stop, a click on the gradient adds one),
+/// and one row per stop with its position (0..1), a swatch and the colour as <c>#RRGGBB</c>; stops can be added (in
+/// the widest gap) and removed. A "Based on" combo copies any existing scheme's stops into this one. Edits reach the
+/// preview through the project watcher.
 /// </summary>
 public partial class ColorSchemeView : UserControl
 {

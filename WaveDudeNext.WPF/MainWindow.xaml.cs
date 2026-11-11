@@ -65,6 +65,8 @@ public partial class MainWindow : Window
 		_clipboard = new ObjectClipboard(Document, Selection, _items, new WpfClipboard());
 		_history = new UndoHistory(Document, Selection);
 		_history.PropertyChanged += (_, _) => CommandManager.InvalidateRequerySuggested();
+		// a step written back by Undo or Redo: the colours of the project as it is now (see OnProjectChanged)
+		_history.Restored += (_, _) => Preview.RefreshColors();
 		// an edit has finished when the window's input says so: the undo step ends, the stale run is redone
 		_ = new EditBoundaries(this, OnEditFinished);
 		// the run's progress lands on the UI thread at Loaded priority (2026-11-04): the lowest priority the dispatcher

@@ -205,6 +205,18 @@ public sealed class AppCommands : INotifyPropertyChanged
 
 	private ICommand _removeSceneImage = RelayCommand.Disabled;
 
+	/// <summary>
+	/// Removes the colour stop given as the parameter (a <c>ColorStop</c>) from its scheme; the last stop stays. Del on the
+	/// scheme form's gradient bar: a command, so the removal is an undo step of its own (the WPF ColorSchemeCommands.RemoveStop).
+	/// </summary>
+	public ICommand RemoveStop
+	{
+		get => _removeStop;
+		set => Set(ref _removeStop, value);
+	}
+
+	private ICommand _removeStop = RelayCommand.Disabled;
+
 	// ---- the run (upstream SimulationCommands)
 
 	/// <summary>Starts a run from the start (F5).</summary>
@@ -434,6 +446,7 @@ public sealed class AppCommands : INotifyPropertyChanged
 			yield return BrowseSceneImage;
 			yield return SaveSceneImage;
 			yield return RemoveSceneImage;
+			yield return RemoveStop;
 			yield return Run;
 			yield return TogglePause;
 			yield return Stop;

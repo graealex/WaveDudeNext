@@ -77,6 +77,18 @@ public sealed class UndoHistory(ProjectDocument document, Selection selection) :
 		private set => SetProperty(ref _canRedo, value);
 	}
 
+	/// <summary>
+	/// Whether a step is being written back into the project right now: its lists are emptied and refilled one after the
+	/// other, so a change reported meanwhile meets a project that is not whole. What looks something up in the project
+	/// at a change (the preview's colours by a scheme's name) waits for <see cref="Restored"/> (2026-11-11, the user's
+	/// choice of three ways out: the first Undo of a session in a project whose picture used a project scheme had logged
+	/// "Colour scheme not found; showing greyscale", the colours having been asked for while the scheme list was empty).
+	/// </summary>
+	public bool IsRestoring => _restoring;
+
+	/// <summary>A step has been written back by Undo or Redo and the project is whole again; raised before the selection is carried over.</summary>
+	public event EventHandler? Restored;
+
 	/// <summary>A new project starts a new history, its present state the first step; null ends the history.</summary>
 	public void Start(Project? project)
 	{
@@ -153,6 +165,7 @@ public sealed class UndoHistory(ProjectDocument document, Selection selection) :
 		{
 			return;
 		}
+		Restored?.Invoke(this, EventArgs.Empty);
 		Logger.Debug("{What}: step {Step} of {Count}", what, _history.Position, _history.Count - 1);
 		List<object> found = [.. places.Select(Find).OfType<object>()];
 		object? newCurrent = currentPlace is { } place ? Find(place) : null;
