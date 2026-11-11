@@ -15,7 +15,8 @@ sections of his sessions, and in the comments of their code, "the user" is Jeroe
 
 The class is the kind (2026-10-22: the `PartKind` enum was removed).
 
-1. A concrete subclass of `OpticalPart` (or `ShapePart`, `LogicGatePart`) in `Model/OpticalPart.cs` with `NameStem`
+1. A concrete subclass of `OpticalPart` (or `ShapePart`, `LogicGatePart`) in a file of its own in `Model/`, named after
+   the class, with its enums and item classes (`FiberPart.cs` holds `FiberEnds` and `FiberNode`); it has `NameStem`
    (the English stem of new names, "Zone plate"), `PrepareNew()` if a new part needs something a loaded one must not
    get (a fibre's default path: `XmlSerializer` appends a file's items to the list it finds), and its properties under
    `CLAUDE.md`'s model conventions (`[Range]` beside every clamp in `Normalize()`).

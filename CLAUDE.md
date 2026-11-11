@@ -686,7 +686,8 @@ FrameStore: native memory up to the budget, the rest in a temp file (%LOCALAPPDA
   zoom change with the manual open is rare and the delay short, and Ideal costs readability at 100 %).
 - **Optical parts** (2026-10-18; **`OpticalParts.md` is the reference**: the kinds, the painting rules, the measurements
   and how to add a kind): subclasses of `OpticalPart` in `Project.Parts`, one class and one XML element per kind, the
-  class being the kind (no enum, 2026-10-22): a lens or mirror, the shapes under `ShapePart` (polygon, rectangle, ellipse,
+  class being the kind (no enum, 2026-10-22), in a file of its own in `Model/` with its enums and item classes
+  (2026-11-11, the user's request: `OpticalPart.cs` had grown to 4,619 lines; it keeps the base class): a lens or mirror, the shapes under `ShapePart` (polygon, rectangle, ellipse,
   triangle, outline), the kinds of Jeroen's sessions of 2026-11-07/08 (his requests and choices, integrated 2026-11-09):
   a diffuser (`DiffuserPart`, delivered as "Diffusor" and renamed before any release, the element's name being file
   format; a `ShapePart` whose front face is rough:
