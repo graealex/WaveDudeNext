@@ -22,6 +22,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using WaveDudeNext.App.Commands;
 using WaveDudeNext.Model;
+using WaveDudeNext.UI;
 
 namespace WaveDudeNext.App.Panes;
 
@@ -49,6 +50,10 @@ public partial class PropertiesPane : UserControl
 	/// <summary>Identifies the <see cref="SceneImageFileMissing"/> property.</summary>
 	public static readonly StyledProperty<bool> SceneImageFileMissingProperty =
 		AvaloniaProperty.Register<PropertiesPane, bool>(nameof(SceneImageFileMissing));
+
+	/// <summary>Identifies the <see cref="RevealRequest"/> property.</summary>
+	public static readonly StyledProperty<RevealRequest?> RevealRequestProperty =
+		AvaloniaProperty.Register<PropertiesPane, RevealRequest?>(nameof(RevealRequest));
 
 	/// <summary>Creates the pane showing the no-selection hint.</summary>
 	public PropertiesPane()
@@ -85,6 +90,17 @@ public partial class PropertiesPane : UserControl
 		set => SetValue(SceneImageFileMissingProperty, value);
 	}
 
+	/// <summary>
+	/// The newest request to bring an item to the user (the selection's; <see cref="UI.RevealRequest"/>, bound by the
+	/// window as the WPF pane binds it, 2026-11-11): one that asks for editing puts the caret into the first editor of the
+	/// item's view, a new item's name.
+	/// </summary>
+	public RevealRequest? RevealRequest
+	{
+		get => GetValue(RevealRequestProperty);
+		set => SetValue(RevealRequestProperty, value);
+	}
+
 	/// <summary>The control showing the current view, for the tests.</summary>
 	internal ContentControl ViewHost => content;
 
@@ -95,6 +111,10 @@ public partial class PropertiesPane : UserControl
 		if (change.Property == SelectedObjectProperty)
 		{
 			UpdateContent();
+		}
+		else if (change.Property == RevealRequestProperty && change.GetNewValue<RevealRequest?>() is { Edit: true })
+		{
+			FocusFirstEditor();
 		}
 	}
 

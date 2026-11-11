@@ -42,6 +42,7 @@ using WaveDudeNext.App.Commands;
 using WaveDudeNext.App.Controls;
 using WaveDudeNext.Model;
 using WaveDudeNext.Rendering;
+using WaveDudeNext.UI;
 using INamed = WaveDudeNext.Model.INamed;
 
 namespace WaveDudeNext.App.Panes;
@@ -73,6 +74,10 @@ public partial class ProjectTree : UserControl
 	/// <summary>Identifies the <see cref="SelectedItems"/> property.</summary>
 	public static readonly StyledProperty<ObservableCollection<object>?> SelectedItemsProperty =
 		AvaloniaProperty.Register<ProjectTree, ObservableCollection<object>?>(nameof(SelectedItems));
+
+	/// <summary>Identifies the <see cref="RevealRequest"/> property.</summary>
+	public static readonly StyledProperty<RevealRequest?> RevealRequestProperty =
+		AvaloniaProperty.Register<ProjectTree, RevealRequest?>(nameof(RevealRequest));
 
 	/// <summary>Identifies the <see cref="Commands"/> property.</summary>
 	public static readonly StyledProperty<AppCommands> CommandsProperty =
@@ -294,11 +299,25 @@ public partial class ProjectTree : UserControl
 		}
 	}
 
-	/// <summary>Selects the folder row that shows the list of <paramref name="folder"/> (the project's sources or probes, after an add).</summary>
-	public void SelectFolder(NamedCollection folder)
+	/// <summary>Selects the folder row that shows <paramref name="list"/> (one of the project's lists: its sources after the last was removed), the focus on it.</summary>
+	public void SelectFolder(IEnumerable list)
 	{
-		NamedCollection own = _rootChildren.OfType<NamedCollection>().FirstOrDefault(f => ReferenceEquals(f.Items, folder.Items)) ?? folder;
-		Select(own);
+		if (_rootChildren.OfType<NamedCollection>().FirstOrDefault(f => ReferenceEquals(f.Items, list)) is { } folder)
+		{
+			Select(folder);
+		}
+	}
+
+	/// <summary>
+	/// The newest request to bring an item or a folder to the user (the selection's; <see cref="UI.RevealRequest"/>, bound
+	/// by the window as the WPF tree binds it, 2026-11-11): on each change the tree selects that row, expanded, and gives
+	/// it the keyboard focus, once it has generated the row. So a new item's row has the focus, Remove leaves it on the
+	/// neighbour or the emptied folder, and an undo that leaves nothing selected puts it on the root.
+	/// </summary>
+	public RevealRequest? RevealRequest
+	{
+		get => GetValue(RevealRequestProperty);
+		set => SetValue(RevealRequestProperty, value);
 	}
 
 	/// <summary>Marks the rows of the items in <see cref="SelectedItems"/> again (after the window changed the list wholesale); a row not generated yet is marked once it is.</summary>
@@ -415,6 +434,17 @@ public partial class ProjectTree : UserControl
 				{
 					Select(item, focus: false);
 				}
+			}
+		}
+		else if (change.Property == RevealRequestProperty && change.GetNewValue<RevealRequest?>() is { } request)
+		{
+			if (request.IsFolder)
+			{
+				SelectFolder((IEnumerable)request.Target);
+			}
+			else
+			{
+				Select(request.Target);
 			}
 		}
 	}

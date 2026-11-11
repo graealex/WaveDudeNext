@@ -390,11 +390,13 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<docking:DockHost.Items>
 				<docking:DockItem Id="project" Title="{StaticResource PaneProject}" DefaultSide="Left">
 					<panes:ProjectTree x:Name="projectTree" Project="{Binding Document.Project}" SelectedItem="{Binding Selection.Current, Mode=TwoWay}"
-					                   SelectedItems="{Binding Selection.Items}" Commands="{Binding Commands}" />
+					                   SelectedItems="{Binding Selection.Items}" Commands="{Binding Commands}"
+					                   RevealRequest="{Binding Selection.RevealRequest}" />
 				</docking:DockItem>
 				<docking:DockItem Id="properties" Title="{StaticResource PaneProperties}" DefaultSide="Right">
 					<panes:PropertiesPane x:Name="propertiesPane" SelectedObject="{Binding Selection.Current}" Project="{Binding Document.Project}"
-					                      Commands="{Binding Commands}" SceneImageFileMissing="{Binding SceneImage.IsFileMissing}" />
+					                      Commands="{Binding Commands}" SceneImageFileMissing="{Binding SceneImage.IsFileMissing}"
+					                      RevealRequest="{Binding Selection.RevealRequest}" />
 				</docking:DockItem>
 				<docking:DockItem Id="messages" Title="{StaticResource PaneMessages}" DefaultSide="Bottom">
 					<panes:MessagesPane x:Name="messagesPane" TargetName="messages" />
