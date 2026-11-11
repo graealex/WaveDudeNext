@@ -25,10 +25,12 @@
 # properties only, as in the other harnesses.
 #
 #   powershell -ExecutionPolicy Bypass -File _tools\ui_check\PreviewQualityCheck.ps1 [-Trace]
-param([switch]$Trace)
+param(
+	[string]$Exe = (Join-Path $PSScriptRoot "..\..\WaveDudeNext.WPF\bin\Debug\net10.0-windows\WaveDudeNext.WPF.exe"),
+	[switch]$Trace
+)
 . (Join-Path $PSScriptRoot "Common.ps1")
-$exe = Join-Path $PSScriptRoot "..\..\WaveDudeNext.WPF\bin\Debug\net10.0-windows\WaveDudeNext.WPF.exe"
-$log = Join-Path (Split-Path $exe) "WaveDudeNext.WPF.log"
+$log = [IO.Path]::ChangeExtension($exe, ".log")   # the head's own log, beside its exe
 $project = Join-Path $PSScriptRoot "tiny.wdproj"
 $by = [string][char]0xD7                           # the multiplication sign of the log's "64x48", built from its code so the script stays ASCII
 $failures = 0

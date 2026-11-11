@@ -25,11 +25,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
      DynamicResource; square, 1 px borders, no shadows, as everywhere in the port (ADR 0002). -->
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="using:WaveDudeNext.App.Localization"
         xmlns:controls="using:WaveDudeNext.App.Controls"
-        xmlns:converters="using:WaveDudeNext.App.Converters">
+        xmlns:converters="using:WaveDudeNext.App.Converters"
+        x:CompileBindings="False">
 
 	<Styles.Resources>
 		<converters:TreeIdConverter x:Key="TreeId" />
+		<converters:TreeNameConverter x:Key="TreeName" />
 
 		<!-- the glyphs of the row and toolbar buttons (PlusGeometry, MinusGeometry and the two that move a row, RowUpGeometry
 		     and RowDownGeometry, smaller than the 10 px chevrons), the expander's chevrons, the Part button's drop-down
@@ -87,7 +90,19 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="Background" Value="Transparent" />
 			<Setter Property="Padding" Value="3,0" />
 			<Setter Property="IsExpanded" Value="True" />
-			<Setter Property="AutomationProperties.AutomationId" Value="{ReflectionBinding Converter={StaticResource TreeId}}" />
+			<!-- the id keeps the name the row was made with (the harnesses find a renamed row by it); the name is the text the row
+			     shows, following a rename and a language switch, which the WPF head's rows give UI Automation by themselves. Both are
+			     reflection bindings (x:CompileBindings off for this file): a row's data context has no one type -->
+			<Setter Property="AutomationProperties.AutomationId" Value="{Binding Converter={StaticResource TreeId}}" />
+			<Setter Property="AutomationProperties.Name">
+				<Setter.Value>
+					<MultiBinding Converter="{StaticResource TreeName}" Mode="OneWay">
+						<Binding />
+						<Binding Path="Name" />
+						<Binding Path="Current" Source="{x:Static localization:LanguageController.Instance}" />
+					</MultiBinding>
+				</Setter.Value>
+			</Setter>
 			<Setter Property="Template">
 				<ControlTemplate>
 					<Grid ColumnDefinitions="16,*" RowDefinitions="Auto,*">

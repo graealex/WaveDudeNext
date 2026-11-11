@@ -54,7 +54,7 @@ try {
 	$fwBoth = (Find "PreviewFieldImage").Current.BoundingRectangle.Width
 	Key $VK_SPACE 200
 	$fwAlone = (Find "PreviewFieldImage").Current.BoundingRectangle.Width
-	Check "Space on the intensity toggle hides the intensity picture and the field takes the room" (-not (ToggleOn "PreviewShowIntensity") -and ((FindRaw "PreviewIntensityImage").Current.IsOffscreen) -and $fwAlone -gt $fwBoth * 1.5) ("field width {0} -> {1}" -f $fwBoth, $fwAlone)
+	Check "Space on the intensity toggle hides the intensity picture and the field takes the room" (-not (ToggleOn "PreviewShowIntensity") -and (Hidden "PreviewIntensityImage") -and $fwAlone -gt $fwBoth * 1.5) ("field width {0} -> {1}" -f $fwBoth, $fwAlone)
 	Key $VK_SPACE 200
 	Check "and shows it again at the old size" ((ToggleOn "PreviewShowIntensity") -and -not ((Find "PreviewIntensityImage").Current.IsOffscreen) -and [math]::Abs((Find "PreviewFieldImage").Current.BoundingRectangle.Width - $fwBoth) -lt 2)
 

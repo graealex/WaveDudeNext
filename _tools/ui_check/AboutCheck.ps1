@@ -62,7 +62,17 @@ function DFocusedId() {
 }
 function DKey([int]$vk, [int]$settle = 80) { [Native]::Key($script:dlgHwnd, $vk); Start-Sleep -Milliseconds $settle }
 function DValue([string]$id) { return (Pattern (DFind $id) "Value").Current.Value }
-function DText([string]$id) { return (Pattern (DFind $id) "Text").DocumentRange.GetText(-1) }
+# the document's text: WPF's document viewer offers the Text pattern; Avalonia's automation has no text provider at
+# 12.1.5 (its Provider folder holds Value, RangeValue, Toggle, Invoke, Scroll, Selection, SelectionItem,
+# ExpandCollapse, Root and EmbeddedRoot), and its TextBlock peers name themselves by their text, so there the
+# document's text blocks are read in order and joined (2026-11-11, the harnesses run against both heads)
+function DText([string]$id) {
+	$e = DFind $id
+	$pattern = $null
+	if ($e.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref]$pattern)) { return $pattern.DocumentRange.GetText(-1) }
+	$c = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Text)
+	return (@($e.FindAll([System.Windows.Automation.TreeScope]::Descendants, $c) | ForEach-Object { $_.Current.Name }) -join "`n")
+}
 function Step([string]$what, [int]$vk, [int]$settle) {
 	Key $vk $settle
 	if ($Trace) { "    {0,-8} focus {1}  foreground {2}" -f $what, (FocusedId), (Foreground) }

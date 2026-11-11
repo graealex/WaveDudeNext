@@ -160,6 +160,10 @@ try {
 	Key $VK_L 150                                  # loop off again
 	Check "loop off" (WaitFor { -not (LoopOn) } 1000)
 	FocusOn "PreviewPlay"
+	# Home first, so the whole run is there to play: the edit above halted playback wherever it was, 89 of 99 once, and
+	# the ten frames left reached the end before the Avalonia head's slower UI Automation had read a position between
+	# (2026-11-11; with loop off playback stops at the end, and the pause below started it again from frame 0)
+	Key $VK_HOME 150
 	Key $VK_SPACE 100
 	$moving = WaitFor { $p = Position; $p -gt 0 -and $p -lt 99 } 3000 20
 	$live = LiveOn

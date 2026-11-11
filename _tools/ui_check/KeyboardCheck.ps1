@@ -33,8 +33,11 @@ param(
 
 function Has([string]$id) { try { (Find $id) -ne $null } catch { $false } }
 function ListCount() {
-	$c = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::DataItem)   # a ListView's rows
-	return (Find "MessagesList").FindAll([System.Windows.Automation.TreeScope]::Children, $c).Count
+	# the rows: a WPF ListView's are DataItems, the Avalonia head's ListBox rows ListItems (2026-11-11, the harnesses run against both heads)
+	$rows = New-Object System.Windows.Automation.OrCondition(
+		(New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::DataItem)),
+		(New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::ListItem)))
+	return (Find "MessagesList").FindAll([System.Windows.Automation.TreeScope]::Children, $rows).Count
 }
 function Step([string]$what, [int]$vk, [int]$settle) {
 	Key $vk $settle
@@ -48,7 +51,10 @@ try {
 	# ------------------------------------------------------------ the Project toolbar (the default project has no sources)
 	FocusOn "ToolAddSource"
 	$order = @(); for ($i = 0; $i -lt 3; $i++) { Key $VK_TAB 120; $order += (FocusedId) }
-	Check "Tab walks Source > Probe > Part > the tree (move and remove are disabled with nothing selected and skipped)" (($order -join ",") -eq "ToolAddProbe,ToolAddPart,tree") ($order -join ",")
+	# with nothing selected, Tab lands where each framework puts it (2026-11-11, the user's choice of three): WPF's TreeView is
+	# focusable and takes the focus itself ("tree"); Avalonia's is not, and its ICustomKeyboardNavigation sends a Tab from
+	# outside to the selected row, else to the first one ("Tree:Project")
+	Check "Tab walks Source > Probe > Part > the tree (move and remove are disabled with nothing selected and skipped)" (($order -join ",") -in @("ToolAddProbe,ToolAddPart,tree", "ToolAddProbe,ToolAddPart,Tree:Project")) ($order -join ",")
 	FocusOn "ToolAddSource"
 	Step "Space" $VK_SPACE 400
 	$null = WaitFor { Has "Tree:Source 1" } 3000 100

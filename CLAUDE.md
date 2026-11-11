@@ -131,7 +131,8 @@ harnesses run.
 
 ## Build and run
 
-- `dotnet build WaveDudeNext.sln` → 0 warnings. Harnesses use `WaveDudeNext.WPF\bin\Debug\net10.0-windows\WaveDudeNext.WPF.exe`.
+- `dotnet build WaveDudeNext.sln` → 0 warnings. Harnesses use `WaveDudeNext.WPF\bin\Debug\net10.0-windows\WaveDudeNext.WPF.exe`,
+  or the Avalonia head with `-Exe WaveDudeNext.App\bin\Debug\net10.0\WaveDudeNext.App.exe` (2026-11-11, every script takes it).
 - `dotnet run --project _tools/library_check -c Release` (`-- export`, `-- bench [w h]`, `-- bench-render [w h]`,
   `-- bench-export [w h]`); `powershell -ExecutionPolicy Bypass -File _tools/ui_check/<script>.ps1` (`-Trace`).
 - Publish: `dotnet publish WaveDudeNext.WPF/WaveDudeNext.WPF.csproj -p:PublishProfile=SingleFile` (framework-dependent;
@@ -1391,8 +1392,8 @@ key never reaches the window's bindings. The menus whose entries come from data 
 zoom, language, the preview quality, the RAM cache) are still filled in code from the port, their check marks pushed
 (`_checkedMenus`; 2026-11-10: the theme entries name their texts by `Enum.AppTheme.<Member>`, the keys the WPF menu's
 `EnumNameConverter` uses, where the port had asked for `MenuViewTheme<Member>`, keys no table has, so the entries were
-blank; every other fixed key the App's code names was checked against the table and the themes); ItemsSource bindings are a later cleanup, as are the Pause/Resume and Play/Pause headers that follow
-the state. **The preview pane places its own timeline bar and scene overlays** (the port's window had put them into the
+blank; every other fixed key the App's code names was checked against the table and the themes); the ItemsSource bindings
+and the Pause/Resume and Play/Pause headers that follow the state came on 2026-11-11 (see The menus are bound, below). **The preview pane places its own timeline bar and scene overlays** (the port's window had put them into the
 pane's hosts from outside; 2026-11-10: the bar binds its own `Background` and `Foreground`, which a pane method's
 bare `BackgroundProperty` had missed for the pane's, so the bar had come out dark with a black playhead; seen against the
 WPF bar's capture in the same state; both draw the same ticks, minor every frame and major with a label every 5, in
@@ -1407,8 +1408,8 @@ and the first scratch frame in the log, nine tree rows, "0 / 99", F5's run compl
 and pausing, a nudge staling the run and asking for its frame, the re-run when the handle is left, the nudge one undo
 step; the capture showed both pictures with the source's marker and label, the form of Source 1, the red edge line and
 the run's status. Not yet: `RevealRequest` on the tree and the properties pane (a new item's row and caret),
-`ShownFrame` for the brightness fit of the shown 16-bit frame (the fit computes the frame instead), the new part forms,
-the export's busy text and taskbar, the tests. **The probe kinds are in the Avalonia head** (2026-11-11, the user's
+`ShownFrame` for the brightness fit of the shown 16-bit frame (the fit computes the frame instead), the taskbar's
+progress, the tests (the new part forms and the export's busy text came on 2026-11-11, see below). **The probe kinds are in the Avalonia head** (2026-11-11, the user's
 report that they were missing): the "+ Probe" button, the Probes folder's plus and the row menu's Add probe entry open
 the WPF head's menu of kinds (`ProjectTree.ProbeKindEntries`: Standard probe, and Probabilistic with the counting and
 the imaging detector, each running `AppCommands.AddProbe` with its `ProbeDetector`, the icon and the `Detector.<Member>`
@@ -1422,8 +1423,96 @@ the markup, which Avalonia takes on a read-only direct property. Proven by a sta
 entries with texts, icons and tooltips, each entry's probe (a counting and an imaging detector, a point probe) at the
 canvas centre, the rows' icons, and each kind's form (which rows are greyed). **A fix made in both heads is proven in
 both by the same reproduction, and a difference between the frameworks is looked up, not assumed** (the rule of that
-day's flicker). UI Automation gives the Avalonia tree's rows no
-names.
+day's flicker).
+**The seven forms of Jeroen's new part kinds are in the Avalonia head** (2026-11-11, the user's word, "ASAP": the pane had
+templates for eleven kinds and none of the Diffuser, Simple grating, Facetted grating, Interference filter, Meta prism,
+Meta lens and Meta axicon): `Views/<Kind>PartView.axaml` each, translated row for row from the WPF views, with the
+`DataTemplate`s in `PropertiesPane.axaml`. `ShapeMaterialView` gained the WPF view's three switches as styled
+properties, `CoatingShown` (off for the simple grating), `BackOnly` (the facetted grating and the filter) and
+`SidesHidden` (the meta surfaces), applied as classes on the view which styles map to the rows' `IsVisible`. The
+filter's layer list is the WPF list: the rows' ordinals and the Up and Down buttons' enabled state come from two attached
+properties, `Index` and `IsLast`, set on each row container at `ContainerPrepared` and `ContainerIndexChanged`
+(`OrdinalConverter`, `GreaterThan`), a grip that drags a row (`DragDrop.DoDragDropAsync` wants the press's
+`PointerPressedEventArgs`, so the grip keeps them), a `RowGlyphButton` theme in `Editors.axaml` for the chevrons,
+`PixelsConverter` for the thicknesses. Proven by a startup-hook probe that opens each kind's form on a new part and reads
+its rows, 36 of 36.
+**The menus are bound** (the same day, the second of the user's three items): the entries that come from data bind an
+`ItemsSource` with an `ItemContainerTheme` in `MainWindow.axaml` (`PaneMenuItem` on the dock host's items, whose command is
+`Commands.TogglePane`, the host's own toggle command; `ThemeMenuItem`, `LanguageMenuItem`, `FrameMemoryMenuItem` over
+`MainWindow.FrameMemoryOptions` with `FrameMemoryOptionConverter` for the text), the zoom, resolution, frames, samples
+and dither entries are inline radio entries with the WPF ids, checked through `IntEquals`, `DoubleEquals` and `Equality`
+converters against the setting and run by `AppCommands.SetUiZoom`, `SetPreviewResolution`, `SetPreviewFrames`,
+`SetPreviewSamples` and `SetPreviewDither` (each a line in `MainWindow.Commands.cs` ending in `Settings.Default.TrySave()`),
+the three toggles of the Simulation menu run `ToggleUseGpu`, `ToggleAutoRerun` and `ToggleMemoryWarning` with their marks
+bound `OneWay` (**Avalonia's `RaiseClick` runs a check entry's command and never toggles its mark**, so a mark that is
+bound to the setting and a command that flips it is the one way that works by key, by mouse and by a probe), and the
+Pause/Resume and Play/Pause headers follow the state through classes (`Classes.paused` from the run's state by
+`EnumOneOf`, `Classes.playing` from `Preview.IsPlaying`) and two window styles that swap the header's resource and the
+icon. The status bar gained the WPF bar's busy text and bar (`StatusExport`, `StatusBusyBar`, `BusyTextConverter`). Gone:
+`_checkedMenus`, `UpdateCheckedMenus`, `AddChoice`, `SetSetting`; `BuildMenus` fills the recent files and the examples
+alone. Proven by a startup-hook probe that opens each menu, reads every entry's mark against the setting, runs each
+entry and reads the mark and the setting again, 36 of 36, the user's settings put back.
+**The harnesses run against the Avalonia head** (the same day, the third item; every `ui_check` script takes `-Exe`, the
+two that had named the WPF exe in a variable, `LanguageCheck` and `PreviewQualityCheck`, since then): the tree rows'
+UI Automation names are the text they show, bound in `Themes/ProjectTree.axaml`'s item theme beside the id
+(`TreeNameConverter`: a named item's name, a folder's label, the string table's text for the project and its settings
+rows, following a rename and a language switch; the WPF head's rows take their header's text by themselves), the file's
+bindings reflection bindings (`x:CompileBindings="False"` on its root: a row's data context has no one type, and the
+compiler refuses the attribute on a `ControlTheme` inside resources). A binding made in `OnContainerPrepared` had reached
+the root row alone: **`TreeView.ContainerPrepared` is raised for the root containers only**, the nested rows being their
+parent item's. The run of the twelve against the App found the framework differences the harnesses now allow for, each
+looked up in Avalonia's 12.1.5 source and not assumed: the Messages rows are `ListItem`s of a `List` where WPF's
+`ListView` gives `DataItem`s of a `DataGrid` (`KeyboardCheck`'s `ListCount` counts either); **an invisible element is
+not in Avalonia's automation tree at all** (`ControlAutomationPeer.GetChildrenCore` adds a child's peer only while
+`IsVisible`), where WPF keeps it in the raw view with `IsOffscreen` set, so `Common.ps1`'s `Hidden` takes "not found"
+and "offscreen" alike (`PreviewCheck`'s hidden intensity picture); **Avalonia's automation has no text provider** (its
+`Automation/Provider` folder: Value, RangeValue, Toggle, Invoke, Scroll, Selection, SelectionItem, ExpandCollapse, Root,
+EmbeddedRoot), and its `TextBlock` peers name themselves by their text, so `AboutCheck`'s `DText` reads the license
+through the Text pattern where there is one and else joins the document's text blocks; a plain `Control` gets a
+`NoneAutomationPeer` (neither a control nor a content element), the preview's `CanvasImage` included, which is still
+found by its id. And it found three faults of the App: **Stop's second gesture, Escape, was missing** (a `HotKey` is one
+gesture; the window's `KeyBindings` carry the second, as Redo's Ctrl+Shift+Z); **a clipboard read refused because
+another program held the clipboard was kept as "holds nothing"** until the clipboard's next change and logged as a
+warning with its stack trace at every start (the interface says the refusal is not kept; now it is not, and the line is
+at Debug, as the WPF head's silence); and **choosing a language left the menu open**: `LanguageController.Options` had
+been a fresh list per read, raised at every change as the WPF controller does, which made the submenu re-create its
+entries under the one being clicked, and Avalonia's `DefaultMenuInteractionHandler.Click` runs `RaiseClick()` first and
+then closes the menu by walking the clicked item's `Parent`, which the re-created list had taken away (WPF closes the
+menu before the command runs, so there the fresh list is harmless). The list is one list for the controller's life now
+and the "System" entry's text follows the language through `LanguageNameConverter`, as the theme entries' do. **The
+harnesses run against the user's one settings file, which both heads share**: the first `LanguageCheck` against the App
+fell over after switching to German, and every harness after it ran a German app (`PreviewQualityCheck` read
+"Abgeschlossen" for "Completed", 8 of 8 failed); the attribute was taken out of the file by hand. **Where Tab lands in
+a tree with nothing selected is each framework's own** (the user's choice of three that morning, `KeyboardCheck`
+taking either; the others were the App focusing the tree itself, against its framework, and WPF focusing the first
+row): WPF's `TreeView` is focusable and takes the focus itself (the harness reads "tree"); Avalonia's is not, and its
+`ICustomKeyboardNavigation.GetNext` sends a Tab from outside to the selected item's container, else to the first row
+(`TreeViewItem` is focusable, "Tree:Project"). **`RunCheck` presses Home before
+its "plays the stored frames from the start" Space** (2026-11-11): the edit during playback had halted it wherever it
+was, 89 of 99 once, and with loop off the ten frames left reached the end before the App's slower UI Automation had read
+a position between, after which the pause's Space started playback again from frame 0 (the check read "20 / 99"); the
+same would fail on WPF with a late halt, so the check now has the whole run to play, as its name says; 71 of 71 on the
+App with it. The clipboard fix could be proven only in part: **the clipboard was held open by something with no window
+for the whole night's runs** (2026-11-11 from 03:26 at the latest: `OpenClipboard` refused 50 of 50 over 5 s with
+`ERROR_ACCESS_DENIED` and `GetOpenClipboardWindow` 0, the content's owner Visual Studio, WinForms' `GetDataObject`
+refused ten times, no process of ours alive; **the session had locked itself** some time after the last input at 02:43,
+and `OpenClipboard` succeeded the moment the user had unlocked it, so the lock was the holder, though the sources found
+say only "another program"; the user has removed the lock timer), so a probe that holds and releases the clipboard
+itself could not run; what did: three openings of the Edit menu made three reads, each logged at Debug, Paste
+disabled as it must be while nothing can be read, no warning. Unlocked, the probe fell at its first step: saving the
+user's clipboard, an Office object of eight formats, **crashes WinForms' `Clipboard.GetData` on `EnhancedMetafile`**
+(0xC0000005 in the probe's own process, each of the other seven formats read fine), and a content that cannot be put
+back is not replaced, so the positive path, Paste enabled once the clipboard is readable again, waits for a clipboard
+holding plain text. **The harnesses ran under the locked
+session**: the App's passed; WPF's `RunCheck` (65 of 71, 04:08) failed every check that reads the field picture's
+pixels, the hash the same at frame 0 and at the last frame, while its log shows every scratch frame computed and no
+warning, so under the lock PrintWindow gave the WPF window's old pixels; a capture needs the session unlocked as it
+needs the window on the screen. The twelve against the App after the fixes: `RunCheck` 71 of 71, `PreviewCheck` 43,
+`ExportCheck` 44, `ProbeGraphCheck` 39, `AboutCheck` 18, `ColorPickerCheck` 13, `LanguageCheck` 11,
+`PreviewQualityCheck` 35, `ImportCheck` 10, `SelectionCheck` 10, `SceneImageCheck` 9 of 9, `KeyboardCheck` 13 of 14
+(the tree focus above). The four harness scripts changed were run against the WPF head once each, under the lock:
+`KeyboardCheck` 14 of 14, `AboutCheck` 18 of 18, `PreviewCheck` 42 of 43 (the speed box reading '' after "1,5" was
+typed into it, a check no change of the day touches), `RunCheck` 65 of 71 as above; not run again.
 
 ## People, name, license
 

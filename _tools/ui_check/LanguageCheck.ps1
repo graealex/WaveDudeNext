@@ -21,9 +21,11 @@
 # strings are English again. Posted keys and UI Automation properties only, as in the other harnesses.
 #
 #   powershell -ExecutionPolicy Bypass -File _tools\ui_check\LanguageCheck.ps1 [-Trace]
-param([switch]$Trace)
+param(
+	[string]$Exe = (Join-Path $PSScriptRoot "..\..\WaveDudeNext.WPF\bin\Debug\net10.0-windows\WaveDudeNext.WPF.exe"),
+	[switch]$Trace
+)
 . (Join-Path $PSScriptRoot "Common.ps1")
-$exe = Join-Path $PSScriptRoot "..\..\WaveDudeNext.WPF\bin\Debug\net10.0-windows\WaveDudeNext.WPF.exe"
 $project = Join-Path $PSScriptRoot "tiny.wdproj"
 $failures = 0
 function Check([string]$name, [bool]$ok, [string]$detail = "") {

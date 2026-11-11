@@ -96,6 +96,7 @@ public sealed class AvaloniaClipboard(Window owner) : IClipboard
 	private async Task ReadAsync(string format)
 	{
 		string? text = null;
+		bool refused = false;
 		try
 		{
 			if (owner.Clipboard is { } clipboard && await clipboard.TryGetDataAsync() is { } data)
@@ -103,13 +104,22 @@ public sealed class AvaloniaClipboard(Window owner) : IClipboard
 				text = await data.TryGetValueAsync(DataFormat.CreateStringApplicationFormat(format)) ?? await data.TryGetTextAsync();
 			}
 		}
-		catch (Exception ex) when (ex is InvalidOperationException or ExternalException)
+		catch (ExternalException ex)
 		{
-			Logger.Warn(ex, "The clipboard could not be read");
+			// another program holds the clipboard open (CLIPBRD_E_CANT_OPEN): nothing is known, and the next question reads
+			// again, as the interface says and the WPF head does (2026-11-11: the refusal had been kept as "holds nothing"
+			// until the clipboard's next change, and logged as a warning with its stack trace)
+			refused = true;
+			Logger.Debug("The clipboard is held by another program; the next question reads again ({0})", ex.Message);
+		}
+		catch (InvalidOperationException)
+		{
+			// what the clipboard holds cannot be had as text after all: as good as none
+			text = null;
 		}
 		finally
 		{
-			_read = (_reading, text);
+			_read = refused ? null : (_reading, text);
 			_readInFlight = false;
 		}
 	}

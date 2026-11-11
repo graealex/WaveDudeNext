@@ -146,6 +146,17 @@ function FindRaw([string]$id) {
 	} finally { $cr.Pop() }
 	throw "element '$id' not found in the raw view"
 }
+# whether the element is hidden: WPF keeps a collapsed element in the raw view with IsOffscreen set, Avalonia leaves an
+# invisible child out of its automation tree altogether (ControlAutomationPeer.GetChildrenCore at 12.1.5 adds a child's
+# peer only while IsVisible), so there the element is simply not found (2026-11-11, the harnesses run against both heads)
+function Hidden([string]$id) {
+	$c = New-Object System.Windows.Automation.PropertyCondition($A::AutomationIdProperty, $id)
+	$cr = New-Object System.Windows.Automation.CacheRequest
+	$cr.TreeFilter = [System.Windows.Automation.Automation]::RawViewCondition
+	$cr.Push()
+	try { $e = $script:win.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $c) } finally { $cr.Pop() }
+	return ($e -eq $null) -or $e.Current.IsOffscreen
+}
 # a pattern object, used only to *read* its Current properties (never call its methods)
 function Pattern($e, [string]$name) {
 	$type = [System.Windows.Automation.InvokePattern].Assembly.GetType("System.Windows.Automation." + $name + "Pattern", $true)
