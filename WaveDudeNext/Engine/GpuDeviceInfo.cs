@@ -28,7 +28,7 @@ public sealed class GpuDeviceInfo
 	/// Lists every GPU on every OpenCL platform, best candidate first: discrete devices before those sharing
 	/// host memory, then by descending <see cref="Score"/>. Platforms whose enumeration fails are skipped;
 	/// a failing platform query yields an empty list. Throws the usual P/Invoke exceptions
-	/// (<see cref="DllNotFoundException"/> etc.) when OpenCL.dll cannot be loaded.
+	/// (<see cref="DllNotFoundException"/> etc.) when the platform's OpenCL loader cannot be loaded.
 	/// </summary>
 	public static List<GpuDeviceInfo> FindAll()
 	{

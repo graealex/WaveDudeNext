@@ -85,7 +85,8 @@ internal static class ExportChecks
 			rows = ProbeCsv.Write(text, csvLine, lineTrace, 2, 1);
 			lines = text.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 			check(rows == 2 && lines is ["frame;step;0;2;4", "0;0;1;2;3", "1;2;4;5.5;6"], "probe csv: a line probe gives one row per frame, frame and step first, the distances along the line as column heads (" + string.Join(" | ", lines) + ")");
-			check(ProbeCsv.FileName("ball", new Probe { Name = "A/B: focus" }) == "ball_A_B_ focus.csv" && ProbeCsv.FileName("ball", new Probe { Name = " " }) == "ball_probe.csv", "probe csv: the proposed name is <project>_<probe>.csv with invalid characters replaced");
+			string sanitizedProbeFile = OperatingSystem.IsWindows() ? "ball_A_B_ focus.csv" : "ball_A_B: focus.csv";
+			check(ProbeCsv.FileName("ball", new Probe { Name = "A/B: focus" }) == sanitizedProbeFile && ProbeCsv.FileName("ball", new Probe { Name = " " }) == "ball_probe.csv", "probe csv: the proposed name is <project>_<probe>.csv with invalid characters replaced");
 
 			// JPEG: a baseline file ffmpeg decodes close to the original
 			var jpeg = new JpegEncoder(w, h, 90);
@@ -651,7 +652,7 @@ internal static class ExportChecks
 			{
 				using var mp4 = new Mp4Writer(Path.Combine(folder, "b.mp4"), w, h, 30, 85);
 				Console.WriteLine("  mp4: " + (mp4.Nv12Input ? "NV12" : "RGB32") + " in, " + mp4.Transforms + (mp4.HasDirect3D ? ", Direct3D device shared" : ", system memory") + "; hardware H.264 encoders registered: " + string.Join(", ", Mp4Writer.AvailableEncoders(hardwareOnly: true).DefaultIfEmpty("none")));
-				Time("mp4 frame (Media Foundation)", () => mp4.Add(frame), 10);
+				Time("mp4 frame (Media Foundation)", () => AddMp4Frame(mp4, frame), 10);
 			}
 			// the sequence sink's workers: PNG with one worker and with the default, ten frames each
 			foreach (int workers in new[] { 1, ExportFormats.SequenceWorkers(encoderIsParallel: false) })
@@ -771,10 +772,10 @@ internal static class ExportChecks
 				("avi", () => ExportFormats.Open(ExportFormat.Avi, Path.Combine(folder, "j.avi"), w, h, 30, 85, 60)),
 				("mov (Animation)", () => ExportFormats.Open(ExportFormat.Mov, Path.Combine(folder, "j.mov"), w, h, 30, 85, 60)),
 				("mp4", () => ExportFormats.Open(ExportFormat.Mp4, Path.Combine(folder, "j.mp4"), w, h, 30, 85, 60)),
-				("mp4, writer not throttling", () => { Mp4Writer.Throttle = false; return ExportFormats.Open(ExportFormat.Mp4, Path.Combine(folder, "k.mp4"), w, h, 30, 85, 60); }),
+				("mp4, writer not throttling", () => OpenUnthrottledMp4(Path.Combine(folder, "k.mp4"), w, h)),
 			})
 			{
-				if ((name == "mp4" && !(OperatingSystem.IsWindows() && ExportFormats.IsAvailable(ExportFormat.Mp4))) || (name.StartsWith("jpeg sequence (WIC", StringComparison.Ordinal) && preferredJpeg == null))
+				if ((name.StartsWith("mp4", StringComparison.Ordinal) && !(OperatingSystem.IsWindows() && ExportFormats.IsAvailable(ExportFormat.Mp4))) || (name.StartsWith("jpeg sequence (WIC", StringComparison.Ordinal) && preferredJpeg == null))
 				{
 					continue;
 				}
@@ -786,7 +787,10 @@ internal static class ExportChecks
 				string ratio = job.Targets[0].Sink is MovWriter movSink ? $", {(double)store.Count * w * h * 3 / Math.Max(1, movSink.FrameBytes):0.00} : 1 on the run's frames" : "";
 				Console.WriteLine($"  job to {name}: {clock.Elapsed.TotalMilliseconds / store.Count:0.0} ms per frame ({job.State}){ratio}");
 				ExportFormats.PreferredJpeg = preferredJpeg;
-				Mp4Writer.Throttle = true;
+				if (OperatingSystem.IsWindows())
+				{
+					Mp4Writer.Throttle = true;
+				}
 			}
 		}
 		finally
@@ -796,8 +800,33 @@ internal static class ExportChecks
 	}
 
 	/// <summary>The app's JPEG path: the WIC codec called natively at 4:4:4.</summary>
-	[System.Runtime.Versioning.SupportedOSPlatform("windows")]
-	private static byte[] WicEncode(int[] frame, int w, int h, int quality) => new WicJpegEncoder(w, h, quality).Encode(frame);
+	private static byte[] WicEncode(int[] frame, int w, int h, int quality)
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			throw new PlatformNotSupportedException("WIC is available only on Windows.");
+		}
+		return new WicJpegEncoder(w, h, quality).Encode(frame);
+	}
+
+	private static void AddMp4Frame(Mp4Writer writer, int[] frame)
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			throw new PlatformNotSupportedException("Media Foundation is available only on Windows.");
+		}
+		writer.Add(frame);
+	}
+
+	private static IFrameSink OpenUnthrottledMp4(string path, int width, int height)
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			throw new PlatformNotSupportedException("Media Foundation is available only on Windows.");
+		}
+		Mp4Writer.Throttle = false;
+		return ExportFormats.Open(ExportFormat.Mp4, path, width, height, 30, 85, 60);
+	}
 
 	/// <summary>The three components' sampling factor bytes from the SOF0 segment, or null when there is none.</summary>
 	private static byte[]? SamplingFactors(byte[] jpg)

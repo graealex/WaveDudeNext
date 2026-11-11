@@ -1,0 +1,95 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Copyright (C) 2026 Alexander Graef
+     Based on Jeroen Vleggaar, 0x23 (Diffraction Limited), and Mark <mark@pab-ai.com>.
+     See the repository's .editorconfig file header for the full notice. -->
+<Project>
+  <!-- Avalonia 12.1.5's default XAML globs use backslashes. On Unix MSBuild can retain those and the SDK's default
+       globs as literal items. Disable default items for this project and enumerate its real files before build tasks. -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'WaveDudeNext.App' and '$(OS)' != 'Windows_NT'">
+    <EnableDefaultItems>false</EnableDefaultItems>
+  </PropertyGroup>
+
+  <UsingTask TaskName="EnumerateUnixAppItems" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <ProjectDirectory ParameterType="System.String" Required="true" />
+      <CompileFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+      <AvaloniaFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+      <EmbeddedFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+		string projectRoot = Path.GetFullPath(ProjectDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+		string Relative(string path) => Path.GetFullPath(path).Substring(projectRoot.Length).Replace('\\', '/');
+		bool IsOutput(string path) =>
+			Relative(path)
+				.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+				.Any(part => part.Equals("obj", StringComparison.OrdinalIgnoreCase) || part.Equals("bin", StringComparison.OrdinalIgnoreCase));
+		TaskItem Item(string path, string link, string logicalName = null)
+		{
+			var item = new TaskItem(path);
+			item.SetMetadata("Link", link);
+			if (logicalName != null)
+			{
+				item.SetMetadata("LogicalName", logicalName);
+			}
+			return item;
+		}
+
+		string[] files = Directory.GetFiles(ProjectDirectory, "*", SearchOption.AllDirectories)
+			.Where(path => !IsOutput(path))
+			.ToArray();
+		CompileFiles = files
+			.Where(path => Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase)
+				&& !Relative(path).Equals("Build/SharedXaml.cs", StringComparison.OrdinalIgnoreCase))
+			.Select(path => Item(path, Relative(path)))
+			.ToArray();
+		XamlFiles = files
+			.Where(path => Path.GetExtension(path).Equals(".axaml", StringComparison.OrdinalIgnoreCase))
+			.Select(path =>
+			{
+				var item = Item(path, Relative(path));
+				item.SetMetadata("SubType", "Designer");
+				return item;
+			})
+			.ToArray();
+		AvaloniaFiles = Directory.GetFiles(Path.Combine(ProjectDirectory, "Assets"), "*", SearchOption.TopDirectoryOnly)
+			.Select(path => Item(path, "Assets/" + Path.GetFileName(path)))
+			.ToArray();
+
+		string repositoryDirectory = Directory.GetParent(ProjectDirectory)!.FullName;
+		string assetsDirectory = Path.Combine(repositoryDirectory, "Assets");
+		EmbeddedFiles = new[]
+		{
+			Item(Path.Combine(repositoryDirectory, "MANUAL.md"), "Help/MANUAL.md", "MANUAL.md"),
+			Item(Path.Combine(repositoryDirectory, "LICENSE.md"), "Help/LICENSE.md", "LICENSE.md")
+		}.Concat(Directory.GetFiles(assetsDirectory, "*.svg", SearchOption.TopDirectoryOnly)
+			.Select(path => Item(path, "Help/Figures/" + Path.GetFileName(path), "Assets/" + Path.GetFileName(path))))
+			.ToArray();
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="AddUnixAppItems"
+          BeforeTargets="_GenerateAvaloniaResourcesDependencyCache;GenerateAvaloniaResources;CoreCompile;CoreResGen"
+          DependsOnTargets="IncludeSharedXaml"
+          Condition="'$(MSBuildProjectName)' == 'WaveDudeNext.App' and '$(OS)' != 'Windows_NT'">
+    <EnumerateUnixAppItems ProjectDirectory="$(MSBuildProjectDirectory)">
+      <Output TaskParameter="CompileFiles" ItemName="_UnixCompileFiles" />
+      <Output TaskParameter="XamlFiles" ItemName="_UnixXamlFiles" />
+      <Output TaskParameter="AvaloniaFiles" ItemName="_UnixAvaloniaFiles" />
+      <Output TaskParameter="EmbeddedFiles" ItemName="_UnixEmbeddedFiles" />
+    </EnumerateUnixAppItems>
+    <ItemGroup>
+      <Compile Remove="@(Compile)" Condition="$([System.String]::Copy('%(Compile.Identity)').Contains('*'))" />
+      <Compile Include="@(_UnixCompileFiles)" />
+      <AvaloniaXaml Remove="@(AvaloniaXaml)" />
+      <AvaloniaXaml Include="@(_UnixXamlFiles)" />
+      <AvaloniaXaml Include="@(_SharedXamlOutput)" Link="%(RecursiveDir)%(Filename)%(Extension)" />
+      <AvaloniaResource Remove="@(AvaloniaResource)" Condition="$([System.String]::Copy('%(AvaloniaResource.Identity)').Contains('*'))" />
+      <AvaloniaResource Include="@(_UnixAvaloniaFiles)" />
+      <EmbeddedResource Remove="@(EmbeddedResource)" Condition="$([System.String]::Copy('%(EmbeddedResource.Identity)').Contains('*'))" />
+      <EmbeddedResource Include="@(_UnixEmbeddedFiles)" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -99,7 +99,7 @@ public sealed class GpuWaveSimulator : IWaveEngine, IDisposable
 	/// <param name="problems">Receives "" on success, otherwise why no device worked ("no GPU found …" or the
 	/// per-device failure messages joined by "; ").</param>
 	/// <returns>The engine, or null when no device could be used (see <paramref name="problems"/>).</returns>
-	/// <exception cref="DllNotFoundException">There is no OpenCL driver (OpenCL.dll cannot be loaded).</exception>
+	/// <exception cref="DllNotFoundException">The OpenCL loader could not be loaded.</exception>
 	public static GpuWaveSimulator? TryCreate(SceneData scene, EngineOptions options, IReadOnlyList<Emitter>? emitters, out string problems)
 	{
 		problems = "";

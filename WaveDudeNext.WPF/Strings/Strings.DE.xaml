@@ -130,7 +130,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<s:String x:Key="AboutOn">ein</s:String>
 	<s:String x:Key="AboutOff">aus</s:String>
 	<s:String x:Key="AboutOpenClDevices">OpenCL-Geräte</s:String>
-	<s:String x:Key="AboutOpenClMissing">OpenCL ist nicht installiert</s:String>
+	<s:String x:Key="AboutOpenClMissing">OpenCL-Lader nicht verfügbar</s:String>
 	<s:String x:Key="AboutH264Encoders">H.264-Encoder</s:String>
 	<s:String x:Key="AboutMediaFoundationMissing">Media Foundation ist nicht verfügbar</s:String>
 	<s:String x:Key="AboutNone">keine</s:String>

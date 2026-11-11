@@ -40,6 +40,26 @@ namespace LibraryCheck;
 internal static class Program
 {
 	private static int _failures;
+	private static string? _gpuUnavailable;
+
+	private static GpuWaveSimulator? TryCreateGpu(SceneData scene, EngineOptions options, IReadOnlyList<Emitter>? emitters, out string problems)
+	{
+		if (_gpuUnavailable != null)
+		{
+			problems = _gpuUnavailable;
+			return null;
+		}
+		try
+		{
+			return GpuWaveSimulator.TryCreate(scene, options, emitters, out problems);
+		}
+		catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException)
+		{
+			_gpuUnavailable = "OpenCL unavailable: " + ex.Message;
+			problems = _gpuUnavailable;
+			return null;
+		}
+	}
 
 	private static void Check(bool ok, string what)
 	{
@@ -871,7 +891,7 @@ internal static class Program
 		{
 			var options = new EngineOptions(2.0, 1.0, true, fourth, 10.0, 1.0);
 			var clock = Stopwatch.StartNew();
-			GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, emitters, out string problems);
+			GpuWaveSimulator? gpu = TryCreateGpu(scene, options, emitters, out string problems);
 			Console.WriteLine($"  GPU engine build (4th order {fourth}): {clock.ElapsedMilliseconds} ms{(gpu == null ? ", " + problems : "")}");
 			if (gpu != null)
 			{
@@ -966,7 +986,7 @@ internal static class Program
 			}
 			Check(borderZero, "CPU padding rows untouched");
 
-			GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, Sources(), out string problems);
+			GpuWaveSimulator? gpu = TryCreateGpu(scene, options, Sources(), out string problems);
 			if (gpu == null)
 			{
 				Console.WriteLine("  skip GPU: " + problems);
@@ -1033,7 +1053,7 @@ internal static class Program
 		float[] movedAt100 = (float[])movedReference.FieldData.Clone();
 		Check(MaxDiff(at100, movedAt100) > 1e-3f, "moving a source changes the field (reference)");
 
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, Sources(), out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(scene, options, Sources(), out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -1126,7 +1146,7 @@ internal static class Program
 		float rightWall = MaxAbsColumns(withWall, W, H, 34, W - 1);
 		float rightOpen = MaxAbsColumns(without, W, H, 34, W - 1);
 		Check(rightOpen > 0.01f && leftWall > 0.01f && rightWall < rightOpen * 1e-2f, $"a wall of red 0 blocks the wave: max |u| right of it {rightWall} against {rightOpen} without the wall, left of it {leftWall}");
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(wall, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(wall, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -1178,7 +1198,7 @@ internal static class Program
 		float[] cpu = RunCpu(scene, emitters, 150);
 		float[] whole = RunCpu(scene, [Make(20, 24, 120, 1.0)], 150);
 		Check(MaxAbs(cpu) > 0.01f && MaxDiff(cpu, whole) > 1e-3f, "a level of 120.5 runs and differs from 120");
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(scene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -1465,7 +1485,7 @@ internal static class Program
 		var wave = new List<Emitter> { Make(W / 2, H / 2, 120, 1.0) };
 		float[] cpuField = RunCpu(openScene, wave, 300);
 		Check(cpuField.Length == (W + 66) * (H + 66), "the engine's buffer holds the grid with its rim and padding");
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(openScene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), wave, out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(openScene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), wave, out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -1527,7 +1547,7 @@ internal static class Program
 		List<Emitter> emitters = [Make(W / 2, H / 2, 120, 1.0)];
 		var reference = new WaveSimulator(second, options, emitters);
 		Run(reference, 60);
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(first, options, emitters, out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(first, options, emitters, out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -1561,7 +1581,7 @@ internal static class Program
 		var options = new EngineOptions(1.0, 1.0, true, false, 10.0, 1.0);
 		var cpu = new WaveSimulator(scene, options, emitters);
 		Run(cpu, 200);
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, emitters, out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(scene, options, emitters, out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -1653,7 +1673,7 @@ internal static class Program
 		Check(fieldA.AsSpan().SequenceEqual(fieldB), "same seed -> bit-identical field after 300 steps");
 		Check(MaxDiff(fieldA, fieldC) > 1e-4f, "different seed -> different field (max diff " + MaxDiff(fieldA, fieldC) + ")");
 		var options = new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0);
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, a, out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(scene, options, a, out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -2101,7 +2121,7 @@ internal static class Program
 				$"CPU capture of 1/{shape.Divisor} {shape.Format}{(shape.IntensityRoot ? "" : ", the intensity as I")} equals the reference conversion");
 		}
 		// the GPU's: halves within the tolerance, indices exact where the card's square root rounds correctly (within one elsewhere)
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, options, Sources(), out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(scene, options, Sources(), out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -3764,7 +3784,7 @@ internal static class Program
 			}
 		}
 		Check(inside > 0.01f && outside < inside * 1e-4f, $"the cavity keeps the wave after 300 steps: max |u| inside {inside}, outside {outside}");
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(ring, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(ring, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), emitters, out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);
@@ -4781,7 +4801,7 @@ internal static class Program
 		{
 			SceneData run = other ?? scene;
 			var options = new EngineOptions(2.0, 1.0, false, true, 10.0, 1.0);
-			IWaveEngine engine = GpuWaveSimulator.TryCreate(run, options, emitters, out _) is { } gpu ? gpu : new WaveSimulator(run, options, emitters);
+			IWaveEngine engine = TryCreateGpu(run, options, emitters, out _) is { } gpu ? gpu : new WaveSimulator(run, options, emitters);
 			// the wave crosses the gate in about 1.6 steps a pixel; the rest lets it settle into a steady state; ten periods averaged
 			int lambda = (int)Math.Round(design.Wavelength);
 			int steps = 2 * design.Length + 60 * lambda, window = 10 * lambda, half = design.CoreWidth / 2 + 2;
@@ -4912,7 +4932,7 @@ internal static class Program
 		{
 			SceneData scene = pixels != null ? SceneData.FromBgra(pixels.Bgra, width, height, pixels.StrideBytes, false, 0, true) : SceneData.Empty(width, height, 0, 1.0, true);
 			var options = new EngineOptions(2.0, 1.0, false, true, 10.0, 1.0);
-			IWaveEngine engine = GpuWaveSimulator.TryCreate(scene, options, emitters, out _) is { } gpu ? gpu : new WaveSimulator(scene, options, emitters);
+			IWaveEngine engine = TryCreateGpu(scene, options, emitters, out _) is { } gpu ? gpu : new WaveSimulator(scene, options, emitters);
 			int steps = 1600, window = (int)Math.Round(10 * lambda);
 			var lockIn = new System.Numerics.Complex[width];
 			for (int s = 0; s < steps; s++)
@@ -5091,7 +5111,7 @@ internal static class Program
 		var wave = new List<Emitter> { Make(20, 60, 120, 1.0) };
 		float[] cpuField = RunCpu(scene, wave, 300);
 		Check(scene.D[60 * W + 100] < 0.76f && scene.D[60 * W + 100] > 0.74f, "the engines read blue 64 as a damping of 1 − 64/255");
-		GpuWaveSimulator? gpu = GpuWaveSimulator.TryCreate(scene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), wave, out string problems);
+		GpuWaveSimulator? gpu = TryCreateGpu(scene, new EngineOptions(1.0, 1.0, false, false, 10.0, 1.0), wave, out string problems);
 		if (gpu == null)
 		{
 			Console.WriteLine("  skip GPU: " + problems);

@@ -32,7 +32,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
      are added before Avalonia gathers its resources. -->
 <Project>
 
-  <UsingTask TaskName="ConvertSharedXaml" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+  <UsingTask TaskName="ConvertSharedXaml" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <Sources ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
       <Destination ParameterType="System.String" Required="true" />
@@ -51,15 +51,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
        property here is evaluated when the project imports the file, before the SDK has set IntermediateOutputPath -->
   <Target Name="ConvertSharedXaml"
           Inputs="@(SharedXaml);$(SharedXamlConverter);$(MSBuildThisFileFullPath)"
-          Outputs="@(SharedXaml->'$(IntermediateOutputPath)Shared\%(Folder)\%(Filename).axaml')">
-    <ConvertSharedXaml Sources="@(SharedXaml)" Destination="$(IntermediateOutputPath)Shared\" />
+          Outputs="@(SharedXaml->'$(IntermediateOutputPath)Shared/%(Folder)/%(Filename).axaml')">
+    <ConvertSharedXaml Sources="@(SharedXaml)" Destination="$(IntermediateOutputPath)Shared/" />
   </Target>
 
   <!-- the converted files as XAML of this project, under their Folder by their Link; before Avalonia's resource gathering,
        whose first step runs before ResolveReferences -->
   <Target Name="IncludeSharedXaml" BeforeTargets="BeforeBuild;AddAvaloniaResources;_GenerateAvaloniaResourcesDependencyCache;_InjectAvaloniaAdditionalFiles" DependsOnTargets="ConvertSharedXaml">
     <ItemGroup>
-      <_SharedXamlOutput Include="$(IntermediateOutputPath)Shared\**\*.axaml" />
+      <_SharedXamlOutput Include="$(IntermediateOutputPath)Shared/**/*.axaml" />
       <AvaloniaXaml Include="@(_SharedXamlOutput)" Link="%(RecursiveDir)%(Filename)%(Extension)" />
       <FileWrites Include="@(_SharedXamlOutput)" />
     </ItemGroup>
