@@ -929,7 +929,10 @@ Ctrl+D and Delete through `SendKeys` (run once by mistake on 2026-11-06 while th
 app). **A probe walks a menu by the focused entry's name, never by counting Down presses**: a disabled entry is
 skipped, so the count shifts with the app's state (2026-11-06: after an undo to the first step Undo was disabled, a
 counted walk meant for Redo pressed Cut, which removed the source and replaced the user's clipboard). And WPF reads
-the real modifier keys: a nudge posted while the user holds Shift is ten pixels, not one. A tree row's AutomationId
+the real modifier keys: a nudge posted while the user holds Shift is ten pixels, not one; Avalonia the same (2026-11-11,
+with the user typing at the machine: two of nine Tabs of `KeyboardCheck`'s Messages walk ran backwards, and
+`PreviewCheck`'s L, X and End were ignored in one two-second stretch, the pane taking no letter with a modifier), so a
+harness run while he types fails checks no change touched; the output is kept and read, not run again on my own. A tree row's AutomationId
 keeps the name the row was made with: after a rename find the row by its Name. The tree is one tab stop, at its
 selected row, behind its toolbar; another row is reached with the arrows from there, never by more Tabs (Tab from a
 handle on the preview passes the other handles, and each selects its own item, so `FocusOn "Tree:<name>"` only works
@@ -1407,9 +1410,8 @@ port (`MainWindow.Status.cs`). Proven by a keyboard probe on `tiny.wdproj` by ar
 and the first scratch frame in the log, nine tree rows, "0 / 99", F5's run completed and followed to 99, Space playing
 and pausing, a nudge staling the run and asking for its frame, the re-run when the handle is left, the nudge one undo
 step; the capture showed both pictures with the source's marker and label, the form of Source 1, the red edge line and
-the run's status. Not yet: `RevealRequest` on the tree and the properties pane (a new item's row and caret),
-`ShownFrame` for the brightness fit of the shown 16-bit frame (the fit computes the frame instead), the taskbar's
-progress, the tests (the new part forms and the export's busy text came on 2026-11-11, see below). **The probe kinds are in the Avalonia head** (2026-11-11, the user's
+the run's status. Not yet: the taskbar's progress, the tests (the new part forms, the export's busy text,
+`RevealRequest` and `ShownFrame` came on 2026-11-11, see below). **The probe kinds are in the Avalonia head** (2026-11-11, the user's
 report that they were missing): the "+ Probe" button, the Probes folder's plus and the row menu's Add probe entry open
 the WPF head's menu of kinds (`ProjectTree.ProbeKindEntries`: Standard probe, and Probabilistic with the counting and
 the imaging detector, each running `AppCommands.AddProbe` with its `ProbeDetector`, the icon and the `Detector.<Member>`
@@ -1513,6 +1515,29 @@ needs the window on the screen. The twelve against the App after the fixes: `Run
 (the tree focus above). The four harness scripts changed were run against the WPF head once each, under the lock:
 `KeyboardCheck` 14 of 14, `AboutCheck` 18 of 18, `PreviewCheck` 42 of 43 (the speed box reading '' after "1,5" was
 typed into it, a check no change of the day touches), `RunCheck` 65 of 71 as above; not run again.
+**`RevealRequest` reaches the Avalonia head's panes** (2026-11-11, the user's pick of the three parity gaps left): the tree
+and the properties pane carry a `RevealRequest` styled property bound to `Selection.RevealRequest` in `MainWindow.axaml`
+as the WPF panes bind it; the tree selects and focuses the row at each change (`Select`, or `SelectFolder`, which takes
+the project's list now, as the request carries it), the pane puts the caret into the first text box of a request that
+asks for editing. So a new item's name is under the caret, Remove leaves the focus on the neighbour or the emptied
+folder, an undo that leaves nothing selected on the root. The window names neither pane in its code, as in WPF. Proven
+by the same keyboard probe on both heads, which gave the same five answers: the name editor with "Source 2" selected
+after Space on + Source, "Tree:Source 1" after Remove, "Tree:TreeSources" after Del took the last source, the Undo entry
+reached by F10, Down, Right, and "Tree:Project" after it (the folder's id is the string key in both heads; the WPF name
+box has no AutomationId where the App's is `SourceName`). One WPF run of the probe read "(none)" after the Del and lost
+the keys that followed; two more runs, one sampling the focus every 200 ms from the Del, read the folder row at once,
+and the first was not understood.
+**`ShownFrame` reaches the model from the Avalonia pane** (2026-11-11, the user's second pick): a direct property written
+by `UpdateSource` (the scratch source at 0, the run's frames at the position, null when nothing is shown) and bound
+`OneWayToSource` to `Preview.ShownFrame` as the WPF pane's is, in place of a tuple nothing read, so `AutoBrightness.Fit`
+takes the shown 16-bit frame at once instead of computing it on a runner of its own. On the way the App's `UpdateSource`
+got the WPF rule of 2026-11-09 it lacked: **a new scratch result is a new picture, whichever of the runner's two
+snapshots it came in** (`_scratchShown`; it had compared the snapshots, the code the WPF fix replaced). Proven by a
+keyboard probe: on `tiny.wdproj` with 16-bit samples Auto on the field at the start fitted the shown scratch frame
+(empty at step 0, so "frame 0 is empty", no "is computed"), Auto on the intensity after F5 fitted the shown frame 99 at
+once, 30 → 24.8, no computation; on Example 16 eight bursts of Home and forty PageUp each ended with a presenter source
+and a render for frame 400, 8 of 8 (the WPF figure before its fix was 0 and 1 of 8; the App's "before" was not measured,
+the fix being the WPF one ported).
 
 ## People, name, license
 

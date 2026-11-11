@@ -42,6 +42,7 @@ using WaveDudeNext.App.Rendering;
 using WaveDudeNext.Model;
 using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
+using WaveDudeNext.UI;
 using WaveDudeNext.UI.Rendering;
 using Path = Avalonia.Controls.Shapes.Path;
 
@@ -202,6 +203,10 @@ public partial class PreviewPane : UserControl
 	public static readonly DirectProperty<PreviewPane, int> FpsProperty =
 		AvaloniaProperty.RegisterDirect<PreviewPane, int>(nameof(Fps), pane => pane.Fps);
 
+	/// <summary>Identifies the <see cref="ShownFrame"/> property.</summary>
+	public static readonly DirectProperty<PreviewPane, ShownFrame?> ShownFrameProperty =
+		AvaloniaProperty.RegisterDirect<PreviewPane, ShownFrame?>(nameof(ShownFrame), pane => pane.ShownFrame);
+
 	/// <summary>Identifies the <see cref="CanvasWidth"/> property.</summary>
 	public static readonly DirectProperty<PreviewPane, int> CanvasWidthProperty =
 		AvaloniaProperty.RegisterDirect<PreviewPane, int>(nameof(CanvasWidth), pane => pane.CanvasWidth);
@@ -247,7 +252,8 @@ public partial class PreviewPane : UserControl
 	private WriteableBitmap? _sceneBitmap;
 	private byte[]? _edges;
 	private SnapshotFrameSource? _scratchSource;
-	private int _shownFrame;
+	private ScratchResult? _scratchShown;
+	private ShownFrame? _shownFrame;
 	private double _carry;
 	private bool _following;
 	private bool _syncing;
@@ -842,9 +848,15 @@ public partial class PreviewPane : UserControl
 
 	/// <summary>
 	/// The frames the pictures show and the index of the one shown (the scratch frame, index 0, or the run's frame at the
-	/// position), or null when nothing is shown; for the brightness fit.
+	/// position), or null when nothing is shown; written by the pane and bound OneWayToSource by the window for the
+	/// application's brightness fit (<see cref="PreviewState.ShownFrame"/>, as the WPF pane binds it; 2026-11-11), which
+	/// fits a shown 16-bit frame at once instead of computing it again.
 	/// </summary>
-	public (IFrameSource Source, int Frame)? ShownFrame => _presenter.Source is { } source ? (source, _shownFrame) : null;
+	public ShownFrame? ShownFrame
+	{
+		get => _shownFrame;
+		private set => SetAndRaise(ShownFrameProperty, ref _shownFrame, value);
+	}
 
 	/// <summary>Sets the in point of the export range at the frame given as the parameter (the timeline's bracket drag).</summary>
 	public ICommand SetRangeStartCommand { get; }
@@ -1292,14 +1304,20 @@ public partial class PreviewPane : UserControl
 		bool useScratch = scratch != null && scratch.Frame == Position && (run == null || IsStale || run.FrameCount <= Position);
 		if (useScratch)
 		{
-			if (_scratchSource == null || !ReferenceEquals(_scratchSource.Snapshot, scratch!.Snapshot))
+			// a new result is a new picture, whichever of the runner's two snapshots it came in (the WPF pane's rule of
+			// 2026-11-09, ported 2026-11-11): the runner finishes the frame in flight, so a scrub leaves outcomes for
+			// positions already left, which take their turn of the two snapshots, and the frame the scrub ends on comes,
+			// as often as not, in the snapshot on screen; comparing the snapshots had then made no new source, and
+			// nothing was drawn
+			if (_scratchSource == null || !ReferenceEquals(_scratchShown, scratch))
 			{
 				_scratchSource = new SnapshotFrameSource(scratch!.Snapshot);
+				_scratchShown = scratch;
 			}
 			_presenter.Source = _scratchSource;
 			GraphScratch = scratch;
 			UpdateCanvas(_scratchSource);
-			_shownFrame = 0;
+			ShownFrame = new ShownFrame(_scratchSource, 0);
 			_presenter.Show(0);
 		}
 		else if (run != null && run.FrameCount > Position)
@@ -1309,7 +1327,7 @@ public partial class PreviewPane : UserControl
 			// the stored frame is right even with the probes stale; the graphs then take the scratch recording for this position once it is there
 			GraphScratch = IsProbesStale && scratch != null && scratch.Frame == Position ? scratch : null;
 			UpdateCanvas(run.Frames);
-			_shownFrame = Position;
+			ShownFrame = new ShownFrame(run.Frames, Position);
 			_presenter.Show(Position);
 		}
 		else if (run == null && scratch == null && _presenter.Source != null)
@@ -1319,6 +1337,7 @@ public partial class PreviewPane : UserControl
 			// flash the empty picture before the new frame arrived
 			_presenter.Source = null;
 			GraphScratch = null;
+			ShownFrame = null;
 			UpdateCanvas(null);
 		}
 		else
