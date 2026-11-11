@@ -98,6 +98,7 @@ public static class WindowZoom
 		Windows.Add(window, state);
 		Apply(window, state);
 		TextRendering.Apply(window);
+		TitleBar.Attach(window);
 		window.Opened += (sender, _) => KeepOnScreen((Window)sender!);
 		Logger.Debug("UI zoom {Zoom} on {Window}", state.Applied, window.GetType().Name);
 	}
