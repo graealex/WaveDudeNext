@@ -75,4 +75,24 @@
     <ProjectReference Include="..\WaveDudeNext.UI\WaveDudeNext.UI.csproj" />
   </ItemGroup>
 
+  <!-- the published single EXE under the release's file name, WaveDudeNext-<version><suffix>.exe (2026-11-11, the two
+       targets of the WPF head's project file, for this head's two publish profiles): the profiles ask for it with
+       NameReleaseFile and give the suffix, which keeps the four Windows files apart; the assembly keeps its name, which
+       the avares URIs of the resources carry -->
+  <Target Name="NameReleaseFile" AfterTargets="Publish" Condition="'$(NameReleaseFile)' == 'true'">
+    <PropertyGroup>
+      <ReleaseFile>$(PublishDir)WaveDudeNext-$(Version)$(ReleaseFileSuffix).exe</ReleaseFile>
+    </PropertyGroup>
+    <Delete Files="$(ReleaseFile)" />
+    <Move SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(ReleaseFile)" />
+    <Message Importance="high" Text="Release file: $(ReleaseFile)" />
+  </Target>
+  <!-- no symbol files beside the release EXE: the referenced libraries' pdbs and the ones the Skia and HarfBuzz packages
+       carry beside their native libraries (84 and 21 MB) are not covered by CopyOutputSymbolsToPublishDirectory -->
+  <Target Name="DropPublishedSymbols" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(NameReleaseFile)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+
 </Project>
