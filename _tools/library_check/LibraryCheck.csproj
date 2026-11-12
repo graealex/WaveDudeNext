@@ -4,9 +4,8 @@
        Not part of the solution; run with "dotnet run" on this project (Release) -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <!-- Windows with WPF, for the bench of the WIC JPEG encoder (the library itself stays net10.0) -->
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <UseWPF>true</UseWPF>
+    <!-- The harness targets the library's cross-platform framework; Windows-only WIC and Media Foundation checks are conditional. -->
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>LibraryCheck</RootNamespace>
@@ -14,11 +13,6 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
-  <!-- UseWPF drops System.IO from the implicit usings -->
-  <ItemGroup>
-    <Using Include="System.IO" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\WaveDudeNext\WaveDudeNext.csproj" />

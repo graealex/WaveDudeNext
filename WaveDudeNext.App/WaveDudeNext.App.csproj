@@ -14,10 +14,10 @@
     <!-- Program.Main configures logging before Avalonia starts -->
     <StartupObject>WaveDudeNext.App.Program</StartupObject>
     <!-- Avalonia's clipboard and drag-and-drop on Windows go through COM -->
-    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <BuiltInComInteropSupport Condition="'$(OS)' == 'Windows_NT'">true</BuiltInComInteropSupport>
+    <ApplicationManifest Condition="'$(OS)' == 'Windows_NT'">app.manifest</ApplicationManifest>
     <!-- executable icon (Explorer, taskbar); the window icon is the same file as an Avalonia resource -->
-    <ApplicationIcon>Assets\wavedudenext.ico</ApplicationIcon>
+    <ApplicationIcon Condition="'$(OS)' == 'Windows_NT'">Assets/wavedudenext.ico</ApplicationIcon>
     <!-- bindings are checked at compile time against x:DataType; a view that binds by name declares its type -->
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- read by the file properties; the license text is LICENSE.md, the header of every source file names it.
@@ -31,17 +31,19 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
-  <ItemGroup>
+  <Import Project="Build/UnixItems.targets" Condition="'$(OS)' != 'Windows_NT'" />
+
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
     <!-- the window icon (the WPF App.ico) and the pictures the window embeds -->
-    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Assets/**" />
   </ItemGroup>
 
   <!-- the manual, the license and the manual's figures, rendered at run time by Help/MarkdownDocument (the WPF head
        converts them at build into FlowDocuments, which Avalonia has not); the same logical names as the port used -->
-  <ItemGroup>
-    <EmbeddedResource Include="..\MANUAL.md" Link="Help\MANUAL.md" LogicalName="MANUAL.md" />
-    <EmbeddedResource Include="..\LICENSE.md" Link="Help\LICENSE.md" LogicalName="LICENSE.md" />
-    <EmbeddedResource Include="..\Assets\*.svg" Link="Help\Figures\%(Filename)%(Extension)" LogicalName="Assets/%(Filename)%(Extension)" />
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <EmbeddedResource Include="../MANUAL.md" Link="Help/MANUAL.md" LogicalName="MANUAL.md" />
+    <EmbeddedResource Include="../LICENSE.md" Link="Help/LICENSE.md" LogicalName="LICENSE.md" />
+    <EmbeddedResource Include="../Assets/*.svg" Link="Help/Figures/%(Filename)%(Extension)" LogicalName="Assets/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!-- the string tables, the icon geometries and the colour tables are the WPF head's (2026-11-09 and 2026-11-10, the
@@ -50,13 +52,13 @@
        there under the Folder named here (Strings/Strings.XX.axaml, Themes/Icons.axaml, ...). The Build folder's C# is the
        build's converter, compiled by MSBuild, not part of the app -->
   <ItemGroup>
-    <SharedXaml Include="..\WaveDudeNext.WPF\Strings\Strings.*.xaml" Folder="Strings" />
-    <SharedXaml Include="..\WaveDudeNext.WPF\Themes\Icons.xaml;..\WaveDudeNext.WPF\Themes\Dark.xaml;..\WaveDudeNext.WPF\Themes\Light.xaml" Folder="Themes" />
+    <SharedXaml Include="../WaveDudeNext.WPF/Strings/Strings.*.xaml" Folder="Strings" />
+    <SharedXaml Include="../WaveDudeNext.WPF/Themes/Icons.xaml;../WaveDudeNext.WPF/Themes/Dark.xaml;../WaveDudeNext.WPF/Themes/Light.xaml" Folder="Themes" />
   </ItemGroup>
-  <Import Project="Build\SharedXaml.targets" />
+  <Import Project="Build/SharedXaml.targets" />
   <ItemGroup>
-    <Compile Remove="Build\**" />
-    <None Include="Build\**\*.cs" />
+    <Compile Remove="Build/*.cs" />
+    <None Include="Build/*.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -71,8 +73,8 @@
 
   <!-- WaveDudeNext.UI holds what no UI framework anchors (2026-11-06): the models, the settings, the shipped examples -->
   <ItemGroup>
-    <ProjectReference Include="..\WaveDudeNext\WaveDudeNext.csproj" />
-    <ProjectReference Include="..\WaveDudeNext.UI\WaveDudeNext.UI.csproj" />
+    <ProjectReference Include="../WaveDudeNext/WaveDudeNext.csproj" />
+    <ProjectReference Include="../WaveDudeNext.UI/WaveDudeNext.UI.csproj" />
   </ItemGroup>
 
   <!-- the published single EXE under the release's file name, WaveDudeNext-<version><suffix>.exe (2026-11-11, the two

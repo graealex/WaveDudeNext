@@ -26,7 +26,7 @@ public static class WaveEngineFactory
 	/// <summary>
 	/// Creates the engine for <paramref name="scene"/>. With <paramref name="preferGpu"/> set it first tries
 	/// <see cref="GpuWaveSimulator.TryCreate"/>, translating the usual OpenCL loader failures (missing, wrong-bitness or
-	/// incomplete OpenCL.dll) into a readable reason; any failure falls back to the CPU <see cref="WaveSimulator"/>.
+	/// incomplete loader) into a readable reason; any failure falls back to the CPU <see cref="WaveSimulator"/>.
 	/// Never throws for GPU problems, but CPU engine construction may still throw (e.g. out of memory).
 	/// Object sources run on either engine, the same as the image sources.
 	/// </summary>
@@ -55,7 +55,7 @@ public static class WaveEngineFactory
 			}
 			catch (DllNotFoundException)
 			{
-				gpuMessage = "no OpenCL driver (OpenCL.dll) found; install the driver of the graphics card";
+				gpuMessage = "no OpenCL loader found; install the OpenCL runtime for the graphics card";
 			}
 			catch (BadImageFormatException)
 			{
