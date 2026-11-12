@@ -29,6 +29,7 @@ using NLog.Targets;
 using WaveDudeNext.App.Localization;
 using WaveDudeNext.App.Logging;
 using WaveDudeNext.App.Theming;
+using WaveDudeNext.Rendering;
 using WaveDudeNext.Runs;
 using WaveDudeNext.UI.Rendering;
 using WaveDudeNext.UI;
@@ -163,6 +164,15 @@ public partial class App : Application
 			Logger.Info("OS: '{OS}'", RuntimeInformation.OSDescription);
 			Logger.Info("Runtime: '{Runtime}'", RuntimeInformation.FrameworkDescription);
 			Logger.Info("Log file: '{Path}'", LogFile);
+			// a double-click on a project or scheme file in Explorer then starts this exe with the path as its argument
+			// (2026-11-12, the user's choice of three: the same classes as the WPF head's, so the head started last owns
+			// the file types, as two installs of one head in different folders do; Windows alone, the Linux desktop
+			// entry and the macOS bundle come with those ports)
+			if (OperatingSystem.IsWindows() && Environment.ProcessPath is string executable)
+			{
+				FileAssociation.Register(ProjectDocument.Extension, FileAssociation.ProjectProgId, FileAssociation.ProjectDescription, executable);
+				FileAssociation.Register(ColorSchemeStore.XmlExtension, FileAssociation.SchemeProgId, FileAssociation.SchemeDescription, executable);
+			}
 			FrameCache.Sweep();
 			// the one start without a settings file chooses the preview quality for the machine (upstream's design)
 			(MachineFacts Facts, PreviewTier Tier)? firstStart = Settings.IsFirstStart ? ChoosePreviewDefaults() : null;

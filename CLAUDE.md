@@ -1727,8 +1727,16 @@ visual), no blur, opacity 0.24, the colour the inherited foreground's (followed 
 `OnPropertyChanged`); a blur of radius 1 had been tried first and either filled the counters (opacity 0.7) or added
 six levels (0.17). Measured on the strip's column: `241 81 30 30 241 81 30`, WPF's `241 80 30`; the `g` whole, 0
 coloured pixels; the 6× crop reads at WPF's weight without the colour. The user's verdict (2026-11-12): "not
-particularly good, but better"; it stays, uncommitted with the rest. What is left for the exact look is DirectWrite
-itself (the WPF way, with the colour), Windows only, 400–500 lines of interop; not asked for.
+particularly good, but better"; it stays, committed with the rest (fd90747, 1a96fb8). What is left for the exact look is
+DirectWrite itself (the WPF way, with the colour), Windows only, 400–500 lines of interop; not asked for.
+**The Avalonia head registers the file types too** (2026-11-12, the user's question whether the port lacked them: it
+did; his choice of three): the same two `FileAssociation.Register` calls as the WPF head's, at the same place of the
+start, under `OperatingSystem.IsWindows()`, with the same classes, so the head started last owns `.wdproj` and
+`.wdscheme`, as two installs of one head in different folders do (the other two: a first-come rule, or no registration
+in the App on Windows). Proven by a start of each head with the registry read after it: the App's start put its
+executable into both classes' open commands under `HKCU\Software\Classes` (the routine writes `HKEY_CLASSES_ROOT`,
+which Windows lands there for a process that is not elevated, and the log line names the root it wrote), the WPF
+start took them back.
 
 ## People, name, license
 
