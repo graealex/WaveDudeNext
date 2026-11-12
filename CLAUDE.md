@@ -154,6 +154,23 @@ harnesses run.
   it as a document built by `Build/Documents.targets`, whose converter `Build/MarkdownToFlowDocument.cs` (an inline
   MSBuild task, C# 7.3 and netstandard2.0 for Visual Studio's MSBuild; excluded from the app's compile) makes MANUAL.md
   the manual's document too.
+- **The Avalonia head has the same two profiles** (2026-11-11, the user's request, the first step towards the release
+  files he wants, six and no more: 2× WPF, 2× Avalonia for Windows, 1× Linux x64, 1× macOS universal; the Linux format
+  and the Mac's signing are open): `dotnet publish WaveDudeNext.App/WaveDudeNext.App.csproj -p:PublishProfile=SingleFile`
+  and `SingleFileBundled`, the WPF profiles' properties, into the App project's `bin\Publish` and `bin\PublishBundled` as
+  `WaveDudeNext-<version>-avalonia.exe` (38.1 MB; needs the plain .NET Runtime, not the Desktop one) and
+  `WaveDudeNext-<version>-avalonia-bundled.exe` (111 MB). The suffix was chosen without him, his to change: one property
+  in each profile. The two release targets are copies in the App's project file; `DropPublishedSymbols` matters more
+  there, since the Skia and HarfBuzz packages carry pdbs of 84 and 21 MB. `IncludeAllContentForSelfExtract` is what puts
+  Avalonia's three native libraries (Skia, HarfBuzz, ANGLE, 19 MB) into the EXE; the host unpacks 36 and 96 MB under
+  `%TEMP%\.net\<the EXE's name>` at a build's first start, which cost nothing measurable (first starts 6.5 and 7.1 s,
+  later ones 6.3–6.5 and 6.6–6.8). The log stays beside the EXE (the app goes by the process path, and falls back to
+  the settings folder where that one cannot be written). Proven by starts of each: the GPU engine, the first scratch
+  frame, exit 0, no warning in the log. **The Avalonia head takes 6.3–6.9 s to "ready" with quick JIT off, 3.3 s with it
+  on** (found on the way; `DOTNET_TC_QuickJit=1` on the same published EXE; the plain Release build takes 6.9 s, so the
+  single file is not the cost; wall clock to the log's "ready" line, the WPF head's figure being 2.44 s): presumably
+  Avalonia's assemblies come as plain IL, so the whole framework is compiled optimised at its first call too (not
+  checked). Reported to the user, undecided.
 - The library is compiled optimised in every configuration (flip it locally to step through engine code). The user
   settings are one sparse XML file, `%LOCALAPPDATA%\WaveDudeNext\Settings.xml` (`Settings.cs`, `XmlSerializer`, 2026-10-26, the
   user's choice: .NET's `ApplicationSettingsBase` kept a `user.config` per exe path and version under a folder named after
@@ -1010,7 +1027,16 @@ must come after the logging is set up. The first step after the preparation is a
 parity, tested against the WPF app, before anything goes to macOS or Linux. He has a Mac Mini M1 and can boot a bare-metal
 Linux. Not pursued (his decision the same day): running `library_check` on the Mac first, and a capture path of its own for
 GPUs sharing the host's memory, estimated at 9 % of a run at best, the step kernel being bound by the memory bus there.
-Whether both heads share one settings file or keep one each is open until the Avalonia app exists.
+**Both heads share one settings file** (2026-11-11, the user's choice of three: one file, one each, or one with a block
+per head for the chrome-dependent part): same user, same preferences; the last-writer hazard with both heads open is the
+one two instances of a head have had all along. **The window placement means the same in both** (his condition, "no
+discrepancy"): the settings hold the whole window's size at zoom 1, as WPF's `Width` and `Height` are, while Avalonia's
+are the client area (`Window.HandleResized` writes the client size into them, `FrameSize` is the outer one; read at the
+tag), so the App's `RestorePlacement` takes the frame off (`FrameSize - ClientSize`, known before the window shows, zero
+where a platform cannot tell it yet) and `SavePlacement` puts it back; the position was the same already (both use the
+window rectangle's corner). Measured with the same file across four alternating starts: before, WPF's window rect was
+1776 × 1459 and the App's 1792 × 1498 for the same numbers, each writing back what it read; after, both are 1776 × 1459
+at (1063, 351) with a client of 1760 × 1420, the file unchanged.
 **How the window's logic moves** (2026-11-06, the user's rules): in small steps, each one a cleanup the WPF app would
 want anyway, never at the cost of its WPF quality. The application's state and rules go into model classes of
 `WaveDudeNext.UI` that the XAML binds (plain notifying properties, no dependency properties for application state);
@@ -1565,6 +1591,144 @@ message sent to the app's own windows alone (the hidden ones included, found by 
 broadcast, then put back the same way: WPF's attribute 1 → 0 → 1 with "The desktop's app mode is light now; the
 System theme follows" and its opposite in the log, the App's the same with `TitleBar`'s dark → light → dark lines; and
 by the user by hand, the desktop's mode switched system-wide with both heads open, both following.
+**The Avalonia head's look is brought to the WPF head's pixel by pixel** (2026-11-11, the user's request after the
+stacked pictures' header strips looked off: "get everything as close to the WPF app as possible"). The method: both
+heads captured with PrintWindow in the same state (the shared settings, the same project and window rectangle, a tree
+row selected by keys, each orientation), the captures diffed pixel by pixel with the differing 32 px cells listed, then
+runs of colour scanned along a row or a column of both for exact positions; a probe under `%TEMP%`, deleted. From 4.6 %
+of the pixels differing (120,000) to 1.0 % (25,000), the rest the two text engines' glyphs, which no layout reaches
+(Avalonia's Skia rasterises Segoe UI's glyphs a pixel lower in the line and a little narrower than WPF's Display mode:
+"Simulation" is 52 px wide against 57). Found and fixed, each measured before and after: **the window's text line is 15
+px** (`TextBlock.LineHeight` on the main window, inherited; WPF's Display mode rounds the font's 15.96 to a whole 15,
+Avalonia's natural line is 16, so every text-only element, the menu bar's headers, a form's section headers and
+readout rows, was a pixel taller and every row below it a pixel lower; with it the Source form's column of boxes,
+lines and combos is identical in both heads, 25 rows of it); **a single-line text box is 25 px** (`MinHeight` of the
+`TextBox` theme, which the `NumberBox` inherits: a WPF text box with MinHeight 22 and Padding 3,2 comes out at 25, its
+text view adding three pixels; the multi-line boxes and the plain combos agreed already; an editable combo is 23, the
+speed box); **the picture frame turns the header strip with a layout transform** (`LayoutTransformControl` as the
+label child, its `LayoutTransform` set by `PictureFrame`, so the strip's margin counts in the frame's space as WPF's
+`LayoutTransform` has it and the content stays on whole pixels; the render transform about the centre had put the
+margin's 10 and 4 into the column's thickness, the strip 7 px off the edge, the picture 6 px to the right and 3 px
+down, and the borders on half pixels); **the tree row's layout root has no border** (a 1 px transparent one had made
+Avalonia inset the background's geometry by half a pixel, a blended line round the selected row) **and no focus
+adorner** (Avalonia's default had drawn a white frame; the focus shows as the active selection colour, as in WPF);
+**the root row of an opened project gets the focus** (`Focus()` on a row not yet laid out fails, the project opening in
+the window's `Opened` handler; `Reveal` posts the focus again at Loaded, so the row is blue, not the grey of an unfocused
+selection); **the status bar has the resize grip's glyph** (WPF's `ResizeGrip`, 16 px square, the dots 3 px from the
+corner; the look alone, Avalonia resizes at the frame); the menu bar is 23 px (the headers' padding 7,4 with the 15 px
+line). Both orientations measured at the end: the strips' boxes and buttons, the pictures' edges, the tree's rows, the
+form's rows, the timeline, the transport, the speed box and the grip at the same pixels in both heads.
+**The keyboard focus looks the same in both heads** (the user's report that evening, after the above: "the focus still
+looks very different", the Tab focus). Measured by a probe that presses Tab thirty times from the Project toolbar in
+each head, crops the focused element (UI Automation's rectangle, 6 px around) after every press and lays the crops of
+both heads side by side, a row per step. Three things differed. **The Tab order**: the App stopped on the dock
+splitters (its `GridSplitter`s were focusable, with a keyboard increment, where the WPF host's are not) and on a pane's
+menu and close buttons (`DockHeaderButtonTheme` without `Focusable` false and `IsTabStop` false, which the WPF style
+has); both out of the cycle now, and the thirty steps land on the same thirty ids. **The focus visual**: WPF's rule is
+the accent border on the control and nothing else (`FocusVisualStyle` null everywhere, `IsKeyboardFocused` triggers);
+the App's themes drew the accent border and Avalonia's default focus adorner, a white frame, on top, wherever a theme
+had no `FocusAdorner="{x:Null}"` (the toolbar's glyph and text buttons, the transport buttons, toggles and radios, the
+graph box thumbs, the picture splitter, the handles' `MarkerBase`); every focusable theme sets it now, and the focus
+styles say `:focus`, not `:focus-visible`, since WPF's `IsKeyboardFocused` holds after a click as well. **The text
+boxes**: Avalonia's `TextBox.OnGotFocus` selects the whole text on a Tab (read at 12.1.5: `NavigationMethod.Tab`,
+not `AcceptsReturn`, text present; no property turns it off), WPF leaves the caret at the start; `EditBehavior`, which
+every text box carries, puts the caret back at 0 with nothing selected after a Tab, except in an editable combo box's
+text box, where WPF selects too (the speed box). The sheet after: the same look at every step. Then the user's two
+reports on it: **the menu's header under F10 had the white frame still** (the two `MenuItem` themes lacked the
+adorner null; gone, the header highlighted on `:selected` as WPF's `IsHighlighted`, measured the same `#333334` columns
+in both; WPF underlines the mnemonic under F10 where Avalonia shows access keys on Alt alone, left as it is), and **the
+turned strip's text looked wrong with ClearType** (both heads' turned "Brightness" had colour, 36 of 62 pixels in
+WPF's column, 39 of 51 in the App's; WPF's look right, the App's not; that night's note said the fringes were
+sideways, an assumption: measured later that night in isolation, see below, Skia's DirectWrite backend renders LCD text
+under a 90° turn with the fringes in device space as WPF does, blue at one end of a stem and red at the other, but
+without gridfitting, at every hinting level alike, the strokes two pixels heavy and strongly coloured, where WPF's turned
+text is gridfit ClearType, each stem one row with a light shoulder). **The turned strip renders greyscale now, the rest of the window as before**
+(49 grey and 0 coloured pixels in the caption's column; the menu's "Simulation" 37 coloured, the form's "General" 22,
+as they must be). It took reading the Skia backend after four measurements had said a descendant's mode changes no
+pixel (`TextOptions.SetTextRenderingMode` on the strip's host, on the strip and on the caption's own `TextBlock`, and
+the obsolete per-visual `RenderOptions`: 39 coloured each time; the window's mode switched to greyscale: 49 grey): in
+`DrawingContextImpl.PushTextOptions` the backend merges a visual's options into the current ones by filling what is
+*unspecified* (`TextOptions.MergeWith`), so the window's explicit `SubpixelAntialias` (set on 2026-11-09) stood over
+every descendant's value; an unspecified mode is drawn as subpixel antialiasing anyway (`GlyphRunImpl.GetTextBlob`).
+`Theming/TextRendering` left the mode unspecified then and `PictureFrame` set `Antialias` on the turned strip's host
+(both gone the same night, when the whole window went grey, below). The user had let it go as "no useful solution"
+before the read; the read overturned it. **Why the App's text looks washed beside WPF's** (the user's question
+that night, measured on the menu's "Simulation", 8× crops and a luminance row through the x-height): WPF's Display
+mode snaps glyph origins, stems and advances to whole pixels, every stem one bright column with faint shoulders, the
+word 57 px wide; Skia places glyphs at fractional x positions for every antialiased mode (`GlyphRunImpl.CreateFont`:
+`Subpixel = edging != Alias`), so a one-pixel stem is shared by two columns at half intensity, the word 52 px, and
+nothing in Avalonia reaches that flag: `Alias` alone places glyphs whole, with no antialiasing at all. **Measured in
+isolation** (later that night, a SkiaSharp 3.119.4 console probe under `%TEMP%`, deleted: "Brightness" at 12 px, the
+font as `GlyphRunImpl.CreateFont` sets it, hinting Full, a positioned run at the linear advances HarfBuzz gives Avalonia,
+a luminance line through the x-height): with `Subpixel` off Skia rounds every glyph to a whole pixel and each stem is
+one column, 59/241/84 against WPF's 71/228/85; with it on, the cumulative linear advances land on quarter pixels (2 of
+10 glyphs of "Brightness", more of "Simulation") and a run starting at a fractional pixel shifts whole. Rounding every
+advance to a whole pixel before the run, as WPF's Display mode does, gives the crisp result with `Subpixel` on when the
+run starts on a whole pixel; a run origin at .5, centred text, still splits. `ITextShaperImpl` is public but
+`[NotClientImplementable]`, bound through the `[PrivateApi]` `AvaloniaLocator`, and `ShapedBuffer`'s indexer is settable
+(read at 12.1.5), so a shaper wrapper rounding the advances is possible but unsupported. **Under the 90° turn the
+backend snaps everything to whole pixels whatever the flags** (every variant of the probe the same, Skia's own 90° and
+a matrix with cos = 6e-17 alike; `LayoutTransformControl` rounds its matrix to 8 decimals anyway): the App's turned text,
+captured on Example 16 beside WPF's, is crisp and thin, each stem one row at full intensity, 0 coloured pixels, while
+WPF's is gridfit ClearType and looks heavier by its filter's third of a pixel; LCD under the turn is heavy and unhinted
+(above). Options given to the user: a shaper wrapper, a patched `Avalonia.Skia` (one line), an upstream request, or
+leaving both; **he chose to test the shaper wrapper** (the same night, uncommitted): `Theming/WholePixelShaper`, a
+`DispatchProxy` made at run time against `ITextShaperImpl` (the reference assembly adds a member no other assembly can
+implement to every `[NotClientImplementable]` interface, so no class can implement it at compile time), bound in place
+of the platform's `HarfBuzzTextShaper` through the locator by reflection (`AvaloniaLocator.Current`/`CurrentMutable`
+are hidden from the reference assembly as private API; `AppBuilder.With` only queues a binding for the setup, which has
+passed by then; a `GlyphTypeface` asks the locator for the implementation itself, so a `TextShaper` bound in front of it
+is never asked), from `AfterPlatformServicesSetup`; every `ShapedBuffer` it returns has its advances rounded, half
+pixels away from zero; the typeface it hands out is a marker interface without members, which the HarfBuzz shaper casts
+back to its own class, so it is passed through (a proxy of it crashed the start). Measured on the menu bar, Example 16,
+a luminance row through the x-height: stems whole (one bright column between dark ones) 3 → 14, WPF's 16; split (two
+middling columns) 5 → 0, WPF's 1; the words at WPF's pixel positions after (114..168 for "Simulation" against WPF's
+114..169; 116..171 before). The whole window against WPF's capture is unchanged by it, 2.15 → 2.16 % of the pixels
+differing at any level and 0.81 → 0.88 % at a tolerance of 96, the band of the tree's selected row (a focus-state
+difference between the harness's two starts) counted apart. **The user saw no improvement** ("the text just looks
+shite"), and 8× crops of the form's "Random seed" beside WPF's showed why: the App's strokes are heavier, the LCD
+fringes saturated blue and red where WPF's are faint, and the letters sit tighter (WPF's hinted advances are wider: its
+Description wraps a word earlier). Measured in isolation (the SkiaSharp probe again, "Two boxes connected by a small
+pipe" at whole positions): Skia renders the same pixels with `Subpixel` on and off, so the flag places and does not
+rasterise, and its "hinted" advances (`GetGlyphWidths`, hinting Full, `Subpixel` off) equal the linear ones to the
+tenth, so hinted advances in the shaper, the refinement the user chose next, have nothing to give; the weight and
+the fringes are Skia's own LCD rendering on DirectWrite (Skia blends the raw 3×1 ClearType coverage with its own gamma
+and contrast, where WPF's DirectWrite path applies the system's ClearType blending), which nothing in Avalonia
+reaches. **What the App can do** is greyscale antialiasing for the whole window (`TextRenderingMode.Antialias` on
+the window in `TextRendering.Apply`, built for the user to look at; the turned strip's look everywhere, thin, no
+colour): over the whole window stems whole (one bright column between dark ones, counted along every row) 1542 before
+the shaper, 1759 with it, 2397 in greyscale, WPF 2981; split (two middling columns) 2138, 1846, 1586, WPF 2234; the
+form in greyscale at 3× is the nearest to WPF's in weight and spacing of the three. The counting and cropping script
+(`crisp.ps1`), the window captures and the 8× word crops were under `%TEMP%`, deleted. **Decided the same night**: I
+recommended greyscale for the whole window, he gave the word, and took it back on seeing it ("that's not what I
+wanted"): **subpixel antialiasing stays for the window, the turned strip alone is grey** (`TextRendering.Apply` leaves
+the mode unspecified, `PictureFrame` sets `Antialias` on the turned strip's host, as before that evening; a greyscale
+window is not to be proposed again); **the shaper stays, fail-soft**: `Install` catches what an Avalonia update may
+break and logs a warning, the application then running with the platform's shaper and its text on quarter pixels; and
+**the App's text box text starts where WPF's does**: the `TextBox` theme's padding is 8,2 (WPF's 3,2 plus the 5 px its
+text view insets; the form's number box and Description box measured at the first stem 7 px after the padding's edge in
+WPF against 2 in the App; after, the first ink at 147 and 146 against WPF's 147 and 147 from the window's edge; measured
+on the greyscale build, the inset being the layout's). A zoom or DPI scale other than 1 is untested for all of this.
+**The turned strip's text, still to solve** (the user, the same night: "going to shit"): five ways were offered,
+emulating ClearType's weight by drawing the strip's text three times (full, and 1 px to either side in glyph space at
+about 17 %, the rows above and below each stem after the turn, WPF's `80 241 80`), Skia's own LCD rendering unturned
+turned into grey coverage and rotated as pixels, DirectWrite directly (the exact WPF look, 400–500 lines of interop,
+Windows only), the semibold face for the turned strip, and never turning the label; **he chose to test the semibold
+face** (`TextElement.SetFontWeight(host, SemiBold)` beside the grey mode in `PictureFrame`, uncommitted): measured on
+the strip's column, each stem `143 241 143`, a full row with shoulders of 143 either side, against WPF's `80 241 80`
+and the regular face's bare `241`: heavier than WPF's, "Brightness" reading as bold beside WPF's regular in the 6× crops;
+his judgement: the semibold's `g` lost the stem between its bowl and its tail ("is that text simply clipped!?"; it is
+not: measured in isolation on a sheet of both faces at every hinting level, the hinted semibold under the turn renders
+that stem grey into the bowl, the regular face keeps every stroke; the semibold is out). **Then the halo** (the same
+night, the weight done as WPF's profile asks: WPF's turned stems read `241 80 30`, a full row and a shoulder of 80 on
+the side after it, none before): `PictureFrame` puts one shared `DropShadowEffect` on every `TextBlock` and
+`TextPresenter` of the turned strip, offset 1 px along the text in the strip's own space (an effect turns with its
+visual), no blur, opacity 0.24, the colour the inherited foreground's (followed through a theme change in
+`OnPropertyChanged`); a blur of radius 1 had been tried first and either filled the counters (opacity 0.7) or added
+six levels (0.17). Measured on the strip's column: `241 81 30 30 241 81 30`, WPF's `241 80 30`; the `g` whole, 0
+coloured pixels; the 6× crop reads at WPF's weight without the colour. The user's verdict (2026-11-12): "not
+particularly good, but better"; it stays, uncommitted with the rest. What is left for the exact look is DirectWrite
+itself (the WPF way, with the colour), Windows only, 400–500 lines of interop; not asked for.
 
 ## People, name, license
 

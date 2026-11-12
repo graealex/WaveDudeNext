@@ -18,6 +18,7 @@
 
 using System.Reflection;
 using Avalonia;
+using WaveDudeNext.App.Theming;
 
 namespace WaveDudeNext.App;
 
@@ -39,10 +40,12 @@ public static class Program
 	/// <summary>
 	/// Avalonia configuration; also used by the visual designer. No font of its own (2026-11-09, the user's rule: the same
 	/// font as the WPF head): the platform's default family is the text's, Segoe UI on Windows as the WPF head has it,
-	/// the system's UI font elsewhere. The port had bundled Inter.
+	/// the system's UI font elsewhere. The port had bundled Inter. The text is shaped with whole-pixel advances
+	/// (<see cref="WholePixelShaper"/>, 2026-11-11), registered once the platform's services are up and before any text.
 	/// </summary>
 	public static AppBuilder BuildAvaloniaApp()
 		=> AppBuilder.Configure<App>()
 			.UsePlatformDetect()
-			.LogToTrace();
+			.LogToTrace()
+			.AfterPlatformServicesSetup(_ => WholePixelShaper.Install());
 }
