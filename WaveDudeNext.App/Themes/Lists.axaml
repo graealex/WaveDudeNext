@@ -83,7 +83,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Style Selector="^:selected">
 					<Setter Property="Foreground" Value="{DynamicResource TreeViewItemSelectedInactiveForeground}" />
 				</Style>
-				<Style Selector="^:focus-visible /template/ Border#PART_LayoutRoot">
+				<Style Selector="^:focus /template/ Border#PART_LayoutRoot">
 					<Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
 				</Style>
 				<Style Selector="^:disabled">

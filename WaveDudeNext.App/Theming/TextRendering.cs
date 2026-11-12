@@ -23,17 +23,29 @@ namespace WaveDudeNext.App.Theming;
 
 /// <summary>
 /// How the text of every window is rendered (2026-11-09, the user's report that the text looked worse than the WPF
-/// head's): subpixel antialiasing, ClearType's way, strong hinting and the baseline on the pixel grid, which is what
-/// WPF's Display text formatting gives the WPF head at 100 %. Avalonia 12 exposes these as methods on
-/// <see cref="TextOptions"/>, not as properties a style's setter can name, so <see cref="WindowZoom.Attach"/> applies
-/// them to each window as it attaches; the inherited value reaches the window's popups, which are roots of their own.
+/// head's): subpixel antialiasing, ClearType's way (the backend's own default for an unspecified mode, see
+/// <see cref="Apply"/>), strong hinting and the baseline on the pixel grid, which is what WPF's Display text formatting
+/// gives the WPF head at 100 %. Avalonia 12 exposes these as methods on <see cref="TextOptions"/>, not as properties a
+/// style's setter can name, so <see cref="WindowZoom.Attach"/> applies them to each window as it attaches; the inherited
+/// value reaches the window's popups, which are roots of their own. What stays apart from WPF (2026-11-11, measured
+/// against its captures): Skia blends the raw 3×1 ClearType coverage from DirectWrite with its own gamma and contrast,
+/// so the strokes are heavier and the fringes saturated where WPF's are faint, which nothing in Avalonia reaches; the
+/// glyphs are placed on whole pixels by <see cref="WholePixelShaper"/>, where Skia alone places them on quarter pixels.
+/// Greyscale for the whole window was built and measured that night (thinner, no colour, more stems whole) and the user
+/// refused it: subpixel antialiasing stays, the turned header strip alone is grey (<c>PictureFrame</c>).
 /// </summary>
 public static class TextRendering
 {
-	/// <summary>Sets the three options on <paramref name="root"/>, for it and everything under it.</summary>
+	/// <summary>
+	/// Sets the hinting and the baseline alignment on <paramref name="root"/>, for it and everything under it. The rendering
+	/// mode is left unspecified on purpose (2026-11-11): the Skia backend's draw context merges a visual's options into the
+	/// current ones by filling what is unspecified (<c>TextOptions.MergeWith</c> in <c>DrawingContextImpl.PushTextOptions</c>,
+	/// read at 12.1.5), so a mode set on the window stands over every descendant's, and an unspecified mode is drawn as
+	/// subpixel antialiasing anyway (<c>GlyphRunImpl.GetTextBlob</c>); unspecified, it lets the turned header strip ask for
+	/// greyscale (<c>PictureFrame</c>), as WPF renders turned text.
+	/// </summary>
 	public static void Apply(Visual root)
 	{
-		TextOptions.SetTextRenderingMode(root, TextRenderingMode.SubpixelAntialias);
 		TextOptions.SetTextHintingMode(root, TextHintingMode.Strong);
 		TextOptions.SetBaselinePixelAlignment(root, BaselinePixelAlignment.Aligned);
 	}

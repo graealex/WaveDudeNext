@@ -44,8 +44,14 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="Foreground" Value="{DynamicResource WindowForeground}" />
 			<Setter Property="BorderBrush" Value="{DynamicResource TextBoxBorder}" />
 			<Setter Property="BorderThickness" Value="1" />
-			<Setter Property="Padding" Value="3,2" />
-			<Setter Property="MinHeight" Value="22" />
+			<!-- the WPF text box has Padding 3,2, and its text view insets the text 5 px more on either side: measured on the
+			     project form's number box and Description box, the first stem 7 px after the padding's edge there against
+			     2 here, so the padding carries the five (2026-11-11, the look brought to the WPF head's) -->
+			<Setter Property="Padding" Value="8,2" />
+			<!-- 25 px, the height a WPF text box with its padding and MinHeight 22 comes out at (its text view adds three
+			     pixels to the line): measured on the Source view's Name box and the number boxes, 25 against 22 here, the
+			     multi-line boxes and the combo boxes equal already (2026-11-11, the look brought to the WPF head's) -->
+			<Setter Property="MinHeight" Value="25" />
 			<Setter Property="VerticalContentAlignment" Value="Center" />
 			<Setter Property="CaretBrush" Value="{DynamicResource WindowForeground}" />
 			<Setter Property="SelectionBrush" Value="{DynamicResource Accent}" />
@@ -262,6 +268,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Style Selector="^[IsEditable=true]">
 				<Setter Property="IsTabStop" Value="False" />
 				<Setter Property="KeyboardNavigation.TabNavigation" Value="Local" />
+				<!-- 23 px, as a WPF editable combo comes out with its text box inside (the preview's speed box, measured 23
+				     against 22 here; the plain combos are 22 in both heads; 2026-11-11) -->
+				<Setter Property="MinHeight" Value="23" />
 			</Style>
 		</ControlTheme>
 

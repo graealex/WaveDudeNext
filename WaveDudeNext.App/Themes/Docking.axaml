@@ -51,6 +51,10 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="Height" Value="16" />
 		<Setter Property="Margin" Value="1,0" />
 		<Setter Property="Padding" Value="0" />
+		<!-- out of the Tab cycle, as the WPF head's dock buttons are (2026-11-11: Tab had stopped on a pane's menu and close
+		     buttons between the tree and the properties form) -->
+		<Setter Property="Focusable" Value="False" />
+		<Setter Property="IsTabStop" Value="False" />
 		<Setter Property="Template">
 			<ControlTemplate>
 				<Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">

@@ -40,7 +40,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
         Background="{DynamicResource WindowBackground}"
         Foreground="{DynamicResource WindowForeground}"
         FontSize="12"
+        TextBlock.LineHeight="15"
         DragDrop.AllowDrop="True">
+	<!-- TextBlock.LineHeight 15 for the whole window (inherited): the line a WPF text block has at Segoe UI 12 px in its
+	     Display text formatting, 15 px whole (the font's 15.96 rounded down to the pixel grid: the menu's headers carry
+	     their text on rows 4 to 18, a form's section header is 15 + 2 + 1 under its 2 px margin); Avalonia's natural line
+	     is 16, which had put every text-only element, the section headers and readout rows of the forms, a pixel taller
+	     and every row below them a pixel lower than the WPF form's (2026-11-11, the look brought to the WPF head's;
+	     measured on the Source view). The manual and About are windows of their own with their own sizes and keep
+	     Avalonia's lines, as do the popups (menus, tooltips), which are trees of their own. -->
 	<!-- The window as the WPF one lays it out: the menu bar, the dock host with the Project, Properties and Messages panes
 	     around the Preview document, and the status bar. The window is its own data context: the panes bind the models
 	     (Document, Selection, RunHost, Live, Preview, Busy, SceneComposer), the menus bind Commands, each a line into a
@@ -325,8 +333,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		</Menu>
 
 		<!-- the status bar: the last log line (double-click opens the Messages pane), the busy indicator and the run's state on the right -->
-		<Border x:Name="statusBar" DockPanel.Dock="Bottom" Background="{DynamicResource StatusBarBackground}" MinHeight="22" Padding="4,0,16,0">
-			<DockPanel>
+		<Border x:Name="statusBar" DockPanel.Dock="Bottom" Background="{DynamicResource StatusBarBackground}" MinHeight="22" Padding="4,0,0,0">
+			<Panel>
+			<!-- the resize grip's glyph in the corner, as WPF draws it over its status bar (the window's ResizeGrip, 16 px square,
+			     the dots 3 px from the corner); Avalonia has no grip, the window resizes at its frame, so the glyph is the look
+			     alone (2026-11-11, the look brought to the WPF head's); the 16 px it takes were the bar's right padding -->
+			<Path HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False" Fill="{DynamicResource StatusBarForeground}"
+			      Data="M8,0 h2 v2 h-2 z M8,4 h2 v2 h-2 z M8,8 h2 v2 h-2 z M4,4 h2 v2 h-2 z M4,8 h2 v2 h-2 z M0,8 h2 v2 h-2 z"
+			      Margin="0,0,3,3" />
+			<DockPanel Margin="0,0,16,0">
 				<!-- the busy indicator (2026-11-11, as the WPF head's): an export (frames done), an export waiting for its run or a
 				     scratch frame being computed for the preview (indeterminate) -->
 				<StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -360,6 +375,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				</TextBlock>
 				<TextBlock x:Name="txtStatus" AutomationProperties.AutomationId="StatusMessage" Text="{DynamicResource Ready}" Foreground="{DynamicResource StatusBarForeground}" VerticalAlignment="Center" Margin="4,2" TextTrimming="CharacterEllipsis" />
 			</DockPanel>
+			</Panel>
 		</Border>
 
 		<docking:DockHost x:Name="dockHost">

@@ -83,13 +83,17 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<!-- a row: 23 px high (upstream's 2026-10-23 request for more room), no padding above or below, so the 15 px text line
 		     and the 16 px icons centre on it; the expander in a 16 px column, the children indented by that column; every
 		     row expanded at first. The header Border takes the keyboard focus for the row (Avalonia's template focus target,
-		     as the Fluent theme does) and shows it as the accent border. The automation id is the TreeId rule's, bound to the
-		     node once (a reflection binding: the row's node has no compile-time type). -->
+		     as the Fluent theme does); the focus shows as the selection's active colour, as in the WPF tree, with no border
+		     or adorner. The automation id is the TreeId rule's, bound to the node once (a reflection binding: the row's node
+		     has no compile-time type). -->
 		<ControlTheme x:Key="ProjectTreeItemTheme" TargetType="TreeViewItem">
 			<Setter Property="Foreground" Value="{DynamicResource TreeViewForeground}" />
 			<Setter Property="Background" Value="Transparent" />
 			<Setter Property="Padding" Value="3,0" />
 			<Setter Property="IsExpanded" Value="True" />
+			<!-- no focus rectangle around a row: the focused row is the selected one, which the active selection colour
+			     shows, as in the WPF tree (2026-11-11: Avalonia's default adorner had drawn a white frame round it) -->
+			<Setter Property="FocusAdorner" Value="{x:Null}" />
 			<!-- the id keeps the name the row was made with (the harnesses find a renamed row by it); the name is the text the row
 			     shows, following a rename and a language switch, which the WPF head's rows give UI Automation by themselves. Both are
 			     reflection bindings (x:CompileBindings off for this file): a row's data context has no one type -->
@@ -108,8 +112,11 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 					<Grid ColumnDefinitions="16,*" RowDefinitions="Auto,*">
 						<ToggleButton Name="PART_ExpandCollapseChevron" Theme="{StaticResource ProjectTreeExpanderTheme}"
 						              IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}" VerticalAlignment="Center" />
+						<!-- no border: Avalonia fills a Border's background inside a geometry inset by half its border thickness,
+						     so a 1 px transparent border had put the selected row's edges on half pixels, a blended line round
+						     the fill, where the WPF row is a plain 23 px fill (2026-11-11, the look brought to the WPF head's) -->
 						<Border Name="PART_LayoutRoot" Grid.Column="1" Focusable="True" TemplatedControl.IsTemplateFocusTarget="True"
-						        Background="{TemplateBinding Background}" BorderBrush="Transparent" BorderThickness="1"
+						        Background="{TemplateBinding Background}" BorderThickness="0"
 						        MinHeight="23" Padding="{TemplateBinding Padding}">
 							<ContentPresenter Name="PART_HeaderPresenter" Focusable="False"
 							                  Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
@@ -122,9 +129,6 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			</Setter>
 			<Style Selector="^ /template/ Border#PART_LayoutRoot:pointerover">
 				<Setter Property="Background" Value="{DynamicResource TreeViewItemHover}" />
-			</Style>
-			<Style Selector="^ /template/ Border#PART_LayoutRoot:focus">
-				<Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
 			</Style>
 			<Style Selector="^:selected /template/ Border#PART_LayoutRoot">
 				<Setter Property="Background" Value="{DynamicResource TreeViewItemSelected}" />
@@ -176,6 +180,9 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="Margin" Value="1,0" />
 			<Setter Property="Focusable" Value="False" />
 			<Setter Property="IsTabStop" Value="False" />
+			<!-- the keyboard focus is the accent border alone, as in WPF (2026-11-11: Avalonia's default adorner had drawn
+			     its white frame round the toolbar's focused buttons as well) -->
+			<Setter Property="FocusAdorner" Value="{x:Null}" />
 			<Setter Property="Background" Value="Transparent" />
 			<Setter Property="BorderBrush" Value="Transparent" />
 			<Setter Property="Foreground" Value="{DynamicResource WindowForeground}" />
@@ -212,6 +219,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<Setter Property="Background" Value="Transparent" />
 			<Setter Property="BorderBrush" Value="Transparent" />
 			<Setter Property="Foreground" Value="{DynamicResource WindowForeground}" />
+			<Setter Property="FocusAdorner" Value="{x:Null}" />
 			<Setter Property="Padding" Value="6,1,6,0" />
 			<Setter Property="Margin" Value="1,0" />
 			<Setter Property="Height" Value="23" />

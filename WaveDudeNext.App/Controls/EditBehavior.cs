@@ -57,10 +57,28 @@ public sealed class EditBehavior
 	private static void OnCommitOnEnterChanged(TextBox box, AvaloniaPropertyChangedEventArgs e)
 	{
 		box.RemoveHandler(InputElement.KeyDownEvent, OnKeyDown);
+		box.GotFocus -= OnGotFocus;
 		if (e.GetNewValue<bool>())
 		{
 			// tunnelling, so the key is seen before the text box's own handling (WPF's PreviewKeyDown)
 			box.AddHandler(InputElement.KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
+			box.GotFocus += OnGotFocus;
+		}
+	}
+
+	/// <summary>
+	/// A Tab into the box leaves the caret at the start with nothing selected, as WPF's text box does: Avalonia's selects the
+	/// whole text on a Tab in its own OnGotFocus, with no property to say otherwise (read at 12.1.5; this handler runs after
+	/// it). An editable combo box's text box keeps the selection, which WPF's combo box makes too (2026-11-11, the focus look
+	/// brought to the WPF head's).
+	/// </summary>
+	private static void OnGotFocus(object? sender, FocusChangedEventArgs e)
+	{
+		if (sender is TextBox box && e.NavigationMethod == NavigationMethod.Tab && box.TemplatedParent is not ComboBox)
+		{
+			box.CaretIndex = 0;
+			box.SelectionStart = 0;
+			box.SelectionEnd = 0;
 		}
 	}
 

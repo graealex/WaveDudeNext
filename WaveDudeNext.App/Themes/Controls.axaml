@@ -266,7 +266,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Style Selector="^:selected">
 					<Setter Property="Foreground" Value="{DynamicResource TreeViewItemSelectedInactiveForeground}" />
 				</Style>
-				<Style Selector="^:focus-visible /template/ Border#PART_LayoutRoot">
+				<Style Selector="^:focus /template/ Border#PART_LayoutRoot">
 					<Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
 				</Style>
 				<Style Selector="^:disabled">
@@ -308,6 +308,12 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<ControlTheme x:Key="TopLevelMenuItemTheme" TargetType="MenuItem">
 				<Setter Property="Background" Value="Transparent" />
 				<Setter Property="Foreground" Value="{DynamicResource MenuForeground}" />
+				<!-- the keyboard's header is the highlighted one (:selected), as in WPF, with no frame round it (2026-11-11,
+				     the user's report: Avalonia's default adorner had drawn its white frame on the header F10 reaches) -->
+				<Setter Property="FocusAdorner" Value="{x:Null}" />
+				<!-- 23 px high like the entries of their menus, the 15 px text line on rows 4 to 18 as in the WPF head's headers
+				     (the window's TextBlock.LineHeight of 15; with Avalonia's natural 16 the bar had come out 24 px and
+				     everything under it a pixel low, 2026-11-11) -->
 				<Setter Property="Padding" Value="7,4" />
 				<Setter Property="MinHeight" Value="23" />
 				<Setter Property="Template">
@@ -372,6 +378,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			     up so its first entry is level with this one (over the popup's padding and border) -->
 			<ControlTheme x:Key="{x:Type MenuItem}" TargetType="MenuItem">
 				<Setter Property="Background" Value="Transparent" />
+				<Setter Property="FocusAdorner" Value="{x:Null}" />
 				<Setter Property="Foreground" Value="{DynamicResource MenuForeground}" />
 				<Setter Property="Padding" Value="2" />
 				<Setter Property="MinHeight" Value="23" />
@@ -557,7 +564,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Style Selector="^:pointerover /template/ ContentPresenter#PART_ContentPresenter">
 					<Setter Property="Background" Value="{DynamicResource ButtonHover}" />
 				</Style>
-				<Style Selector="^:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+				<!-- :focus, not :focus-visible: WPF's IsKeyboardFocused holds after a click as well (2026-11-11) -->
+			<Style Selector="^:focus /template/ ContentPresenter#PART_ContentPresenter">
 					<Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
 				</Style>
 				<Style Selector="^:pressed /template/ ContentPresenter#PART_ContentPresenter">
@@ -587,7 +595,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Style Selector="^:pointerover /template/ Border#PART_Root">
 					<Setter Property="Background" Value="{DynamicResource ButtonHover}" />
 				</Style>
-				<Style Selector="^:focus-visible /template/ Border#PART_Root">
+				<Style Selector="^:focus /template/ Border#PART_Root">
 					<Setter Property="Background" Value="{DynamicResource Accent}" />
 				</Style>
 			</ControlTheme>

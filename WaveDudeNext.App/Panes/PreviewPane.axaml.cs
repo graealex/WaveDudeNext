@@ -482,8 +482,7 @@ public partial class PreviewPane : UserControl
 		auto.Bind(ToolTip.TipProperty, this.GetResourceObservable("TipAutoBrightness"));
 		AutomationProperties.SetAutomationId(auto, idPrefix + "AutoBrightness");
 		var tools = new StackPanel { Orientation = Orientation.Horizontal, Children = { brightness, auto } };
-		// above the picture, no margin over it; turned on its side it keeps 10 px (the user's request)
-		var header = new HeaderStrip { Margin = new Thickness(0, 0, 0, 4), Children = { title, caption, tools } };
+		var header = new HeaderStrip { Children = { title, caption, tools } };
 
 		var picture = new CanvasImage();
 		AutomationProperties.SetAutomationId(picture, idPrefix);
@@ -525,12 +524,16 @@ public partial class PreviewPane : UserControl
 		var stack = new Grid { Background = Brushes.Black, Children = { picture, outline, overlayHost, graphs, busy } };
 		// the edge line: 1 px around the picture, red for a reflective wall, blue for a damping rim outside the canvas
 		var edge = new Border { BorderThickness = new Thickness(1), BorderBrush = Brushes.Transparent, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Child = stack };
-		var frame = new PictureFrame { Margin = new Thickness(4), Children = { header, edge }, ContextMenu = BuildContextMenu(layer) };
+		// the strip's host, which the frame turns on its side with a layout transform (PictureFrame): the margin is the host's,
+		// in the frame's space as in WPF: above the picture no margin over it, 4 px to the picture; turned on its side it
+		// keeps 10 px at its start, the top of the cell (the user's request, upstream)
+		var headerHost = new LayoutTransformControl { Child = header, Margin = new Thickness(0, 0, 0, 4) };
+		var frame = new PictureFrame { Margin = new Thickness(4), Children = { headerHost, edge }, ContextMenu = BuildContextMenu(layer) };
 		frame.PropertyChanged += (_, e) =>
 		{
 			if (e.Property == PictureFrame.IsLabelOnSideProperty)
 			{
-				header.Margin = frame.IsLabelOnSide ? new Thickness(0, 10, 0, 4) : new Thickness(0, 0, 0, 4);
+				headerHost.Margin = frame.IsLabelOnSide ? new Thickness(0, 10, 0, 4) : new Thickness(0, 0, 0, 4);
 			}
 		};
 		return new PictureCell

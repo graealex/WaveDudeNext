@@ -30,12 +30,15 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<!-- the glyphs (the transport bar's, the spinner's ring, a graph box's resize grip) are the shared geometries of
 			     Themes/Icons.axaml, which the application merges -->
 
-			<!-- filled-glyph transport button; Content is the geometry. A tab stop: keyboard focus shows as an accent border -->
+			<!-- filled-glyph transport button; Content is the geometry. A tab stop: keyboard focus shows as an accent border and
+			     nothing else (no adorner; :focus, not :focus-visible, since WPF's IsKeyboardFocused holds after a click too;
+			     2026-11-11, the focus look brought to the WPF head's) -->
 			<ControlTheme x:Key="TransportButton" TargetType="Button">
 				<Setter Property="Width" Value="22" />
 				<Setter Property="Height" Value="22" />
 				<Setter Property="Margin" Value="1,0" />
 				<Setter Property="Padding" Value="0" />
+				<Setter Property="FocusAdorner" Value="{x:Null}" />
 				<Setter Property="Foreground" Value="{DynamicResource WindowForeground}" />
 				<Setter Property="Template">
 					<ControlTemplate>
@@ -47,7 +50,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Style Selector="^:pointerover /template/ Border#Bd">
 					<Setter Property="Background" Value="{DynamicResource ButtonHover}" />
 				</Style>
-				<Style Selector="^:focus-visible /template/ Border#Bd">
+				<Style Selector="^:focus /template/ Border#Bd">
 					<Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
 				</Style>
 				<Style Selector="^:pressed /template/ Border#Bd">
@@ -69,6 +72,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Setter Property="Height" Value="22" />
 				<Setter Property="Margin" Value="1,0" />
 				<Setter Property="Padding" Value="0" />
+				<Setter Property="FocusAdorner" Value="{x:Null}" />
 				<Setter Property="Foreground" Value="{DynamicResource WindowForeground}" />
 				<Setter Property="Template">
 					<ControlTemplate>
@@ -80,7 +84,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Style Selector="^:pointerover /template/ Border#Bd">
 					<Setter Property="Background" Value="{DynamicResource ButtonHover}" />
 				</Style>
-				<Style Selector="^:focus-visible /template/ Border#Bd">
+				<Style Selector="^:focus /template/ Border#Bd">
 					<Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
 				</Style>
 				<Style Selector="^:checked /template/ Border#Bd">
@@ -101,6 +105,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Setter Property="Height" Value="22" />
 				<Setter Property="Margin" Value="1,0" />
 				<Setter Property="Padding" Value="0" />
+				<Setter Property="FocusAdorner" Value="{x:Null}" />
 				<Setter Property="Foreground" Value="{DynamicResource WindowForeground}" />
 				<Setter Property="Template">
 					<ControlTemplate>
@@ -112,7 +117,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 				<Style Selector="^:pointerover /template/ Border#Bd">
 					<Setter Property="Background" Value="{DynamicResource ButtonHover}" />
 				</Style>
-				<Style Selector="^:focus-visible /template/ Border#Bd">
+				<Style Selector="^:focus /template/ Border#Bd">
 					<Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
 				</Style>
 				<Style Selector="^:checked /template/ Border#Bd">
@@ -131,6 +136,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			     grip at its bottom-right corner. The box itself is drawn by the overlay -->
 			<ControlTheme x:Key="ProbeBoxThumb" TargetType="Thumb">
 				<Setter Property="Cursor" Value="SizeAll" />
+				<Setter Property="FocusAdorner" Value="{x:Null}" />
 				<Setter Property="Template">
 					<ControlTemplate>
 						<Border Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" />
@@ -147,6 +153,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<ControlTheme x:Key="ProbeBoxCornerThumb" TargetType="Thumb">
 				<Setter Property="Width" Value="12" />
 				<Setter Property="Height" Value="12" />
+				<Setter Property="FocusAdorner" Value="{x:Null}" />
 				<Setter Property="Cursor" Value="BottomRightCorner" />
 				<Setter Property="Foreground" Value="#A0FFFFFF" />
 				<Setter Property="Template">
@@ -167,6 +174,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 			<!-- the splitter between the pictures: a tab stop, arrows move it, Enter or a double-click puts it back in the middle -->
 			<ControlTheme x:Key="PictureSplitter" TargetType="GridSplitter" BasedOn="{StaticResource {x:Type GridSplitter}}">
 				<Setter Property="Background" Value="{DynamicResource SplitterBackground}" />
+				<Setter Property="FocusAdorner" Value="{x:Null}" />
 				<Style Selector="^:pointerover">
 					<Setter Property="Background" Value="{DynamicResource ButtonHover}" />
 				</Style>

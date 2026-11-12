@@ -18,7 +18,10 @@
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
+using Avalonia.Controls.Presenters;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 
 namespace WaveDudeNext.App.Controls;
 
@@ -29,8 +32,10 @@ namespace WaveDudeNext.App.Controls;
 /// the label stays at the top (or the left) of the cell, the picture centred in the rest. The first child is the label,
 /// the second the picture (a <see cref="CanvasImage"/>, whose canvas gives the aspect ratio, or an <see cref="Image"/>
 /// whose source gives it, 16:9 when there is none; or a panel holding one under an overlay, possibly inside the edge
-/// line's border). Avalonia has no layout transform on a control, so the turn is a render transform the frame sets
-/// itself: the label is measured and arranged with its axes swapped and rotated into the column it occupies. UI thread.
+/// line's border). The label is a <see cref="LayoutTransformControl"/> holding the strip, whose
+/// <see cref="LayoutTransformControl.LayoutTransform"/> the frame sets to the 90° turn and takes away again: a layout
+/// transform, as the WPF frame's, so the label's margin counts in the frame's space and its content stays on whole pixels
+/// (2026-11-11; a render transform about the centre had put the strip's borders on half pixels). UI thread.
 /// </summary>
 public sealed class PictureFrame : Panel
 {
@@ -45,6 +50,14 @@ public sealed class PictureFrame : Panel
 	private static readonly RotateTransform SideTransform = new(90);
 
 	private const double DefaultAspect = 16.0 / 9.0;
+
+	/// <summary>
+	/// The weight of the turned text (2026-11-11, a test for the user): hinted in grey under the turn, each stem is one row
+	/// of full intensity with nothing beside, where WPF's turned ClearType gives it a light shoulder either side (80 241 80
+	/// along the text); a halo of the text's own colour, blurred by a pixel, puts the shoulders there. Shared by every
+	/// text of the strip, its colour the inherited foreground at the last measure.
+	/// </summary>
+	private readonly DropShadowEffect _halo = new() { BlurRadius = 0.0, OffsetX = 1.0, OffsetY = 0.0, Opacity = 0.24 };
 
 	private bool _isLabelOnSide;
 
@@ -88,17 +101,38 @@ public sealed class PictureFrame : Panel
 		{
 			IsLabelOnSide = side;
 		}
-		// turned on its side the label runs along the picture's height, so it is measured with its axes swapped
-		label.Measure(side ? new Size(availableSize.Height, availableSize.Width) : availableSize);
-		Size labelSize = side ? new Size(label.DesiredSize.Height, label.DesiredSize.Width) : label.DesiredSize;
+		// the turn is a layout transform on the label's host (WPF's LayoutTransform; Avalonia's LayoutTransformControl does
+		// the same: its desired size is the turned one, its child laid out in its own space and drawn turned about the
+		// corner, so the margin counts in the frame's space and the content stays on whole pixels; 2026-11-11, the look
+		// brought to the WPF head's: a render transform about the centre had put the strip's borders on half pixels and its
+		// margin on the wrong sides)
+		if (label is LayoutTransformControl host && !ReferenceEquals(host.LayoutTransform, side ? SideTransform : null))
+		{
+			host.LayoutTransform = side ? SideTransform : null;
+			// turned text is antialiased in grey (2026-11-11, the user's picture of the stacked strip's "Brightness"): under
+			// the turn Skia's DirectWrite backend renders LCD text without grid fitting, heavy and strongly coloured at every
+			// hinting level, where in grey it snaps every stem to a row, as WPF's turned ClearType does. The mode counts only
+			// because the window leaves its own unspecified (Theming/TextRendering): the Skia backend's draw context merges a
+			// visual's options into the current ones by filling what is unspecified, so a mode set on the window had stood
+			// over this one (measured so, four ways, before the window's was taken away). Above the picture the mode goes
+			// back to unspecified, the window's subpixel default
+			TextOptions.SetTextRenderingMode(host, side ? TextRenderingMode.Antialias : TextRenderingMode.Unspecified);
+			// the semibold face was tried for the weight and refused (2026-11-11): hinted under the turn it lost the stem of
+			// the g into its bowl, where the regular face keeps every stroke
+		}
+		label.Measure(availableSize);
+		if (label is LayoutTransformControl measured)
+		{
+			ApplyHalo(measured, side);
+		}
 		double gap = Gap;
 		Size rest = side
-			? new Size(Math.Max(0, availableSize.Width - labelSize.Width - gap), availableSize.Height)
-			: new Size(availableSize.Width, Math.Max(0, availableSize.Height - labelSize.Height - gap));
+			? new Size(Math.Max(0, availableSize.Width - label.DesiredSize.Width - gap), availableSize.Height)
+			: new Size(availableSize.Width, Math.Max(0, availableSize.Height - label.DesiredSize.Height - gap));
 		picture.Measure(rest);
 		Size content = side
-			? new Size(labelSize.Width + gap + picture.DesiredSize.Width, Math.Max(labelSize.Height, picture.DesiredSize.Height))
-			: new Size(Math.Max(labelSize.Width, picture.DesiredSize.Width), labelSize.Height + gap + picture.DesiredSize.Height);
+			? new Size(label.DesiredSize.Width + gap + picture.DesiredSize.Width, Math.Max(label.DesiredSize.Height, picture.DesiredSize.Height))
+			: new Size(Math.Max(label.DesiredSize.Width, picture.DesiredSize.Width), label.DesiredSize.Height + gap + picture.DesiredSize.Height);
 		return new Size(double.IsInfinity(availableSize.Width) ? content.Width : Math.Max(content.Width, availableSize.Width),
 			double.IsInfinity(availableSize.Height) ? content.Height : Math.Max(content.Height, availableSize.Height));
 	}
@@ -119,27 +153,49 @@ public sealed class PictureFrame : Panel
 		double gap = Gap;
 		if (IsLabelOnSide)
 		{
-			// the label's own width runs down the side (its length), its height is the column's width; rotated by 90°
-			// about its centre, an element arranged at (x, y, length, thickness) covers (x + length/2 - thickness/2,
-			// y + thickness/2 - length/2, thickness, length), so it is placed where that rectangle is the left column
-			double thickness = Math.Min(label.DesiredSize.Height, finalSize.Width);
-			double length = finalSize.Height;
-			label.RenderTransform = SideTransform;
-			label.RenderTransformOrigin = RelativePoint.Center;
-			label.Arrange(new Rect(thickness / 2 - length / 2, length / 2 - thickness / 2, length, thickness));
-			picture.Arrange(new Rect(thickness + gap, 0, Math.Max(0, finalSize.Width - thickness - gap), finalSize.Height));
+			// the turned label is a column down the left (its desired width is its thickness, margins included), the picture takes the rest
+			double w = Math.Min(label.DesiredSize.Width, finalSize.Width);
+			label.Arrange(new Rect(0, 0, w, finalSize.Height));
+			picture.Arrange(new Rect(w + gap, 0, Math.Max(0, finalSize.Width - w - gap), finalSize.Height));
 		}
 		else
 		{
-			if (label.RenderTransform != null)
-			{
-				label.RenderTransform = null;
-			}
 			double h = Math.Min(label.DesiredSize.Height, finalSize.Height);
 			label.Arrange(new Rect(0, 0, finalSize.Width, h));
 			picture.Arrange(new Rect(0, h + gap, finalSize.Width, Math.Max(0, finalSize.Height - h - gap)));
 		}
 		return finalSize;
+	}
+
+	/// <inheritdoc/>
+	protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+	{
+		base.OnPropertyChanged(change);
+		// the halo keeps the text's colour through a theme change, which changes the inherited foreground without a measure
+		if (change.Property == TextElement.ForegroundProperty && change.GetNewValue<IBrush?>() is ISolidColorBrush brush)
+		{
+			_halo.Color = brush.Color;
+		}
+	}
+
+	/// <summary>
+	/// Puts the halo on every text of the turned strip (the title, the caption, the tools' label, the number box's text and
+	/// the button's), or takes it off every one when the strip lies above the picture; after the strip's measure, which
+	/// applies the templates the texts live in. The colour is the inherited foreground's.
+	/// </summary>
+	private void ApplyHalo(Control host, bool on)
+	{
+		if (on && TextElement.GetForeground(host) is ISolidColorBrush brush)
+		{
+			_halo.Color = brush.Color;
+		}
+		foreach (Visual visual in host.GetVisualDescendants())
+		{
+			if (visual is TextBlock or TextPresenter)
+			{
+				visual.Effect = on ? _halo : null;
+			}
+		}
 	}
 
 	/// <summary>

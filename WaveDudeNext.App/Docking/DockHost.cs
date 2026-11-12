@@ -840,8 +840,9 @@ public sealed class DockHost : Panel
 			ResizeDirection = rows ? GridResizeDirection.Rows : GridResizeDirection.Columns,
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			VerticalAlignment = VerticalAlignment.Stretch,
-			Focusable = true,
-			KeyboardIncrement = 10,
+			// out of the keyboard's way, as the WPF host's splitters are (2026-11-11: a focusable splitter was a Tab stop
+			// between the tree and the properties form and another before the preview, each showing a white frame)
+			Focusable = false,
 		};
 		splitter[!StyledElement.ThemeProperty] = new DynamicResourceExtension(SplitterThemeKey);
 		if (rows)

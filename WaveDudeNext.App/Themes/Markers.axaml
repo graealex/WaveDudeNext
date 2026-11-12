@@ -38,6 +38,8 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<ControlTheme x:Key="MarkerBase" TargetType="controls:MarkerThumb">
 		<Setter Property="Width" Value="21" />
 		<Setter Property="Height" Value="21" />
+		<!-- the focus is the fill and the stroke below, nothing round the handle (2026-11-11: Avalonia's default adorner) -->
+		<Setter Property="FocusAdorner" Value="{x:Null}" />
 		<Setter Property="Cursor" Value="SizeAll" />
 		<Setter Property="Foreground" Value="{DynamicResource PictureHandle}" />
 		<Setter Property="Background" Value="#60000000" />

@@ -77,7 +77,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 		<Setter Property="BorderBrush" Value="Transparent" />
 		<Setter Property="Foreground" Value="{DynamicResource Accent}" />
 	</Style>
-	<Style Selector="Button.link:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+	<Style Selector="Button.link:focus /template/ ContentPresenter#PART_ContentPresenter">
 		<Setter Property="BorderBrush" Value="Transparent" />
 	</Style>
 	<Style Selector="Button.link TextBlock">
@@ -86,7 +86,7 @@ version. It is distributed WITHOUT ANY WARRANTY. See the LICENSE.md file or
 	<Style Selector="Button.link:pointerover TextBlock">
 		<Setter Property="TextDecorations" Value="Underline" />
 	</Style>
-	<Style Selector="Button.link:focus-visible TextBlock">
+	<Style Selector="Button.link:focus TextBlock">
 		<Setter Property="TextDecorations" Value="Underline" />
 	</Style>
 

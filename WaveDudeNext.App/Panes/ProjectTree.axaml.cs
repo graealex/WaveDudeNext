@@ -378,9 +378,12 @@ public partial class ProjectTree : UserControl
 		{
 			parent.IsExpanded = true;
 		}
-		if (focus)
+		if (focus && !container.Focus())
 		{
-			container.Focus();
+			// a row Avalonia will not focus yet (not laid out and so not effectively visible: the project just opened in
+			// the window's Opened handler) is focused once it has been (2026-11-11: the root row of an opened project had
+			// stayed selected but unfocused, grey where the WPF tree's is blue, until a key moved the focus)
+			Dispatcher.UIThread.Post(() => container.Focus(), DispatcherPriority.Loaded);
 		}
 		return true;
 	}
