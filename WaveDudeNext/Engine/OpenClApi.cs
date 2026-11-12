@@ -23,17 +23,23 @@ namespace WaveDudeNext.Engine;
 
 /// <summary>
 /// The part of the OpenCL 1.2 C interface that the GPU simulation needs, called directly from the ICD loader
-/// (OpenCL.dll on Windows, libOpenCL.so elsewhere; the import name "OpenCL" resolves to either) plus a few
-/// query helpers. OpenCL.dll is installed with the driver of the graphics card (NVIDIA, Intel and AMD all
-/// install it), so no extra package is needed. Names and parameters follow the C header
-/// (cl.h); <c>size_t</c> is an <see cref="IntPtr"/>, <c>cl_bitfield</c> a <c>ulong</c>, <c>cl_uint</c> a
+/// (OpenCL.dll on Windows, libOpenCL.so.1 on Linux, the OpenCL framework on macOS; the import name "OpenCL" is
+/// resolved to the one of the operating system by <see cref="OpenClLoader"/>, installed by this class's static
+/// constructor before its first import) plus a few query helpers. The loader is installed with the driver of the
+/// graphics card (NVIDIA, Intel and AMD all install it), so no extra package is needed. Names and parameters follow
+/// the C header (cl.h); <c>size_t</c> is an <see cref="IntPtr"/>, <c>cl_bitfield</c> a <c>ulong</c>, <c>cl_uint</c> a
 /// <c>uint</c> and <c>cl_bool</c> a <c>uint</c>. Used by <see cref="GpuDeviceInfo"/> and
 /// <see cref="GpuWaveSimulator"/>; every call returns an OpenCL error code (0 = CL_SUCCESS) that callers route
-/// through <see cref="Check"/>. Loading the DLL is deferred to the first call, so
+/// through <see cref="Check"/>. Loading the library is deferred to the first call, so
 /// <see cref="DllNotFoundException"/> and friends surface there.
 /// </summary>
 internal static class OpenClApi
 {
+	static OpenClApi()
+	{
+		OpenClLoader.Install();
+	}
+
 	// ---- platforms and devices
 
 	/// <summary>clGetPlatformIDs: with <paramref name="platforms"/> null only counts the platforms into <paramref name="numPlatforms"/>.</summary>

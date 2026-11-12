@@ -975,6 +975,11 @@ internal static class Program
 			using (gpu)
 			{
 				Console.WriteLine("  " + gpu.Description);
+				// the loader the library's resolver found for the "OpenCL" import (2026-11-12): the OS's own name, first of the candidates
+				string firstCandidate = OpenClLoader.Candidates[0];
+				Check(OperatingSystem.IsWindows() ? firstCandidate == "OpenCL.dll" : OperatingSystem.IsMacOS() ? firstCandidate.EndsWith("/OpenCL.framework/OpenCL", StringComparison.Ordinal) : firstCandidate == "libOpenCL.so.1",
+					"OpenCL loader candidates for this OS (" + string.Join(", ", OpenClLoader.Candidates) + ")");
+				Check(OpenClLoader.Library == firstCandidate, "OpenCL loader resolved to " + firstCandidate + " (got '" + OpenClLoader.Library + "')");
 				gpu.SetProbes(Probes(W, H));
 				Run(gpu, Steps);
 				float diffField = MaxDiff(cpuField, gpu.FieldData);

@@ -1737,6 +1737,18 @@ in the App on Windows). Proven by a start of each head with the registry read af
 executable into both classes' open commands under `HKCU\Software\Classes` (the routine writes `HKEY_CLASSES_ROOT`,
 which Windows lands there for a process that is not elevated, and the log line names the root it wrote), the WPF
 start took them back.
+**The OpenCL loader is found per operating system** (2026-11-12, the first of the library's Linux and macOS bits, the
+user's pick): `Engine/OpenClLoader`, public, installs a `DllImportResolver` on the library's assembly from
+`OpenClApi`'s static constructor (which runs before its first import) and resolves the "OpenCL" import to the first
+of its `Candidates` that loads: `OpenCL.dll` on Windows, `/System/Library/Frameworks/OpenCL.framework/OpenCL` on
+macOS (the runtime would probe `libOpenCL.dylib`, which does not exist), `libOpenCL.so.1` then `libOpenCL.so` on Linux
+(the driver ships only the versioned name; the runtime probes the unversioned one, which the development package
+provides); `Library` names the one loaded, logged once at Debug; when none loads the runtime's own probing runs and
+`WaveEngineFactory`'s reason for the CPU engine names the candidates. The contributed port had the same resolver in
+a `PlatformSupport` class the applications had to call; here nothing calls anything. `library_check` proves the
+candidates for the OS it runs on and that the loader resolved to the first (LIBRARY OK on Windows, `OpenCL.dll`); the
+Linux and macOS cases are proven when those machines boot. Still to come for Linux: the memory facts from
+`/proc/meminfo`, `StorageDevice` answering unknown, the H.264 sink absent without Media Foundation, the paths.
 
 ## People, name, license
 
