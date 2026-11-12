@@ -463,12 +463,21 @@ public partial class MainWindow : Window
 		}
 	}
 
-	/// <summary>The window's size, position and state as the last session left them (the size at zoom 1, which the zoom multiplies).</summary>
+	/// <summary>
+	/// The window's size, position and state as the last session left them (the size at zoom 1, which the zoom multiplies).
+	/// The settings hold the whole window's size, frame included, as the WPF window's Width and Height are; Avalonia's are
+	/// the client area, so the frame comes off here and goes back on in <see cref="SavePlacement"/>, which the platform
+	/// knows before the window shows (2026-11-11, the user's choice of one settings file for both heads with no
+	/// discrepancy: the same numbers had made this window 16 px wider and 39 px taller than the WPF one at 100 %). The
+	/// zoom multiplies the client later (<see cref="WindowZoom.Attach"/>) and never the frame, which is the OS's, so what
+	/// comes off is the frame at zoom 1. Where the platform does not know its frame before showing (X11), the client stands for the whole.
+	/// </summary>
 	private void RestorePlacement()
 	{
 		Settings settings = Settings.Default;
-		Width = settings.WindowWidth;
-		Height = settings.WindowHeight;
+		Size frame = FrameSize is { } outer ? outer - ClientSize : default;
+		Width = Math.Max(1, settings.WindowWidth - frame.Width / WindowZoom.Scale);
+		Height = Math.Max(1, settings.WindowHeight - frame.Height / WindowZoom.Scale);
 		if (!double.IsNaN(settings.WindowLeft) && !double.IsNaN(settings.WindowTop))
 		{
 			WindowStartupLocation = WindowStartupLocation.Manual;
@@ -487,8 +496,10 @@ public partial class MainWindow : Window
 		settings.WindowState = WindowState == WindowState.Maximized ? WindowMode.Maximized : WindowMode.Normal;
 		if (WindowState == WindowState.Normal)
 		{
-			settings.WindowWidth = Width / WindowZoom.Scale;
-			settings.WindowHeight = Height / WindowZoom.Scale;
+			// the whole window at zoom 1, as the WPF window writes it (see RestorePlacement)
+			Size frame = FrameSize is { } outer ? outer - ClientSize : default;
+			settings.WindowWidth = (Width + frame.Width) / WindowZoom.Scale;
+			settings.WindowHeight = (Height + frame.Height) / WindowZoom.Scale;
 			settings.WindowLeft = Position.X;
 			settings.WindowTop = Position.Y;
 		}
