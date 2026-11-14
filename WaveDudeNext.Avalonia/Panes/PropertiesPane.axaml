@@ -1,0 +1,55 @@
+
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:WaveDudeNext.Avalonia.Panes"
+    xmlns:rendering="using:WaveDudeNext.Rendering"
+    xmlns:model="using:WaveDudeNext.Model"
+    xmlns:views="using:WaveDudeNext.Avalonia.Views"
+    x:Class="WaveDudeNext.Avalonia.Panes.PropertiesPane">
+
+    <UserControl.DataTemplates>
+        <DataTemplate DataType="model:Project"><views:ProjectView/></DataTemplate>
+        <DataTemplate DataType="model:Scene"><views:SceneView/></DataTemplate>
+        <DataTemplate DataType="model:Simulation"><views:SimulationView/></DataTemplate>
+        <DataTemplate DataType="model:Display"><views:DisplayView/></DataTemplate>
+        <DataTemplate DataType="model:Source"><views:SourceView/></DataTemplate>
+        <DataTemplate DataType="model:LensPart"><views:LensPartView/></DataTemplate>
+        <DataTemplate DataType="model:PolygonPart"><views:PolygonPartView/></DataTemplate>
+        <DataTemplate DataType="model:RectanglePart"><views:RectanglePartView/></DataTemplate>
+        <DataTemplate DataType="model:EllipsePart"><views:EllipsePartView/></DataTemplate>
+        <DataTemplate DataType="model:TrianglePart"><views:TrianglePartView/></DataTemplate>
+        <DataTemplate DataType="model:OutlinePart"><views:OutlinePartView/></DataTemplate>
+        <DataTemplate DataType="model:FiberPart"><views:FiberPartView/></DataTemplate>
+        <DataTemplate DataType="model:BraggReflectorPart"><views:BraggReflectorPartView/></DataTemplate>
+        <DataTemplate DataType="model:GrinLensPart"><views:GrinLensPartView/></DataTemplate>
+        <DataTemplate DataType="model:ZonePlatePart"><views:ZonePlatePartView/></DataTemplate>
+        <DataTemplate DataType="model:LogicGatePart"><views:LogicGatePartView/></DataTemplate>
+        <DataTemplate DataType="model:Probe"><views:ProbeView/></DataTemplate>
+        <DataTemplate DataType="rendering:ColorScheme"><views:ColorSchemeView/></DataTemplate>
+        <DataTemplate DataType="local:CollectionSelection">
+            <StackPanel Margin="8" Spacing="8">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding Count, StringFormat='Items: {0}'}"/>
+                <ItemsControl ItemsSource="{Binding Items}"/>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+
+    <Grid>
+		<ContentControl
+		    Focusable="False"
+		    Content="{Binding SelectedObject,
+		              RelativeSource={RelativeSource
+		              AncestorType=local:PropertiesPane}}"/>
+
+		<TextBlock Text="Select an object in the Project tree."
+		           Margin="8"
+		           Foreground="#999999"
+		           IsVisible="{Binding SelectedObject,
+		                       RelativeSource={RelativeSource
+		                       AncestorType=local:PropertiesPane},
+		                       Converter={x:Static ObjectConverters.IsNull}}"/>
+	</Grid>
+</UserControl>
+
